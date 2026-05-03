@@ -1,0 +1,178 @@
+/* Commun */
+"common.close" = "Fermer";
+"common.cancel" = "Annuler";
+"common.loading" = "Chargement…";
+
+/* Accueil & jeu */
+"game.tagline" = "Un jeu de Blox";
+"start.button" = "JOUER";
+"start.settings" = "Réglages";
+"start.credits" = "Crédits";
+"start.pvp" = "P vs P";
+"start.player_unknown" = "Joueur inconnu";
+"start.player_name_format" = "Joueur : %@";
+"start.player_elo_format" = "Classement Elo : %lld";
+"start.player_elo_unavailable" = "Classement Elo : —";
+
+"pvp.lobby_title" = "Multijoueur";
+"pvp.lobby_play_friend" = "Jouer avec un ami";
+"pvp.lobby_invite_players" = "Inviter des joueurs";
+"pvp.lobby_find_opponent" = "Trouver un adversaire";
+"pvp.lobby_find_opponent_prompt_title" = "Comment trouver un adversaire ?";
+"pvp.lobby_random_opponent" = "Adversaire aléatoire";
+"pvp.lobby_choose_friend_from_find" = "Parmi mes amis";
+"pvp.lobby_pick_friend_title" = "Choisir un ami";
+"pvp.lobby_no_friends" = "Aucun ami Game Center.";
+"pvp.lobby_status_searching" = "Recherche d’un adversaire…";
+"pvp.lobby_status_connecting_friend" = "Connexion à l’ami…";
+"pvp.lobby_preparing_boards" = "Préparation des grilles…";
+"pvp.lobby_match_failed" = "Aucune partie trouvée.";
+"pvp.lobby_no_players_available" = "Pas de joueur présent.";
+"pvp.lobby_preparation_timeout" = "Préparation interrompue. Veuillez réessayer.";
+"pvp.auto_search_active_hint" = "En attente d'un adversaire… Ferme pour revenir à l'accueil.";
+"pvp.lobby_active_players_hint_format" = "%d joueur(s) actif(s) en ce moment";
+"pvp.unknown_opponent" = "Adversaire inconnu";
+"pvp.remote_fill_label_line1" = "Grille";
+"pvp.remote_fill_label_line2" = "adversaire";
+"pvp.lobby_opponent_found_format" = "Adversaire trouvé : %@";
+"pvp.lobby_search_hint" = "Appariement Elo";
+"pvp.lobby_matchmaking_error_format" = "Erreur : %@";
+
+"pvp.result_you_won" = "Tu as gagné !";
+"pvp.result_you_lost" = "Tu as perdu";
+"pvp.result_victory_against_format" = "Victoire contre %@";
+"pvp.result_defeat_against_format" = "Défaite contre %@";
+"pvp.result_win_subtitle" = "Ton adversaire ne peut plus jouer.";
+"pvp.result_lose_subtitle" = "Tu ne pouvais plus placer de blox.";
+"pvp.result_elo_loading" = "Mise à jour Elo…";
+"pvp.result_elo_unavailable" = "Classement Elo indisponible.";
+"pvp.result_elo_current_format" = "Elo : %lld";
+"pvp.result_elo_delta_format" = "%+lld pts";
+"pvp.result_elo_new_format" = "Nouvel Elo : %lld";
+"pvp.result_back_home" = "Retour à l’accueil";
+"pvp.result_rematch_ask" = "Revanche ?";
+"pvp.result_rematch_waiting" = "En attente de l’adversaire...";
+"pvp.result_rematch_opponent_ready" = "Adversaire prêt !";
+"pvp.result_rematch_launching" = "Lancement...";
+"pvp.hud_match_against_format" = "Match contre : %@";
+
+"menu.new_game" = "Nouvelle partie";
+"menu.scores" = "Scores";
+"menu.rules" = "Règles";
+"menu.settings" = "Réglages";
+"menu.multiplayer" = "Multijoueur";
+
+"game_over.title" = "PARTIE TERMINÉE";
+"game_over.focus_title" = "GAME OVER";
+"game_over.score_format" = "SCORE %lld";
+"game_over.restart" = "REJOUER";
+"game_over.leaderboard" = "Voir le classement";
+"game_over.personal_best" = "Nouveau record personnel !";
+"hud.best_score_title" = "RECORD";
+"hud.bonus_title" = "BONUS";
+"hud.best_score_format" = "%lld";
+
+"hud.next_blox" = "prochains blox";
+"hud.next_line" = "Prochaine ligne";
+"hud.next_bomb" = "Prochaine bombe";
+
+"gc.status.checking" = "GC : …";
+"gc.status.ok" = "GC : OK";
+"gc.status.off" = "GC : non";
+
+"skin.display.perso" = "Perso";
+"skin.display.default" = "Par défaut";
+
+/* Règles / crédits (fichiers manquants) */
+"rules.missing_file" = "Les règles s’afficheront ici une fois le fichier rules.txt ajouté au bundle de l’app.";
+"credits.missing_file" = "Ajoutez le contenu des crédits dans credits.txt (bundle) pour l’afficher ici.";
+
+"modal.rules_title" = "Règles";
+"modal.credits_title" = "Crédits";
+
+/* Classement */
+"leaderboard.title" = "Classement";
+"leaderboard.subtitle" = "BlomixMainScore";
+"leaderboard.loading" = "Chargement du classement…";
+"leaderboard.gc_sign_in" = "Connectez-vous à Game Center pour afficher le classement.";
+"leaderboard.gc_error_format" = "Erreur Game Center : %@";
+"leaderboard.not_found" = "Classement introuvable.";
+"leaderboard.load_error_format" = "Erreur de chargement : %@";
+"leaderboard.empty" = "Aucun score pour le moment.";
+"leaderboard.top_count_format" = "Top %lld";
+"leaderboard.points_format" = "%lld pts";
+"leaderboard.elo_format" = "Elo %lld";
+"leaderboard.main_tab" = "Scores";
+"leaderboard.elo_tab" = "Elo";
+
+/* Réglages */
+"settings.title" = "Réglages";
+"settings.section_sound" = "Son";
+"settings.section_font" = "Police";
+"settings.section_colors" = "Couleurs";
+"settings.adjust_sounds" = "Régler les sons";
+"settings.sound_mix_title" = "Mixage des sons";
+"settings.font_preview" = "Blomix 123";
+"settings.font.bitcount" = "Bitcount";
+"settings.font.google_sans" = "Google Sans";
+"settings.font.dynapuff" = "DynaPuff";
+"settings.font.alfa_slab_one" = "Alfa Slab One";
+"settings.sound_percent_format" = "%lld%%";
+"settings.sound.music" = "Musique d'ambiance";
+"settings.sound.begin" = "Début de partie";
+"settings.sound.place" = "Arrivée blox";
+"settings.sound.bomb" = "Bombe";
+"settings.sound.connect_e" = "Connexion 2 blox";
+"settings.sound.connect_f" = "Connexion 3 blox";
+"settings.sound.connect_gb" = "Connexion 4 blox";
+"settings.sound.chain_basic" = "Chaîne 5+";
+"settings.sound.chain_cascade_1" = "Chaîne 6-8 / cascade 1";
+"settings.sound.chain_cascade_2" = "Chaîne 9+ / cascades";
+"settings.sound.line" = "Arrivée d'une ligne";
+"settings.sound.end" = "Game over";
+"settings.sound.victory" = "Victoire PvP";
+"settings.sound.wrong" = "Colonne pleine";
+"settings.sound.empty_column" = "Colonne vidée";
+
+"start_screen.tip_header" = "— Conseil du jour —";
+
+"settings.music_picker_label" = "Morceau";
+"settings.music_track_puzzle_game2" = "Puzzle Game 2";
+"settings.music_track_calm" = "Calm";
+"settings.sound.pending_line" = "Alerte prochaine ligne";
+"settings.sound.priks_vanish" = "Disparition Priks";
+
+"tutorial.got_it" = "J’ai compris";
+"tutorial.dont_show_again" = "Afficher ce guide au démarrage";
+"tutorial.hint_score" = "Ton score";
+"tutorial.hint_grid" = "Cliques sur une colonne pour y lancer un blox. Le but est de faire des chaînes de 5 blox de même couleur.";
+"tutorial.hint_brix" = "De temps en temps, un blox spécial apparait (une brix) comportant un numéro. Cette brix ne disparait pas de la même manière, il faut faire des chaînes à proximité (5) pour faire diminuer le chiffre peu à peu...";
+"tutorial.hint_queue" = "Ici les prochains blox que tu pourras lancer. Tous les 10 blox lancés, une ligne vient perturber tes constructions.";
+"tutorial.hint_bomb" = "Tu peux jouer une bombe s'il t'en reste. Ça éclate une grosse zone !";
+"rules.show_guides_at_start" = "Afficher les guides au démarrage de la partie";
+"tutorial.page1_title" = "But du jeu";
+"tutorial.page1_body" = "Le but du jeu est de faire le plus gros score. Pour marquer des points, il faut utiliser les blox (pierres de couleur), et réussir à les placer dans la grille (du bas vers le haut), de manière à faire des \"chaînes\" de 5 blox de la même couleur. Les chaînes ainsi formées donnent des points, et disparaissent, laissant de la place pour les blox suivants.";
+"tutorial.page1_chain_caption" = "= chaine → points !";
+"tutorial.page2_title" = "Pas si facile !";
+"tutorial.page2_body" = "Le jeu serait un peu trop simple s’il fallait simplement faire des chaînes de couleur. Tous les 10 blox, une ligne de blox aléatoire va venir perturber vos beaux alignements. Et, le meilleur pour la fin, vous avez une chance sur 8 qu’un blox mute avant de pouvoir être lancé, et devienne une Brix. Cette pierre un peu spéciale, avec un numéro, ne peut pas être cassée comme les autres. Il faut faire des chaînes à proximité (5) pour la faire disparaître. Heureusement, vous disposez de bombes (une bombe en début de partie, et une nouvelle toutes les 10 chaînes créées) : une bombe casse les 9 cases autour de sa case d’impact, et casse les Brix d’un coup !";
+"tutorial.page3_title" = "A vous de jouer !";
+"tutorial.page3_body" = "Un petit bonus vous sera accordé si vous avez plus de Brix que la moyenne statistique. Ce n'est pas grand-chose, mais ça vous évitera de blâmer le sort ;).
+
+N'oubliez pas d'essayer le jeu en Player Vs Player : les règles sont identiques, mais tous les 50 points réalisés, vous \"envoyez\" une ligne de blox à l’autre joueur. Le vainqueur est celui qui parvient à rester en vie.
+
+Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs, les sons, pour rendre l’expérience de BLOMIX la plus agréable pour votre goût.";
+
+"pvp.mode_choice_hint" = "Comment voulez-vous jouer ?";
+"pvp.mode_auto_desc" = "Prêt à jouer";
+"pvp.mode_recent_desc" = "Adversaire récent";
+"pvp.recent_title" = "Adversaires récents";
+"pvp.recent_no_players" = "Aucun adversaire récent.\nJouez votre première partie PvP pour les voir apparaître ici.";
+"pvp.recent_challenge" = "Défier";
+"pvp.recent_elo_loading" = "Elo…";
+"pvp.recent_elo_unavailable" = "Elo —";
+"pvp.recent_invite_sent_format" = "Invitation envoyée à %@";
+"pvp.recent_invite_hint" = "En attente de réponse…";
+"pvp.recent_invite_failed" = "Invitation refusée ou expirée.";
+"pvp.invite_challenge_format" = "%@ vous défie !";
+"pvp.invite_accept" = "Accepter";
+"pvp.invite_decline" = "Refuser";

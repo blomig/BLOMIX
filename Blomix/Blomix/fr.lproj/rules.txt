@@ -1,0 +1,11 @@
+BLOMIX — Règles
+Voici les règles :
+
+- Empile les blox dans les colonnes.
+- Forme des chaînes d’au moins 5 blox de la même couleur (voisinage 8 directions) pour les faire disparaître et marquer des points
+- Les Prix (blox spéciaux avec un chiffre) nécessitent plusieurs explosions de chaînes à proximité avant de disparaître
+- Toutes les 10 lancers, une nouvelle ligne arrive du bas.
+
+Tu peux éliminer une zone entière (y compris les Prix) avec les bombes.
+
+Amuse-toi bien !

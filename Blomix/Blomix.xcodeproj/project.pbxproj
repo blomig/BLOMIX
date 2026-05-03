@@ -1,0 +1,639 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000021 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000001 /* AppDelegate.swift */; };
+		100000000000000000000022 /* GameViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000002 /* GameViewController.swift */; };
+		100000000000000000000023 /* GameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000003 /* GameScene.swift */; };
+		100000000000000000000024 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000005 /* Assets.xcassets */; };
+		100000000000000000000025 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000008 /* LaunchScreen.storyboard */; };
+		100000000000000000000026 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000006 /* Main.storyboard */; };
+		100000000000000000000150 /* begin.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000080 /* begin.wav */; };
+		100000000000000000000151 /* begin_new.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000081 /* begin_new.wav */; };
+		100000000000000000000152 /* bomb.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000082 /* bomb.wav */; };
+		100000000000000000000153 /* bomb_new.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000083 /* bomb_new.wav */; };
+		100000000000000000000154 /* chain.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000084 /* chain.mp3 */; };
+		100000000000000000000155 /* chain_new.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000085 /* chain_new.wav */; };
+		100000000000000000000156 /* empty_coll.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000086 /* empty_coll.wav */; };
+		100000000000000000000157 /* end.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000087 /* end.wav */; };
+		100000000000000000000158 /* end_new.wav in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000088 /* end_new.wav */; };
+		100000000000000000000159 /* line.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000089 /* line.mp3 */; };
+		10000000000000000000015A /* line.wav in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008A /* line.wav */; };
+		10000000000000000000015B /* line_new.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008B /* line_new.mp3 */; };
+		10000000000000000000015C /* place.wav in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008C /* place.wav */; };
+		10000000000000000000015D /* place_new.wav in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008D /* place_new.wav */; };
+		10000000000000000000015E /* BitcountGridSingleInk-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */; };
+		100000000000000000000165 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* SceneDelegate.swift */; };
+		100000000000000000000171 /* GameCenterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000170 /* GameCenterManager.swift */; };
+		100000000000000000000173 /* GameKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 100000000000000000000172 /* GameKit.framework */; };
+		100000000000000000000174 /* 5251__noisecollector__bloopa01.aiff in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000009F /* 5251__noisecollector__bloopa01.aiff */; };
+		100000000000000000000176 /* rules.txt in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000192 /* rules.txt */; };
+		100000000000000000000177 /* chain_new-1.wav in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A0 /* chain_new-1.wav */; };
+		100000000000000000000178 /* chain_new-2.wav in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A1 /* chain_new-2.wav */; };
+		100000000000000000000179 /* ScoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A2 /* ScoreManager.swift */; };
+		10000000000000000000017A /* LeaderboardViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A5 /* LeaderboardViewController.swift */; };
+		10000000000000000000017B /* gameover_quotes.json in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000019A /* gameover_quotes.json */; };
+		10000000000000000000017C /* credits.txt in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000195 /* credits.txt */; };
+		100000000000000000000188 /* color_skins.json in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000187 /* color_skins.json */; };
+		100000000000000000000189 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000018A /* Localizable.strings */; };
+		10000000000000000000018E /* BlomixL10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000018D /* BlomixL10n.swift */; };
+		1000000000000000000001A3 /* UserDefaults+BlomixGameTutorial.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001A1 /* UserDefaults+BlomixGameTutorial.swift */; };
+		1000000000000000000001A4 /* GameTutorialOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001A2 /* GameTutorialOverlayView.swift */; };
+		1000000000000000000001B2 /* BlomixPvPNetworking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001B0 /* BlomixPvPNetworking.swift */; };
+		1000000000000000000001B3 /* BlomixPvPUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001B1 /* BlomixPvPUI.swift */; };
+		1000000000000000000001B5 /* BlomixUIButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001B4 /* BlomixUIButtonStyle.swift */; };
+		1000000000000000000001B7 /* BlomixEloManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001B6 /* BlomixEloManager.swift */; };
+		1000000000000000000001B8 /* connect_E.wav in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001BB /* connect_E.wav */; };
+		1000000000000000000001B9 /* connect_F.wav in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001BC /* connect_F.wav */; };
+		1000000000000000000001BA /* connect_Gb.wav in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001BD /* connect_Gb.wav */; };
+		1000000000000000000001BE /* BlomixAudioMixSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001BF /* BlomixAudioMixSettings.swift */; };
+		1000000000000000000001C1 /* BlomixTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C0 /* BlomixTypography.swift */; };
+		1000000000000000000001C3 /* GoogleSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C2 /* GoogleSans-Regular.ttf */; };
+		1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C4 /* DynaPuff-Regular.ttf */; };
+		1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */; };
+		1000000000000000000001C9 /* BlomixMusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C8 /* BlomixMusicPlayer.swift */; };
+		1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CA /* Puzzle Game 2.mp3 */; };
+		1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CC /* BlomixAmbientBlocksView.swift */; };
+		E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */; };
+		E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */; };
+		E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		100000000000000000000002 /* GameViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewController.swift; sourceTree = "<group>"; };
+		100000000000000000000003 /* GameScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameScene.swift; sourceTree = "<group>"; };
+		100000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		100000000000000000000005 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		100000000000000000000007 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Main.storyboard; sourceTree = "<group>"; };
+		100000000000000000000009 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		100000000000000000000010 /* BLOMIX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BLOMIX.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000071 /* AboutSounds.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = AboutSounds.txt; sourceTree = "<group>"; };
+		100000000000000000000080 /* begin.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = begin.wav; sourceTree = "<group>"; };
+		100000000000000000000081 /* begin_new.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = begin_new.wav; sourceTree = "<group>"; };
+		100000000000000000000082 /* bomb.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = bomb.wav; sourceTree = "<group>"; };
+		100000000000000000000083 /* bomb_new.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = bomb_new.wav; sourceTree = "<group>"; };
+		100000000000000000000084 /* chain.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = chain.mp3; sourceTree = "<group>"; };
+		100000000000000000000085 /* chain_new.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = chain_new.wav; sourceTree = "<group>"; };
+		100000000000000000000086 /* empty_coll.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = empty_coll.wav; sourceTree = "<group>"; };
+		100000000000000000000087 /* end.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = end.wav; sourceTree = "<group>"; };
+		100000000000000000000088 /* end_new.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = end_new.wav; sourceTree = "<group>"; };
+		100000000000000000000089 /* line.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = line.mp3; sourceTree = "<group>"; };
+		10000000000000000000008A /* line.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = line.wav; sourceTree = "<group>"; };
+		10000000000000000000008B /* line_new.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = line_new.mp3; sourceTree = "<group>"; };
+		10000000000000000000008C /* place.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = place.wav; sourceTree = "<group>"; };
+		10000000000000000000008D /* place_new.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = place_new.wav; sourceTree = "<group>"; };
+		10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BitcountGridSingleInk-Variable.ttf"; sourceTree = "<group>"; };
+		100000000000000000000096 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		10000000000000000000009F /* 5251__noisecollector__bloopa01.aiff */ = {isa = PBXFileReference; lastKnownFileType = audio.aiff; path = 5251__noisecollector__bloopa01.aiff; sourceTree = "<group>"; };
+		1000000000000000000000A0 /* chain_new-1.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "chain_new-1.wav"; sourceTree = "<group>"; };
+		1000000000000000000000A1 /* chain_new-2.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "chain_new-2.wav"; sourceTree = "<group>"; };
+		1000000000000000000000A2 /* ScoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreManager.swift; sourceTree = "<group>"; };
+		1000000000000000000000A4 /* Blomix.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Blomix.entitlements; sourceTree = "<group>"; };
+		1000000000000000000000A5 /* LeaderboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardViewController.swift; sourceTree = "<group>"; };
+		100000000000000000000170 /* GameCenterManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenterManager.swift; sourceTree = "<group>"; };
+		100000000000000000000172 /* GameKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameKit.framework; path = System/Library/Frameworks/GameKit.framework; sourceTree = SDKROOT; };
+		100000000000000000000187 /* color_skins.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = color_skins.json; sourceTree = "<group>"; };
+		10000000000000000000018B /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		10000000000000000000018C /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
+		10000000000000000000018D /* BlomixL10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixL10n.swift; sourceTree = "<group>"; };
+		100000000000000000000193 /* en */ = {isa = PBXFileReference; lastKnownFileType = text; name = en; path = en.lproj/rules.txt; sourceTree = "<group>"; };
+		100000000000000000000194 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text; name = fr; path = fr.lproj/rules.txt; sourceTree = "<group>"; };
+		100000000000000000000196 /* en */ = {isa = PBXFileReference; lastKnownFileType = text; name = en; path = en.lproj/credits.txt; sourceTree = "<group>"; };
+		100000000000000000000197 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text; name = fr; path = fr.lproj/credits.txt; sourceTree = "<group>"; };
+		100000000000000000000198 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = en; path = en.lproj/gameover_quotes.json; sourceTree = "<group>"; };
+		100000000000000000000199 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = fr; path = fr.lproj/gameover_quotes.json; sourceTree = "<group>"; };
+		1000000000000000000001A1 /* UserDefaults+BlomixGameTutorial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UserDefaults+BlomixGameTutorial.swift"; sourceTree = "<group>"; };
+		1000000000000000000001A2 /* GameTutorialOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTutorialOverlayView.swift; sourceTree = "<group>"; };
+		1000000000000000000001B0 /* BlomixPvPNetworking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPNetworking.swift; sourceTree = "<group>"; };
+		1000000000000000000001B1 /* BlomixPvPUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPUI.swift; sourceTree = "<group>"; };
+		1000000000000000000001B4 /* BlomixUIButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixUIButtonStyle.swift; sourceTree = "<group>"; };
+		1000000000000000000001B6 /* BlomixEloManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixEloManager.swift; sourceTree = "<group>"; };
+		1000000000000000000001BB /* connect_E.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = connect_E.wav; sourceTree = "<group>"; };
+		1000000000000000000001BC /* connect_F.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = connect_F.wav; sourceTree = "<group>"; };
+		1000000000000000000001BD /* connect_Gb.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = connect_Gb.wav; sourceTree = "<group>"; };
+		1000000000000000000001BF /* BlomixAudioMixSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAudioMixSettings.swift; sourceTree = "<group>"; };
+		1000000000000000000001C0 /* BlomixTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixTypography.swift; sourceTree = "<group>"; };
+		1000000000000000000001C2 /* GoogleSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GoogleSans-Regular.ttf"; sourceTree = "<group>"; };
+		1000000000000000000001C4 /* DynaPuff-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DynaPuff-Regular.ttf"; sourceTree = "<group>"; };
+		1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AlfaSlabOne-Regular.ttf"; sourceTree = "<group>"; };
+		1000000000000000000001C8 /* BlomixMusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixMusicPlayer.swift; sourceTree = "<group>"; };
+		1000000000000000000001CA /* Puzzle Game 2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2.mp3"; sourceTree = "<group>"; };
+		1000000000000000000001CC /* BlomixAmbientBlocksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAmbientBlocksView.swift; sourceTree = "<group>"; };
+		E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = victory.mp3; sourceTree = "<group>"; };
+		E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = wrong.wav; sourceTree = "<group>"; };
+		E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = calm.mp3; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		100000000000000000000040 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000173 /* GameKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		100000000000000000000011 = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000012 /* Blomix */,
+				100000000000000000000013 /* Products */,
+				E320AF3E2F8C128900139B2F /* Recovered References */,
+			);
+			sourceTree = "<group>";
+		};
+		100000000000000000000012 /* Blomix */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000001 /* AppDelegate.swift */,
+				100000000000000000000096 /* SceneDelegate.swift */,
+				100000000000000000000002 /* GameViewController.swift */,
+				1000000000000000000001A1 /* UserDefaults+BlomixGameTutorial.swift */,
+				1000000000000000000001A2 /* GameTutorialOverlayView.swift */,
+				1000000000000000000001B0 /* BlomixPvPNetworking.swift */,
+				1000000000000000000001B1 /* BlomixPvPUI.swift */,
+				1000000000000000000001B4 /* BlomixUIButtonStyle.swift */,
+				1000000000000000000001B6 /* BlomixEloManager.swift */,
+				1000000000000000000001BF /* BlomixAudioMixSettings.swift */,
+				1000000000000000000001C8 /* BlomixMusicPlayer.swift */,
+				1000000000000000000001CC /* BlomixAmbientBlocksView.swift */,
+				1000000000000000000001C0 /* BlomixTypography.swift */,
+				100000000000000000000003 /* GameScene.swift */,
+				10000000000000000000018D /* BlomixL10n.swift */,
+				100000000000000000000192 /* rules.txt */,
+				100000000000000000000170 /* GameCenterManager.swift */,
+				1000000000000000000000A2 /* ScoreManager.swift */,
+				1000000000000000000000A5 /* LeaderboardViewController.swift */,
+				100000000000000000000187 /* color_skins.json */,
+				10000000000000000000019A /* gameover_quotes.json */,
+				100000000000000000000195 /* credits.txt */,
+				10000000000000000000018A /* Localizable.strings */,
+				10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */,
+				1000000000000000000001C2 /* GoogleSans-Regular.ttf */,
+				1000000000000000000001C4 /* DynaPuff-Regular.ttf */,
+				1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */,
+				100000000000000000000004 /* Info.plist */,
+				1000000000000000000000A4 /* Blomix.entitlements */,
+				100000000000000000000005 /* Assets.xcassets */,
+				100000000000000000000070 /* Sounds */,
+				100000000000000000000014 /* Base.lproj */,
+			);
+			path = Blomix;
+			sourceTree = "<group>";
+		};
+		100000000000000000000013 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000010 /* BLOMIX.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		100000000000000000000014 /* Base.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000006 /* Main.storyboard */,
+				100000000000000000000008 /* LaunchScreen.storyboard */,
+			);
+			path = Base.lproj;
+			sourceTree = "<group>";
+		};
+		100000000000000000000070 /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+				E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */,
+				E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */,
+				E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */,
+				100000000000000000000071 /* AboutSounds.txt */,
+				100000000000000000000080 /* begin.wav */,
+				100000000000000000000081 /* begin_new.wav */,
+				100000000000000000000082 /* bomb.wav */,
+				100000000000000000000083 /* bomb_new.wav */,
+				100000000000000000000084 /* chain.mp3 */,
+				100000000000000000000085 /* chain_new.wav */,
+				1000000000000000000000A0 /* chain_new-1.wav */,
+				1000000000000000000000A1 /* chain_new-2.wav */,
+				1000000000000000000001BB /* connect_E.wav */,
+				1000000000000000000001BC /* connect_F.wav */,
+				1000000000000000000001BD /* connect_Gb.wav */,
+				100000000000000000000086 /* empty_coll.wav */,
+				100000000000000000000087 /* end.wav */,
+				100000000000000000000088 /* end_new.wav */,
+				100000000000000000000089 /* line.mp3 */,
+				10000000000000000000008A /* line.wav */,
+				10000000000000000000008B /* line_new.mp3 */,
+				10000000000000000000008C /* place.wav */,
+				10000000000000000000008D /* place_new.wav */,
+				10000000000000000000009F /* 5251__noisecollector__bloopa01.aiff */,
+				1000000000000000000001CA /* Puzzle Game 2.mp3 */,
+			);
+			path = Sounds;
+			sourceTree = "<group>";
+		};
+		E320AF3E2F8C128900139B2F /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000172 /* GameKit.framework */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100000000000000000000030 /* BLOMIX */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000051 /* Build configuration list for PBXNativeTarget "BLOMIX" */;
+			buildPhases = (
+				100000000000000000000041 /* Sources */,
+				100000000000000000000040 /* Frameworks */,
+				100000000000000000000042 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BLOMIX;
+			productName = Blomix;
+			productReference = 100000000000000000000010 /* BLOMIX.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000050 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					100000000000000000000030 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 100000000000000000000052 /* Build configuration list for PBXProject "Blomix" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				fr,
+				Base,
+			);
+			mainGroup = 100000000000000000000011;
+			productRefGroup = 100000000000000000000013 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100000000000000000000030 /* BLOMIX */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		100000000000000000000042 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000024 /* Assets.xcassets in Resources */,
+				100000000000000000000025 /* LaunchScreen.storyboard in Resources */,
+				100000000000000000000026 /* Main.storyboard in Resources */,
+				100000000000000000000150 /* begin.wav in Resources */,
+				100000000000000000000151 /* begin_new.wav in Resources */,
+				100000000000000000000152 /* bomb.wav in Resources */,
+				100000000000000000000153 /* bomb_new.wav in Resources */,
+				100000000000000000000154 /* chain.mp3 in Resources */,
+				100000000000000000000155 /* chain_new.wav in Resources */,
+				100000000000000000000177 /* chain_new-1.wav in Resources */,
+				100000000000000000000178 /* chain_new-2.wav in Resources */,
+				E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */,
+				1000000000000000000001B8 /* connect_E.wav in Resources */,
+				1000000000000000000001B9 /* connect_F.wav in Resources */,
+				1000000000000000000001BA /* connect_Gb.wav in Resources */,
+				100000000000000000000156 /* empty_coll.wav in Resources */,
+				100000000000000000000157 /* end.wav in Resources */,
+				100000000000000000000158 /* end_new.wav in Resources */,
+				100000000000000000000159 /* line.mp3 in Resources */,
+				10000000000000000000015A /* line.wav in Resources */,
+				10000000000000000000015B /* line_new.mp3 in Resources */,
+				10000000000000000000015C /* place.wav in Resources */,
+				10000000000000000000015D /* place_new.wav in Resources */,
+				100000000000000000000174 /* 5251__noisecollector__bloopa01.aiff in Resources */,
+				100000000000000000000176 /* rules.txt in Resources */,
+				10000000000000000000017B /* gameover_quotes.json in Resources */,
+				E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */,
+				E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */,
+				10000000000000000000017C /* credits.txt in Resources */,
+				100000000000000000000188 /* color_skins.json in Resources */,
+				100000000000000000000189 /* Localizable.strings in Resources */,
+				10000000000000000000015E /* BitcountGridSingleInk-Variable.ttf in Resources */,
+				1000000000000000000001C3 /* GoogleSans-Regular.ttf in Resources */,
+				1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */,
+				1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */,
+				1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		100000000000000000000041 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000021 /* AppDelegate.swift in Sources */,
+				100000000000000000000165 /* SceneDelegate.swift in Sources */,
+				100000000000000000000022 /* GameViewController.swift in Sources */,
+				1000000000000000000001A3 /* UserDefaults+BlomixGameTutorial.swift in Sources */,
+				1000000000000000000001A4 /* GameTutorialOverlayView.swift in Sources */,
+				100000000000000000000023 /* GameScene.swift in Sources */,
+				10000000000000000000018E /* BlomixL10n.swift in Sources */,
+				100000000000000000000171 /* GameCenterManager.swift in Sources */,
+				100000000000000000000179 /* ScoreManager.swift in Sources */,
+				10000000000000000000017A /* LeaderboardViewController.swift in Sources */,
+				1000000000000000000001B2 /* BlomixPvPNetworking.swift in Sources */,
+				1000000000000000000001B3 /* BlomixPvPUI.swift in Sources */,
+				1000000000000000000001B5 /* BlomixUIButtonStyle.swift in Sources */,
+				1000000000000000000001B7 /* BlomixEloManager.swift in Sources */,
+				1000000000000000000001BE /* BlomixAudioMixSettings.swift in Sources */,
+				1000000000000000000001C9 /* BlomixMusicPlayer.swift in Sources */,
+				1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */,
+				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		100000000000000000000006 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				100000000000000000000007 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		100000000000000000000008 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				100000000000000000000009 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		10000000000000000000018A /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				10000000000000000000018B /* en */,
+				10000000000000000000018C /* fr */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		100000000000000000000192 /* rules.txt */ = {
+			isa = PBXVariantGroup;
+			children = (
+				100000000000000000000193 /* en */,
+				100000000000000000000194 /* fr */,
+			);
+			name = rules.txt;
+			sourceTree = "<group>";
+		};
+		100000000000000000000195 /* credits.txt */ = {
+			isa = PBXVariantGroup;
+			children = (
+				100000000000000000000196 /* en */,
+				100000000000000000000197 /* fr */,
+			);
+			name = credits.txt;
+			sourceTree = "<group>";
+		};
+		10000000000000000000019A /* gameover_quotes.json */ = {
+			isa = PBXVariantGroup;
+			children = (
+				100000000000000000000198 /* en */,
+				100000000000000000000199 /* fr */,
+			);
+			name = gameover_quotes.json;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		100000000000000000000060 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = NO;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		100000000000000000000061 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = NO;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		100000000000000000000062 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 337CZP5VR7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Blomix/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BLOMIX;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		100000000000000000000063 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
+				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 4;
+				DEVELOPMENT_TEAM = 337CZP5VR7;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Blomix/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BLOMIX;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		100000000000000000000051 /* Build configuration list for PBXNativeTarget "BLOMIX" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000062 /* Debug */,
+				100000000000000000000063 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000052 /* Build configuration list for PBXProject "Blomix" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000060 /* Debug */,
+				100000000000000000000061 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 100000000000000000000050 /* Project object */;
+}

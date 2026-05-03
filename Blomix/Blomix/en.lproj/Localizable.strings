@@ -1,0 +1,178 @@
+/* Common */
+"common.close" = "Close";
+"common.cancel" = "Cancel";
+"common.loading" = "Loading…";
+
+/* Welcome & gameplay */
+"game.tagline" = "A game of blox";
+"start.button" = "START";
+"start.settings" = "Settings";
+"start.credits" = "Credits";
+"start.pvp" = "P vs P";
+"start.player_unknown" = "Unknown player";
+"start.player_name_format" = "Player: %@";
+"start.player_elo_format" = "Elo rating: %lld";
+"start.player_elo_unavailable" = "Elo rating: —";
+
+"pvp.lobby_title" = "Multiplayer";
+"pvp.lobby_play_friend" = "Play with a friend";
+"pvp.lobby_invite_players" = "Invite players";
+"pvp.lobby_find_opponent" = "Find an opponent";
+"pvp.lobby_find_opponent_prompt_title" = "How should we find an opponent?";
+"pvp.lobby_random_opponent" = "Random opponent";
+"pvp.lobby_choose_friend_from_find" = "Among my friends";
+"pvp.lobby_pick_friend_title" = "Choose a friend";
+"pvp.lobby_no_friends" = "No Game Center friends.";
+"pvp.lobby_status_searching" = "Looking for an opponent…";
+"pvp.lobby_status_connecting_friend" = "Connecting to friend…";
+"pvp.lobby_preparing_boards" = "Preparing boards…";
+"pvp.lobby_match_failed" = "No match found.";
+"pvp.lobby_no_players_available" = "No player available.";
+"pvp.lobby_preparation_timeout" = "Preparation interrupted. Please try again.";
+"pvp.auto_search_active_hint" = "Waiting for an opponent… Close to go back to home screen.";
+"pvp.lobby_active_players_hint_format" = "%d active player(s) right now";
+"pvp.unknown_opponent" = "Unknown opponent";
+"pvp.remote_fill_label_line1" = "Opponent";
+"pvp.remote_fill_label_line2" = "grid";
+"pvp.lobby_opponent_found_format" = "Opponent found: %@";
+"pvp.lobby_search_hint" = "Elo matchmaking";
+"pvp.lobby_matchmaking_error_format" = "Error: %@";
+
+"pvp.result_you_won" = "You won!";
+"pvp.result_you_lost" = "You lost";
+"pvp.result_victory_against_format" = "Victory against %@";
+"pvp.result_defeat_against_format" = "Defeat against %@";
+"pvp.result_win_subtitle" = "Your opponent can’t keep playing.";
+"pvp.result_lose_subtitle" = "You couldn’t place a block.";
+"pvp.result_elo_loading" = "Updating Elo…";
+"pvp.result_elo_unavailable" = "Elo rating unavailable.";
+"pvp.result_elo_current_format" = "Elo: %lld";
+"pvp.result_elo_delta_format" = "%+lld pts";
+"pvp.result_elo_new_format" = "New Elo: %lld";
+"pvp.result_back_home" = "Back to home";
+"pvp.result_rematch_ask" = "Rematch?";
+"pvp.result_rematch_waiting" = "Waiting for opponent...";
+"pvp.result_rematch_opponent_ready" = "Opponent ready!";
+"pvp.result_rematch_launching" = "Launching...";
+"pvp.hud_match_against_format" = "Match against: %@";
+
+"menu.new_game" = "New Game";
+"menu.scores" = "Scores";
+"menu.rules" = "Rules";
+"menu.settings" = "Settings";
+"menu.multiplayer" = "Multiplayer";
+
+"game_over.title" = "GAME OVER";
+"game_over.focus_title" = "GAME OVER";
+"game_over.score_format" = "SCORE %lld";
+"game_over.restart" = "RESTART";
+"game_over.leaderboard" = "View leaderboard";
+"game_over.personal_best" = "New personal best!";
+"hud.best_score_title" = "BEST";
+"hud.bonus_title" = "BONUS";
+"hud.best_score_format" = "%lld";
+
+"hud.next_blox" = "next blox";
+"hud.next_line" = "Next line";
+"hud.next_bomb" = "Next bomb";
+
+"gc.status.checking" = "GC: …";
+"gc.status.ok" = "GC: OK";
+"gc.status.off" = "GC: Off";
+
+"skin.display.perso" = "Custom";
+"skin.display.default" = "Default";
+
+/* Rules / credits fallbacks */
+"rules.missing_file" = "Rules will appear here once rules.txt is added to the app bundle.";
+"credits.missing_file" = "Add credits content to credits.txt in the app bundle to show it here.";
+
+"modal.rules_title" = "Rules";
+"modal.credits_title" = "Credits";
+
+/* Leaderboard */
+"leaderboard.title" = "Leaderboard";
+"leaderboard.subtitle" = "BlomixMainScore";
+"leaderboard.loading" = "Loading leaderboard…";
+"leaderboard.gc_sign_in" = "Sign in to Game Center to view the leaderboard.";
+"leaderboard.gc_error_format" = "Game Center error: %@";
+"leaderboard.not_found" = "Leaderboard not found.";
+"leaderboard.load_error_format" = "Load error: %@";
+"leaderboard.empty" = "No scores yet.";
+"leaderboard.top_count_format" = "Top %lld";
+"leaderboard.points_format" = "%lld pts";
+"leaderboard.elo_format" = "Elo %lld";
+"leaderboard.main_tab" = "Scores";
+"leaderboard.elo_tab" = "Elo";
+
+/* Settings */
+"settings.title" = "Settings";
+"settings.section_sound" = "Sound";
+"settings.section_font" = "Font";
+"settings.section_colors" = "Colors";
+"settings.adjust_sounds" = "Adjust Sounds";
+"settings.sound_mix_title" = "Sound Mix";
+"settings.font_preview" = "Blomix 123";
+"settings.font.bitcount" = "Bitcount";
+"settings.font.google_sans" = "Google Sans";
+"settings.font.dynapuff" = "DynaPuff";
+"settings.font.alfa_slab_one" = "Alfa Slab One";
+"settings.sound_percent_format" = "%lld%%";
+"settings.sound.music" = "Background music";
+"settings.sound.begin" = "Match start";
+"settings.sound.place" = "Block landing";
+"settings.sound.bomb" = "Bomb";
+"settings.sound.connect_e" = "2-block connection";
+"settings.sound.connect_f" = "3-block connection";
+"settings.sound.connect_gb" = "4-block connection";
+"settings.sound.chain_basic" = "Chain 5+";
+"settings.sound.chain_cascade_1" = "Chain 6-8 / cascade 1";
+"settings.sound.chain_cascade_2" = "Chain 9+ / cascades";
+"settings.sound.line" = "Line arrival";
+"settings.sound.end" = "Game over";
+"settings.sound.victory" = "PvP victory";
+"settings.sound.wrong" = "Full column";
+"settings.sound.empty_column" = "Column cleared";
+
+"start_screen.tip_header" = "— Tip of the day —";
+
+"settings.music_picker_label" = "Track";
+"settings.music_track_puzzle_game2" = "Puzzle Game 2";
+"settings.music_track_calm" = "Calm";
+"settings.sound.pending_line" = "Next line warning";
+"settings.sound.priks_vanish" = "Priks vanish";
+
+"tutorial.got_it" = "Got it";
+"tutorial.dont_show_again" = "Show this guide at startup";
+"tutorial.hint_score" = "Your score";
+"tutorial.hint_grid" = "Tap a column to launch a block. The goal is to make chains of 5 blocks of the same color.";
+"tutorial.hint_brix" = "From time to time, a special block appears (a brix) with a number on it. This brix does not disappear the same way: make chains nearby (5) to reduce the number little by little...";
+"tutorial.hint_queue" = "Here are the next blocks you can launch. Every 10 blocks you place, a line drops in to shake up your stack.";
+"tutorial.hint_bomb" = "You can use a bomb when you have one left. It clears a big area!";
+"rules.show_guides_at_start" = "Show guides when a match starts";
+"tutorial.page1_title" = "Goal of the game";
+"tutorial.page1_body" = "The goal of the game is to get the highest score. To score points, use blox (coloured stones) and place them into the grid (from the bottom up) to form \"chains\" of 5 blox of the same colour. The chains score points and vanish, making room for the next blox.";
+"tutorial.page1_chain_caption" = "= chain → points!";
+"tutorial.page2_title" = "Not that easy!";
+"tutorial.page2_body" = "The game would be too easy if all you had to do was make colour chains. Every 10 blox, a random line drops in and disrupts your stack. And best of all: there is a 1-in-8 chance that a blox mutates before you can launch it and becomes a Brix. This special stone, marked with a number, cannot be cleared like the others — you need to form chains nearby (5) to make it disappear. Fortunately you have bombs (one at the start, and a new one every 10 chains): a bomb destroys the 9 cells around its impact point and clears Brix in one hit!";
+"tutorial.page3_title" = "Your turn!";
+"tutorial.page3_body" = "A small bonus will be awarded if you have more Brix than the statistical average. It's not much, but it will save you from blaming fate ;).
+
+Don't forget to try Player vs Player mode: the rules are identical, but every 50 points you score you \"send\" a line of blox to the other player. The winner is the last one standing.
+
+Finally: in Settings you can manage fonts, colours and sounds to make your BLOMIX experience as enjoyable as possible.";
+
+"pvp.mode_choice_hint" = "How do you want to play?";
+"pvp.mode_auto_desc" = "Ready to play";
+"pvp.mode_recent_desc" = "Recent opponent";
+"pvp.recent_title" = "Recent opponents";
+"pvp.recent_no_players" = "No recent opponents.\nPlay your first PvP match to see them here.";
+"pvp.recent_challenge" = "Challenge";
+"pvp.recent_elo_loading" = "Elo…";
+"pvp.recent_elo_unavailable" = "Elo —";
+"pvp.recent_invite_sent_format" = "Invitation sent to %@";
+"pvp.recent_invite_hint" = "Waiting for a response…";
+"pvp.recent_invite_failed" = "Invitation declined or expired.";
+"pvp.invite_challenge_format" = "%@ is challenging you!";
+"pvp.invite_accept" = "Accept";
+"pvp.invite_decline" = "Decline";

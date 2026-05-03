@@ -1,0 +1,10 @@
+BLOMIX — Rules
+
+These are the rules :
+- Stack blox in the columns.
+- Form chains of at least 5 cells of the same colour (8-direction neighbourhood) to clear them and score points.
+- Prix (special blox with a number on it) need several chain hits nearby before they disappear.
+- Every 10 moves, a new line rises from the bottom.
+
+You can get rid of a zone (included Prix) with bombs.
+Enjoy !

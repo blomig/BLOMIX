@@ -1,0 +1,6 @@
+Référence : PROJECT_CONTEXT.md — Phase 1 (fondations).
+
+Ce dossier « Sounds » regroupe les fichiers audio (.mp3, .wav) copiés dans le bundle de l’app (cible Blomix, phase « Copy Bundle Resources »).
+Charger via Bundle.main.url(forResource:withExtension:) ou SKAction.playSoundFileNamed(_:waitForCompletion:) en utilisant le nom de fichier (ex. begin.wav).
+
+Police : BitcountGridSingleInk-Variable.ttf (fichier variable renommé sans virgules) à la racine du groupe Blomix dans Xcode, déclarée dans Info.plist sous UIAppFonts ; nom PostScript par défaut « BitcountGridSingleInk-Regular » pour SKLabelNode / UIFont.

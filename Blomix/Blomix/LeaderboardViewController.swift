@@ -1,0 +1,1246 @@
+//
+//  LeaderboardViewController.swift
+//  Blomix
+//
+//  Écran classement custom (in-app) alimenté par Game Center.
+//
+
+import GameKit
+import UIKit
+
+/// Présenté depuis `GameScene.showLeaderboard()` : écran in-app (fond noir) listant les meilleurs scores.
+@MainActor
+final class LeaderboardViewController: UIViewController, UITableViewDataSource {
+    @MainActor
+    private enum FontTheme {
+        static func gameFont(size: CGFloat, fallbackWeight: UIFont.Weight = .regular) -> UIFont {
+            BlomixTypography.uiFont(size: size, weight: fallbackWeight)
+        }
+    }
+
+    private struct LeaderboardRow: Sendable {
+        let rank: Int
+        let playerName: String
+        let score: Int
+        let isLocalPlayer: Bool
+    }
+
+    private enum LeaderboardKind: CaseIterable {
+        case mainScore
+        case elo
+
+        var title: String {
+            switch self {
+            case .mainScore: return BlomixL10n.leaderboardMainTab
+            case .elo: return BlomixL10n.leaderboardEloTab
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .mainScore: return "BlomixMainScore"
+            case .elo: return "elotype"
+            }
+        }
+
+        var leaderboardID: String {
+            switch self {
+            case .mainScore: return "BlomixMainScore"
+            case .elo: return "elotype"
+            }
+        }
+
+        func secondaryText(for score: Int) -> String {
+            switch self {
+            case .mainScore: return BlomixL10n.leaderboardPoints(score)
+            case .elo: return BlomixL10n.leaderboardElo(score)
+            }
+        }
+    }
+
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let closeButton = UIButton(type: .system)
+    private let tabsStack = UIStackView()
+    private let mainTabButton = UIButton(type: .system)
+    private let eloTabButton = UIButton(type: .system)
+    private let statusLabel = UILabel()
+    private let tableView = UITableView(frame: .zero, style: .plain)
+    private let spinner = BlomixPvPSearchBlocksView()
+    private var selectedLeaderboardKind: LeaderboardKind = .mainScore
+
+    private var rows: [LeaderboardRow] = [] {
+        didSet { tableView.reloadData() }
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        addAmbientBlocksBackground()
+
+        setupUI()
+        loadLeaderboard()
+    }
+
+    private func setupUI() {
+        titleLabel.text = BlomixL10n.leaderboardTitle
+        titleLabel.textColor = .white
+        titleLabel.font = FontTheme.gameFont(size: 28, fallbackWeight: .bold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        subtitleLabel.text = BlomixL10n.leaderboardSubtitle
+        subtitleLabel.textColor = UIColor(white: 0.75, alpha: 1)
+        subtitleLabel.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(subtitleLabel)
+
+        tabsStack.axis = .horizontal
+        tabsStack.spacing = 10
+        tabsStack.distribution = .fillEqually
+        tabsStack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(tabsStack)
+
+        mainTabButton.setTitle(BlomixL10n.leaderboardMainTab, for: .normal)
+        eloTabButton.setTitle(BlomixL10n.leaderboardEloTab, for: .normal)
+        [mainTabButton, eloTabButton].forEach {
+            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
+            $0.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+        }
+        mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
+        eloTabButton.addTarget(self, action: #selector(eloTabTapped), for: .touchUpInside)
+        tabsStack.addArrangedSubview(mainTabButton)
+        tabsStack.addArrangedSubview(eloTabButton)
+
+        closeButton.setTitle(BlomixL10n.close, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        view.addSubview(closeButton)
+
+        statusLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        statusLabel.font = FontTheme.gameFont(size: 14, fallbackWeight: .regular)
+        statusLabel.textAlignment = .center
+        statusLabel.numberOfLines = 0
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(statusLabel)
+
+        tableView.backgroundColor = .clear
+        tableView.separatorColor = UIColor(white: 0.2, alpha: 1)
+        tableView.dataSource = self
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "LeaderboardCell")
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(tableView)
+
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(spinner)
+
+        updateSelectedLeaderboardUI()
+
+        NSLayoutConstraint.activate([
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
+            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+
+            tabsStack.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 14),
+            tabsStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            tabsStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+
+            statusLabel.topAnchor.constraint(equalTo: tabsStack.bottomAnchor, constant: 14),
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+
+            tableView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 12),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+
+            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+        ])
+    }
+
+    @objc private func closeTapped() {
+        dismiss(animated: true)
+    }
+
+    @objc private func mainTabTapped() {
+        switchToLeaderboard(.mainScore)
+    }
+
+    @objc private func eloTabTapped() {
+        switchToLeaderboard(.elo)
+    }
+
+    private func switchToLeaderboard(_ kind: LeaderboardKind) {
+        guard selectedLeaderboardKind != kind else { return }
+        selectedLeaderboardKind = kind
+        rows = []
+        updateSelectedLeaderboardUI()
+        loadLeaderboard()
+    }
+
+    private func updateSelectedLeaderboardUI() {
+        subtitleLabel.text = selectedLeaderboardKind.subtitle
+        applyTabSelectionStyle(button: mainTabButton, selected: selectedLeaderboardKind == .mainScore)
+        applyTabSelectionStyle(button: eloTabButton, selected: selectedLeaderboardKind == .elo)
+    }
+
+    private func applyTabSelectionStyle(button: UIButton, selected: Bool) {
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: button)
+        button.alpha = selected ? 1.0 : 0.7
+        button.layer.borderColor = (selected ? UIColor.white : BlomixUIDestinationButtonStyle.borderColor).cgColor
+        button.layer.borderWidth = selected ? 1.0 : BlomixUIDestinationButtonStyle.hairlineBorderWidth
+    }
+
+    private func setLoading(_ loading: Bool) {
+        if loading {
+            spinner.isHidden = false
+            spinner.startAnimating()
+            statusLabel.text = BlomixL10n.leaderboardLoading
+        } else {
+            spinner.stopAnimating(settle: false) { [weak self] in
+                self?.spinner.isHidden = true
+            }
+        }
+    }
+
+    private func loadLeaderboard() {
+        guard GKLocalPlayer.local.isAuthenticated else {
+            statusLabel.text = BlomixL10n.leaderboardGcSignIn
+            rows = []
+            return
+        }
+
+        setLoading(true)
+        let selectedKind = selectedLeaderboardKind
+
+        if selectedKind == .elo {
+            Task { @MainActor in
+                let localProfile = try? await BlomixEloManager.shared.fetchLocalPlayerProfile()
+                guard self.selectedLeaderboardKind == selectedKind else { return }
+                self.loadLeaderboardEntries(for: selectedKind, localEloOverride: localProfile?.rating)
+            }
+            return
+        }
+
+        loadLeaderboardEntries(for: selectedKind, localEloOverride: nil)
+    }
+
+    private func loadLeaderboardEntries(for selectedKind: LeaderboardKind, localEloOverride: Int?) {
+        GKLeaderboard.loadLeaderboards(IDs: [selectedKind.leaderboardID]) { [weak self] leaderboards, error in
+            if let error {
+                Task { @MainActor [weak self] in
+                    guard self?.selectedLeaderboardKind == selectedKind else { return }
+                    self?.setLoading(false)
+                    self?.statusLabel.text = BlomixL10n.leaderboardGcError(error.localizedDescription)
+                    self?.rows = []
+                }
+                return
+            }
+
+            guard let leaderboard = leaderboards?.first else {
+                Task { @MainActor [weak self] in
+                    guard self?.selectedLeaderboardKind == selectedKind else { return }
+                    self?.setLoading(false)
+                    self?.statusLabel.text = BlomixL10n.leaderboardNotFound
+                    self?.rows = []
+                }
+                return
+            }
+
+            let localPlayer = GKLocalPlayer.local
+            let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
+            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 50)) { _, rankedEntries, _, loadError in
+                if let loadError {
+                    Task { @MainActor [weak self] in
+                        guard self?.selectedLeaderboardKind == selectedKind else { return }
+                        self?.setLoading(false)
+                        self?.statusLabel.text = BlomixL10n.leaderboardLoadError(loadError.localizedDescription)
+                        self?.rows = []
+                    }
+                    return
+                }
+
+                func stablePlayerID(for player: GKPlayer) -> String {
+                    player.teamPlayerID.isEmpty ? player.gamePlayerID : player.teamPlayerID
+                }
+
+                func buildRow(from entry: GKLeaderboard.Entry) -> LeaderboardRow {
+                    let isLocalPlayer = stablePlayerID(for: entry.player) == localStableID
+                    let resolvedScore: Int
+                    if selectedKind == .elo, isLocalPlayer, let localEloOverride {
+                        resolvedScore = max(Int(entry.score), localEloOverride)
+                    } else {
+                        resolvedScore = Int(entry.score)
+                    }
+                    return LeaderboardRow(
+                        rank: entry.rank,
+                        playerName: entry.player.displayName,
+                        score: resolvedScore,
+                        isLocalPlayer: isLocalPlayer
+                    )
+                }
+
+                let mappedGlobal: [LeaderboardRow] = (rankedEntries ?? []).map(buildRow)
+
+                guard selectedKind == .elo else {
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        guard self.selectedLeaderboardKind == selectedKind else { return }
+                        self.setLoading(false)
+                        self.rows = mappedGlobal
+                        self.statusLabel.text = mappedGlobal.isEmpty ? BlomixL10n.leaderboardEmpty : BlomixL10n.leaderboardTopCount(mappedGlobal.count)
+                    }
+                    return
+                }
+
+                leaderboard.loadEntries(for: [localPlayer], timeScope: .allTime) { _, localEntries, localLoadError in
+                    var mergedRows = mappedGlobal
+
+                    if let localEntry = localEntries?.first {
+                        let localRow = buildRow(from: localEntry)
+                        if let localIndex = mergedRows.firstIndex(where: { $0.isLocalPlayer }) {
+                            mergedRows[localIndex] = localRow
+                        } else {
+                            mergedRows.insert(localRow, at: 0)
+                        }
+                    }
+
+                    Task { @MainActor [weak self] in
+                        guard let self else { return }
+                        guard self.selectedLeaderboardKind == selectedKind else { return }
+                        self.setLoading(false)
+                        self.rows = mergedRows
+                        if let localLoadError {
+                            self.statusLabel.text = BlomixL10n.leaderboardLoadError(localLoadError.localizedDescription)
+                        } else {
+                            self.statusLabel.text = mergedRows.isEmpty ? BlomixL10n.leaderboardEmpty : BlomixL10n.leaderboardTopCount(mergedRows.count)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - UITableViewDataSource
+
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        rows.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let row = rows[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: "LeaderboardCell", for: indexPath)
+        cell.backgroundColor = row.isLocalPlayer ? UIColor(white: 0.16, alpha: 1) : UIColor.clear
+        cell.selectionStyle = .none
+
+        var content = UIListContentConfiguration.subtitleCell()
+        content.text = "#\(row.rank)  \(row.playerName)"
+        content.secondaryText = selectedLeaderboardKind.secondaryText(for: row.score)
+        content.textProperties.color = .white
+        content.secondaryTextProperties.color = row.isLocalPlayer ? .white : UIColor(white: 0.78, alpha: 1)
+        content.textProperties.font = FontTheme.gameFont(size: 16, fallbackWeight: row.isLocalPlayer ? .bold : .regular)
+        content.secondaryTextProperties.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
+        cell.contentConfiguration = content
+        return cell
+    }
+}
+
+// MARK: - Règles / crédits (texte long, modal comme Settings)
+
+/// Texte brut multiligne (`rules.txt`, `credits.txt`) : même présentation que les autres écrans UIKit plein écran.
+@MainActor
+final class BlomixPlainTextModalViewController: UIViewController {
+
+    private let screenTitle: String
+    private let body: String
+    private let showStartupGuideToggle: Bool
+
+    @MainActor
+    private enum FontTheme {
+        static func gameFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+            BlomixTypography.uiFont(size: size, weight: weight)
+        }
+    }
+
+    private let closeButton = UIButton(type: .system)
+    private let titleLabel = UILabel()
+    private let textView = UITextView()
+    private let guideFooter = UIStackView()
+    private let guideSwitch = UISwitch()
+    private let guideLabel = UILabel()
+
+    init(screenTitle: String, body: String, showStartupGuideToggle: Bool = false) {
+        self.screenTitle = screenTitle
+        self.body = body
+        self.showStartupGuideToggle = showStartupGuideToggle
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        addAmbientBlocksBackground()
+
+        titleLabel.text = screenTitle
+        titleLabel.textColor = .white
+        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        closeButton.setTitle(BlomixL10n.close, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        view.addSubview(closeButton)
+
+        textView.text = body
+        textView.textColor = UIColor(white: 0.92, alpha: 1)
+        textView.font = FontTheme.gameFont(size: 14, weight: .regular)
+        textView.backgroundColor = .clear
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isScrollEnabled = true
+        textView.showsVerticalScrollIndicator = true
+        textView.indicatorStyle = .white
+        textView.dataDetectorTypes = []
+        textView.textContainerInset = UIEdgeInsets(top: 8, left: 4, bottom: 16, right: 4)
+        textView.textContainer.lineFragmentPadding = 0
+        textView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(textView)
+
+        var constraints: [NSLayoutConstraint] = [
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
+
+            textView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            textView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            textView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+        ]
+
+        if showStartupGuideToggle {
+            guideSwitch.onTintColor = UIColor(red: 0.72, green: 0.53, blue: 0.04, alpha: 1)
+            guideSwitch.isOn = !UserDefaults.standard.hasSeenGameTutorial
+            guideSwitch.addTarget(self, action: #selector(guideSwitchChanged(_:)), for: .valueChanged)
+
+            guideLabel.text = BlomixL10n.rulesShowGuidesAtStart
+            guideLabel.textColor = UIColor(white: 0.88, alpha: 1)
+            guideLabel.font = FontTheme.gameFont(size: 14, weight: .regular)
+            guideLabel.numberOfLines = 0
+
+            guideFooter.axis = .horizontal
+            guideFooter.spacing = 12
+            guideFooter.alignment = .center
+            guideFooter.translatesAutoresizingMaskIntoConstraints = false
+            guideFooter.addArrangedSubview(guideSwitch)
+            guideFooter.addArrangedSubview(guideLabel)
+            view.addSubview(guideFooter)
+
+            constraints += [
+                guideFooter.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                guideFooter.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -16),
+                guideFooter.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+                textView.bottomAnchor.constraint(equalTo: guideFooter.topAnchor, constant: -12),
+            ]
+        } else {
+            constraints.append(textView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12))
+        }
+
+        NSLayoutConstraint.activate(constraints)
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(closeTapped))]
+    }
+
+    @objc private func closeTapped() {
+        dismiss(animated: true)
+    }
+
+    @objc private func guideSwitchChanged(_ sender: UISwitch) {
+        UserDefaults.standard.hasSeenGameTutorial = !sender.isOn
+    }
+}
+
+// MARK: - Settings (écran réglages : volume + skins)
+
+extension UIColor {
+    /// Hex `#RRGGBB` pour persistance du skin Perso (sRGB).
+    func blomixHexForPersoSave(traitCollection: UITraitCollection) -> String? {
+        let c = resolvedColor(with: traitCollection)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard c.getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
+        return String(
+            format: "#%02X%02X%02X",
+            Int(max(0, min(255, round(r * 255)))),
+            Int(max(0, min(255, round(g * 255)))),
+            Int(max(0, min(255, round(b * 255))))
+        )
+    }
+}
+
+fileprivate func blomixSettingsHexUIColor(_ raw: String) -> UIColor? {
+    var s = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    if s.hasPrefix("#") { s.removeFirst() }
+    guard s.count == 6, let v = UInt32(s, radix: 16) else { return nil }
+    let r = CGFloat((v >> 16) & 0xff) / 255
+    let g = CGFloat((v >> 8) & 0xff) / 255
+    let b = CGFloat(v & 0xff) / 255
+    return UIColor(red: r, green: g, blue: b, alpha: 1)
+}
+
+@MainActor
+final class BlomixGridSoundSlider: UIView {
+
+    var value: Float = 1 {
+        didSet { setNeedsLayout(); updateThumb(animated: false); updateSegmentFill() }
+    }
+
+    var onValueChange: ((Float) -> Void)?
+
+    private let segmentCount = 10
+    private let segmentGap: CGFloat = 2
+    private let segmentHeight: CGFloat = 6
+    private let trackDim = UIColor(white: 0.2, alpha: 1)
+    private let trackFill = UIColor(red: CGFloat(0xAD) / 255, green: CGFloat(0xAD) / 255, blue: CGFloat(0xAD) / 255, alpha: 1)
+
+    private var segmentViews: [UIView] = []
+    private let thumb = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .clear
+        for _ in 0..<segmentCount {
+            let v = UIView()
+            v.backgroundColor = trackDim
+            v.layer.cornerRadius = 1
+            addSubview(v)
+            segmentViews.append(v)
+        }
+        thumb.backgroundColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange") ?? blomixSettingsHexUIColor("#F4A261") ?? .orange
+        thumb.layer.cornerRadius = 4
+        thumb.layer.borderWidth = 1
+        thumb.layer.borderColor = UIColor(white: 1, alpha: 0.35).cgColor
+        addSubview(thumb)
+
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+        thumb.addGestureRecognizer(pan)
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleTrackTap(_:)))
+        addGestureRecognizer(tap)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let h = segmentHeight
+        let cy = bounds.midY
+        let totalGaps = segmentGap * CGFloat(segmentCount - 1)
+        let segW = (bounds.width - totalGaps) / CGFloat(segmentCount)
+        var x: CGFloat = 0
+        for v in segmentViews {
+            v.frame = CGRect(x: x, y: cy - h / 2, width: segW, height: h)
+            x += segW + segmentGap
+        }
+        updateThumb(animated: false)
+        updateSegmentFill()
+    }
+
+    private func thumbX(for value: Float) -> CGFloat {
+        let t = CGFloat(min(1, max(0, value)))
+        let thumbW: CGFloat = 22
+        let inset = thumbW / 2
+        return inset + (bounds.width - thumbW * 2) * t + thumbW / 2
+    }
+
+    private func updateThumb(animated: Bool) {
+        let tx = thumbX(for: value)
+        let thumbH: CGFloat = 22
+        let r = CGRect(x: tx - 11, y: bounds.midY - thumbH / 2, width: 22, height: thumbH)
+        if animated {
+            UIView.animate(withDuration: 0.12) { self.thumb.frame = r }
+        } else {
+            thumb.frame = r
+        }
+    }
+
+    private func updateSegmentFill() {
+        let filled = Int(round(CGFloat(value) * CGFloat(segmentCount)))
+        for (i, v) in segmentViews.enumerated() {
+            v.backgroundColor = i < filled ? trackFill : trackDim
+        }
+    }
+
+    private func valueFromSceneX(_ x: CGFloat) -> Float {
+        let thumbW: CGFloat = 22
+        let inset = thumbW / 2
+        let usable = bounds.width - thumbW * 2
+        guard usable > 1 else { return 0 }
+        let t = (x - inset) / usable
+        return Float(min(1, max(0, t)))
+    }
+
+    @objc private func handlePan(_ g: UIPanGestureRecognizer) {
+        let x = g.location(in: self).x
+        value = valueFromSceneX(x)
+        onValueChange?(value)
+        setNeedsLayout()
+    }
+
+    @objc private func handleTrackTap(_ g: UITapGestureRecognizer) {
+        let x = g.location(in: self).x
+        value = valueFromSceneX(x)
+        onValueChange?(value)
+        setNeedsLayout()
+    }
+}
+
+@MainActor
+private final class RelativeSoundMixRowView: UIView {
+
+    private let titleLabel = UILabel()
+    private let percentLabel = UILabel()
+    private let slider = BlomixGridSoundSlider()
+    private let soundName: String
+
+    init(soundName: String) {
+        self.soundName = soundName
+        super.init(frame: .zero)
+
+        translatesAutoresizingMaskIntoConstraints = false
+        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        layer.cornerRadius = 8
+        layer.borderWidth = 0.5
+        layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+
+        titleLabel.text = BlomixL10n.settingsSoundName(forSoundNamed: soundName)
+        titleLabel.textColor = .white
+        titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
+        titleLabel.numberOfLines = 2
+
+        percentLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        percentLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
+        percentLabel.textAlignment = .right
+
+        slider.translatesAutoresizingMaskIntoConstraints = false
+        slider.value = BlomixAudioMixSettings.shared.relativeVolume(forSoundNamed: soundName)
+        slider.onValueChange = { [weak self] value in
+            BlomixAudioMixSettings.shared.setRelativeVolume(value, forSoundNamed: soundName)
+            self?.updatePercentLabel(value)
+        }
+        slider.heightAnchor.constraint(equalToConstant: 44).isActive = true
+
+        let headerStack = UIStackView(arrangedSubviews: [titleLabel, percentLabel])
+        headerStack.axis = .horizontal
+        headerStack.alignment = .center
+        headerStack.spacing = 12
+        headerStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = UIStackView(arrangedSubviews: [headerStack, slider])
+        stack.axis = .vertical
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
+            percentLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 52),
+        ])
+
+        updatePercentLabel(slider.value)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    private func updatePercentLabel(_ value: Float) {
+        percentLabel.text = BlomixL10n.settingsSoundPercent(Int(round(value * 100)))
+    }
+}
+
+// MARK: - Music track picker
+
+@MainActor
+private final class MusicTrackPickerView: UIView {
+
+    private var buttons: [BlomixMusicTrack: UIButton] = [:]
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        translatesAutoresizingMaskIntoConstraints = false
+        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        layer.cornerRadius = 8
+        layer.borderWidth = 0.5
+        layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+
+        let titleLabel = UILabel()
+        titleLabel.text = BlomixL10n.musicPickerLabel
+        titleLabel.textColor = .white
+        titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
+        titleLabel.setContentHuggingPriority(.required, for: .vertical)
+
+        let pillStack = UIStackView()
+        pillStack.axis = .horizontal
+        pillStack.spacing = 10
+        pillStack.distribution = .fillEqually
+        pillStack.translatesAutoresizingMaskIntoConstraints = false
+
+        for track in BlomixMusicTrack.allCases {
+            let btn = UIButton(type: .system)
+            btn.setTitle(track.displayName, for: .normal)
+            btn.titleLabel?.font = BlomixTypography.uiFont(size: 14, weight: .medium)
+            btn.layer.cornerRadius = 16
+            btn.layer.borderWidth = 1.5
+            btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
+            btn.addAction(UIAction { [weak self] _ in
+                BlomixMusicPlayer.shared.switchToTrack(track)
+                self?.refresh()
+            }, for: .touchUpInside)
+            buttons[track] = btn
+            pillStack.addArrangedSubview(btn)
+        }
+
+        let container = UIStackView(arrangedSubviews: [titleLabel, pillStack])
+        container.axis = .vertical
+        container.spacing = 10
+        container.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(container)
+
+        NSLayoutConstraint.activate([
+            pillStack.heightAnchor.constraint(equalToConstant: 36),
+            container.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
+            container.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
+            container.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor),
+            container.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
+        ])
+
+        refresh()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    private func refresh() {
+        let selected = BlomixMusicPlayer.shared.selectedTrack
+        for (track, btn) in buttons {
+            let isActive = track == selected
+            let color: UIColor = isActive
+                ? UIColor(red: 0.2, green: 0.85, blue: 0.4, alpha: 1)
+                : UIColor(white: 0.5, alpha: 1)
+            btn.layer.borderColor = color.cgColor
+            btn.setTitleColor(isActive ? .white : UIColor(white: 0.6, alpha: 1), for: .normal)
+            btn.backgroundColor = isActive ? UIColor(red: 0.2, green: 0.85, blue: 0.4, alpha: 0.18) : .clear
+        }
+    }
+}
+
+// MARK: -
+
+@MainActor
+final class SoundMixSettingsViewController: UIViewController {
+
+    @MainActor
+    private enum FontTheme {
+        static func gameFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+            BlomixTypography.uiFont(size: size, weight: weight)
+        }
+    }
+
+    private let closeButton = UIButton(type: .system)
+    private let titleLabel = UILabel()
+    private let scrollView = UIScrollView()
+    private let contentStack = UIStackView()
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        addAmbientBlocksBackground()
+
+        titleLabel.text = BlomixL10n.settingsSoundMixTitle
+        titleLabel.textColor = .white
+        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        closeButton.setTitle(BlomixL10n.close, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        view.addSubview(closeButton)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        view.addSubview(scrollView)
+
+        contentStack.axis = .vertical
+        contentStack.spacing = 12
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentStack)
+
+        for soundName in BlomixAudioMixSettings.adjustableSoundNames {
+            contentStack.addArrangedSubview(RelativeSoundMixRowView(soundName: soundName))
+            if soundName == BlomixMusicPlayer.soundKey {
+                contentStack.addArrangedSubview(MusicTrackPickerView())
+            }
+        }
+
+        NSLayoutConstraint.activate([
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
+
+            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+
+            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+        ])
+    }
+
+    override var keyCommands: [UIKeyCommand]? {
+        [UIKeyCommand(input: UIKeyCommand.inputEscape, modifierFlags: [], action: #selector(closeTapped))]
+    }
+
+    @objc private func closeTapped() {
+        dismiss(animated: true)
+    }
+}
+
+@MainActor
+final class SettingsViewController: UIViewController, UIColorPickerViewControllerDelegate {
+
+    @MainActor
+    private enum FontTheme {
+        static func gameFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+            BlomixTypography.uiFont(size: size, weight: weight)
+        }
+    }
+
+    private let closeButton = UIButton(type: .system)
+    private let titleLabel = UILabel()
+    private let scrollView = UIScrollView()
+    private let contentStack = UIStackView()
+    private let soundSlider = BlomixGridSoundSlider()
+    private let adjustSoundsButton = UIButton(type: .system)
+    private let soundSectionLabel = UILabel()
+    private let fontSectionLabel = UILabel()
+    private let colorsSectionLabel = UILabel()
+    private let fontStack = UIStackView()
+    private let skinsStack = UIStackView()
+    private var persoPickerSlot: BlomixPersoColorSlot?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        addAmbientBlocksBackground()
+
+        titleLabel.text = BlomixL10n.settingsTitle
+        titleLabel.textColor = .white
+        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        closeButton.setTitle(BlomixL10n.close, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        view.addSubview(closeButton)
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        view.addSubview(scrollView)
+
+        contentStack.axis = .vertical
+        contentStack.spacing = 18
+        contentStack.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentStack)
+
+        configureSectionHeading(soundSectionLabel, text: BlomixL10n.settingsSoundSection)
+        contentStack.addArrangedSubview(soundSectionLabel)
+
+        soundSlider.translatesAutoresizingMaskIntoConstraints = false
+        soundSlider.value = BlomixMatchAudioSettings.shared.masterVolume
+        soundSlider.onValueChange = { v in
+            BlomixMatchAudioSettings.shared.masterVolume = v
+        }
+        soundSlider.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        contentStack.addArrangedSubview(soundSlider)
+
+        adjustSoundsButton.setTitle(BlomixL10n.settingsAdjustSounds, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: adjustSoundsButton)
+        adjustSoundsButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
+        adjustSoundsButton.translatesAutoresizingMaskIntoConstraints = false
+        adjustSoundsButton.addTarget(self, action: #selector(adjustSoundsTapped), for: .touchUpInside)
+        adjustSoundsButton.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        contentStack.addArrangedSubview(adjustSoundsButton)
+
+        configureSectionHeading(fontSectionLabel, text: BlomixL10n.settingsFontSection)
+        contentStack.addArrangedSubview(fontSectionLabel)
+
+        fontStack.axis = .vertical
+        fontStack.spacing = 10
+        contentStack.addArrangedSubview(fontStack)
+        rebuildFontRows()
+
+        configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
+        contentStack.addArrangedSubview(colorsSectionLabel)
+
+        skinsStack.axis = .vertical
+        skinsStack.spacing = 10
+        contentStack.addArrangedSubview(skinsStack)
+        rebuildSkinRows()
+        refreshTypography()
+
+        NSLayoutConstraint.activate([
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+
+            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+
+            contentStack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+        ])
+    }
+
+    private func configureSectionHeading(_ label: UILabel, text: String) {
+        label.text = text
+        label.textColor = UIColor(white: 0.88, alpha: 1)
+        label.font = FontTheme.gameFont(size: 16, weight: .semibold)
+    }
+
+    private func refreshTypography() {
+        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        configureSectionHeading(soundSectionLabel, text: BlomixL10n.settingsSoundSection)
+        configureSectionHeading(fontSectionLabel, text: BlomixL10n.settingsFontSection)
+        configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: adjustSoundsButton)
+    }
+
+    private func rebuildFontRows() {
+        fontStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let selected = BlomixTypography.shared.selectedFontChoice
+        for choice in BlomixTypography.shared.allChoices() {
+            let row = FontChoiceRowView(
+                choice: choice,
+                isSelected: choice == selected,
+                onSelect: { [weak self] selectedChoice in
+                    BlomixTypography.shared.selectedFontChoice = selectedChoice
+                    self?.refreshTypography()
+                    self?.rebuildFontRows()
+                    self?.rebuildSkinRows()
+                }
+            )
+            fontStack.addArrangedSubview(row)
+        }
+    }
+
+    private func rebuildSkinRows() {
+        skinsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let catalog = BlomixSkinCatalog.shared
+        let selected = catalog.selectedSkinId
+        for skin in catalog.allSkins() {
+            let persoTap: ((BlomixPersoColorSlot) -> Void)? =
+                skin.id == BlomixSkinCatalog.persoSkinId
+                ? { [weak self] slot in
+                    BlomixSkinCatalog.shared.selectedSkinId = BlomixSkinCatalog.persoSkinId
+                    self?.presentPersoColorPicker(slot: slot)
+                }
+                : nil
+            let row = SkinChoiceRowView(
+                skin: skin,
+                isSelected: skin.id == selected,
+                onSelect: { [weak self] id in
+                    BlomixSkinCatalog.shared.selectedSkinId = id
+                    self?.rebuildSkinRows()
+                },
+                onPersoSwatchTapped: persoTap
+            )
+            skinsStack.addArrangedSubview(row)
+        }
+    }
+
+    private func presentPersoColorPicker(slot: BlomixPersoColorSlot) {
+        persoPickerSlot = slot
+        let picker = UIColorPickerViewController()
+        picker.delegate = self
+        picker.selectedColor = BlomixSkinCatalog.shared.uiColorForPersoSlot(slot)
+        picker.supportsAlpha = false
+        present(picker, animated: true)
+    }
+
+    func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
+        defer { persoPickerSlot = nil }
+        guard let slot = persoPickerSlot else {
+            viewController.dismiss(animated: true)
+            return
+        }
+        let c = viewController.selectedColor.resolvedColor(with: view.traitCollection)
+        if let hex = c.blomixHexForPersoSave(traitCollection: view.traitCollection) {
+            BlomixSkinCatalog.shared.applyPersoColorSave(hex: hex, slot: slot)
+        }
+        viewController.dismiss(animated: true)
+        rebuildSkinRows()
+    }
+
+    @objc private func closeTapped() {
+        dismiss(animated: true)
+    }
+
+    @objc private func adjustSoundsTapped() {
+        let controller = SoundMixSettingsViewController()
+        controller.modalPresentationStyle = .fullScreen
+        present(controller, animated: true)
+    }
+}
+
+@MainActor
+private final class SkinChoiceRowView: UIView {
+
+    private let skinId: String
+    private let onSelect: (String) -> Void
+    private let onPersoSwatchTapped: ((BlomixPersoColorSlot) -> Void)?
+    private let radio = UIImageView()
+    private let nameLabel = UILabel()
+    private let swatchStack = UIStackView()
+
+    init(
+        skin: BlomixSkinDefinition,
+        isSelected: Bool,
+        onSelect: @escaping (String) -> Void,
+        onPersoSwatchTapped: ((BlomixPersoColorSlot) -> Void)? = nil
+    ) {
+        self.skinId = skin.id
+        self.onSelect = onSelect
+        self.onPersoSwatchTapped = onPersoSwatchTapped
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        layer.cornerRadius = 8
+        layer.borderWidth = isSelected ? 1.5 : 0.5
+        layer.borderColor = (isSelected ? UIColor.white : UIColor(white: 0.35, alpha: 1)).cgColor
+        backgroundColor = UIColor(white: 0.1, alpha: 1)
+
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        let img = UIImage(systemName: isSelected ? "largecircle.fill.circle" : "circle", withConfiguration: config)
+        radio.image = img
+        radio.tintColor = .white
+        radio.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(radio)
+
+        nameLabel.text = skin.displayName
+        nameLabel.textColor = .white
+        nameLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(nameLabel)
+
+        swatchStack.axis = .horizontal
+        swatchStack.spacing = 4
+        swatchStack.alignment = .center
+        swatchStack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(swatchStack)
+
+        if skin.id == BlomixSkinCatalog.persoSkinId, onPersoSwatchTapped != nil {
+            var lastPriksFill: UIView?
+            for slot in BlomixPersoColorSlot.displayOrdered {
+                let hex: String?
+                switch slot {
+                case .priks: hex = skin.priks
+                case .prikstext: hex = skin.prikstext
+                default: hex = skin.blox[slot.rawValue]
+                }
+                guard let h = hex, let c = blomixSettingsHexUIColor(h) else { continue }
+                let dot = UIView()
+                dot.translatesAutoresizingMaskIntoConstraints = false
+                dot.backgroundColor = c
+                dot.layer.cornerRadius = 3
+                dot.widthAnchor.constraint(equalToConstant: 16).isActive = true
+                dot.heightAnchor.constraint(equalToConstant: 16).isActive = true
+                dot.accessibilityIdentifier = slot.rawValue
+                let tap = UITapGestureRecognizer(target: self, action: #selector(persoSwatchTapped(_:)))
+                dot.addGestureRecognizer(tap)
+                dot.isUserInteractionEnabled = true
+                swatchStack.addArrangedSubview(dot)
+                if slot == .priks { lastPriksFill = dot }
+                if slot == .prikstext, let priV = lastPriksFill {
+                    swatchStack.setCustomSpacing(5, after: priV)
+                }
+                if slot == .prikstext {
+                    dot.layer.borderWidth = 1
+                    dot.layer.borderColor = UIColor(white: 1, alpha: 0.22).cgColor
+                }
+            }
+        } else {
+            for key in BlomixSkinCatalog.bloxDisplayOrder {
+                if let hex = skin.blox[key.lowercased()],
+                   let c = blomixSettingsHexUIColor(hex) {
+                    let dot = UIView()
+                    dot.translatesAutoresizingMaskIntoConstraints = false
+                    dot.backgroundColor = c
+                    dot.layer.cornerRadius = 3
+                    dot.widthAnchor.constraint(equalToConstant: 16).isActive = true
+                    dot.heightAnchor.constraint(equalToConstant: 16).isActive = true
+                    swatchStack.addArrangedSubview(dot)
+                }
+            }
+            let pri = UIView()
+            pri.translatesAutoresizingMaskIntoConstraints = false
+            pri.backgroundColor = blomixSettingsHexUIColor(skin.priks) ?? UIColor(white: 0.45, alpha: 1)
+            pri.layer.cornerRadius = 3
+            pri.widthAnchor.constraint(equalToConstant: 16).isActive = true
+            pri.heightAnchor.constraint(equalToConstant: 16).isActive = true
+            swatchStack.addArrangedSubview(pri)
+
+            let priText = UIView()
+            priText.translatesAutoresizingMaskIntoConstraints = false
+            if let raw = skin.prikstext, let c = blomixSettingsHexUIColor(raw) {
+                priText.backgroundColor = c
+            } else {
+                priText.backgroundColor = .white
+            }
+            priText.layer.cornerRadius = 3
+            priText.layer.borderWidth = 1
+            priText.layer.borderColor = UIColor(white: 1, alpha: 0.22).cgColor
+            priText.widthAnchor.constraint(equalToConstant: 16).isActive = true
+            priText.heightAnchor.constraint(equalToConstant: 16).isActive = true
+            swatchStack.addArrangedSubview(priText)
+            swatchStack.setCustomSpacing(5, after: pri)
+        }
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+            radio.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            radio.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
+            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            swatchStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            swatchStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: swatchStack.leadingAnchor, constant: -8),
+        ])
+
+        if skin.id == BlomixSkinCatalog.persoSkinId {
+            radio.isUserInteractionEnabled = true
+            nameLabel.isUserInteractionEnabled = true
+            let pickRow = UITapGestureRecognizer(target: self, action: #selector(tapped))
+            radio.addGestureRecognizer(pickRow)
+            nameLabel.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
+        } else {
+            let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+            addGestureRecognizer(tap)
+            isUserInteractionEnabled = true
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    @objc private func tapped() {
+        onSelect(skinId)
+    }
+
+    @objc private func persoSwatchTapped(_ g: UITapGestureRecognizer) {
+        guard let id = g.view?.accessibilityIdentifier,
+              let slot = BlomixPersoColorSlot(rawValue: id) else { return }
+        onPersoSwatchTapped?(slot)
+    }
+}
+
+@MainActor
+private final class FontChoiceRowView: UIView {
+
+    private let choice: BlomixFontChoice
+    private let onSelect: (BlomixFontChoice) -> Void
+    private let radio = UIImageView()
+    private let nameLabel = UILabel()
+    private let previewLabel = UILabel()
+
+    init(choice: BlomixFontChoice, isSelected: Bool, onSelect: @escaping (BlomixFontChoice) -> Void) {
+        self.choice = choice
+        self.onSelect = onSelect
+        super.init(frame: .zero)
+
+        translatesAutoresizingMaskIntoConstraints = false
+        layer.cornerRadius = 8
+        layer.borderWidth = isSelected ? 1.5 : 0.5
+        layer.borderColor = (isSelected ? UIColor.white : UIColor(white: 0.35, alpha: 1)).cgColor
+        backgroundColor = UIColor(white: 0.1, alpha: 1)
+
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        radio.image = UIImage(systemName: isSelected ? "largecircle.fill.circle" : "circle", withConfiguration: config)
+        radio.tintColor = .white
+        radio.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(radio)
+
+        nameLabel.text = BlomixTypography.shared.fontDisplayName(for: choice)
+        nameLabel.textColor = .white
+        nameLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(nameLabel)
+
+        previewLabel.text = BlomixL10n.settingsFontPreview
+        previewLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        previewLabel.font = UIFont(name: choice.postScriptName, size: 15) ?? .systemFont(ofSize: 15, weight: .regular)
+        previewLabel.textAlignment = .right
+        previewLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(previewLabel)
+
+        NSLayoutConstraint.activate([
+            heightAnchor.constraint(greaterThanOrEqualToConstant: 56),
+            radio.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            radio.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
+            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+            previewLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            previewLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            previewLabel.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 10),
+        ])
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+        addGestureRecognizer(tap)
+        isUserInteractionEnabled = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    @objc private func tapped() {
+        onSelect(choice)
+    }
+}

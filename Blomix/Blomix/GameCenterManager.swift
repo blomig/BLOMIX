@@ -2,7 +2,7 @@
 //  GameCenterManager.swift
 //  Blomix
 //
-//  Authentification Game Center, envoi des scores (leaderboard App Store Connect « BlomixMainScore »)
+//  Authentification Game Center, envoi des scores (leaderboard App Store Connect « BlomigMainScore_v2 »)
 //  et présentation du tableau des scores. Voir PROJECT_CONTEXT.md (Phase 3).
 //
 
@@ -61,8 +61,8 @@ final class GameCenterManager {
         }
     }
 
-    /// Envoie le score au classement `BlomixMainScore` (API `GKLeaderboard.submitScore`, iOS 14+).
-    func reportScore(_ score: Int, leaderboardID: String = "BlomixMainScore") {
+    /// Envoie le score au classement `BlomigMainScore_v2` (API `GKLeaderboard.submitScore`, iOS 14+).
+    func reportScore(_ score: Int, leaderboardID: String = "BlomigMainScore_v2") {
         guard isAuthenticated else { return }
 
         GKLeaderboard.submitScore(
@@ -79,7 +79,7 @@ final class GameCenterManager {
         }
     }
 
-    /// Affiche le classement Game Center pour `BlomixMainScore`.
+    /// Affiche le classement Game Center pour `BlomigMainScore_v2`.
     func showLeaderboard(from viewController: UIViewController) {
         // L’auth est pilotée par `ScoreManager` ; l’état Game Center reste `GKLocalPlayer.local`.
         guard GKLocalPlayer.local.isAuthenticated else {
@@ -88,7 +88,7 @@ final class GameCenterManager {
         }
 
         let gcVC = GKGameCenterViewController(
-            leaderboardID: "BlomixMainScore",
+            leaderboardID: "BlomigMainScore_v2",
             playerScope: .global,
             timeScope: .allTime
         )

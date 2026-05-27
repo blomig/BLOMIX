@@ -59,9 +59,20 @@
 		1000000000000000000001C9 /* BlomixMusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C8 /* BlomixMusicPlayer.swift */; };
 		1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CA /* Puzzle Game 2.mp3 */; };
 		1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CC /* BlomixAmbientBlocksView.swift */; };
+		10000000000000000000021C /* tips_of_day.json in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* tips_of_day.json */; };
+		10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* BlomixAvailablePlayersManager.swift */; };
+		100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* BlomixSKButtonNode.swift */; };
+		100000000000000000000223 /* BlomixMoveAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* BlomixMoveAnalyzer.swift */; };
 		E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */; };
 		E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */; };
 		E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */; };
+		E32D3DC92FB0D37200E9E3F1 /* transition.wav in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC82FB0D37200E9E3F1 /* transition.wav */; };
+		E33D30D42FBF6F5F00153BE5 /* medal.jpg in Resources */ = {isa = PBXBuildFile; fileRef = E33D30D32FBF6F5F00153BE5 /* medal.jpg */; };
+		E373D1072FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1062FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 */; };
+		E373D1082FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1032FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 */; };
+		E373D1092FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1042FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 */; };
+		E373D10A2FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1052FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 */; };
+		E373D10B2FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1022FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -125,9 +136,21 @@
 		1000000000000000000001C8 /* BlomixMusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixMusicPlayer.swift; sourceTree = "<group>"; };
 		1000000000000000000001CA /* Puzzle Game 2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2.mp3"; sourceTree = "<group>"; };
 		1000000000000000000001CC /* BlomixAmbientBlocksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAmbientBlocksView.swift; sourceTree = "<group>"; };
+		10000000000000000000021A /* en */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = en; path = en.lproj/tips_of_day.json; sourceTree = "<group>"; };
+		10000000000000000000021B /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = fr; path = fr.lproj/tips_of_day.json; sourceTree = "<group>"; };
+		10000000000000000000021F /* BlomixAvailablePlayersManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAvailablePlayersManager.swift; sourceTree = "<group>"; };
+		100000000000000000000220 /* BlomixSKButtonNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixSKButtonNode.swift; sourceTree = "<group>"; };
+		100000000000000000000222 /* BlomixMoveAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixMoveAnalyzer.swift; sourceTree = "<group>"; };
 		E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = victory.mp3; sourceTree = "<group>"; };
 		E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = wrong.wav; sourceTree = "<group>"; };
 		E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = calm.mp3; sourceTree = "<group>"; };
+		E32D3DC82FB0D37200E9E3F1 /* transition.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = transition.wav; sourceTree = "<group>"; };
+		E33D30D32FBF6F5F00153BE5 /* medal.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = medal.jpg; sourceTree = "<group>"; };
+		E373D1022FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.1.mp3"; sourceTree = "<group>"; };
+		E373D1032FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.2.mp3"; sourceTree = "<group>"; };
+		E373D1042FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.3.mp3"; sourceTree = "<group>"; };
+		E373D1052FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.4.mp3"; sourceTree = "<group>"; };
+		E373D1062FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.5.mp3"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -161,8 +184,11 @@
 				1000000000000000000001A2 /* GameTutorialOverlayView.swift */,
 				1000000000000000000001B0 /* BlomixPvPNetworking.swift */,
 				1000000000000000000001B1 /* BlomixPvPUI.swift */,
+				100000000000000000000220 /* BlomixSKButtonNode.swift */,
 				1000000000000000000001B4 /* BlomixUIButtonStyle.swift */,
 				1000000000000000000001B6 /* BlomixEloManager.swift */,
+				100000000000000000000222 /* BlomixMoveAnalyzer.swift */,
+				10000000000000000000021F /* BlomixAvailablePlayersManager.swift */,
 				1000000000000000000001BF /* BlomixAudioMixSettings.swift */,
 				1000000000000000000001C8 /* BlomixMusicPlayer.swift */,
 				1000000000000000000001CC /* BlomixAmbientBlocksView.swift */,
@@ -175,6 +201,7 @@
 				1000000000000000000000A5 /* LeaderboardViewController.swift */,
 				100000000000000000000187 /* color_skins.json */,
 				10000000000000000000019A /* gameover_quotes.json */,
+				10000000000000000000021D /* tips_of_day.json */,
 				100000000000000000000195 /* credits.txt */,
 				10000000000000000000018A /* Localizable.strings */,
 				10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */,
@@ -184,6 +211,7 @@
 				100000000000000000000004 /* Info.plist */,
 				1000000000000000000000A4 /* Blomix.entitlements */,
 				100000000000000000000005 /* Assets.xcassets */,
+				E33D30D32FBF6F5F00153BE5 /* medal.jpg */,
 				100000000000000000000070 /* Sounds */,
 				100000000000000000000014 /* Base.lproj */,
 			);
@@ -210,6 +238,12 @@
 		100000000000000000000070 /* Sounds */ = {
 			isa = PBXGroup;
 			children = (
+				E373D1022FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 */,
+				E373D1032FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 */,
+				E373D1042FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 */,
+				E373D1052FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 */,
+				E373D1062FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 */,
+				E32D3DC82FB0D37200E9E3F1 /* transition.wav */,
 				E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */,
 				E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */,
 				E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */,
@@ -332,9 +366,12 @@
 				100000000000000000000174 /* 5251__noisecollector__bloopa01.aiff in Resources */,
 				100000000000000000000176 /* rules.txt in Resources */,
 				10000000000000000000017B /* gameover_quotes.json in Resources */,
+				10000000000000000000021C /* tips_of_day.json in Resources */,
 				E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */,
 				E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */,
+				E32D3DC92FB0D37200E9E3F1 /* transition.wav in Resources */,
 				10000000000000000000017C /* credits.txt in Resources */,
+				E33D30D42FBF6F5F00153BE5 /* medal.jpg in Resources */,
 				100000000000000000000188 /* color_skins.json in Resources */,
 				100000000000000000000189 /* Localizable.strings in Resources */,
 				10000000000000000000015E /* BitcountGridSingleInk-Variable.ttf in Resources */,
@@ -342,6 +379,11 @@
 				1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */,
 				1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */,
 				1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */,
+				E373D1072FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 in Resources */,
+				E373D1082FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 in Resources */,
+				E373D1092FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 in Resources */,
+				E373D10A2FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 in Resources */,
+				E373D10B2FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -364,8 +406,11 @@
 				10000000000000000000017A /* LeaderboardViewController.swift in Sources */,
 				1000000000000000000001B2 /* BlomixPvPNetworking.swift in Sources */,
 				1000000000000000000001B3 /* BlomixPvPUI.swift in Sources */,
+				100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */,
 				1000000000000000000001B5 /* BlomixUIButtonStyle.swift in Sources */,
 				1000000000000000000001B7 /* BlomixEloManager.swift in Sources */,
+				100000000000000000000223 /* BlomixMoveAnalyzer.swift in Sources */,
+				10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */,
 				1000000000000000000001BE /* BlomixAudioMixSettings.swift in Sources */,
 				1000000000000000000001C9 /* BlomixMusicPlayer.swift in Sources */,
 				1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */,
@@ -426,6 +471,15 @@
 				100000000000000000000199 /* fr */,
 			);
 			name = gameover_quotes.json;
+			sourceTree = "<group>";
+		};
+		10000000000000000000021D /* tips_of_day.json */ = {
+			isa = PBXVariantGroup;
+			children = (
+				10000000000000000000021A /* en */,
+				10000000000000000000021B /* fr */,
+			);
+			name = tips_of_day.json;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -558,7 +612,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 30;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -568,7 +622,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 3;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -589,7 +643,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 30;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -599,7 +653,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 3;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

@@ -18,10 +18,16 @@ nonisolated struct BlomixPvPGKMatchBox: @unchecked Sendable {
 final class BlomixPvPSearchBlocksView: UIView {
     private let blockSize: CGFloat = 18
     private let blockSpacing: CGFloat = 8
-    private let gridSize = 5   // 5×5
+    private let gridSize = 5           // 5×5
+    private let snakeLength = 9        // longueur max du serpent
+
     private var blockViews: [UIView] = []
     private var isAnimatingBlocks = false
     private var flickerTimer: Timer?
+
+    // État du serpent : tête en premier.
+    private var snakePositions: [(row: Int, col: Int)] = []
+    private var snakeColors: [UIColor] = []
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -29,10 +35,9 @@ final class BlomixPvPSearchBlocksView: UIView {
         backgroundColor = .clear
         isUserInteractionEnabled = false
 
-        let colors = blockColors()
-        for i in 0..<(gridSize * gridSize) {
+        for _ in 0..<(gridSize * gridSize) {
             let block = UIView()
-            block.backgroundColor = colors[i % colors.count]
+            block.backgroundColor = .clear
             block.layer.cornerRadius = 3
             block.layer.borderWidth = 1
             block.layer.borderColor = UIColor(white: 1, alpha: 0.18).cgColor
@@ -64,9 +69,11 @@ final class BlomixPvPSearchBlocksView: UIView {
         guard !isAnimatingBlocks else { return }
         isAnimatingBlocks = true
         alpha = 1
-        flickTick()
+        snakePositions = []
+        snakeColors = []
+        snakeTick()
         let t = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            self?.flickTick()
+            self?.snakeTick()
         }
         RunLoop.main.add(t, forMode: .common)
         flickerTimer = t
@@ -85,19 +92,94 @@ final class BlomixPvPSearchBlocksView: UIView {
         }
     }
 
-    private func flickTick() {
+    // MARK: - Logique serpent
+
+    private func snakeTick() {
         guard isAnimatingBlocks else { return }
-        let total = blockViews.count           // 25
-        let visibleCount = total / 2           // 12
-        var indices = Array(0..<total)
-        indices.shuffle()
-        let visible = Set(indices.prefix(visibleCount))
+        let colors = blockColors()
+
+        // Initialisation : placer la tête à une case aléatoire.
+        if snakePositions.isEmpty {
+            let row = Int.random(in: 0..<gridSize)
+            let col = Int.random(in: 0..<gridSize)
+            snakePositions = [(row, col)]
+            snakeColors    = [colors.randomElement()!]
+            renderSnake()
+            return
+        }
+
+        let head = snakePositions[0]
+        // Les cases occupées par le corps (la queue sera libérée si longueur max atteinte).
+        let willRemoveTail = snakePositions.count >= snakeLength
+        let bodySet = Set(snakePositions.dropLast(willRemoveTail ? 1 : 0)
+                            .map { $0.row * gridSize + $0.col })
+
+        let deltas = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+
+        // Cases voisines libres de la tête.
+        let candidates: [(row: Int, col: Int)] = deltas.compactMap { dr, dc in
+            let nr = head.row + dr; let nc = head.col + dc
+            guard nr >= 0, nr < gridSize, nc >= 0, nc < gridSize else { return nil }
+            guard !bodySet.contains(nr * gridSize + nc) else { return nil }
+            return (nr, nc)
+        }
+
+        let nextPos: (row: Int, col: Int)
+        if candidates.isEmpty {
+            // Impasse : téléporter la tête sur une case libre aléatoire.
+            let allFree = (0..<gridSize * gridSize)
+                .map { (row: $0 / gridSize, col: $0 % gridSize) }
+                .filter { !bodySet.contains($0.row * gridSize + $0.col) }
+            guard let teleport = allFree.randomElement() else { return }
+            nextPos = teleport
+        } else {
+            // Lookahead 1 : préférer les voisines qui ont le plus de voisines libres
+            // (évite de foncer dans un cul-de-sac).
+            let scored = candidates.map { pos -> (pos: (row: Int, col: Int), score: Int) in
+                let free = deltas.filter { dr, dc in
+                    let nr = pos.row + dr; let nc = pos.col + dc
+                    guard nr >= 0, nr < gridSize, nc >= 0, nc < gridSize else { return false }
+                    return !bodySet.contains(nr * gridSize + nc)
+                }.count
+                return (pos, free)
+            }
+            let maxScore = scored.map(\.score).max() ?? 0
+            let best = scored.filter { $0.score == maxScore }.map(\.pos)
+            nextPos = best.randomElement()!
+        }
+
+        // Avancer : nouvelle tête, couleur aléatoire.
+        snakePositions.insert(nextPos, at: 0)
+        snakeColors.insert(colors.randomElement()!, at: 0)
+
+        // Tronquer la queue si longueur max dépassée.
+        if snakePositions.count > snakeLength {
+            snakePositions.removeLast()
+            snakeColors.removeLast()
+        }
+
+        renderSnake()
+    }
+
+    private func renderSnake() {
+        let snakeMap = Dictionary(
+            uniqueKeysWithValues: snakePositions.enumerated()
+                .map { idx, pos in (pos.row * gridSize + pos.col, idx) }
+        )
         UIView.animate(withDuration: 0.15, delay: 0, options: [.beginFromCurrentState]) {
             for (i, block) in self.blockViews.enumerated() {
-                block.alpha = visible.contains(i) ? 1 : 0
+                let row = i / self.gridSize; let col = i % self.gridSize
+                if let snakeIdx = snakeMap[row * self.gridSize + col] {
+                    block.backgroundColor = self.snakeColors[snakeIdx]
+                    block.alpha = 1
+                } else {
+                    block.alpha = 0
+                }
             }
         }
     }
+
+    // MARK: - Couleurs
 
     private func blockColors() -> [UIColor] {
         let keys = ["red", "blue", "green", "yellow", "purple", "orange"]
@@ -162,16 +244,22 @@ final class BlomixPvPLobbyViewController: UIViewController {
     // MARK: - UI
 
     private let titleLabel = UILabel()
-    private let closeButton = UIButton(type: .system)
+    private let closeButton = BlomixUIButton()
     private let searchBlocksView = BlomixPvPSearchBlocksView()
     private let statusLabel = UILabel()
     private let hintLabel = UILabel()
     private var hasRegisteredPreparationObservers = false
 
     // MARK: - Mode choice UI
-    private let modeStackView = UIStackView()
-    private let modeAutoButton = UIButton(type: .system)
-    private let modeRecentButton = UIButton(type: .system)
+    private let modeStackView        = UIStackView()
+    private let modeAutoButton       = BlomixUIButton()
+    private let modeRecentButton     = BlomixUIButton()
+    private let modeAvailableButton  = BlomixUIButton()
+    private let modeAvailableToggle  = BlomixUIButton()
+    /// Statut du save CloudKit — affiché sous le toggle (debug / feedback joueur).
+    private let availabilityStatusLabel = UILabel()
+    /// Compteur du nombre de joueurs actuellement en recherche — affiché sous les boutons.
+    private let modeActivityLabel    = UILabel()
 
     var onClose: (() -> Void)?
     var onMatch: ((GKMatch) -> Void)?
@@ -192,13 +280,35 @@ final class BlomixPvPLobbyViewController: UIViewController {
             name: .blomixPvPAutoSearchStateChanged,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAvailabilityChanged),
+            name: .blomixAvailabilityChanged,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePublishResult(_:)),
+            name: .blomixAvailabilityPublishResult,
+            object: nil
+        )
+    }
+
+    @objc private func handlePublishResult(_ notif: Notification) {
+        let success = notif.userInfo?["success"] as? Bool ?? false
+        let message = notif.userInfo?["message"] as? String ?? "?"
+        let color: UIColor = success
+            ? UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+            : .systemOrange
+        setAvailabilityStatus(message, color: color)
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // L'animation UIView démarrée dans viewDidLoad (avant la fenêtre) est annulée
-        // par UIKit ; on la relance ici pour garantir le clignotement du dot.
+        // par UIKit ; on la relance ici pour garantir le clignotement des dots.
         updateAutoButtonAppearance()
+        updateAvailableToggleAppearance()
     }
 
     deinit {
@@ -211,6 +321,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
             NotificationCenter.default.removeObserver(self, name: .blomixPvPOpponentConnected, object: nil)
         }
         NotificationCenter.default.removeObserver(self, name: .blomixPvPAutoSearchStateChanged, object: nil)
+        NotificationCenter.default.removeObserver(self, name: .blomixAvailabilityChanged, object: nil)
     }
 
     // MARK: - Action fermeture
@@ -219,15 +330,23 @@ final class BlomixPvPLobbyViewController: UIViewController {
         switch lobbyPhase {
         case .choosingMode:
             transitionTo(.cancelled)
+            NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
             // Ne pas annuler la recherche auto : elle continue en arrière-plan si active.
-            dismiss(animated: true) { self.onClose?() }
+            dismiss(animated: true) {
+                NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+                self.onClose?()
+            }
         case .searching, .failed:
             noPlayerTimeoutTimer?.invalidate()
             activityRefreshTimer?.invalidate()
             activityRefreshTimer = nil
             GKMatchmaker.shared().cancel()
             transitionTo(.cancelled)
-            dismiss(animated: true) { self.onClose?() }
+            NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+            dismiss(animated: true) {
+                NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+                self.onClose?()
+            }
         default:
             return
         }
@@ -251,6 +370,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
             updateAutoButtonAppearance()
             queryAndDisplayPlayerActivity()
         case .searching:
+            modeActivityLabel.text = ""
             modeStackView.isHidden = true
             closeButton.alpha = 1
             closeButton.isEnabled = true
@@ -304,7 +424,11 @@ final class BlomixPvPLobbyViewController: UIViewController {
         print("[PvP Lobby] Watchdog de préparation expiré — abandon.")
         GKMatchmaker.shared().cancel()
         transitionTo(.failed(message: BlomixL10n.pvpLobbyPreparationTimeout))
-        dismiss(animated: true) { self.onClose?() }
+        NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        dismiss(animated: true) {
+            NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+            self.onClose?()
+        }
     }
 
     // MARK: - Recherche d'adversaire
@@ -351,10 +475,18 @@ final class BlomixPvPLobbyViewController: UIViewController {
         GKMatchmaker.shared().queryActivity { [weak self] count, error in
             Task { @MainActor in
                 guard let self else { return }
-                guard error == nil, count > 0 else { return }
                 switch self.lobbyPhase {
-                case .searching, .choosingMode:
-                    self.hintLabel.text = BlomixL10n.pvpLobbyActivePlayersHint(count)
+                case .choosingMode:
+                    // Affiche le compteur sous les boutons ; masque si rien ou erreur.
+                    if error == nil, count > 0 {
+                        self.modeActivityLabel.text = BlomixL10n.pvpLobbyActivePlayersHint(count)
+                    } else {
+                        self.modeActivityLabel.text = ""
+                    }
+                case .searching:
+                    if error == nil, count > 0 {
+                        self.hintLabel.text = BlomixL10n.pvpLobbyActivePlayersHint(count)
+                    }
                 default:
                     break
                 }
@@ -540,7 +672,11 @@ final class BlomixPvPLobbyViewController: UIViewController {
             opponentNamePollingTimer?.invalidate()
             opponentNamePollingTimer = nil
             transitionTo(.failed(message: BlomixL10n.pvpLobbyMatchFailed))
-            dismiss(animated: true) { self.onClose?() }
+            NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+            dismiss(animated: true) {
+                NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+                self.onClose?()
+            }
         default:
             return
         }
@@ -614,8 +750,10 @@ final class BlomixPvPLobbyViewController: UIViewController {
         modeHintLabel.textAlignment = .center
         modeHintLabel.numberOfLines = 0
 
-        for (btn, title) in [(modeAutoButton, BlomixL10n.pvpModeAutoDesc),
-                             (modeRecentButton, BlomixL10n.pvpModeRecentDesc)] {
+        for (btn, title) in [(modeAutoButton,      BlomixL10n.pvpModeAutoDesc),
+                             (modeRecentButton,    BlomixL10n.pvpModeRecentDesc),
+                             (modeAvailableButton, BlomixL10n.pvpModeAvailableDesc),
+                             (modeAvailableToggle, BlomixL10n.pvpAvailableToggleLabel)] {
             btn.setTitle(title, for: .normal)
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
             btn.contentEdgeInsets = UIEdgeInsets(top: 14, left: 24, bottom: 14, right: 24)
@@ -623,14 +761,36 @@ final class BlomixPvPLobbyViewController: UIViewController {
         }
         modeAutoButton.addTarget(self, action: #selector(modeAutoTapped), for: .touchUpInside)
         modeRecentButton.addTarget(self, action: #selector(modeRecentTapped), for: .touchUpInside)
+        modeAvailableButton.addTarget(self, action: #selector(modeAvailableTapped), for: .touchUpInside)
+        modeAvailableToggle.addTarget(self, action: #selector(modeAvailableToggleTapped), for: .touchUpInside)
+
+        // Message d'attente / compteur joueurs actifs (sous les boutons)
+        modeActivityLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        modeActivityLabel.textAlignment = .center
+        modeActivityLabel.textColor = UIColor.white.withAlphaComponent(0.45)
+        modeActivityLabel.numberOfLines = 0
+        modeActivityLabel.text = ""
 
         modeStackView.axis = .vertical
         modeStackView.spacing = 16
         modeStackView.alignment = .fill
         modeStackView.addArrangedSubview(modeHintLabel)
         modeStackView.setCustomSpacing(24, after: modeHintLabel)
-        modeStackView.addArrangedSubview(modeAutoButton)
         modeStackView.addArrangedSubview(modeRecentButton)
+        modeStackView.addArrangedSubview(modeAvailableButton)
+        modeStackView.addArrangedSubview(modeAutoButton)
+        modeStackView.addArrangedSubview(modeAvailableToggle)
+        modeStackView.setCustomSpacing(6, after: modeAvailableToggle)
+
+        availabilityStatusLabel.font = FontTheme.gameFont(size: 12, weight: .regular)
+        availabilityStatusLabel.textAlignment = .center
+        availabilityStatusLabel.numberOfLines = 0
+        availabilityStatusLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        availabilityStatusLabel.text = ""
+        modeStackView.addArrangedSubview(availabilityStatusLabel)
+        modeStackView.setCustomSpacing(20, after: availabilityStatusLabel)
+
+        modeStackView.addArrangedSubview(modeActivityLabel)
         modeStackView.translatesAutoresizingMaskIntoConstraints = false
         modeStackView.isHidden = true
         view.addSubview(modeStackView)
@@ -686,7 +846,9 @@ final class BlomixPvPLobbyViewController: UIViewController {
             modeAutoButton.layer.borderColor = green.cgColor
             modeAutoButton.layer.borderWidth = 1.5
             modeAutoButton.setTitleColor(green, for: .normal)
-            hintLabel.text = BlomixL10n.pvpAutoSearchActiveHint
+            // Le message est affiché sous les boutons (dans le stack) pour éviter tout chevauchement.
+            hintLabel.text = ""
+            modeActivityLabel.text = BlomixL10n.pvpAutoSearchActiveHint
 
             // Dot vert pulsant à droite du texte
             let dotSize: CGFloat = 10
@@ -711,7 +873,81 @@ final class BlomixPvPLobbyViewController: UIViewController {
             modeAutoButton.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
             modeAutoButton.setTitleColor(.white, for: .normal)
             hintLabel.text = ""
+            modeActivityLabel.text = ""
             queryAndDisplayPlayerActivity()
+        }
+    }
+
+    @objc private func handleAvailabilityChanged() {
+        updateAvailableToggleAppearance()
+    }
+
+    @objc private func modeAvailableTapped() {
+        let availVC = BlomixPvPAvailablePlayersViewController()
+        availVC.modalPresentationStyle = .overFullScreen
+        availVC.modalTransitionStyle = .crossDissolve
+        availVC.onMatch = { [weak self] match in
+            guard let self else { return }
+            self.presentingViewController?.dismiss(animated: false) {
+                self.onMatch?(match)
+            }
+        }
+        present(availVC, animated: true)
+    }
+
+    @objc private func modeAvailableToggleTapped() {
+        let nowActive = !BlomixAvailablePlayersManager.shared.isAvailableForChallenge
+        BlomixAvailablePlayersManager.shared.isAvailableForChallenge = nowActive
+        // La notification blomixAvailabilityChanged déclenchera updateAvailableToggleAppearance().
+        if nowActive {
+            let gcOK = GKLocalPlayer.local.isAuthenticated
+            if !gcOK {
+                setAvailabilityStatus("⚠️ Game Center non connecté", color: .systemOrange)
+            } else {
+                setAvailabilityStatus("⏳ Envoi en cours...", color: UIColor.white.withAlphaComponent(0.5))
+            }
+        } else {
+            setAvailabilityStatus("", color: .clear)
+        }
+    }
+
+    private func setAvailabilityStatus(_ text: String, color: UIColor) {
+        availabilityStatusLabel.text = text
+        availabilityStatusLabel.textColor = color
+    }
+
+    private func updateAvailableToggleAppearance() {
+        let active = BlomixAvailablePlayersManager.shared.isAvailableForChallenge
+        let green  = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+
+        modeAvailableToggle.viewWithTag(9902)?.removeFromSuperview()
+
+        if active {
+            modeAvailableToggle.layer.borderColor = green.cgColor
+            modeAvailableToggle.layer.borderWidth = 1.5
+            modeAvailableToggle.setTitleColor(green, for: .normal)
+
+            let dotSize: CGFloat = 10
+            let dot = UIView()
+            dot.tag = 9902
+            dot.backgroundColor = green
+            dot.layer.cornerRadius = dotSize / 2
+            dot.isUserInteractionEnabled = false
+            dot.translatesAutoresizingMaskIntoConstraints = false
+            modeAvailableToggle.addSubview(dot)
+            NSLayoutConstraint.activate([
+                dot.widthAnchor.constraint(equalToConstant: dotSize),
+                dot.heightAnchor.constraint(equalToConstant: dotSize),
+                dot.centerYAnchor.constraint(equalTo: modeAvailableToggle.centerYAnchor),
+                dot.trailingAnchor.constraint(equalTo: modeAvailableToggle.trailingAnchor, constant: -16),
+            ])
+            UIView.animate(withDuration: 0.65, delay: 0,
+                           options: [.repeat, .autoreverse, .allowUserInteraction],
+                           animations: { dot.alpha = 0.25 })
+        } else {
+            modeAvailableToggle.layer.borderColor = BlomixUIDestinationButtonStyle.borderColor.cgColor
+            modeAvailableToggle.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
+            modeAvailableToggle.setTitleColor(.white, for: .normal)
         }
     }
 
@@ -766,8 +1002,8 @@ final class BlomixPvPResultViewController: UIViewController {
     private let eloCurrentLabel = UILabel()
     private let eloDeltaLabel = UILabel()
     private let eloNewLabel = UILabel()
-    private let homeButton = UIButton(type: .system)
-    private let rematchButton = UIButton(type: .system)
+    private let homeButton = BlomixUIButton()
+    private let rematchButton = BlomixUIButton()
 
     var onHome: (() -> Void)?
     var onRematch: (() -> Void)?
@@ -958,6 +1194,65 @@ private struct BlomixRecentPlayersBox: @unchecked Sendable {
     let players: [GKPlayer]
 }
 
+// MARK: - Cache local des adversaires récents
+
+struct BlomixCachedOpponent: Codable {
+    var gamePlayerID: String
+    var displayName: String
+    var lastKnownElo: Int?
+    var lastMatchDate: Date
+}
+
+/// Persiste en local (UserDefaults) la liste des N derniers adversaires rencontrés.
+/// Permet d'afficher la liste immédiatement à l'ouverture, avant que GameCenter réponde.
+@MainActor
+final class BlomixRecentOpponentsCache {
+    static let shared = BlomixRecentOpponentsCache()
+    private static let defaultsKey = "blomixRecentOpponents_v1"
+    private static let maxEntries = 6
+
+    private init() {}
+
+    func all() -> [BlomixCachedOpponent] {
+        guard let data = UserDefaults.standard.data(forKey: Self.defaultsKey),
+              let entries = try? JSONDecoder().decode([BlomixCachedOpponent].self, from: data)
+        else { return [] }
+        return entries
+    }
+
+    /// Enregistre ou met à jour un adversaire (tri par date décroissante, max 6 entrées).
+    func record(gamePlayerID: String, displayName: String, elo: Int? = nil) {
+        var entries = all()
+        let now = Date()
+        if let idx = entries.firstIndex(where: { $0.gamePlayerID == gamePlayerID }) {
+            entries[idx].displayName = displayName
+            entries[idx].lastMatchDate = now
+            if let elo { entries[idx].lastKnownElo = elo }
+        } else {
+            entries.insert(BlomixCachedOpponent(
+                gamePlayerID: gamePlayerID, displayName: displayName,
+                lastKnownElo: elo, lastMatchDate: now), at: 0)
+        }
+        entries.sort { $0.lastMatchDate > $1.lastMatchDate }
+        entries = Array(entries.prefix(Self.maxEntries))
+        persist(entries)
+    }
+
+    /// Met à jour uniquement l'Elo d'un adversaire déjà enregistré.
+    func updateElo(gamePlayerID: String, elo: Int?) {
+        var entries = all()
+        guard let idx = entries.firstIndex(where: { $0.gamePlayerID == gamePlayerID }) else { return }
+        entries[idx].lastKnownElo = elo
+        persist(entries)
+    }
+
+    private func persist(_ entries: [BlomixCachedOpponent]) {
+        if let data = try? JSONEncoder().encode(entries) {
+            UserDefaults.standard.set(data, forKey: Self.defaultsKey)
+        }
+    }
+}
+
 @MainActor
 final class BlomixPvPRecentPlayersViewController: UIViewController {
 
@@ -979,9 +1274,28 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
     }
 
     struct RecentPlayerItem {
-        let player: GKPlayer
+        let gamePlayerID: String
+        let displayName: String
+        /// nil tant que le `GKPlayer` n'est pas encore chargé depuis GameCenter (affichage depuis cache).
+        var player: GKPlayer?
         var elo: Int?
-        var eloLoading: Bool = true
+        var eloLoading: Bool
+
+        init(player: GKPlayer, elo: Int? = nil, eloLoading: Bool = true) {
+            self.gamePlayerID = player.gamePlayerID
+            self.displayName = player.displayName
+            self.player = player
+            self.elo = elo
+            self.eloLoading = eloLoading
+        }
+
+        init(cached: BlomixCachedOpponent) {
+            self.gamePlayerID = cached.gamePlayerID
+            self.displayName = cached.displayName
+            self.player = nil
+            self.elo = cached.lastKnownElo
+            self.eloLoading = false
+        }
     }
 
     // MARK: - Properties
@@ -995,13 +1309,16 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
 
     // MARK: - UI
 
-    private let titleLabel = UILabel()
-    private let closeButton = UIButton(type: .system)
-    private let statusLabel = UILabel()
-    private let hintLabel = UILabel()
+    private let titleLabel       = UILabel()
+    private let closeButton      = BlomixUIButton()
+    private let statusLabel      = UILabel()
+    private let hintLabel        = UILabel()
+    private let countdownLabel   = UILabel()
     private let searchBlocksView = BlomixPvPSearchBlocksView()
-    private let scrollView = UIScrollView()
-    private let playerStackView = UIStackView()
+    private let scrollView       = UIScrollView()
+    private let playerStackView  = UIStackView()
+    private var countdownTick:        Timer?
+    private var countdownSecondsLeft = 0
 
     // MARK: - Lifecycle
 
@@ -1047,6 +1364,13 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hintLabel)
 
+        countdownLabel.textColor = UIColor(white: 0.9, alpha: 1)
+        countdownLabel.font = FontTheme.gameFont(size: 52, weight: .regular)
+        countdownLabel.textAlignment = .center
+        countdownLabel.isHidden = true
+        countdownLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(countdownLabel)
+
         playerStackView.axis = .vertical
         playerStackView.spacing = 0
         playerStackView.alignment = .fill
@@ -1075,6 +1399,9 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             hintLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -26),
             hintLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
 
+            countdownLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            countdownLabel.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: 20),
+
             scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -1098,6 +1425,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             hintLabel.text = ""
             searchBlocksView.isHidden = false
             searchBlocksView.startAnimating()
+            stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
 
         case .loaded(let items):
@@ -1106,6 +1434,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             hintLabel.text = ""
             searchBlocksView.stopAnimating(settle: false)
             searchBlocksView.isHidden = true
+            stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
             rebuildPlayerList(items: items)
 
@@ -1115,6 +1444,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             hintLabel.text = ""
             searchBlocksView.stopAnimating(settle: false)
             searchBlocksView.isHidden = true
+            stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
 
         case .inviting(let name):
@@ -1123,6 +1453,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             hintLabel.text = BlomixL10n.pvpRecentInviteHint
             searchBlocksView.isHidden = false
             searchBlocksView.startAnimating()
+            startCountdown(seconds: 60)
             closeButton.alpha = 1; closeButton.isEnabled = true
 
         case .failed(let msg):
@@ -1131,6 +1462,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             hintLabel.text = ""
             searchBlocksView.isHidden = false
             searchBlocksView.stopAnimating(settle: true)
+            stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
         }
     }
@@ -1164,7 +1496,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
         }
 
         let nameLabel = UILabel()
-        nameLabel.text = item.player.displayName
+        nameLabel.text = item.displayName
         nameLabel.textColor = .white
         nameLabel.font = FontTheme.gameFont(size: 16, weight: .semibold)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -1181,7 +1513,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
         eloLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
         eloLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let challengeBtn = UIButton(type: .system)
+        let challengeBtn = BlomixUIButton()
         challengeBtn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: challengeBtn)
         challengeBtn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
@@ -1224,7 +1556,15 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
     }
 
     private func loadRecentPlayers() {
-        applyPhase(.loading)
+        // ── Affichage immédiat depuis le cache local ─────────────────────────────
+        let cached = BlomixRecentOpponentsCache.shared.all()
+        if cached.isEmpty {
+            applyPhase(.loading)
+        } else {
+            applyPhase(.loaded(cached.map { RecentPlayerItem(cached: $0) }))
+        }
+
+        // ── Refresh GameCenter en arrière-plan ───────────────────────────────────
         Task { @MainActor [weak self] in
             guard let self else { return }
             let box: BlomixRecentPlayersBox = await withCheckedContinuation { cont in
@@ -1232,22 +1572,37 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
                     cont.resume(returning: BlomixRecentPlayersBox(players: players ?? []))
                 }
             }
-            let players = box.players
-            guard !players.isEmpty else {
-                self.applyPhase(.empty)
+            let gkPlayers = box.players
+
+            if gkPlayers.isEmpty {
+                // GC ne renvoie rien : conserver le cache ou passer à empty.
+                if cached.isEmpty { self.applyPhase(.empty) }
                 return
             }
-            var items = players.map { RecentPlayerItem(player: $0, elo: nil, eloLoading: true) }
+
+            // Construire la liste fraîche à partir des joueurs GK.
+            // Les entrées cache absentes de la liste GK sont conservées en queue.
+            var items: [RecentPlayerItem] = gkPlayers.map { player in
+                var item = RecentPlayerItem(player: player, eloLoading: true)
+                // Pré-remplir avec l'Elo du cache pour que l'UI ne régresse pas.
+                item.elo = cached.first(where: { $0.gamePlayerID == player.gamePlayerID })?.lastKnownElo
+                return item
+            }
+            for entry in cached where !items.contains(where: { $0.gamePlayerID == entry.gamePlayerID }) {
+                items.append(RecentPlayerItem(cached: entry))
+            }
             self.applyPhase(.loaded(items))
-            // Load Elo for each player asynchronously.
-            // Si completedMatchCount == 0, le joueur n'a jamais joué → Elo affiché "—".
+
+            // Charger l'Elo frais pour chaque joueur GC (un par un, comme avant).
             for index in items.indices {
-                let player = items[index].player
+                guard let player = items[index].player else { continue }
                 if let profile = try? await BlomixEloManager.shared.fetchProfile(for: player),
                    profile.completedMatchCount > 0 {
                     items[index].elo = profile.rating
+                    BlomixRecentOpponentsCache.shared.updateElo(gamePlayerID: player.gamePlayerID, elo: profile.rating)
                 } else {
-                    items[index].elo = nil  // jamais joué → "—"
+                    items[index].elo = nil
+                    BlomixRecentOpponentsCache.shared.updateElo(gamePlayerID: player.gamePlayerID, elo: nil)
                 }
                 items[index].eloLoading = false
                 if case .loaded = self.phase {
@@ -1262,17 +1617,43 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
     @objc private func challengeTapped(_ sender: UIButton) {
         guard case .loaded(let items) = phase, sender.tag < items.count else { return }
         let item = items[sender.tag]
-        invitePlayer(item.player)
+        if let player = item.player {
+            invitePlayer(player)
+        } else {
+            // GKPlayer pas encore résolu (ligne du cache) : on le charge à la demande.
+            // GKPlayer.loadPlayers(forIdentifiers:) est très rapide (<1 s, cache GK local).
+            let name = item.displayName
+            let gid  = item.gamePlayerID
+            applyPhase(.inviting(playerName: name))
+            GKPlayer.loadPlayers(forIdentifiers: [gid]) { [weak self] players, error in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let player = players?.first {
+                        self.sendInvitation(to: player)
+                    } else {
+                        let msg = error.map { BlomixL10n.pvpLobbyMatchmakingError($0.localizedDescription) }
+                            ?? BlomixL10n.pvpRecentInviteFailed
+                        self.notifyOutgoingInviteEnded()
+                        self.applyPhase(.failed(message: msg))
+                    }
+                }
+            }
+        }
     }
 
     private func invitePlayer(_ player: GKPlayer) {
-        let playerName = player.displayName
-        applyPhase(.inviting(playerName: playerName))
+        applyPhase(.inviting(playerName: player.displayName))
+        sendInvitation(to: player)
+    }
+
+    /// Envoie réellement l'invitation GKMatchmaker (appelé après que l'état .inviting est posé).
+    private func sendInvitation(to player: GKPlayer) {
         // Signale à GameViewController qu'une invitation sortante est active.
+        // On inclut l'ID du joueur cible pour détecter un "défi croisé" (chacun défie l'autre en même temps).
         NotificationCenter.default.post(
             name: .blomixPvPOutgoingInviteStateChanged,
             object: nil,
-            userInfo: ["active": true]
+            userInfo: ["active": true, "targetPlayerID": player.gamePlayerID]
         )
 
         let request = GKMatchRequest()
@@ -1294,14 +1675,12 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
         }
 
         // findMatch avec recipients se termine dès que le match est créé côté serveur,
-        // AVANT que l'invité ait accepté. On ignore expectedPlayerCount (toujours 0 dans ce cas)
-        // et on attend systématiquement la connexion P2P effective via GKMatchDelegate.
+        // AVANT que l'invité ait accepté. On attend la connexion P2P via GKMatchDelegate.
         GKMatchmaker.shared().findMatch(for: request) { [weak self] match, error in
             let box = match.map { BlomixPvPGKMatchBox(match: $0) }
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let box {
-                    // Attendre la connexion effective de l'invité via GKMatchDelegate.
                     self.pendingInviteMatch = box.match
                     box.match.delegate = self
                 } else {
@@ -1322,6 +1701,28 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             object: nil,
             userInfo: ["active": false]
         )
+    }
+
+    // MARK: - Countdown
+
+    private func startCountdown(seconds: Int) {
+        stopCountdown()
+        countdownSecondsLeft = seconds
+        countdownLabel.text = "\(countdownSecondsLeft)"
+        countdownLabel.isHidden = false
+        countdownTick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.countdownSecondsLeft = max(0, self.countdownSecondsLeft - 1)
+                self.countdownLabel.text = "\(self.countdownSecondsLeft)"
+            }
+        }
+    }
+
+    private func stopCountdown() {
+        countdownTick?.invalidate()
+        countdownTick = nil
+        countdownLabel.isHidden = true
     }
 
     // MARK: - Close
@@ -1354,8 +1755,8 @@ extension BlomixPvPRecentPlayersViewController: @preconcurrency GKMatchDelegate 
         let box = BlomixPvPGKMatchBox(match: match)
         Task { @MainActor [weak self] in
             guard let self, let pending = self.pendingInviteMatch, pending === box.match else { return }
-            // Un joueur s'est connecté : vérifier que le match est complet.
-            guard !box.match.players.isEmpty else { return }
+            // Attendre que tous les joueurs soient connectés (expectedPlayerCount == 0 = match complet).
+            guard box.match.expectedPlayerCount == 0 else { return }
             self.pendingInviteMatch = nil
             box.match.delegate = nil
             self.inviteTimer?.invalidate()
@@ -1392,8 +1793,8 @@ final class BlomixPvPInviteBannerView: UIView {
     }
 
     private let challengeLabel = UILabel()
-    private let acceptButton = UIButton(type: .system)
-    private let declineButton = UIButton(type: .system)
+    private let acceptButton = BlomixUIButton()
+    private let declineButton = BlomixUIButton()
     private var dismissTimer: Timer?
 
     var onAccept: (() -> Void)?
@@ -1501,6 +1902,659 @@ final class BlomixPvPInviteBannerView: UIView {
         UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.8, initialSpringVelocity: 0.5) {
             self.alpha = 1
             self.transform = .identity
+        }
+    }
+}
+
+// MARK: - Bannière overlay défi CloudKit entrant (globale — affichée depuis GameViewController)
+
+/// Bannière slide-in identique à `BlomixPvPInviteBannerView` mais pour les défis CloudKit.
+/// Affiche un countdown visible et se ferme automatiquement après 60 s.
+final class BlomixChallengeBannerView: UIView {
+
+    @MainActor
+    private enum FontTheme {
+        static func gameFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+            BlomixTypography.uiFont(size: size, weight: weight)
+        }
+    }
+
+    private let challengeLabel   = UILabel()
+    private let countdownLabel   = UILabel()
+    private let acceptButton     = BlomixUIButton()
+    private let declineButton    = BlomixUIButton()
+    private var countdownTick:   Timer?
+    private var secondsLeft      = 60
+
+    var onAccept: (() -> Void)?
+    var onDecline: (() -> Void)?
+
+    override init(frame: CGRect) { super.init(frame: frame); setupView() }
+    required init?(coder: NSCoder) { super.init(coder: coder); setupView() }
+
+    private func setupView() {
+        backgroundColor = UIColor(white: 0.08, alpha: 0.96)
+        layer.cornerRadius = 16
+        layer.masksToBounds = true
+        layer.borderColor = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 0.5).cgColor
+        layer.borderWidth = 1
+
+        challengeLabel.textColor = .white
+        challengeLabel.font = FontTheme.gameFont(size: 17, weight: .semibold)
+        challengeLabel.textAlignment = .center
+        challengeLabel.numberOfLines = 0
+        challengeLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(challengeLabel)
+
+        countdownLabel.textColor = UIColor(white: 0.5, alpha: 1)
+        countdownLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        countdownLabel.textAlignment = .center
+        countdownLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(countdownLabel)
+
+        acceptButton.setTitle(BlomixL10n.pvpInviteAccept, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: acceptButton)
+        acceptButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 20, bottom: 10, right: 20)
+        acceptButton.titleLabel?.font = FontTheme.gameFont(size: 15, weight: .semibold)
+        acceptButton.translatesAutoresizingMaskIntoConstraints = false
+        acceptButton.addTarget(self, action: #selector(acceptTapped), for: .touchUpInside)
+        addSubview(acceptButton)
+
+        declineButton.setTitle(BlomixL10n.pvpInviteDecline, for: .normal)
+        declineButton.setTitleColor(UIColor(white: 0.55, alpha: 1), for: .normal)
+        declineButton.titleLabel?.font = FontTheme.gameFont(size: 15, weight: .regular)
+        declineButton.translatesAutoresizingMaskIntoConstraints = false
+        declineButton.addTarget(self, action: #selector(declineTapped), for: .touchUpInside)
+        addSubview(declineButton)
+
+        let buttonStack = UIStackView(arrangedSubviews: [declineButton, acceptButton])
+        buttonStack.axis = .horizontal
+        buttonStack.spacing = 16
+        buttonStack.alignment = .center
+        buttonStack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(buttonStack)
+
+        NSLayoutConstraint.activate([
+            challengeLabel.topAnchor.constraint(equalTo: topAnchor, constant: 20),
+            challengeLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            challengeLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+
+            countdownLabel.topAnchor.constraint(equalTo: challengeLabel.bottomAnchor, constant: 4),
+            countdownLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+
+            buttonStack.topAnchor.constraint(equalTo: countdownLabel.bottomAnchor, constant: 14),
+            buttonStack.centerXAnchor.constraint(equalTo: centerXAnchor),
+            buttonStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -20),
+        ])
+    }
+
+    func configure(challengerName: String) {
+        challengeLabel.text = "⚔️ " + BlomixL10n.pvpInviteChallenge(challengerName)
+        updateCountdown()
+        countdownTick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.secondsLeft = max(0, self.secondsLeft - 1)
+                self.updateCountdown()
+                if self.secondsLeft == 0 { self.declineTapped() }
+            }
+        }
+    }
+
+    private func updateCountdown() {
+        countdownLabel.text = "\(secondsLeft)s"
+    }
+
+    @objc private func acceptTapped() {
+        countdownTick?.invalidate(); countdownTick = nil
+        dismiss { self.onAccept?() }
+    }
+
+    @objc private func declineTapped() {
+        countdownTick?.invalidate(); countdownTick = nil
+        dismiss { self.onDecline?() }
+    }
+
+    private func dismiss(completion: @escaping () -> Void) {
+        UIView.animate(withDuration: 0.25, animations: {
+            self.alpha = 0
+            self.transform = CGAffineTransform(translationX: 0, y: -20)
+        }, completion: { _ in
+            self.removeFromSuperview()
+            completion()
+        })
+    }
+
+    func show(in parentView: UIView, safeAreaTop: CGFloat) {
+        alpha = 0
+        transform = CGAffineTransform(translationX: 0, y: -40)
+        translatesAutoresizingMaskIntoConstraints = false
+        parentView.addSubview(self)
+        NSLayoutConstraint.activate([
+            topAnchor.constraint(equalTo: parentView.topAnchor, constant: safeAreaTop + 12),
+            leadingAnchor.constraint(equalTo: parentView.leadingAnchor, constant: 16),
+            trailingAnchor.constraint(equalTo: parentView.trailingAnchor, constant: -16),
+        ])
+        parentView.layoutIfNeeded()
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.8,
+                       initialSpringVelocity: 0.5) {
+            self.alpha = 1
+            self.transform = .identity
+        }
+    }
+}
+
+// MARK: - Joueurs disponibles pour un défi
+
+@MainActor
+final class BlomixPvPAvailablePlayersViewController: UIViewController {
+
+    @MainActor
+    private enum FontTheme {
+        static func gameFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+            BlomixTypography.uiFont(size: size, weight: weight)
+        }
+    }
+
+    // MARK: - État
+
+    private enum Phase {
+        case loading
+        case loaded([BlomixAvailablePlayer])
+        case empty
+        case inviting(playerName: String)
+        case failed(message: String)
+    }
+
+    var onMatch: ((GKMatch) -> Void)?
+
+    private var phase: Phase = .loading
+    private var pendingInviteMatch:  GKMatch?
+    private var inviteTimer:         Timer?
+    private var countdownTick:       Timer?
+    private var countdownSecondsLeft = 0
+    // MARK: - Vues
+
+    private let titleLabel       = UILabel()
+    private let closeButton      = BlomixUIButton()
+    private let statusLabel      = UILabel()
+    private let hintLabel        = UILabel()
+    private let countdownLabel   = UILabel()
+    private let searchBlocksView = BlomixPvPSearchBlocksView()
+    private let scrollView       = UIScrollView()
+    private let playerStackView  = UIStackView()
+
+    // MARK: - Cycle de vie
+
+    private var autoRefreshTimer: Timer?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        addAmbientBlocksBackground()
+        buildLayout()
+        loadAvailablePlayers()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        startAutoRefresh()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        stopAutoRefresh()
+    }
+
+    private func startAutoRefresh() {
+        stopAutoRefresh()
+        autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                switch self.phase {
+                case .loaded, .empty: self.refreshSilently()
+                default: break
+                }
+            }
+        }
+    }
+
+    private func refreshSilently() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard let (players, _) = try? await BlomixAvailablePlayersManager.shared
+                    .fetchAvailablePlayersAndChallenge() else { return }
+            let newPhase: Phase = players.isEmpty ? .empty : .loaded(players)
+            self.applyPhase(newPhase)
+        }
+    }
+
+    private func stopAutoRefresh() {
+        autoRefreshTimer?.invalidate()
+        autoRefreshTimer = nil
+    }
+
+    // MARK: - Layout
+
+    private func buildLayout() {
+        titleLabel.text = BlomixL10n.pvpAvailableTitle
+        titleLabel.textColor = .white
+        titleLabel.font = FontTheme.gameFont(size: 26, weight: .semibold)
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        closeButton.setTitle(BlomixL10n.close, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
+        view.addSubview(closeButton)
+
+        view.addSubview(searchBlocksView)
+
+        statusLabel.textColor = UIColor(white: 0.78, alpha: 1)
+        statusLabel.font = FontTheme.gameFont(size: 18, weight: .regular)
+        statusLabel.textAlignment = .center
+        statusLabel.numberOfLines = 0
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(statusLabel)
+
+        hintLabel.textColor = UIColor(white: 0.58, alpha: 1)
+        hintLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        hintLabel.textAlignment = .center
+        hintLabel.numberOfLines = 0
+        hintLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(hintLabel)
+
+        countdownLabel.textColor = UIColor(white: 0.9, alpha: 1)
+        countdownLabel.font = FontTheme.gameFont(size: 52, weight: .regular)
+        countdownLabel.textAlignment = .center
+        countdownLabel.isHidden = true
+        countdownLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(countdownLabel)
+
+        playerStackView.axis = .vertical
+        playerStackView.spacing = 0
+        playerStackView.alignment = .fill
+        playerStackView.translatesAutoresizingMaskIntoConstraints = false
+
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(playerStackView)
+        scrollView.isHidden = true
+        view.addSubview(scrollView)
+
+        NSLayoutConstraint.activate([
+            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+
+            searchBlocksView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            searchBlocksView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            statusLabel.topAnchor.constraint(equalTo: searchBlocksView.bottomAnchor, constant: 24),
+
+            hintLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 26),
+            hintLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -26),
+            hintLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
+
+            countdownLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            countdownLabel.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: 20),
+
+            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+
+            playerStackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            playerStackView.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 20),
+            playerStackView.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor, constant: -20),
+            playerStackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+        ])
+    }
+
+    // MARK: - Transitions d'état
+
+    private func applyPhase(_ newPhase: Phase) {
+        phase = newPhase
+        switch newPhase {
+        case .loading:
+            scrollView.isHidden = true
+            statusLabel.text = BlomixL10n.loading
+            hintLabel.text = ""
+            searchBlocksView.isHidden = false
+            searchBlocksView.startAnimating()
+            stopCountdown()
+            closeButton.alpha = 1; closeButton.isEnabled = true
+
+        case .loaded(let items):
+            scrollView.isHidden = false
+            statusLabel.text = ""
+            hintLabel.text = items.isEmpty ? BlomixL10n.pvpAvailableEmptyHint : ""
+            searchBlocksView.stopAnimating(settle: false)
+            searchBlocksView.isHidden = true
+            stopCountdown()
+            closeButton.alpha = 1; closeButton.isEnabled = true
+            rebuildPlayerList(items: items)
+
+        case .empty:
+            scrollView.isHidden = true
+            statusLabel.text = BlomixL10n.pvpAvailableEmpty
+            hintLabel.text = BlomixL10n.pvpAvailableEmptyHint
+            searchBlocksView.stopAnimating(settle: false)
+            searchBlocksView.isHidden = true
+            stopCountdown()
+            closeButton.alpha = 1; closeButton.isEnabled = true
+
+        case .inviting(let name):
+            scrollView.isHidden = true
+            statusLabel.text = BlomixL10n.pvpRecentInviteSent(name)
+            hintLabel.text = BlomixL10n.pvpRecentInviteHint
+            searchBlocksView.isHidden = false
+            searchBlocksView.startAnimating()
+            startCountdown(seconds: 60)
+            closeButton.alpha = 1; closeButton.isEnabled = true
+
+        case .failed(let msg):
+            scrollView.isHidden = true
+            statusLabel.text = msg
+            hintLabel.text = ""
+            searchBlocksView.isHidden = false
+            searchBlocksView.stopAnimating(settle: true)
+            stopCountdown()
+            closeButton.alpha = 1; closeButton.isEnabled = true
+        }
+    }
+
+    // MARK: - Liste des joueurs
+
+    private func rebuildPlayerList(items: [BlomixAvailablePlayer]) {
+        playerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        // Indicateur de visibilité du joueur local (rappel discret)
+        let visibilityBadge = makeVisibilityBadge()
+        playerStackView.addArrangedSubview(visibilityBadge)
+        playerStackView.setCustomSpacing(20, after: visibilityBadge)
+
+        for (index, item) in items.enumerated() {
+            playerStackView.addArrangedSubview(makePlayerRow(item: item, index: index))
+        }
+    }
+
+    /// Petite pastille indiquant si le joueur local est lui-même visible.
+    private func makeVisibilityBadge() -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let dot = UIView()
+        let isVisible = BlomixAvailablePlayersManager.shared.isAvailableForChallenge
+        let dotColor  = isVisible
+            ? UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+            : UIColor(white: 0.45, alpha: 1)
+        dot.backgroundColor = dotColor
+        dot.layer.cornerRadius = 5
+        dot.translatesAutoresizingMaskIntoConstraints = false
+
+        let label = UILabel()
+        label.text = isVisible
+            ? BlomixL10n.pvpAvailableYouAreVisible
+            : BlomixL10n.pvpAvailableYouAreNotVisible
+        label.textColor = dotColor
+        label.font = FontTheme.gameFont(size: 13, weight: .regular)
+        label.translatesAutoresizingMaskIntoConstraints = false
+
+        container.addSubview(dot)
+        container.addSubview(label)
+
+        NSLayoutConstraint.activate([
+            container.heightAnchor.constraint(equalToConstant: 28),
+            dot.widthAnchor.constraint(equalToConstant: 10),
+            dot.heightAnchor.constraint(equalToConstant: 10),
+            dot.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            dot.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            label.leadingAnchor.constraint(equalTo: dot.trailingAnchor, constant: 8),
+            label.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor),
+        ])
+        return container
+    }
+
+    private func makePlayerRow(item: BlomixAvailablePlayer, index: Int) -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        // Séparateur (sauf première ligne)
+        if index > 0 {
+            let sep = UIView()
+            sep.backgroundColor = UIColor(white: 0.22, alpha: 1)
+            sep.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(sep)
+            NSLayoutConstraint.activate([
+                sep.topAnchor.constraint(equalTo: container.topAnchor),
+                sep.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                sep.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                sep.heightAnchor.constraint(equalToConstant: 1),
+            ])
+        }
+
+        let nameLabel = UILabel()
+        nameLabel.text = item.displayName
+        nameLabel.textColor = .white
+        nameLabel.font = FontTheme.gameFont(size: 16, weight: .semibold)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let eloLabel = UILabel()
+        if let elo = item.eloRating, elo > 0 {
+            eloLabel.text = BlomixL10n.leaderboardElo(elo)
+        } else {
+            eloLabel.text = BlomixL10n.pvpRecentEloUnavailable
+        }
+        eloLabel.textColor = UIColor(white: 0.55, alpha: 1)
+        eloLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        eloLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let challengeBtn = BlomixUIButton()
+        challengeBtn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: challengeBtn)
+        challengeBtn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
+        challengeBtn.titleLabel?.font = FontTheme.gameFont(size: 14, weight: .semibold)
+        challengeBtn.translatesAutoresizingMaskIntoConstraints = false
+        challengeBtn.tag = index
+        challengeBtn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
+
+        [nameLabel, eloLabel, challengeBtn].forEach { container.addSubview($0) }
+
+        let topPad: CGFloat = index == 0 ? 10 : 18
+        NSLayoutConstraint.activate([
+            nameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: topPad),
+            nameLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+
+            eloLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            eloLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+            eloLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
+
+            challengeBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            challengeBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
+            challengeBtn.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 8),
+        ])
+
+        return container
+    }
+
+    // MARK: - Chargement CloudKit
+
+    private func loadAvailablePlayers() {
+        applyPhase(.loading)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let (players, _) = try await BlomixAvailablePlayersManager.shared
+                    .fetchAvailablePlayersAndChallenge()
+                let newPhase: Phase = players.isEmpty ? .empty : .loaded(players)
+                self.applyPhase(newPhase)
+            } catch {
+                self.applyPhase(.failed(message: BlomixL10n.pvpAvailableError(error.localizedDescription)))
+            }
+        }
+    }
+
+    // MARK: - Défi sortant (CloudKit rendez-vous + GKMatchmaker playerGroup)
+
+    @objc private func challengeTapped(_ sender: UIButton) {
+        guard case .loaded(let items) = phase, sender.tag < items.count else { return }
+        let item = items[sender.tag]
+        guard GKLocalPlayer.local.isAuthenticated else { return }
+
+        let localGameID  = GKLocalPlayer.local.gamePlayerID
+        let localName    = GKLocalPlayer.local.displayName
+        let targetGameID = item.gamePlayerID
+        let matchGroup   = BlomixAvailablePlayersManager.matchPlayerGroup(id1: localGameID, id2: targetGameID)
+
+        applyPhase(.inviting(playerName: item.displayName))
+
+        Task { [weak self] in
+            guard let self else { return }
+            await BlomixAvailablePlayersManager.shared.createChallenge(
+                challengerGamePlayerID: localGameID,
+                challengerDisplayName:  localName,
+                challengedGamePlayerID: targetGameID,
+                matchPlayerGroup:       matchGroup
+            )
+            self.startChallengeMatchmaking(targetGameID: targetGameID, playerGroup: matchGroup)
+        }
+    }
+
+    /// Démarre GKMatchmaker avec un playerGroup déterministe — pas de recipients nécessaire.
+    private func startChallengeMatchmaking(targetGameID: String, playerGroup: Int) {
+        NotificationCenter.default.post(
+            name: .blomixPvPOutgoingInviteStateChanged, object: nil,
+            userInfo: ["active": true, "targetPlayerID": targetGameID])
+
+        let request = GKMatchRequest()
+        request.minPlayers   = 2
+        request.maxPlayers   = 2
+        request.playerGroup  = playerGroup
+
+        let localGameID = GKLocalPlayer.local.isAuthenticated
+            ? GKLocalPlayer.local.gamePlayerID : nil
+
+        inviteTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                GKMatchmaker.shared().cancel()
+                self.pendingInviteMatch?.delegate = nil
+                self.pendingInviteMatch?.disconnect()
+                self.pendingInviteMatch = nil
+                self.notifyOutgoingInviteEnded()
+                // Supprimer le record de défi (timeout — le challengé n'a pas répondu)
+                if let gid = localGameID {
+                    BlomixAvailablePlayersManager.shared.deleteChallenge(challengedGamePlayerID: targetGameID)
+                    _ = gid
+                }
+                self.applyPhase(.failed(message: BlomixL10n.pvpRecentInviteFailed))
+            }
+        }
+
+        GKMatchmaker.shared().findMatch(for: request) { [weak self] match, error in
+            let box = match.map { BlomixPvPGKMatchBox(match: $0) }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let box {
+                    // Défi accepté : supprimer le record CloudKit
+                    BlomixAvailablePlayersManager.shared.deleteChallenge(
+                        challengedGamePlayerID: targetGameID)
+                    self.pendingInviteMatch = box.match
+                    box.match.delegate = self
+                } else {
+                    self.inviteTimer?.invalidate()
+                    self.inviteTimer = nil
+                    self.notifyOutgoingInviteEnded()
+                    let msg = error.map { BlomixL10n.pvpLobbyMatchmakingError($0.localizedDescription) }
+                        ?? BlomixL10n.pvpRecentInviteFailed
+                    self.applyPhase(.failed(message: msg))
+                }
+            }
+        }
+    }
+
+    private func notifyOutgoingInviteEnded() {
+        NotificationCenter.default.post(
+            name: .blomixPvPOutgoingInviteStateChanged, object: nil,
+            userInfo: ["active": false])
+    }
+
+    // MARK: - Décompte
+
+    private func startCountdown(seconds: Int) {
+        stopCountdown()
+        countdownSecondsLeft = seconds
+        countdownLabel.text = "\(countdownSecondsLeft)"
+        countdownLabel.isHidden = false
+        countdownTick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.countdownSecondsLeft = max(0, self.countdownSecondsLeft - 1)
+                self.countdownLabel.text = "\(self.countdownSecondsLeft)"
+            }
+        }
+    }
+
+    private func stopCountdown() {
+        countdownTick?.invalidate()
+        countdownTick = nil
+        countdownLabel.isHidden = true
+    }
+
+    // MARK: - Fermeture
+
+    @objc private func closeTapped() {
+        inviteTimer?.invalidate()
+        inviteTimer = nil
+        GKMatchmaker.shared().cancel()
+        pendingInviteMatch?.delegate = nil
+        pendingInviteMatch?.disconnect()
+        pendingInviteMatch = nil
+        notifyOutgoingInviteEnded()
+        switch phase {
+        case .failed, .inviting:
+            presentingViewController?.dismiss(animated: true)
+        default:
+            dismiss(animated: true)
+        }
+    }
+}
+
+// MARK: - GKMatchDelegate (attend la connexion de l'invité)
+
+extension BlomixPvPAvailablePlayersViewController: @preconcurrency GKMatchDelegate {
+
+    nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
+        guard state == .connected else { return }
+        let box = BlomixPvPGKMatchBox(match: match)
+        Task { @MainActor [weak self] in
+            guard let self, let pending = self.pendingInviteMatch, pending === box.match else { return }
+            guard box.match.expectedPlayerCount == 0 else { return }
+            self.pendingInviteMatch = nil
+            box.match.delegate = nil
+            self.inviteTimer?.invalidate()
+            self.inviteTimer = nil
+            self.notifyOutgoingInviteEnded()
+            GKMatchmaker.shared().finishMatchmaking(for: box.match)
+            self.onMatch?(box.match)
+        }
+    }
+
+    nonisolated func match(_ match: GKMatch, didFailWithError error: (any Error)?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.pendingInviteMatch = nil
+            self.inviteTimer?.invalidate()
+            self.inviteTimer = nil
+            GKMatchmaker.shared().cancel()
+            self.applyPhase(.failed(message: BlomixL10n.pvpRecentInviteFailed))
         }
     }
 }

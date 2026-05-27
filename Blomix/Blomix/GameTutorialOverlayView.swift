@@ -61,7 +61,7 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
 
     // MARK: Barre du bas
 
-    private let understoodButton = UIButton(type: .system)
+    private let understoodButton = BlomixUIButton()
     private let showOnStartupRadio = UIImageView()
     private let showOnStartupLabel = UILabel()
     // ON si le tutoriel n'a pas encore été désactivé, OFF si le joueur l'avait mis à false.

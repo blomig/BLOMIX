@@ -23,12 +23,15 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
 
     private var maxDurationTimer: Timer?
     private let maxDuration: TimeInterval = 15 * 60
+    // Compteur de tentatives consécutives échouées pour le backoff exponentiel.
+    private var findMatchRetryAttempt = 0
 
     private init() {}
 
     func startSearching() {
         guard !isSearching else { return }
         isSearching = true
+        findMatchRetryAttempt = 0
         startMaxDurationTimer()
         Task { await launchFindMatch() }
         NotificationCenter.default.post(name: .blomixPvPAutoSearchStateChanged, object: nil)
@@ -38,6 +41,7 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
     func stopSearching() {
         guard isSearching else { return }
         isSearching = false
+        findMatchRetryAttempt = 0
         maxDurationTimer?.invalidate()
         maxDurationTimer = nil
         GKMatchmaker.shared().cancel()
@@ -47,6 +51,15 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
 
     private func launchFindMatch() async {
         guard isSearching else { return }
+        // Backoff exponentiel : 0 s, 2 s, 4 s, 8 s, 16 s max — évite de marteler GameCenter.
+        if findMatchRetryAttempt > 0 {
+            let delay = min(pow(2.0, Double(findMatchRetryAttempt - 1)) * 2.0, 16.0)
+            print("[PvP AutoSearch] Tentative \(findMatchRetryAttempt + 1) — attente \(Int(delay))s…")
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard isSearching else { return }
+        }
+        findMatchRetryAttempt += 1
+
         let request = await BlomixEloManager.shared.makePvPMatchRequest()
         guard isSearching else { return }
 
@@ -57,6 +70,7 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
                 guard let self else { return }
                 if let box = matchBox {
                     self.isSearching = false
+                    self.findMatchRetryAttempt = 0
                     self.maxDurationTimer?.invalidate()
                     self.maxDurationTimer = nil
                     GKMatchmaker.shared().finishMatchmaking(for: box.match)
@@ -64,7 +78,7 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
                     self.onMatch?(box.match)
                     print("[PvP AutoSearch] Match trouvé !")
                 } else if self.isSearching {
-                    print("[PvP AutoSearch] Timeout/erreur, relance…")
+                    print("[PvP AutoSearch] Timeout/erreur, relance (tentative \(self.findMatchRetryAttempt))…")
                     await self.launchFindMatch()
                 }
             }
@@ -99,6 +113,7 @@ private struct BlomixPvPWireEnvelope: Codable {
     var seed: UInt64?
     var line: [String]?
     var fillDepth: Int?
+    var score: Int?
 }
 
 // MARK: - Blocs ↔ fil
@@ -195,6 +210,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private var nextIncomingAttackLineID: Int = 1
     private var lastSentScoreAttackBracket: Int = 0
     private var lastSentBoardFillDepth: Int?
+    private var lastSentScore: Int?
 
     private var turnTimer: Timer?
     private let turnSeconds: Int = 10
@@ -212,10 +228,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     /// Abandonne si le handshake n'est pas termine apres ce delai.
     private var handshakeWatchdog: Timer?
-    private let handshakeWatchdogTimeout: TimeInterval = 30.0
+    private let handshakeWatchdogTimeout: TimeInterval = 60.0
     /// Fenetre de grace avant d'abandonner en cas de micro-deconnexion pendant le handshake.
     private var disconnectionGraceTimer: Timer?
-    private let disconnectionGracePeriod: TimeInterval = 8.0
+    private let disconnectionGracePeriod: TimeInterval = 15.0
 
     init(match: GKMatch) {
         self.match = match
@@ -344,12 +360,13 @@ final class BlomixPvPMatchCoordinator: NSObject {
         return true
     }
 
-    func localBoardFillDepthDidUpdate(_ fillDepth: Int) {
+    func localBoardFillDepthDidUpdate(_ fillDepth: Int, score: Int) {
         guard didFinishHandshake else { return }
         let normalized = max(0, min(8, fillDepth))
-        guard lastSentBoardFillDepth != normalized else { return }
+        guard lastSentBoardFillDepth != normalized || lastSentScore != score else { return }
         lastSentBoardFillDepth = normalized
-        sendEnvelope(BlomixPvPWireEnvelope(k: .boardFillDepth, seed: nil, line: nil, fillDepth: normalized))
+        lastSentScore = score
+        sendEnvelope(BlomixPvPWireEnvelope(k: .boardFillDepth, seed: nil, line: nil, fillDepth: normalized, score: score))
     }
 
     func localPlayerLost() {
@@ -457,6 +474,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
             scene?.blomixPvP_refreshPendingAttackLinePreview()
         case .boardFillDepth:
             scene?.blomixPvP_setRemoteBoardFillDepth(env.fillDepth ?? 0)
+            scene?.blomixPvP_setRemoteScore(env.score ?? 0)
         case .iLost:
             guard remoteSenderGamePlayerID != GKLocalPlayer.local.gamePlayerID else { return }
             stopTurnTimer()
@@ -497,6 +515,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         nextIncomingAttackLineID = 1
         lastSentScoreAttackBracket = 0
         lastSentBoardFillDepth = nil
+        lastSentScore = nil
         // Relance le handshake (l'hote enverra un nouveau helloSeed).
         beginHandshakeMonitoringIfNeeded()
         startHandshakeWatchdog()
@@ -570,6 +589,8 @@ extension BlomixPvPMatchCoordinator: GKMatchDelegate {
                 self.cancelDisconnectionGrace()
                 self.resolveHostRoleIfNeeded()
                 self.beginHandshakeMonitoringIfNeeded()
+                // Persiste l'adversaire dans le cache local pour un affichage instantané la prochaine fois.
+                BlomixRecentOpponentsCache.shared.record(gamePlayerID: gamePlayerID, displayName: displayName)
                 // Notifie les couches UI avec les chaînes déjà extraites (Sendable).
                 NotificationCenter.default.post(
                     name: .blomixPvPOpponentConnected,

@@ -29,9 +29,10 @@
 "pvp.lobby_match_failed" = "Aucune partie trouvée.";
 "pvp.lobby_no_players_available" = "Pas de joueur présent.";
 "pvp.lobby_preparation_timeout" = "Préparation interrompue. Veuillez réessayer.";
-"pvp.auto_search_active_hint" = "En attente d'un adversaire… Ferme pour revenir à l'accueil.";
+"pvp.auto_search_active_hint" = "En attente d'un adversaire… Tu peux fermer et jouer en solo, ou défier un joueur directement.";
 "pvp.lobby_active_players_hint_format" = "%d joueur(s) actif(s) en ce moment";
 "pvp.unknown_opponent" = "Adversaire inconnu";
+"pvp.match_found_launching" = "Joueur trouvé !\nPartie en cours de lancement…";
 "pvp.remote_fill_label_line1" = "Grille";
 "pvp.remote_fill_label_line2" = "adversaire";
 "pvp.lobby_opponent_found_format" = "Adversaire trouvé : %@";
@@ -56,7 +57,7 @@
 "pvp.result_rematch_launching" = "Lancement...";
 "pvp.hud_match_against_format" = "Match contre : %@";
 
-"menu.new_game" = "Nouvelle partie";
+"menu.new_game" = "Accueil";
 "menu.scores" = "Scores";
 "menu.rules" = "Règles";
 "menu.settings" = "Réglages";
@@ -65,7 +66,7 @@
 "game_over.title" = "PARTIE TERMINÉE";
 "game_over.focus_title" = "GAME OVER";
 "game_over.score_format" = "SCORE %lld";
-"game_over.restart" = "REJOUER";
+"game_over.restart" = "ACCUEIL";
 "game_over.leaderboard" = "Voir le classement";
 "game_over.personal_best" = "Nouveau record personnel !";
 "hud.best_score_title" = "RECORD";
@@ -165,6 +166,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.mode_choice_hint" = "Comment voulez-vous jouer ?";
 "pvp.mode_auto_desc" = "Prêt à jouer";
 "pvp.mode_recent_desc" = "Adversaire récent";
+"pvp.mode_available_desc" = "Joueurs disponibles";
+"pvp.available_toggle_label" = "OK pour être défié";
 "pvp.recent_title" = "Adversaires récents";
 "pvp.recent_no_players" = "Aucun adversaire récent.\nJouez votre première partie PvP pour les voir apparaître ici.";
 "pvp.recent_challenge" = "Défier";
@@ -176,3 +179,59 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.invite_challenge_format" = "%@ vous défie !";
 "pvp.invite_accept" = "Accepter";
 "pvp.invite_decline" = "Refuser";
+
+"update.banner_available" = "Version %@ disponible — Mettre à jour ↗";
+
+"pvp.leaderboard_invite_not_recent_player" = "Game Center ne permet d'inviter que des joueurs avec qui vous avez récemment joué. Utilisez la recherche automatique PvP pour rencontrer ce joueur.";
+
+"menu.tutorial" = "Tutoriel";
+"tutorial.skip" = "Passer";
+"tutorial.intro_text" = "Tape pour placer les blox";
+"tutorial.chain_prompt" = "Fais une chaîne de 5 blox de même couleur";
+"tutorial.chain_hint" = "Essaye avec les bleus ↓";
+"tutorial.chain_success" = "Super ! 5 blox = effacés !";
+"tutorial.brix_prompt" = "Les Brix sont plus résistants";
+"tutorial.brix_hint" = "Fais des chaînes à côté pour les faire baisser";
+"tutorial.brix_success" = "Super ! Le Brix se rapproche de la disparition !";
+"tutorial.bomb_prompt" = "Tape sur une case pour poser la bombe !";
+"tutorial.bomb_hint" = "Active-la puis vise une colonne";
+"tutorial.bomb_success" = "Super ! Tu sais tout — bonne partie !";
+
+"menu.tutorial" = "Tutoriel";
+"tutorial.skip" = "Passer";
+"tutorial.intro_text" = "Tape sur une colonne pour placer un blox";
+"tutorial.chain_prompt" = "Fais une chaîne de 5 blox de même couleur";
+"tutorial.chain_hint" = "Essaye avec les bleus ↓";
+"tutorial.chain_success" = "Super ! 5 blox = effacés !";
+"tutorial.brix_prompt" = "Les Brix sont plus résistants";
+"tutorial.brix_hint" = "Fais des chaînes à côté pour les faire baisser";
+"tutorial.brix_success" = "Super ! Le Brix se rapproche de la disparition !";
+"tutorial.bomb_prompt" = "Ta bombe casse les blox et les Brix !";
+"tutorial.bomb_hint" = "D’abord l’icône bombe, puis tape sur la case de ton choix";
+"tutorial.bomb_success" = "Super ! Tu sais tout — bonne partie !";
+
+"tutorial.line_arrival" = "Tous les 10 blox, une ligne vient perturber le jeu !";
+
+/* Transition overlays */
+"transition.tutorial.title"        = "TUTORIEL";
+"transition.tutorial.subtitle"     = "1 min pour apprendre le jeu";
+"transition.tutorial_end.title"    = "FIN DU TUTO";
+"transition.tutorial_end.subtitle" = "À vous de jouer";
+
+/* PvP — invite error */
+"pvp.invite_error.title"   = "Erreur de connexion";
+"pvp.invite_error.message" = "Impossible de rejoindre la partie de %@. Réessaie.";
+
+/* PvP — disconnect overlay */
+"pvp.disconnect.title"   = "Adversaire déconnecté";
+"pvp.disconnect.message" = "Ton adversaire a quitté la partie — tu gagnes !";
+
+/* Generic */
+"pvp.available_title" = "Joueurs disponibles";
+"pvp.available_empty" = "Aucun joueur disponible pour le moment.";
+"pvp.available_empty_hint" = "Active \"OK pour être défié\" dans le lobby pour apparaître dans cette liste.";
+"pvp.available_you_visible" = "Tu es visible pour les autres joueurs";
+"pvp.available_you_not_visible" = "Tu n'es pas visible (activer dans le lobby)";
+"pvp.available_error_format" = "Impossible de charger les joueurs : %@";
+
+"generic.ok" = "OK";

@@ -10,7 +10,7 @@ import Foundation
 import GameKit
 import UIKit
 
-/// Gestion Game Center pour le classement principal **BlomixMainScore**.
+/// Gestion Game Center pour le classement principal **BlomigMainScore_v2**.
 ///
 /// - Appelez **`authenticateOnLaunch(from:)`** une seule fois au démarrage (ex. `SceneDelegate` / `AppDelegate`).
 /// - **`submitScore`** met toujours à jour le **backup UserDefaults** si le score bat le record local, puis tente Game Center.
@@ -22,9 +22,21 @@ final class ScoreManager {
     static let shared = ScoreManager()
 
     /// Identifiant du leaderboard configuré dans App Store Connect (doit correspondre exactement).
-    static let mainLeaderboardID = "BlomixMainScore"
+    static let mainLeaderboardID = "BlomixMainScore_v3"
 
-    private init() {}
+    private init() {
+        migrateScoreVersionIfNeeded()
+    }
+
+    /// Réinitialise le meilleur score local si la version du scoring a changé (nouveau leaderboard, nouveau système de points).
+    private func migrateScoreVersionIfNeeded() {
+        let stored = UserDefaults.standard.integer(forKey: LocalPersistence.scoreVersionKey)
+        guard stored < LocalPersistence.currentScoreVersion else { return }
+        UserDefaults.standard.set(0, forKey: LocalPersistence.highScoreKey)
+        UserDefaults.standard.set(0, forKey: LocalPersistence.pendingGCScoreKey)
+        UserDefaults.standard.set(LocalPersistence.currentScoreVersion, forKey: LocalPersistence.scoreVersionKey)
+        print("[ScoreManager] Migration v\(LocalPersistence.currentScoreVersion) : meilleur score local remis à zéro.")
+    }
 
     // MARK: - État
 
@@ -40,6 +52,9 @@ final class ScoreManager {
         static let highScoreKey      = "BlomixLocalHighScore"
         /// Meilleur score réalisé hors ligne (GC inaccessible) — soumis automatiquement à la reconnexion.
         static let pendingGCScoreKey = "BlomixPendingGCScore"
+        /// Version du système de score. Incrémentée quand les scores ne sont plus comparables (nouveau leaderboard, nouveau système de points…).
+        static let scoreVersionKey   = "BlomixScoreVersion"
+        static let currentScoreVersion = 2
     }
 
     /// Meilleur score enregistré sur l’appareil (synchronisé avec `UserDefaults`, clé **BlomixLocalHighScore**).
@@ -164,7 +179,7 @@ final class ScoreManager {
 
     // MARK: - Soumission de score
 
-    /// Envoie un score entier au leaderboard **BlomixMainScore** (ou un autre ID si vous le surchargez).
+    /// Envoie un score entier au leaderboard **BlomigMainScore_v2** (ou un autre ID si vous le surchargez).
     ///
     /// Utilise l’API moderne `GKLeaderboard.submitScore(_:context:player:leaderboardIDs:completionHandler:)`.
     ///
@@ -288,6 +303,27 @@ final class ScoreManager {
                         completion(.success(nil))
                     }
                 }
+            }
+        }
+    }
+
+    /// Fetches the local player's global rank in `mainLeaderboardID` (BlomixMainScore_v2).
+    /// Calls `completion` on the **main thread** with the rank (1-based), or `nil` on failure
+    /// or if the player has no entry yet.
+    func fetchLocalPlayerMainScoreRank(completion: @escaping (Int?) -> Void) {
+        guard isAuthenticated else {
+            completion(nil)
+            return
+        }
+
+        GKLeaderboard.loadLeaderboards(IDs: [ScoreManager.mainLeaderboardID]) { leaderboards, error in
+            guard let leaderboard = leaderboards?.first, error == nil else {
+                Task { @MainActor in completion(nil) }
+                return
+            }
+            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 1)) { localEntry, _, _, error in
+                let rank: Int? = (error == nil) ? localEntry?.rank : nil
+                Task { @MainActor in completion(rank) }
             }
         }
     }

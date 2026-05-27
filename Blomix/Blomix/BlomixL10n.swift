@@ -182,6 +182,8 @@ enum BlomixL10n {
         String(format: tr("pvp.lobby_active_players_hint_format", comment: "PvP lobby — active player count hint"), count)
     }
     static var pvpUnknownOpponent: String { tr("pvp.unknown_opponent", comment: "Fallback opponent display name") }
+    /// Overlay de lancement PvP affiché pendant le handshake et la fermeture du lobby.
+    static var pvpMatchFoundLaunching: String { tr("pvp.match_found_launching", comment: "PvP connecting overlay — match found, launching") }
     static var pvpRemoteFillLabelLine1: String { tr("pvp.remote_fill_label_line1", comment: "HUD fill indicator label — line 1") }
     static var pvpRemoteFillLabelLine2: String { tr("pvp.remote_fill_label_line2", comment: "HUD fill indicator label — line 2") }
     static func pvpLobbyOpponentFound(_ name: String) -> String {
@@ -245,8 +247,75 @@ enum BlomixL10n {
     // MARK: - Start screen tip
     static var startScreenTipHeader: String { tr("start_screen.tip_header", comment: "Start screen — small header above the daily tip") }
 
+    // MARK: - Tutoriel interactif
+    static var menuTutorial: String { tr("menu.tutorial", comment: "Tutorial button on home screen and overflow menu") }
+    static var tutorialSkip: String { tr("tutorial.skip", comment: "Skip tutorial button (always visible)") }
+
+    // Overlays contextuels
+    static var tutorialIntroText: String      { tr("tutorial.intro_text",         comment: "Tuto step 1 — main text") }
+    static var tutorialChainPrompt: String    { tr("tutorial.chain_prompt",        comment: "Tuto step 2 — main text") }
+    static var tutorialChainHint: String      { tr("tutorial.chain_hint",          comment: "Tuto step 2 — hint text") }
+    static var tutorialChainSuccess: String   { tr("tutorial.chain_success",       comment: "Tuto step 2b — celebration") }
+    static var tutorialBrixPrompt: String     { tr("tutorial.brix_prompt",         comment: "Tuto step 3 — main text") }
+    static var tutorialBrixHint: String       { tr("tutorial.brix_hint",           comment: "Tuto step 3 — hint text") }
+    static var tutorialBrixSuccess: String    { tr("tutorial.brix_success",        comment: "Tuto step 3b — celebration") }
+    static var tutorialBombPrompt: String     { tr("tutorial.bomb_prompt",         comment: "Tuto step 4 — main text") }
+    static var tutorialBombHint: String       { tr("tutorial.bomb_hint",           comment: "Tuto step 4 — hint text") }
+    static var tutorialBombSuccess: String    { tr("tutorial.bomb_success",        comment: "Tuto step 4b — final celebration") }
+    static var tutorialLineArrival: String    { tr("tutorial.line_arrival",        comment: "Tuto informational — first bottom line push") }
+
     // MARK: - Music track picker
     static var musicPickerLabel: String { tr("settings.music_picker_label", comment: "Sound settings — music track picker label") }
     static var musicTrackPuzzleGame2: String { tr("settings.music_track_puzzle_game2", comment: "Music track name — Puzzle Game 2") }
     static var musicTrackCalm: String { tr("settings.music_track_calm", comment: "Music track name — Calm") }
+
+    // MARK: - Leaderboard — invite
+    /// Affiché quand GC refuse l'invitation car les joueurs n'ont pas récemment joué ensemble (code 5121).
+    static var pvpLeaderboardInviteNotRecentPlayer: String {
+        tr("pvp.leaderboard_invite_not_recent_player",
+           comment: "Leaderboard challenge — GC error 5121: can only invite recent opponents")
+    }
+
+    // MARK: - App update banner
+    static func updateBannerAvailable(_ version: String) -> String {
+        String(format: tr("update.banner_available", comment: "In-app update banner — new version on App Store; %@ = version number"), version)
+    }
+
+    // MARK: - Transition overlays
+    static var transitionTutorialTitle:    String { NSLocalizedString("transition.tutorial.title",    comment: "") }
+    static var transitionTutorialSubtitle: String { NSLocalizedString("transition.tutorial.subtitle", comment: "") }
+    static var transitionTutorialEndTitle:    String { NSLocalizedString("transition.tutorial_end.title",    comment: "") }
+    static var transitionTutorialEndSubtitle: String { NSLocalizedString("transition.tutorial_end.subtitle", comment: "") }
+
+    // MARK: - PvP invite error
+    static var pvpInviteErrorTitle: String {
+        tr("pvp.invite_error.title", comment: "Alert title when match(for:invite) fails")
+    }
+    static func pvpInviteErrorMessage(_ senderName: String) -> String {
+        String(format: tr("pvp.invite_error.message", comment: "Alert message when invite match creation fails; %@ = player name"), senderName)
+    }
+
+    // MARK: - PvP disconnect dialog
+    static var pvpDisconnectTitle: String {
+        tr("pvp.disconnect.title", comment: "Overlay title when opponent disconnects during a match")
+    }
+    static var pvpDisconnectMessage: String {
+        tr("pvp.disconnect.message", comment: "Overlay message when opponent disconnects — player wins")
+    }
+
+    // MARK: - Joueurs disponibles (CloudKit)
+
+    static var pvpModeAvailableDesc: String  { tr("pvp.mode_available_desc",  comment: "PvP lobby — available players button") }
+    static var pvpAvailableToggleLabel: String { tr("pvp.available_toggle_label", comment: "PvP lobby — be-challenged toggle button") }
+    static var pvpAvailableTitle: String     { tr("pvp.available_title",       comment: "Available players screen title") }
+    static var pvpAvailableEmpty: String     { tr("pvp.available_empty",       comment: "Available players screen — empty state") }
+    static var pvpAvailableEmptyHint: String { tr("pvp.available_empty_hint",  comment: "Available players — empty state hint") }
+    static var pvpAvailableYouAreVisible: String    { tr("pvp.available_you_visible",     comment: "Available players — local player is visible badge") }
+    static var pvpAvailableYouAreNotVisible: String { tr("pvp.available_you_not_visible", comment: "Available players — local player not visible badge") }
+    static func pvpAvailableError(_ message: String) -> String {
+        String(format: tr("pvp.available_error_format", comment: "Available players — load error; %@ = message"), message)
+    }
+
+    // MARK: - Generic
+    static var ok: String { tr("generic.ok", comment: "Generic OK button") }
 }

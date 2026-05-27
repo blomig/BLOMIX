@@ -29,9 +29,10 @@
 "pvp.lobby_match_failed" = "No match found.";
 "pvp.lobby_no_players_available" = "No player available.";
 "pvp.lobby_preparation_timeout" = "Preparation interrupted. Please try again.";
-"pvp.auto_search_active_hint" = "Waiting for an opponent… Close to go back to home screen.";
+"pvp.auto_search_active_hint" = "Waiting for an opponent… You can close and play solo, or challenge a player directly.";
 "pvp.lobby_active_players_hint_format" = "%d active player(s) right now";
 "pvp.unknown_opponent" = "Unknown opponent";
+"pvp.match_found_launching" = "Match found!\nLaunching game…";
 "pvp.remote_fill_label_line1" = "Opponent";
 "pvp.remote_fill_label_line2" = "grid";
 "pvp.lobby_opponent_found_format" = "Opponent found: %@";
@@ -56,7 +57,7 @@
 "pvp.result_rematch_launching" = "Launching...";
 "pvp.hud_match_against_format" = "Match against: %@";
 
-"menu.new_game" = "New Game";
+"menu.new_game" = "Home";
 "menu.scores" = "Scores";
 "menu.rules" = "Rules";
 "menu.settings" = "Settings";
@@ -65,7 +66,7 @@
 "game_over.title" = "GAME OVER";
 "game_over.focus_title" = "GAME OVER";
 "game_over.score_format" = "SCORE %lld";
-"game_over.restart" = "RESTART";
+"game_over.restart" = "HOME";
 "game_over.leaderboard" = "View leaderboard";
 "game_over.personal_best" = "New personal best!";
 "hud.best_score_title" = "BEST";
@@ -165,6 +166,8 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.mode_choice_hint" = "How do you want to play?";
 "pvp.mode_auto_desc" = "Ready to play";
 "pvp.mode_recent_desc" = "Recent opponent";
+"pvp.mode_available_desc" = "Available players";
+"pvp.available_toggle_label" = "OK to be challenged";
 "pvp.recent_title" = "Recent opponents";
 "pvp.recent_no_players" = "No recent opponents.\nPlay your first PvP match to see them here.";
 "pvp.recent_challenge" = "Challenge";
@@ -176,3 +179,59 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.invite_challenge_format" = "%@ is challenging you!";
 "pvp.invite_accept" = "Accept";
 "pvp.invite_decline" = "Decline";
+
+"update.banner_available" = "Version %@ available — Update ↗";
+
+"pvp.leaderboard_invite_not_recent_player" = "Game Center only allows challenges between players who have recently played together. Use PvP auto-match to meet this player.";
+
+"menu.tutorial" = "Tutorial";
+"tutorial.skip" = "Skip";
+"tutorial.intro_text" = "Tap to place blocks";
+"tutorial.chain_prompt" = "Make a chain of 5 same-color blocks";
+"tutorial.chain_hint" = "Try with the blue ones ↓";
+"tutorial.chain_success" = "Super! 5 blocks = cleared!";
+"tutorial.brix_prompt" = "Brix blocks are tougher";
+"tutorial.brix_hint" = "Make chains next to them to chip away";
+"tutorial.brix_success" = "Super! The Brix is fading away!";
+"tutorial.bomb_prompt" = "Tap any cell to place the bomb!";
+"tutorial.bomb_hint" = "Activate it then aim at a column";
+"tutorial.bomb_success" = "Super! You know it all — enjoy the game!";
+
+"menu.tutorial" = "Tutorial";
+"tutorial.skip" = "Skip";
+"tutorial.intro_text" = "Tap a column to place a block";
+"tutorial.chain_prompt" = "Make a chain of 5 same-color blocks";
+"tutorial.chain_hint" = "Try it with the blue ones ↓";
+"tutorial.chain_success" = "Super! 5 blocks = cleared!";
+"tutorial.brix_prompt" = "Brix are tougher to clear";
+"tutorial.brix_hint" = "Make chains next to them to chip away";
+"tutorial.brix_success" = "Super! The Brix is fading!";
+"tutorial.bomb_prompt" = "Your bomb blasts blocks and Brix!";
+"tutorial.bomb_hint" = "First tap the bomb icon, then tap a cell in the grid";
+"tutorial.bomb_success" = "Super! You know it all — enjoy the game!";
+
+"tutorial.line_arrival" = "Every 10 blocks, a new line pushes the grid up!";
+
+/* Transition overlays */
+"transition.tutorial.title"        = "TUTORIEL";
+"transition.tutorial.subtitle"     = "1 min pour apprendre le jeu";
+"transition.tutorial_end.title"    = "FIN DU TUTO";
+"transition.tutorial_end.subtitle" = "À vous de jouer";
+
+/* PvP — invite error */
+"pvp.invite_error.title"   = "Connection error";
+"pvp.invite_error.message" = "Could not connect to %@'s match. Try again.";
+
+/* PvP — disconnect overlay */
+"pvp.disconnect.title"   = "Opponent disconnected";
+"pvp.disconnect.message" = "Your opponent left the game — you win!";
+
+/* Generic */
+"pvp.available_title" = "Available players";
+"pvp.available_empty" = "No players available right now.";
+"pvp.available_empty_hint" = "Enable \"OK to be challenged\" in the lobby to appear in this list.";
+"pvp.available_you_visible" = "You are visible to other players";
+"pvp.available_you_not_visible" = "You are not visible (toggle in lobby)";
+"pvp.available_error_format" = "Could not load players: %@";
+
+"generic.ok" = "OK";

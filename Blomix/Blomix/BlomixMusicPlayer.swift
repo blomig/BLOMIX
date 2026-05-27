@@ -26,6 +26,22 @@ enum BlomixMusicTrack: String, CaseIterable {
     }
 }
 
+// MARK: - Noms de fichiers par stage solo
+
+extension BlomixMusicPlayer {
+    /// Nom de fichier correspondant à chaque index de stage solo (0 = Stage 1, …, 5 = Stage Ultime).
+    static func stageMusicFilename(forStageIndex index: Int) -> String {
+        switch index {
+        case 0:  return "Puzzle Game 2.mp3"
+        case 1:  return "Puzzle Game 2 - 1.1.mp3"
+        case 2:  return "Puzzle Game 2 - 1.2.mp3"
+        case 3:  return "Puzzle Game 2 - 1.3.mp3"
+        case 4:  return "Puzzle Game 2 - 1.4.mp3"
+        default: return "Puzzle Game 2 - 1.5.mp3"
+        }
+    }
+}
+
 // MARK: - Player
 
 final class BlomixMusicPlayer: @unchecked Sendable {
@@ -52,6 +68,8 @@ final class BlomixMusicPlayer: @unchecked Sendable {
 
     // MARK: Engine
 
+    private static let baseFilename = "Puzzle Game 2.mp3"
+
     private let engine     = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private var isStarted  = false
@@ -62,14 +80,12 @@ final class BlomixMusicPlayer: @unchecked Sendable {
     // MARK: Public API
 
     /// Démarre la musique (idempotent — appelé une seule fois après que l'AVAudioSession est active).
+    /// Toujours sur la piste de base ("Puzzle Game 2.mp3"), indépendamment de tout choix précédent.
     func start() {
         guard !isStarted else { return }
         isStarted = true
-
         engine.attach(playerNode)
-
-        load(track: selectedTrack, andPlay: true)
-
+        load(filename: Self.baseFilename, andPlay: true)
         volumeObserverToken = NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
             object: nil,
@@ -80,22 +96,36 @@ final class BlomixMusicPlayer: @unchecked Sendable {
     }
 
     /// Change le morceau à la volée et redémarre la lecture sans toucher au moteur.
+    /// Persiste le choix dans UserDefaults (usage : sélecteur manuel).
     func switchToTrack(_ track: BlomixMusicTrack) {
         guard isStarted else { return }
         selectedTrack = track
         playerNode.stop()
-        load(track: track, andPlay: true)
+        load(filename: track.rawValue, andPlay: true)
+    }
+
+    /// Change le morceau à la volée **sans** persister dans UserDefaults.
+    /// Utilisé pour les changements automatiques de musique par stage solo.
+    func switchToFile(_ filename: String) {
+        guard isStarted else { return }
+        playerNode.stop()
+        load(filename: filename, andPlay: true)
+    }
+
+    /// Revient à la piste de base ("Puzzle Game 2.mp3").
+    /// Appelé à la fin d'une partie, au retour à l'écran d'accueil ou en PvP.
+    func resetToBase() {
+        switchToFile(Self.baseFilename)
     }
 
     // MARK: Private
 
-    private func load(track: BlomixMusicTrack, andPlay: Bool) {
-        let rawName = track.rawValue
-        let name    = (rawName as NSString).deletingPathExtension
-        let ext     = (rawName as NSString).pathExtension
+    private func load(filename: String, andPlay: Bool) {
+        let name = (filename as NSString).deletingPathExtension
+        let ext  = (filename as NSString).pathExtension
 
         guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
-            print("[Music] '\(rawName)' introuvable dans le bundle.")
+            print("[Music] '\(filename)' introuvable dans le bundle.")
             return
         }
         do {
@@ -105,7 +135,7 @@ final class BlomixMusicPlayer: @unchecked Sendable {
                 pcmFormat: file.processingFormat,
                 frameCapacity: AVAudioFrameCount(file.length)
             ) else {
-                print("[Music] Impossible de créer le buffer PCM pour '\(rawName)'.")
+                print("[Music] Impossible de créer le buffer PCM pour '\(filename)'.")
                 return
             }
             try file.read(into: buffer)
@@ -122,7 +152,7 @@ final class BlomixMusicPlayer: @unchecked Sendable {
             playerNode.scheduleBuffer(buffer, at: nil, options: .loops)
             if andPlay { playerNode.play() }
         } catch {
-            print("[Music] Erreur chargement '\(rawName)' : \(error)")
+            print("[Music] Erreur chargement '\(filename)' : \(error)")
         }
     }
 

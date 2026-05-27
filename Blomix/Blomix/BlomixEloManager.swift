@@ -80,11 +80,16 @@ final class BlomixEloManager {
         return 1.0 / (1.0 + pow(10.0, exponent))
     }
 
-    /// K-factor progressif : démarre à 25 puis diminue avec l’expérience,
-    /// avec un plancher à 10 pour conserver des variations lisibles.
+    /// K-factor progressif : démarre à 40 puis diminue avec l’expérience,
+    /// avec un plancher à 20 pour garantir au moins ±10 pts entre joueurs de même niveau.
+    ///
+    /// Décroissance : K = max(20, 40 / (1 + n/80))
+    ///   n=0  → K=40   (±20 pts entre égaux)
+    ///   n=40 → K≈26.7 (±13 pts entre égaux)
+    ///   n=80 → K=20   (±10 pts entre égaux) — plancher
     func kFactor(forCompletedMatchCount matchCount: Int) -> Double {
         let normalizedCount = max(0, matchCount)
-        return max(10.0, 25.0 / (1.0 + Double(normalizedCount) / 40.0))
+        return max(20.0, 40.0 / (1.0 + Double(normalizedCount) / 80.0))
     }
 
     /// Calcule les nouveaux ratings Elo des deux joueurs après un match.

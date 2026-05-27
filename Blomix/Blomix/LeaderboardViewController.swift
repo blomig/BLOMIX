@@ -21,6 +21,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private struct LeaderboardRow: Sendable {
         let rank: Int
         let playerName: String
+        let gamePlayerID: String
         let score: Int
         let isLocalPlayer: Bool
     }
@@ -38,14 +39,14 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
         var subtitle: String {
             switch self {
-            case .mainScore: return "BlomixMainScore"
+            case .mainScore: return "BlomigMainScore_v2"
             case .elo: return "elotype"
             }
         }
 
         var leaderboardID: String {
             switch self {
-            case .mainScore: return "BlomixMainScore"
+            case .mainScore: return "BlomigMainScore_v2"
             case .elo: return "elotype"
             }
         }
@@ -58,12 +59,17 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
+    // MARK: - Callback PvP
+    /// Appelé quand un match GK est établi depuis le leaderboard. GameScene le branche sur `beginPvPWithMatch`.
+    var onMatch: ((GKMatch) -> Void)?
+
+    // MARK: - UI principale
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
-    private let closeButton = UIButton(type: .system)
+    private let closeButton = BlomixUIButton()
     private let tabsStack = UIStackView()
-    private let mainTabButton = UIButton(type: .system)
-    private let eloTabButton = UIButton(type: .system)
+    private let mainTabButton = BlomixUIButton()
+    private let eloTabButton = BlomixUIButton()
     private let statusLabel = UILabel()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let spinner = BlomixPvPSearchBlocksView()
@@ -72,6 +78,22 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private var rows: [LeaderboardRow] = [] {
         didSet { tableView.reloadData() }
     }
+    /// Cache des GKPlayer de l'onglet Elo, indexés par gamePlayerID.
+    /// Évite tout appel à `GKPlayer.loadPlayers(forIdentifiers:)` (source de l'erreur 5005).
+    private var eloGKPlayers: [String: GKPlayer] = [:]
+
+    // MARK: - État invitation sortante
+    private var pendingInviteMatch: GKMatch?
+    private var inviteTimer: Timer?
+    private let inviteOverlay        = UIView()
+    private let inviteAmbientBg      = BlomixAmbientBlocksView()
+    private let inviteSpinner        = BlomixPvPSearchBlocksView()
+    private let inviteStatusLabel    = UILabel()
+    private let inviteHintLabel      = UILabel()
+    private let inviteCountdownLabel = UILabel()
+    private let cancelInviteBtn      = BlomixUIButton()
+    private var countdownTick:        Timer?
+    private var countdownSecondsLeft = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -136,6 +158,76 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         spinner.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(spinner)
 
+        // ── Overlay invitation ─────────────────────────────────────────────────
+        inviteOverlay.backgroundColor = UIColor.black.withAlphaComponent(0.92)
+        inviteOverlay.translatesAutoresizingMaskIntoConstraints = false
+        inviteOverlay.isHidden = true
+        view.addSubview(inviteOverlay)
+
+        // Fond animé (mini-blox montants) interne à l'overlay.
+        inviteAmbientBg.translatesAutoresizingMaskIntoConstraints = false
+        inviteOverlay.insertSubview(inviteAmbientBg, at: 0)
+
+        inviteSpinner.translatesAutoresizingMaskIntoConstraints = false
+        inviteOverlay.addSubview(inviteSpinner)
+
+        inviteStatusLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        inviteStatusLabel.font = FontTheme.gameFont(size: 18, fallbackWeight: .regular)
+        inviteStatusLabel.textAlignment = .center
+        inviteStatusLabel.numberOfLines = 0
+        inviteStatusLabel.translatesAutoresizingMaskIntoConstraints = false
+        inviteOverlay.addSubview(inviteStatusLabel)
+
+        inviteHintLabel.textColor = UIColor(white: 0.55, alpha: 1)
+        inviteHintLabel.font = FontTheme.gameFont(size: 13, fallbackWeight: .regular)
+        inviteHintLabel.textAlignment = .center
+        inviteHintLabel.numberOfLines = 0
+        inviteHintLabel.translatesAutoresizingMaskIntoConstraints = false
+        inviteOverlay.addSubview(inviteHintLabel)
+
+        inviteCountdownLabel.textColor = UIColor(white: 0.9, alpha: 1)
+        inviteCountdownLabel.font = FontTheme.gameFont(size: 52, fallbackWeight: .regular)
+        inviteCountdownLabel.textAlignment = .center
+        inviteCountdownLabel.translatesAutoresizingMaskIntoConstraints = false
+        inviteOverlay.addSubview(inviteCountdownLabel)
+
+        cancelInviteBtn.setTitle(BlomixL10n.close, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: cancelInviteBtn)
+        cancelInviteBtn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        cancelInviteBtn.translatesAutoresizingMaskIntoConstraints = false
+        cancelInviteBtn.addTarget(self, action: #selector(cancelInviteTapped), for: .touchUpInside)
+        inviteOverlay.addSubview(cancelInviteBtn)
+
+        NSLayoutConstraint.activate([
+            inviteOverlay.topAnchor.constraint(equalTo: view.topAnchor),
+            inviteOverlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            inviteOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            inviteOverlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            inviteAmbientBg.topAnchor.constraint(equalTo: inviteOverlay.topAnchor),
+            inviteAmbientBg.leadingAnchor.constraint(equalTo: inviteOverlay.leadingAnchor),
+            inviteAmbientBg.trailingAnchor.constraint(equalTo: inviteOverlay.trailingAnchor),
+            inviteAmbientBg.bottomAnchor.constraint(equalTo: inviteOverlay.bottomAnchor),
+
+            // Spinner remonté pour laisser de la place aux labels dessous.
+            inviteSpinner.centerXAnchor.constraint(equalTo: inviteOverlay.centerXAnchor),
+            inviteSpinner.centerYAnchor.constraint(equalTo: inviteOverlay.centerYAnchor, constant: -80),
+
+            inviteStatusLabel.topAnchor.constraint(equalTo: inviteSpinner.bottomAnchor, constant: 20),
+            inviteStatusLabel.leadingAnchor.constraint(equalTo: inviteOverlay.leadingAnchor, constant: 24),
+            inviteStatusLabel.trailingAnchor.constraint(equalTo: inviteOverlay.trailingAnchor, constant: -24),
+
+            inviteHintLabel.topAnchor.constraint(equalTo: inviteStatusLabel.bottomAnchor, constant: 8),
+            inviteHintLabel.leadingAnchor.constraint(equalTo: inviteOverlay.leadingAnchor, constant: 26),
+            inviteHintLabel.trailingAnchor.constraint(equalTo: inviteOverlay.trailingAnchor, constant: -26),
+
+            inviteCountdownLabel.topAnchor.constraint(equalTo: inviteHintLabel.bottomAnchor, constant: 20),
+            inviteCountdownLabel.centerXAnchor.constraint(equalTo: inviteOverlay.centerXAnchor),
+
+            cancelInviteBtn.topAnchor.constraint(equalTo: inviteOverlay.safeAreaLayoutGuide.topAnchor, constant: 8),
+            cancelInviteBtn.trailingAnchor.constraint(equalTo: inviteOverlay.safeAreaLayoutGuide.trailingAnchor, constant: -16),
+        ])
+
         updateSelectedLeaderboardUI()
 
         NSLayoutConstraint.activate([
@@ -167,7 +259,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     }
 
     @objc private func closeTapped() {
-        dismiss(animated: true)
+        NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        dismiss(animated: true) {
+            NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+        }
     }
 
     @objc private func mainTabTapped() {
@@ -182,6 +277,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         guard selectedLeaderboardKind != kind else { return }
         selectedLeaderboardKind = kind
         rows = []
+        eloGKPlayers = [:]
         updateSelectedLeaderboardUI()
         loadLeaderboard()
     }
@@ -257,7 +353,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
             let localPlayer = GKLocalPlayer.local
             let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
-            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 50)) { _, rankedEntries, _, loadError in
+            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 100)) { _, rankedEntries, _, loadError in
                 if let loadError {
                     Task { @MainActor [weak self] in
                         guard self?.selectedLeaderboardKind == selectedKind else { return }
@@ -283,12 +379,18 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     return LeaderboardRow(
                         rank: entry.rank,
                         playerName: entry.player.displayName,
+                        gamePlayerID: entry.player.gamePlayerID,
                         score: resolvedScore,
                         isLocalPlayer: isLocalPlayer
                     )
                 }
 
-                let mappedGlobal: [LeaderboardRow] = (rankedEntries ?? []).map(buildRow)
+                // Elo : exclure les joueurs sans aucune partie jouée (context == 0 → Elo par défaut 800).
+                // Pour le classement principal, on garde tout.
+                let eligibleEntries = selectedKind == .elo
+                    ? (rankedEntries ?? []).filter { $0.context > 0 }
+                    : (rankedEntries ?? [])
+                let mappedGlobal: [LeaderboardRow] = eligibleEntries.map(buildRow)
 
                 guard selectedKind == .elo else {
                     Task { @MainActor [weak self] in
@@ -301,10 +403,19 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     return
                 }
 
+                // Cache des GKPlayer pour l'onglet Elo : évite tout appel ultérieur à loadPlayers.
+                struct GKPlayerMapBox: @unchecked Sendable { let map: [String: GKPlayer] }
+                var playerMap: [String: GKPlayer] = [:]
+                for entry in rankedEntries ?? [] {
+                    playerMap[entry.player.gamePlayerID] = entry.player
+                }
+                let playerMapBox = GKPlayerMapBox(map: playerMap)
+
                 leaderboard.loadEntries(for: [localPlayer], timeScope: .allTime) { _, localEntries, localLoadError in
                     var mergedRows = mappedGlobal
 
-                    if let localEntry = localEntries?.first {
+                    // Inclure le joueur local seulement s'il a au moins une partie jouée.
+                    if let localEntry = localEntries?.first, localEntry.context > 0 {
                         let localRow = buildRow(from: localEntry)
                         if let localIndex = mergedRows.firstIndex(where: { $0.isLocalPlayer }) {
                             mergedRows[localIndex] = localRow
@@ -316,6 +427,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     Task { @MainActor [weak self] in
                         guard let self else { return }
                         guard self.selectedLeaderboardKind == selectedKind else { return }
+                        self.eloGKPlayers = playerMapBox.map
                         self.setLoading(false)
                         self.rows = mergedRows
                         if let localLoadError {
@@ -349,7 +461,187 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         content.textProperties.font = FontTheme.gameFont(size: 16, fallbackWeight: row.isLocalPlayer ? .bold : .regular)
         content.secondaryTextProperties.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
         cell.contentConfiguration = content
+
+        // Bouton "Défier" uniquement sur l'onglet Elo, pour les autres joueurs.
+        if selectedLeaderboardKind == .elo && !row.isLocalPlayer && onMatch != nil {
+            let btn = BlomixUIButton()
+            btn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
+            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
+            btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
+            btn.titleLabel?.font = FontTheme.gameFont(size: 14, fallbackWeight: .semibold)
+            btn.tag = indexPath.row
+            btn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
+            btn.sizeToFit()
+            cell.accessoryView = btn
+        } else {
+            cell.accessoryView = nil
+        }
         return cell
+    }
+
+    // MARK: - Invitation sortante
+
+    @objc private func challengeTapped(_ sender: UIButton) {
+        guard sender.tag < rows.count else { return }
+        let row = rows[sender.tag]
+        guard let player = eloGKPlayers[row.gamePlayerID] else { return }
+        showInviteOverlay(playerName: row.playerName)
+        sendInvitation(to: player)
+    }
+
+    private func showInviteOverlay(playerName: String) {
+        inviteStatusLabel.text = BlomixL10n.pvpRecentInviteSent(playerName)
+        inviteHintLabel.text   = BlomixL10n.pvpRecentInviteHint
+        inviteHintLabel.isHidden      = false
+        inviteCountdownLabel.isHidden = false
+        inviteOverlay.isHidden = false
+        inviteSpinner.startAnimating()
+        startCountdown(seconds: 60)
+        NotificationCenter.default.post(
+            name: .blomixPvPOutgoingInviteStateChanged,
+            object: nil,
+            userInfo: ["active": true]
+        )
+    }
+
+    private func hideInviteOverlay() {
+        stopCountdown()
+        inviteSpinner.stopAnimating(settle: false)
+        inviteOverlay.isHidden = true
+        notifyInviteEnded()
+    }
+
+    private func startCountdown(seconds: Int) {
+        stopCountdown()
+        countdownSecondsLeft = seconds
+        inviteCountdownLabel.text    = "\(countdownSecondsLeft)"
+        inviteHintLabel.isHidden     = false
+        inviteCountdownLabel.isHidden = false
+        countdownTick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.countdownSecondsLeft = max(0, self.countdownSecondsLeft - 1)
+                self.inviteCountdownLabel.text = "\(self.countdownSecondsLeft)"
+            }
+        }
+    }
+
+    private func stopCountdown() {
+        countdownTick?.invalidate()
+        countdownTick = nil
+        inviteHintLabel.isHidden      = true
+        inviteCountdownLabel.isHidden = true
+    }
+
+    private func notifyInviteEnded() {
+        NotificationCenter.default.post(
+            name: .blomixPvPOutgoingInviteStateChanged,
+            object: nil,
+            userInfo: ["active": false]
+        )
+    }
+
+    @objc private func cancelInviteTapped() {
+        inviteTimer?.invalidate()
+        inviteTimer = nil
+        GKMatchmaker.shared().cancel()
+        pendingInviteMatch?.delegate = nil
+        pendingInviteMatch?.disconnect()
+        pendingInviteMatch = nil
+        hideInviteOverlay()
+    }
+
+    private func sendInvitation(to player: GKPlayer) {
+        let request = GKMatchRequest()
+        request.minPlayers = 2
+        request.maxPlayers = 2
+        request.recipients = [player]
+
+        inviteTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                GKMatchmaker.shared().cancel()
+                self.pendingInviteMatch?.delegate = nil
+                self.pendingInviteMatch?.disconnect()
+                self.pendingInviteMatch = nil
+                self.hideInviteOverlay()
+                self.inviteStatusLabel.text = BlomixL10n.pvpRecentInviteFailed
+                self.inviteOverlay.isHidden = false
+            }
+        }
+
+        GKMatchmaker.shared().findMatch(for: request) { [weak self] match, error in
+            let box = match.map { BlomixPvPGKMatchBox(match: $0) }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let box {
+                    self.pendingInviteMatch = box.match
+                    box.match.delegate = self
+                } else {
+                    self.inviteTimer?.invalidate()
+                    self.inviteTimer = nil
+                    let msg = Self.inviteErrorMessage(from: error)
+                    self.hideInviteOverlay()
+                    self.inviteStatusLabel.text = msg
+                    self.inviteOverlay.isHidden = false
+                }
+            }
+        }
+    }
+
+    /// Traduit une erreur `findMatch` en message utilisateur.
+    /// Détecte spécifiquement le code 5121 (joueurs n'ayant jamais joué ensemble) pour
+    /// afficher un message explicatif plutôt que le message générique de GK.
+    private static func inviteErrorMessage(from error: Error?) -> String {
+        guard let nsError = error as NSError? else { return BlomixL10n.pvpRecentInviteFailed }
+        // Erreur racine : code 8 "invalidPlayer" de GKErrorDomain
+        // Cause sous-jacente : GKServerStatusCode 5121 "never played together"
+        let isNeverPlayed: Bool = {
+            if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError,
+               underlying.code == 5121 { return true }
+            return nsError.domain == GKErrorDomain && nsError.code == 8
+        }()
+        if isNeverPlayed { return BlomixL10n.pvpLeaderboardInviteNotRecentPlayer }
+        return BlomixL10n.pvpLobbyMatchmakingError(nsError.localizedDescription)
+    }
+
+}
+
+// MARK: - GKMatchDelegate (invitation sortante depuis leaderboard)
+
+extension LeaderboardViewController: @preconcurrency GKMatchDelegate {
+    nonisolated func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {}
+
+    nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
+        let box = BlomixPvPGKMatchBox(match: match)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if state == .connected, box.match.expectedPlayerCount == 0 {
+                self.inviteTimer?.invalidate()
+                self.inviteTimer = nil
+                self.pendingInviteMatch?.delegate = nil
+                self.pendingInviteMatch = nil
+                self.hideInviteOverlay()
+                GKMatchmaker.shared().finishMatchmaking(for: box.match)
+                self.dismiss(animated: true) {
+                    self.onMatch?(box.match)
+                }
+            }
+        }
+    }
+
+    nonisolated func match(_ match: GKMatch, didFailWithError error: Error?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.inviteTimer?.invalidate()
+            self.inviteTimer = nil
+            self.pendingInviteMatch = nil
+            self.hideInviteOverlay()
+            let msg = error.map { BlomixL10n.pvpLobbyMatchmakingError($0.localizedDescription) }
+                ?? BlomixL10n.pvpRecentInviteFailed
+            self.inviteStatusLabel.text = msg
+            self.inviteOverlay.isHidden = false
+        }
     }
 }
 
@@ -370,7 +662,7 @@ final class BlomixPlainTextModalViewController: UIViewController {
         }
     }
 
-    private let closeButton = UIButton(type: .system)
+    private let closeButton = BlomixUIButton()
     private let titleLabel = UILabel()
     private let textView = UITextView()
     private let guideFooter = UIStackView()
@@ -468,7 +760,10 @@ final class BlomixPlainTextModalViewController: UIViewController {
     }
 
     @objc private func closeTapped() {
-        dismiss(animated: true)
+        NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        dismiss(animated: true) {
+            NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+        }
     }
 
     @objc private func guideSwitchChanged(_ sender: UISwitch) {
@@ -675,82 +970,6 @@ private final class RelativeSoundMixRowView: UIView {
     }
 }
 
-// MARK: - Music track picker
-
-@MainActor
-private final class MusicTrackPickerView: UIView {
-
-    private var buttons: [BlomixMusicTrack: UIButton] = [:]
-
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = UIColor(white: 0.1, alpha: 1)
-        layer.cornerRadius = 8
-        layer.borderWidth = 0.5
-        layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
-        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
-
-        let titleLabel = UILabel()
-        titleLabel.text = BlomixL10n.musicPickerLabel
-        titleLabel.textColor = .white
-        titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
-        titleLabel.setContentHuggingPriority(.required, for: .vertical)
-
-        let pillStack = UIStackView()
-        pillStack.axis = .horizontal
-        pillStack.spacing = 10
-        pillStack.distribution = .fillEqually
-        pillStack.translatesAutoresizingMaskIntoConstraints = false
-
-        for track in BlomixMusicTrack.allCases {
-            let btn = UIButton(type: .system)
-            btn.setTitle(track.displayName, for: .normal)
-            btn.titleLabel?.font = BlomixTypography.uiFont(size: 14, weight: .medium)
-            btn.layer.cornerRadius = 16
-            btn.layer.borderWidth = 1.5
-            btn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
-            btn.addAction(UIAction { [weak self] _ in
-                BlomixMusicPlayer.shared.switchToTrack(track)
-                self?.refresh()
-            }, for: .touchUpInside)
-            buttons[track] = btn
-            pillStack.addArrangedSubview(btn)
-        }
-
-        let container = UIStackView(arrangedSubviews: [titleLabel, pillStack])
-        container.axis = .vertical
-        container.spacing = 10
-        container.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(container)
-
-        NSLayoutConstraint.activate([
-            pillStack.heightAnchor.constraint(equalToConstant: 36),
-            container.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
-            container.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor),
-            container.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
-        ])
-
-        refresh()
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:)") }
-
-    private func refresh() {
-        let selected = BlomixMusicPlayer.shared.selectedTrack
-        for (track, btn) in buttons {
-            let isActive = track == selected
-            let color: UIColor = isActive
-                ? UIColor(red: 0.2, green: 0.85, blue: 0.4, alpha: 1)
-                : UIColor(white: 0.5, alpha: 1)
-            btn.layer.borderColor = color.cgColor
-            btn.setTitleColor(isActive ? .white : UIColor(white: 0.6, alpha: 1), for: .normal)
-            btn.backgroundColor = isActive ? UIColor(red: 0.2, green: 0.85, blue: 0.4, alpha: 0.18) : .clear
-        }
-    }
-}
-
 // MARK: -
 
 @MainActor
@@ -763,7 +982,7 @@ final class SoundMixSettingsViewController: UIViewController {
         }
     }
 
-    private let closeButton = UIButton(type: .system)
+    private let closeButton = BlomixUIButton()
     private let titleLabel = UILabel()
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
@@ -797,9 +1016,6 @@ final class SoundMixSettingsViewController: UIViewController {
 
         for soundName in BlomixAudioMixSettings.adjustableSoundNames {
             contentStack.addArrangedSubview(RelativeSoundMixRowView(soundName: soundName))
-            if soundName == BlomixMusicPlayer.soundKey {
-                contentStack.addArrangedSubview(MusicTrackPickerView())
-            }
         }
 
         NSLayoutConstraint.activate([
@@ -842,12 +1058,12 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         }
     }
 
-    private let closeButton = UIButton(type: .system)
+    private let closeButton = BlomixUIButton()
     private let titleLabel = UILabel()
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
     private let soundSlider = BlomixGridSoundSlider()
-    private let adjustSoundsButton = UIButton(type: .system)
+    private let adjustSoundsButton = BlomixUIButton()
     private let soundSectionLabel = UILabel()
     private let fontSectionLabel = UILabel()
     private let colorsSectionLabel = UILabel()
@@ -1020,7 +1236,10 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     }
 
     @objc private func closeTapped() {
-        dismiss(animated: true)
+        NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        dismiss(animated: true) {
+            NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+        }
     }
 
     @objc private func adjustSoundsTapped() {

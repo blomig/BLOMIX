@@ -43,6 +43,8 @@ final class BlomixSKButtonNode: SKNode {
     private(set) weak var backgroundNode: SKShapeNode?
     /// Nœud de libellé (`SKLabelNode`) — exposé pour mise à jour du texte.
     private(set) weak var labelNode: SKLabelNode?
+    /// Nœud d'ombre portée — même chemin que `backgroundNode`, légèrement décalé vers le bas.
+    private(set) weak var shadowNode: SKShapeNode?
 
     // MARK: - Init
 
@@ -82,6 +84,16 @@ final class BlomixSKButtonNode: SKNode {
             cornerHeight: resolvedCorner,
             transform: nil
         )
+        // ── Ombre portée ──────────────────────────────────────────────────────
+        let shadow = SKShapeNode(path: path)
+        shadow.fillColor   = SKColor(white: 0, alpha: 0.28)
+        shadow.strokeColor = .clear
+        shadow.position    = CGPoint(x: 1, y: -4)
+        shadow.zPosition   = -1
+        addChild(shadow)
+        shadowNode = shadow
+
+        // ── Fond arrondi ──────────────────────────────────────────────────────
         let bg = SKShapeNode(path: path)
         bg.fillColor   = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
         bg.strokeColor = BlomixUIDestinationButtonStyle.borderColor
@@ -110,50 +122,65 @@ final class BlomixSKButtonNode: SKNode {
     // MARK: - Press / Release animation
 
     private static let pressActionKey = "blomixSKBtnPress"
+    private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
     /// Position enregistrée au moment de l'appui pour un retour précis.
     private var positionBeforePress: CGPoint?
 
-    /// Joue l'animation d'appui : scale 0.92 + descente de 3 px. Appelé depuis GameScene.touchesBegan.
+    /// Joue l'animation d'appui : scale 0.92 + descente + fond éclairci + ombre compressée.
     func animatePressed() {
+        Self.haptic.impactOccurred()
+        Self.haptic.prepare()
         removeAction(forKey: Self.pressActionKey)
         positionBeforePress = position
 
-        let s  = BlomixUIDestinationButtonStyle.pressScale
-        let dy = BlomixUIDestinationButtonStyle.pressTranslateY  // pts vers le bas
+        let s   = BlomixUIDestinationButtonStyle.pressScale
+        let dy  = BlomixUIDestinationButtonStyle.pressTranslateY
         let dur = BlomixUIDestinationButtonStyle.pressAnimDuration
 
         let scaleDown = SKAction.scale(to: s, duration: dur)
         scaleDown.timingMode = .easeIn
-        let moveDown = SKAction.moveBy(x: 0, y: -dy, duration: dur)   // SpriteKit : y+ = haut
+        let moveDown = SKAction.moveBy(x: 0, y: -dy, duration: dur)
         moveDown.timingMode = .easeIn
-
         run(.group([scaleDown, moveDown]), withKey: Self.pressActionKey)
+
+        // Fond légèrement plus clair (instantané — la durée de press est 70 ms).
+        backgroundNode?.fillColor = BlomixUIDestinationButtonStyle.pressedBackgroundSKColor
+        // L'ombre se comprime naturellement via le scale parent ;
+        // on réduit aussi son alpha pour accentuer l'effet d'enfoncement.
+        shadowNode?.alpha = 0.05
     }
 
-    /// Joue l'animation de relâchement : retour position + overshoot scale 1.05 → 1.0.
+    /// Joue l'animation de relâchement : ressort 3 phases + restauration fond + ombre.
     /// Appelé depuis GameScene.touchesEnded / touchesCancelled.
     func animateReleased() {
         removeAction(forKey: Self.pressActionKey)
-        let origin  = positionBeforePress ?? position
+        let origin = positionBeforePress ?? position
         positionBeforePress = nil
 
-        let overshoot = BlomixUIDestinationButtonStyle.releaseOvershootScale
-        let dur1      = BlomixUIDestinationButtonStyle.releasePhase1Duration
-        let dur2      = BlomixUIDestinationButtonStyle.releasePhase2Duration
+        let dur1 = BlomixUIDestinationButtonStyle.releasePhase1Duration
 
-        // Phase 1 : remonte à la position originale + overshoot scale.
-        let scaleUp = SKAction.scale(to: overshoot, duration: dur1)
-        scaleUp.timingMode = .easeOut
+        // ── Ressort 3 phases (overshoot → undershoot → stabilisation) ────────
+        // Produit un rebond organique sans courbe prédéfinie.
+        let scaleUp  = SKAction.scale(to: 1.07, duration: dur1)
+        scaleUp.timingMode  = .easeOut
         let moveBack = SKAction.move(to: origin, duration: dur1)
         moveBack.timingMode = .easeOut
         let phase1 = SKAction.group([scaleUp, moveBack])
 
-        // Phase 2 : stabilisation à scale 1.0.
-        let settle = SKAction.scale(to: 1.0, duration: dur2)
+        let underShoot = SKAction.scale(to: 0.98, duration: 0.06)
+        underShoot.timingMode = .easeInEaseOut
+
+        let settle = SKAction.scale(to: 1.0, duration: 0.04)
         settle.timingMode = .easeInEaseOut
 
-        run(.sequence([phase1, settle]), withKey: Self.pressActionKey)
+        run(.sequence([phase1, underShoot, settle]), withKey: Self.pressActionKey)
+
+        // Restaure le fond et l'ombre.
+        backgroundNode?.fillColor = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
+        let restoreAlpha = SKAction.fadeAlpha(to: 1, duration: dur1)
+        restoreAlpha.timingMode = .easeOut
+        shadowNode?.run(restoreAlpha)
     }
 
     // MARK: - Helpers

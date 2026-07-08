@@ -3,11 +3,17 @@
 "common.cancel" = "Annuler";
 "common.loading" = "Chargement…";
 
+/* Confirmation de quitter une partie solo */
+"quit_confirm.title" = "Quitter la partie ?";
+"quit_confirm.message" = "Ton score actuel sera comptabilisé dans ta moyenne.";
+"quit_confirm.quit" = "Quitter";
+
 /* Accueil & jeu */
 "game.tagline" = "Un jeu de Blox";
-"start.button" = "JOUER";
+"start.button" = "Solo";
 "start.settings" = "Réglages";
 "start.credits" = "Crédits";
+"start.zen" = "Zen";
 "start.pvp" = "P vs P";
 "start.player_unknown" = "Joueur inconnu";
 "start.player_name_format" = "Joueur : %@";
@@ -33,6 +39,10 @@
 "pvp.lobby_active_players_hint_format" = "%d joueur(s) actif(s) en ce moment";
 "pvp.unknown_opponent" = "Adversaire inconnu";
 "pvp.match_found_launching" = "Joueur trouvé !\nPartie en cours de lancement…";
+"pvp.waiting_phrase_1" = "Connexion avec l'adversaire…";
+"pvp.waiting_phrase_2" = "Préparation des grilles…";
+"pvp.waiting_phrase_3" = "Distribution des blox…";
+"pvp.waiting_phrase_4" = "Tirage au sort…";
 "pvp.remote_fill_label_line1" = "Grille";
 "pvp.remote_fill_label_line2" = "adversaire";
 "pvp.lobby_opponent_found_format" = "Adversaire trouvé : %@";
@@ -82,6 +92,8 @@
 "gc.status.off" = "GC : non";
 
 "skin.display.perso" = "Perso";
+"skin.display.perso2" = "Perso 2";
+"skin.display.alea" = "Alea";
 "skin.display.default" = "Par défaut";
 
 /* Règles / crédits (fichiers manquants) */
@@ -92,7 +104,7 @@
 "modal.credits_title" = "Crédits";
 
 /* Classement */
-"leaderboard.title" = "Classement";
+"leaderboard.title" = "Score";
 "leaderboard.subtitle" = "BlomixMainScore";
 "leaderboard.loading" = "Chargement du classement…";
 "leaderboard.gc_sign_in" = "Connectez-vous à Game Center pour afficher le classement.";
@@ -103,8 +115,12 @@
 "leaderboard.top_count_format" = "Top %lld";
 "leaderboard.points_format" = "%lld pts";
 "leaderboard.elo_format" = "Elo %lld";
-"leaderboard.main_tab" = "Scores";
+"leaderboard.main_tab" = "Solo";
 "leaderboard.elo_tab" = "Elo";
+"leaderboard.avg_tab" = "Moy.";
+"leaderboard.zen_tab" = "Zen";
+"leaderboard.avg_format" = "moy. %lld pts";
+"leaderboard.avg_game_count" = "%lld parties";
 
 /* Réglages */
 "settings.title" = "Réglages";
@@ -112,12 +128,15 @@
 "settings.section_font" = "Police";
 "settings.section_colors" = "Couleurs";
 "settings.adjust_sounds" = "Régler les sons";
+"settings.sounds_slider_label" = "Sons";
+"settings.music_slider_label" = "Musique";
 "settings.sound_mix_title" = "Mixage des sons";
 "settings.font_preview" = "Blomix 123";
 "settings.font.bitcount" = "Bitcount";
 "settings.font.google_sans" = "Google Sans";
 "settings.font.dynapuff" = "DynaPuff";
 "settings.font.alfa_slab_one" = "Alfa Slab One";
+"settings.font.changa_one" = "Changa One";
 "settings.sound_percent_format" = "%lld%%";
 "settings.sound.music" = "Musique d'ambiance";
 "settings.sound.begin" = "Début de partie";
@@ -210,6 +229,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "tutorial.bomb_hint" = "D’abord l’icône bombe, puis tape sur la case de ton choix";
 "tutorial.bomb_success" = "Super ! Tu sais tout — bonne partie !";
 
+"tutorial.magix_intro" = "Il y a encore quelques surprises, tu les découvriras en jouant";
 "tutorial.line_arrival" = "Tous les 10 blox, une ligne vient perturber le jeu !";
 
 /* Transition overlays */
@@ -232,6 +252,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.available_empty_hint" = "Active \"OK pour être défié\" dans le lobby pour apparaître dans cette liste.";
 "pvp.available_you_visible" = "Tu es visible pour les autres joueurs";
 "pvp.available_you_not_visible" = "Tu n'es pas visible (activer dans le lobby)";
+"pvp.player_in_match"           = "En match";
 "pvp.available_error_format" = "Impossible de charger les joueurs : %@";
 
 "generic.ok" = "OK";

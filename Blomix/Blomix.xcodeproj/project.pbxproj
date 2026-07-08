@@ -73,6 +73,14 @@
 		E373D1092FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1042FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 */; };
 		E373D10A2FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1052FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 */; };
 		E373D10B2FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E373D1022FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 */; };
+		E3C8960D2FDD4066003991E8 /* magix.wav in Resources */ = {isa = PBXBuildFile; fileRef = E3C8960C2FDD4066003991E8 /* magix.wav */; };
+		E3C8960F2FFC26D0003991E8 /* gun_load.wav in Resources */ = {isa = PBXBuildFile; fileRef = E3C8960E2FFC26D0003991E8 /* gun_load.wav */; };
+		E3C896112FFC2A1F003991E8 /* prix.wav in Resources */ = {isa = PBXBuildFile; fileRef = E3C896102FFC2A1F003991E8 /* prix.wav */; };
+		E3C896142FFC2EBA003991E8 /* cleanx.wav in Resources */ = {isa = PBXBuildFile; fileRef = E3C896122FFC2EBA003991E8 /* cleanx.wav */; };
+		E3C896152FFC2EBA003991E8 /* scrumblx.wav in Resources */ = {isa = PBXBuildFile; fileRef = E3C896132FFC2EBA003991E8 /* scrumblx.wav */; };
+		E3C896172FFC301E003991E8 /* BlomixProceduralSFX.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C896162FFC301E003991E8 /* BlomixProceduralSFX.swift */; };
+		E3C896192FFCC1AD003991E8 /* ChangaOne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E3C896182FFCC1AD003991E8 /* ChangaOne-Regular.ttf */; };
+		E3C8961B2FFCC2EF003991E8 /* ChangaOne-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E3C8961A2FFCC2EF003991E8 /* ChangaOne-Italic.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -151,6 +159,14 @@
 		E373D1042FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.3.mp3"; sourceTree = "<group>"; };
 		E373D1052FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.4.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.4.mp3"; sourceTree = "<group>"; };
 		E373D1062FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2 - 1.5.mp3"; sourceTree = "<group>"; };
+		E3C8960C2FDD4066003991E8 /* magix.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = magix.wav; sourceTree = "<group>"; };
+		E3C8960E2FFC26D0003991E8 /* gun_load.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = gun_load.wav; sourceTree = "<group>"; };
+		E3C896102FFC2A1F003991E8 /* prix.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = prix.wav; sourceTree = "<group>"; };
+		E3C896122FFC2EBA003991E8 /* cleanx.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = cleanx.wav; sourceTree = "<group>"; };
+		E3C896132FFC2EBA003991E8 /* scrumblx.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = scrumblx.wav; sourceTree = "<group>"; };
+		E3C896162FFC301E003991E8 /* BlomixProceduralSFX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixProceduralSFX.swift; sourceTree = "<group>"; };
+		E3C896182FFCC1AD003991E8 /* ChangaOne-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChangaOne-Regular.ttf"; sourceTree = "<group>"; };
+		E3C8961A2FFCC2EF003991E8 /* ChangaOne-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChangaOne-Italic.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -177,6 +193,9 @@
 		100000000000000000000012 /* Blomix */ = {
 			isa = PBXGroup;
 			children = (
+				E3C8961A2FFCC2EF003991E8 /* ChangaOne-Italic.ttf */,
+				E3C896182FFCC1AD003991E8 /* ChangaOne-Regular.ttf */,
+				E3C896162FFC301E003991E8 /* BlomixProceduralSFX.swift */,
 				100000000000000000000001 /* AppDelegate.swift */,
 				100000000000000000000096 /* SceneDelegate.swift */,
 				100000000000000000000002 /* GameViewController.swift */,
@@ -211,6 +230,7 @@
 				100000000000000000000004 /* Info.plist */,
 				1000000000000000000000A4 /* Blomix.entitlements */,
 				100000000000000000000005 /* Assets.xcassets */,
+				E33D32752FCAAD4F00153BE5 /* New Group */,
 				E33D30D32FBF6F5F00153BE5 /* medal.jpg */,
 				100000000000000000000070 /* Sounds */,
 				100000000000000000000014 /* Base.lproj */,
@@ -238,6 +258,11 @@
 		100000000000000000000070 /* Sounds */ = {
 			isa = PBXGroup;
 			children = (
+				E3C896122FFC2EBA003991E8 /* cleanx.wav */,
+				E3C896132FFC2EBA003991E8 /* scrumblx.wav */,
+				E3C896102FFC2A1F003991E8 /* prix.wav */,
+				E3C8960E2FFC26D0003991E8 /* gun_load.wav */,
+				E3C8960C2FDD4066003991E8 /* magix.wav */,
 				E373D1022FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.1.mp3 */,
 				E373D1032FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 */,
 				E373D1042FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.3.mp3 */,
@@ -279,6 +304,13 @@
 				100000000000000000000172 /* GameKit.framework */,
 			);
 			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		E33D32752FCAAD4F00153BE5 /* New Group */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = "New Group";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -340,7 +372,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E3C8960D2FDD4066003991E8 /* magix.wav in Resources */,
 				100000000000000000000024 /* Assets.xcassets in Resources */,
+				E3C896112FFC2A1F003991E8 /* prix.wav in Resources */,
 				100000000000000000000025 /* LaunchScreen.storyboard in Resources */,
 				100000000000000000000026 /* Main.storyboard in Resources */,
 				100000000000000000000150 /* begin.wav in Resources */,
@@ -350,6 +384,7 @@
 				100000000000000000000154 /* chain.mp3 in Resources */,
 				100000000000000000000155 /* chain_new.wav in Resources */,
 				100000000000000000000177 /* chain_new-1.wav in Resources */,
+				E3C8961B2FFCC2EF003991E8 /* ChangaOne-Italic.ttf in Resources */,
 				100000000000000000000178 /* chain_new-2.wav in Resources */,
 				E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */,
 				1000000000000000000001B8 /* connect_E.wav in Resources */,
@@ -358,6 +393,7 @@
 				100000000000000000000156 /* empty_coll.wav in Resources */,
 				100000000000000000000157 /* end.wav in Resources */,
 				100000000000000000000158 /* end_new.wav in Resources */,
+				E3C896192FFCC1AD003991E8 /* ChangaOne-Regular.ttf in Resources */,
 				100000000000000000000159 /* line.mp3 in Resources */,
 				10000000000000000000015A /* line.wav in Resources */,
 				10000000000000000000015B /* line_new.mp3 in Resources */,
@@ -366,6 +402,7 @@
 				100000000000000000000174 /* 5251__noisecollector__bloopa01.aiff in Resources */,
 				100000000000000000000176 /* rules.txt in Resources */,
 				10000000000000000000017B /* gameover_quotes.json in Resources */,
+				E3C8960F2FFC26D0003991E8 /* gun_load.wav in Resources */,
 				10000000000000000000021C /* tips_of_day.json in Resources */,
 				E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */,
 				E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */,
@@ -378,6 +415,8 @@
 				1000000000000000000001C3 /* GoogleSans-Regular.ttf in Resources */,
 				1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */,
 				1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */,
+				E3C896142FFC2EBA003991E8 /* cleanx.wav in Resources */,
+				E3C896152FFC2EBA003991E8 /* scrumblx.wav in Resources */,
 				1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */,
 				E373D1072FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.5.mp3 in Resources */,
 				E373D1082FB3BFD3007A2DC8 /* Puzzle Game 2 - 1.2.mp3 in Resources */,
@@ -409,6 +448,7 @@
 				100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */,
 				1000000000000000000001B5 /* BlomixUIButtonStyle.swift in Sources */,
 				1000000000000000000001B7 /* BlomixEloManager.swift in Sources */,
+				E3C896172FFC301E003991E8 /* BlomixProceduralSFX.swift in Sources */,
 				100000000000000000000223 /* BlomixMoveAnalyzer.swift in Sources */,
 				10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */,
 				1000000000000000000001BE /* BlomixAudioMixSettings.swift in Sources */,
@@ -612,7 +652,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 54;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -622,7 +662,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3;
+				MARKETING_VERSION = 4.7;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -643,7 +683,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 30;
+				CURRENT_PROJECT_VERSION = 54;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -653,7 +693,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 3;
+				MARKETING_VERSION = 4.7;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

@@ -38,6 +38,8 @@ struct BlomixAvailablePlayer {
     let gamePlayerID: String
     let displayName:  String
     let eloRating:    Int?
+    /// true si le joueur est en cours de partie PvP au moment du fetch.
+    let inMatch:      Bool
 }
 
 /// Défi entrant détecté dans CloudKit.
@@ -82,13 +84,42 @@ final class BlomixAvailablePlayersManager {
         }
     }
 
-    private var heartbeatTimer:         Timer?
-    private var challengePollTimer:     Timer?
-    private var cachedGamePlayerID:     String?
-    private var cachedTeamPlayerID:     String?
+    private var heartbeatTimer:           Timer?
+    private var challengePollTimer:       Timer?
+    private var cachedGamePlayerID:       String?
+    private var cachedTeamPlayerID:       String?
     /// ID du dernier défi notifié — évite de re-poster la notif pour le même défi.
     private var lastNotifiedChallengerID: String?
-    private var isSetup                 = false
+    /// Timer différé qui remet lastNotifiedChallengerID à nil après un déclin/expiration.
+    /// Laisse passer au moins 2 cycles de poll (8 s) avant de permettre une nouvelle bannière,
+    /// le temps que la suppression CloudKit se propage.
+    private var challengeSuppressTimer:   Timer?
+    private var isSetup                   = false
+
+    /// Positionné à true quand une partie PvP est active — suspend la bannière de défi entrant.
+    /// Mis à jour par GameScene via `setActiveMatch(_:)`.
+    private(set) var isInActiveMatch: Bool = false
+
+    /// Appelé par GameScene quand une partie PvP démarre ou se termine.
+    func setActiveMatch(_ active: Bool) {
+        isInActiveMatch = active
+        if active {
+            // Suspension du polling pendant la partie pour économiser les ressources et
+            // éviter les bannières intempestives.
+            stopChallengePolling()
+        } else {
+            // Reprise du polling dès la fin de partie, si le joueur est toujours disponible.
+            if isAvailableForChallenge {
+                clearLastNotifiedChallenger()
+                startChallengePolling()
+            }
+        }
+        // Mettre à jour CloudKit immédiatement avec le nouveau statut inMatch,
+        // sans attendre le prochain heartbeat.
+        if isAvailableForChallenge {
+            publishAvailability()
+        }
+    }
 
     // MARK: - Setup
 
@@ -109,9 +140,14 @@ final class BlomixAvailablePlayersManager {
     }
 
     @objc private func handleResignActive() {
+        // On arrête les timers pour ne pas consommer de ressources en arrière-plan,
+        // mais on NE supprime PAS le record. La moindre interruption système
+        // (notification, bannière, alerte) déclenche willResignActive — supprimer
+        // ici rendait le joueur invisible au moindre incident.
+        // La visibilité expire naturellement après 5 min via lastHeartbeat >= cutoff
+        // si le joueur quitte vraiment l'app sans la rouvrir.
         stopHeartbeat()
         stopChallengePolling()
-        unpublishAvailability()
     }
 
     @objc private func handleBecomeActive() {
@@ -125,7 +161,7 @@ final class BlomixAvailablePlayersManager {
 
     private func startHeartbeat() {
         stopHeartbeat()
-        let t = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
+        let t = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.publishAvailability() }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -144,7 +180,7 @@ final class BlomixAvailablePlayersManager {
         lastNotifiedChallengerID = nil
         // Premier poll immédiat, puis toutes les 8 s.
         Task { @MainActor [weak self] in self?.pollForIncomingChallenge() }
-        let t = Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { [weak self] _ in
+        let t = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.pollForIncomingChallenge() }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -154,15 +190,20 @@ final class BlomixAvailablePlayersManager {
     private func stopChallengePolling() {
         challengePollTimer?.invalidate()
         challengePollTimer = nil
-        lastNotifiedChallengerID = nil
+        // Ne pas effacer lastNotifiedChallengerID ici : il sert de verrou anti-rebond
+        // même quand le polling est suspendu (ex : pendant une partie PvP).
     }
 
     private func pollForIncomingChallenge() {
+        // Pas de bannière pendant une partie PvP active.
+        guard !isInActiveMatch else { return }
         Task { [weak self] in
             guard let self else { return }
             guard let (_, challenge) = try? await self.fetchAvailablePlayersAndChallenge() else { return }
+            // Vérification après await : la partie a peut-être démarré pendant le fetch.
+            guard !self.isInActiveMatch else { return }
             if let challenge {
-                // Ne notifier que si c'est un nouveau challenger.
+                // Ne notifier que si c'est un nouveau challenger (verrou anti-rebond).
                 guard challenge.challengerGamePlayerID != self.lastNotifiedChallengerID else { return }
                 self.lastNotifiedChallengerID = challenge.challengerGamePlayerID
                 NotificationCenter.default.post(
@@ -177,13 +218,33 @@ final class BlomixAvailablePlayersManager {
             } else if self.lastNotifiedChallengerID != nil {
                 // Le défi a expiré ou a été supprimé — réinitialiser pour le prochain.
                 self.lastNotifiedChallengerID = nil
+                self.challengeSuppressTimer?.invalidate()
+                self.challengeSuppressTimer = nil
             }
         }
     }
 
-    /// Réinitialise le tracker pour permettre un nouveau défi du même joueur.
+    /// Réinitialise immédiatement le tracker (ex: après succès d'une partie lancée).
     func clearLastNotifiedChallenger() {
+        challengeSuppressTimer?.invalidate()
+        challengeSuppressTimer = nil
         lastNotifiedChallengerID = nil
+    }
+
+    /// Supprime le record de défi puis remet lastNotifiedChallengerID à nil après un délai.
+    /// Laisse passer au moins 2 cycles de poll le temps que CloudKit propage la suppression,
+    /// évitant la boucle "déclin → poll → nouvelle bannière".
+    func suppressChallengeWithDelay(challengedGamePlayerID: String) {
+        deleteChallenge(challengedGamePlayerID: challengedGamePlayerID)
+        challengeSuppressTimer?.invalidate()
+        let t = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.lastNotifiedChallengerID = nil
+                self?.challengeSuppressTimer = nil
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        challengeSuppressTimer = t
     }
 
     // MARK: - Publish / Unpublish
@@ -194,35 +255,64 @@ final class BlomixAvailablePlayersManager {
         let gameID      = player.gamePlayerID
         let teamID      = player.teamPlayerID
         let displayName = player.displayName
+        let inMatch     = isInActiveMatch
         cachedGamePlayerID = gameID
         cachedTeamPlayerID = teamID
 
         Task { [weak self] in
             guard let self else { return }
             await self.upsertRecord(recordName: gameID, teamID: teamID,
-                                    displayName: displayName, elo: 0, isFirstPass: true)
+                                    displayName: displayName, elo: 0,
+                                    inMatch: inMatch, isFirstPass: true)
             if let elo = await self.fetchLocalElo() {
                 await self.upsertRecord(recordName: gameID, teamID: teamID,
-                                        displayName: displayName, elo: elo)
+                                        displayName: displayName, elo: elo,
+                                        inMatch: inMatch)
             }
         }
     }
 
     private func upsertRecord(recordName: String, teamID: String,
-                               displayName: String, elo: Int, isFirstPass: Bool = false) async {
-        let recID = CKRecord.ID(recordName: recordName)
-        var record: CKRecord
+                               displayName: String, elo: Int,
+                               inMatch: Bool = false, isFirstPass: Bool = false) async {
+        // savePolicy = .allKeys : écrase tous les champs directement sur le serveur
+        // sans fetch préalable. Évite l'erreur silencieuse serverRecordChanged qui
+        // survient quand un record existe déjà avec un changeTag différent.
+        let recID  = CKRecord.ID(recordName: recordName)
+        let record = CKRecord(recordType: Self.recordType, recordID: recID)
+        record["teamPlayerID"]  = teamID                as CKRecordValue
+        record["displayName"]   = displayName           as CKRecordValue
+        record["lastHeartbeat"] = Date()                as CKRecordValue
+        record["eloRating"]     = elo                   as CKRecordValue
+        record["inMatch"]       = (inMatch ? 1 : 0)    as CKRecordValue
+
+        let op = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+        op.savePolicy       = .allKeys
+        op.qualityOfService = .userInitiated
+
         do {
-            record = try await publicDB.record(for: recID)
-        } catch {
-            record = CKRecord(recordType: Self.recordType, recordID: recID)
-        }
-        record["teamPlayerID"]  = teamID      as CKRecordValue
-        record["displayName"]   = displayName as CKRecordValue
-        record["lastHeartbeat"] = Date()       as CKRecordValue
-        record["eloRating"]     = elo          as CKRecordValue
-        do {
-            try await publicDB.save(record)
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                // perRecordSaveBlock : seul moyen fiable de détecter un échec
+                // sur un enregistrement individuel dans une op non-atomique
+                // (isAtomic = true interdit en Public Database).
+                // modifyRecordsResultBlock retourne .success même si le record
+                // a échoué → on capture l'erreur individuelle ici.
+                var recordError: Error?
+                op.perRecordSaveBlock = { (_, result: Result<CKRecord, Error>) in
+                    if case .failure(let err) = result { recordError = err }
+                }
+                op.modifyRecordsResultBlock = { result in
+                    if let err = recordError {
+                        cont.resume(throwing: err)
+                    } else {
+                        switch result {
+                        case .success:           cont.resume()
+                        case .failure(let err):  cont.resume(throwing: err)
+                        }
+                    }
+                }
+                self.publicDB.add(op)
+            }
             print("[Available] upserted OK: \(displayName)")
             if isFirstPass {
                 NotificationCenter.default.post(
@@ -308,18 +398,25 @@ final class BlomixAvailablePlayersManager {
     func fetchAvailablePlayersAndChallenge() async throws
         -> (players: [BlomixAvailablePlayer], challenge: BlomixIncomingChallenge?) {
 
-        let query = CKQuery(recordType: Self.recordType, predicate: NSPredicate(value: true))
         let localGameID = GKLocalPlayer.local.isAuthenticated
             ? GKLocalPlayer.local.gamePlayerID : nil
         let localTeamID = GKLocalPlayer.local.isAuthenticated
             ? GKLocalPlayer.local.teamPlayerID : nil
         let cutoff = Date().addingTimeInterval(-5 * 60)
 
+        // Filtrer côté serveur : seulement les enregistrements des 5 dernières minutes.
+        // NSDate explicite requis — CloudKit ne reconnaît pas Date bridgé via CVarArg
+        // pour les comparaisons côté serveur (le save réussit mais la requête retourne ∅).
+        // sortDescriptors retiré : dépendance à un second index qui ralentit l'indexation
+        // des records fraîchement écrits, aggravant la latence de visibilité.
+        let predicate = NSPredicate(format: "lastHeartbeat >= %@", cutoff as NSDate)
+        let query = CKQuery(recordType: Self.recordType, predicate: predicate)
+
         let (results, _) = try await publicDB.records(
             matching:     query,
             inZoneWith:   nil,
-            desiredKeys:  ["teamPlayerID", "displayName", "eloRating", "lastHeartbeat"],
-            resultsLimit: 200
+            desiredKeys:  ["teamPlayerID", "displayName", "eloRating", "lastHeartbeat", "inMatch"],
+            resultsLimit: 50   // largement suffisant pour des joueurs actifs récents
         )
 
         var players:   [BlomixAvailablePlayer]  = []
@@ -333,8 +430,11 @@ final class BlomixAvailablePlayersManager {
                 // Record de défi — l'intéresser seulement s'il m'est destiné.
                 let challengedID = String(recName.dropFirst(Self.challengePrefix.count))
                 guard challengedID == localGameID else { continue }
-                // Vérifie la fraîcheur (défi expiré = > 5 min)
-                if let hb = record["lastHeartbeat"] as? Date, hb < cutoff { continue }
+                // Fenêtre de validité d'un défi : 90 s (vs 5 min pour les joueurs disponibles).
+                // Couvre le timeout de 60 s du challenger + une marge de 30 s pour la latence
+                // CloudKit, sans laisser traîner un défi périmé suite à une déconnexion du challenger.
+                let challengeCutoff = Date().addingTimeInterval(-90)
+                if let hb = record["lastHeartbeat"] as? Date, hb < challengeCutoff { continue }
                 let challengerID   = record["teamPlayerID"] as? String ?? ""
                 let challengerName = record["displayName"]  as? String ?? "?"
                 let matchGroup     = record["eloRating"]    as? Int    ?? 0
@@ -351,11 +451,13 @@ final class BlomixAvailablePlayersManager {
                 if gameID == localGameID { continue }
                 if teamID == localTeamID { continue }
                 if let hb = record["lastHeartbeat"] as? Date, hb < cutoff { continue }
-                let name = record["displayName"] as? String ?? "?"
-                let elo  = record["eloRating"]   as? Int
+                let name    = record["displayName"] as? String ?? "?"
+                let elo     = record["eloRating"]   as? Int
+                let inMatch = (record["inMatch"] as? Int ?? 0) != 0
                 players.append(BlomixAvailablePlayer(gamePlayerID: gameID,
                                                      displayName: name,
-                                                     eloRating: elo))
+                                                     eloRating: elo,
+                                                     inMatch: inMatch))
             }
         }
 

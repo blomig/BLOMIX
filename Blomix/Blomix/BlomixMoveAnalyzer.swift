@@ -10,13 +10,17 @@ import Foundation
 
 // MARK: - Enregistrement d'un coup
 
-struct BlomixMoveRecord {
+struct BlomixMoveRecord: Codable {
     /// Meilleur score atteignable sur l'horizon 3 depuis n'importe quelle colonne.
     let optimalScore: Int
     /// Meilleur score atteignable sur l'horizon 3 depuis la colonne choisie par le joueur.
     let chosenScore: Int
+    /// Score de la pire colonne jouable parmi les 8 colonnes.
+    let worstScore: Int
     /// Écart entre optimal et réel (toujours ≥ 0).
-    var delta: Int { optimalScore - chosenScore }
+    var delta: Int  { optimalScore - chosenScore }
+    /// Étendue des options disponibles (optimal − pire).
+    var spread: Int { optimalScore - worstScore }
 }
 
 // MARK: - Statistiques de partie
@@ -29,18 +33,25 @@ struct BlomixGameMoveStats {
     var badCount:       Int { records.filter { $0.delta >  BlomixMoveAnalyzer.badThreshold      }.count }
 
     /// Score d'optimalité global en % (0–100).
-    /// Formule : 100 × moyenne(max(0, 1 − delta/referenceScale))
+    /// Formule : moyenne sur tous les coups de (chosenScore − worstScore) / (optimalScore − worstScore).
+    /// Un coup où le joueur choisit la meilleure colonne → 1.0.
+    /// Un coup où il choisit la pire colonne → 0.0.
+    /// Si le spread < 200 pts (toutes colonnes équivalentes), le coup ne pénalise pas : contribution 1.0.
     var optimalityPercent: Int {
         guard !records.isEmpty else { return 100 }
-        let ref = Double(BlomixMoveAnalyzer.referenceScaleDelta)
+        let minSpread = 200
         let sum = records.reduce(0.0) { acc, r in
-            acc + max(0.0, 1.0 - Double(max(0, r.delta)) / ref)
+            let sp = r.spread
+            guard sp >= minSpread else { return acc + 1.0 }
+            let quality = Double(r.chosenScore - r.worstScore) / Double(sp)
+            return acc + max(0.0, min(1.0, quality))
         }
         return Int((sum / Double(records.count)) * 100.0)
     }
 
     mutating func append(_ record: BlomixMoveRecord) { records.append(record) }
     mutating func reset() { records.removeAll() }
+    mutating func restore(records saved: [BlomixMoveRecord]) { records = saved }
 }
 
 // MARK: - Qualité d'un coup
@@ -49,6 +60,31 @@ enum BlomixMoveQuality: Equatable {
     case excellent  // delta ≤ excellentThreshold → "!!"
     case bad        // delta >  badThreshold       → "?"
     case neutral
+}
+
+// MARK: - Snapshot du pire coup de la partie
+
+/// Instantané de la position au moment du pire coup (écart optimal − choix max).
+/// Stocké en mémoire vive uniquement pendant la session Game Over.
+struct BlomixWorstMistakeSnapshot {
+    /// Grille avant le coup (8×8, coordonnées identiques au moteur).
+    let grid: [[BlockType]]
+    /// Bloc qui était à jouer (p0 — celui que le joueur a lancé).
+    let block: BlockType
+    /// Bloc suivant visible dans la file (p1).
+    let nextBlock: BlockType
+    /// Bloc d'après visible dans la file (p2).
+    let blockTwoAhead: BlockType
+    /// Ligne entrante visible uniquement quand moveCount % 10 == 9 (nil sinon).
+    let pendingLine: [BlockType]?
+    /// Colonne choisie par le joueur.
+    let chosenColumn: Int
+    /// Toutes les colonnes dont le score == optimalScore (peuvent être plusieurs).
+    let optimalColumns: [Int]
+    /// Écart = optimalScore − chosenScore (toujours > 0 ici).
+    let delta: Int
+    /// Texte du level au moment du coup (ex. "1", "2", "Ultimate" — nil si mode non-stagé).
+    let stageLevelText: String?
 }
 
 // MARK: - Résultat du lookahead
@@ -78,7 +114,8 @@ struct BlomixLookAheadResult {
 
     func record(forChosenColumn col: Int) -> BlomixMoveRecord {
         let chosen = scorePerColumn[col] ?? (optimalScore - BlomixMoveAnalyzer.badThreshold - 1)
-        return BlomixMoveRecord(optimalScore: optimalScore, chosenScore: chosen)
+        let worst  = scorePerColumn.compactMap { $0 }.min() ?? chosen
+        return BlomixMoveRecord(optimalScore: optimalScore, chosenScore: chosen, worstScore: worst)
     }
 }
 
@@ -88,9 +125,9 @@ enum BlomixMoveAnalyzer {
 
     // ─── Feature flags ───────────────────────────────────────────────────────
     /// `false` → tout le système désactivé, zéro surcoût CPU.
-    static let evalEnabled = false
+    static let evalEnabled = true
     /// `false` → données accumulées mais aucun popup en cours de partie.
-    static let realtimeFeedbackEnabled = true
+    static let realtimeFeedbackEnabled = false
 
     // ─── Seuils de qualité ────────────────────────────────────────────────────
     /// Delta ≤ ce seuil → coup "!!" (excellent).
@@ -101,8 +138,6 @@ enum BlomixMoveAnalyzer {
     /// Si toutes les colonnes donnent des scores proches (situation désespérée ou sans enjeu),
     /// aucun "!!" ne s'affiche même si le joueur a choisi la meilleure option.
     static let minSpreadForExcellent = 900
-    /// Échelle de référence pour le calcul du % d'optimalité.
-    static let referenceScaleDelta = 2000
 
     // ─── Dimensions (mirroir de GridLayout) ──────────────────────────────────
     static let rows = 8
@@ -152,6 +187,8 @@ enum BlomixMoveAnalyzer {
     ) -> (grid: SimGrid, newMoveCount: Int)? {
 
         guard block != .empty else { return nil }
+        // Les blocs Magix ont des effets non simulables dans le lookahead ; on ignore cette branche.
+        if case .magix = block { return nil }
         guard let row = landingRow(in: grid, column: column) else { return nil }
 
         var g = grid
@@ -268,66 +305,222 @@ enum BlomixMoveAnalyzer {
         return g
     }
 
-    // MARK: - Fonction d'évaluation
+    // MARK: - Fonction d'évaluation v2
 
-    /// Calcule le score de position d'une grille stable.
-    /// Ordre strict : hauteurs → groupes → brix → stability → somme.
+    /// Calcule le score de position d'une grille stable (v2).
+    /// Ordre d'exécution : hauteurs → landing rows → groupes/accessibilité/cellGroupSize
+    ///   → preChainScore par colonne → risk (facteur dynamique) → clearing (brixTouch)
+    ///   → brixPotential → stabilité → somme.
     static func evaluate(grid: SimGrid, moveCount: Int) -> Int {
-        // ── 1. Hauteurs ──────────────────────────────────────────────────────
-        // Les blocs se compactent vers le haut (row 0 = sommet).
-        // La hauteur d'une colonne = première rangée vide en partant du haut
-        // = nombre de blocs occupant le sommet de la colonne.
-        var maxH = 0, sumH = 0, fullCols = 0
+
+        // ── 1. Hauteurs ───────────────────────────────────────────────────────────
+        // Blocs compactés vers le haut (row 0 = sommet) ; hauteur = première rangée vide.
+        var maxH = 0, sumH = 0, fullCols = 0, maxHColumn = 0
         for c in 0..<cols {
-            // Première rangée vide en descendant depuis le haut → = hauteur de la pile.
             let h = (0..<rows).first(where: { grid[$0][c] == .empty }) ?? rows
-            if h > maxH { maxH = h }
+            if h > maxH { maxH = h; maxHColumn = c }
             sumH += h
             if h == rows { fullCols += 1 }
         }
-        let risk = -1200 * maxH - 90 * sumH - 3000 * fullCols
+        let k = 10 - (moveCount % 10)                  // coups avant la prochaine ligne [1..10]
+        let t = Double(10 - k) / 9.0                   // 0.0 quand k=10, 1.0 quand k=1
+        let urgencyH  = 0.80 + 0.20 * t                // [0.80 .. 1.00]
+        let urgencySH = 0.90 + 0.10 * t                // [0.90 .. 1.00]
 
-        // ── 2. Groupes couleur (8-con, couleurs uniquement) ──────────────────
+        // ── 2. Landing rows ───────────────────────────────────────────────────────
+        var landingRows = [Int?](repeating: nil, count: cols)
+        for c in 0..<cols { landingRows[c] = landingRow(in: grid, column: c) }
+
+        // ── 3. Groupes couleur : taille, accessibilité, cellGroupSize ─────────────
+        // cellGroupSize[r * cols + c] = taille de la composante 8-connexe contenant la case (r,c)
+        // (0 pour les cases vides ou Brix). Tableau plat 1D pour limiter les allocations heap
+        // (evaluate() est appelée 512× par lookahead).
+        var cellGroupSize = [Int](repeating: 0, count: rows * cols)
+
         var visitedG = Set<Addr>()
         var nGe5 = 0, nGe4 = 0, nGe3 = 0, totalInGe3 = 0
+
+        // Accessibilité v2 : tailles 2, 3, 4 (v1 : 3 et 4 seulement).
+        var accessPoints4 = 0, accessPoints3 = 0, accessPoints2 = 0
+        var deadGroups4 = 0, deadGroups3 = 0, deadGroups2 = 0
+
+        // brixTouchBonus (clearing) : +8 par composante ≥ 5 qui touche un Brix.
+        var brixTouchBonus = 0
+
         for r in 0..<rows {
             for c in 0..<cols {
                 let a = Addr(row: r, col: c)
                 guard !visitedG.contains(a),
                       case .color(let name) = grid[r][c] else { continue }
                 let comp = flood8(grid: grid, start: a, colorName: name, visited: &visitedG)
-                if comp.count >= 5 {
-                    nGe5 += 1; nGe4 += 1; nGe3 += 1; totalInGe3 += comp.count
-                } else if comp.count == 4 {
-                    nGe4 += 1; nGe3 += 1; totalInGe3 += comp.count
-                } else if comp.count == 3 {
-                    nGe3 += 1; totalInGe3 += comp.count
+                let sz = comp.count
+
+                // Stocker la taille pour chaque case du groupe (utile pour brixPotential).
+                for addr in comp { cellGroupSize[addr.row * cols + addr.col] = sz }
+
+                if sz >= 5 {
+                    nGe5 += 1; nGe4 += 1; nGe3 += 1; totalInGe3 += sz
+                    // Bonus si le groupe ≥ 5 est 8-adjacent à un Brix (chaîne qui fait progresser).
+                    var touchesBrix = false
+                    outer: for addr in comp {
+                        for d in deltas8 {
+                            let nr = addr.row + d.dr, nc = addr.col + d.dc
+                            guard nr >= 0, nr < rows, nc >= 0, nc < cols else { continue }
+                            if case .priks = grid[nr][nc] { touchesBrix = true; break outer }
+                        }
+                    }
+                    if touchesBrix { brixTouchBonus += 8 }
+                } else if sz == 4 {
+                    nGe4 += 1; nGe3 += 1; totalInGe3 += sz
+                } else if sz == 3 {
+                    nGe3 += 1; totalInGe3 += sz
+                }
+
+                // Accessibilité pour les groupes de taille 2, 3, 4.
+                if sz == 2 || sz == 3 || sz == 4 {
+                    var accessCols = Set<Int>()
+                    for addr in comp {
+                        for d in deltas8 {
+                            let nr = addr.row + d.dr, nc = addr.col + d.dc
+                            guard nr >= 0, nr < rows, nc >= 0, nc < cols else { continue }
+                            guard grid[nr][nc] == .empty else { continue }
+                            if landingRows[nc] == nr { accessCols.insert(nc) }
+                        }
+                    }
+                    let nAP = accessCols.count
+                    switch sz {
+                    case 4:
+                        accessPoints4 += nAP
+                        if nAP == 0 { deadGroups4 += 1 }
+                    case 3:
+                        accessPoints3 += nAP
+                        if nAP == 0 { deadGroups3 += 1 }
+                    default:
+                        accessPoints2 += nAP
+                        if nAP == 0 { deadGroups2 += 1 }
+                    }
                 }
             }
         }
-        // nGe4 : groupes de exactement 4 (à un bloc d'une élimination) — fortement valorisés
-        // pour que le lookahead préfère construire vers 5 plutôt que d'ignorer ces groupes.
-        let clearing  = 45 * nGe5 + 30 * nGe4 + 15 * nGe3
-        let structure = 12 * totalInGe3
 
-        // ── 3. Brix (priks) ──────────────────────────────────────────────────
+        let structure     = 12 * totalInGe3
+        let accessibility = 25 * accessPoints4 +  9 * accessPoints3 + 3 * accessPoints2
+                          - 40 * deadGroups4   - 15 * deadGroups3   - 6 * deadGroups2
+
+        // ── 4. preChainScore par colonne ─────────────────────────────────────────
+        // Calculé avant `risk` pour alimenter le facteur dynamique.
+        // Pour chaque case d'atterrissage L, on somme les composantes 8-adjacentes
+        // de même couleur (y compris groupes fragmentés réunis par ce seul bloc).
+        // Bonus +20 si L est aussi 8-adjacent à un Brix (double bénéfice du coup).
+        var perCellPreChain = [Int](repeating: 0, count: cols)  // score preChain par colonne
+        var preChainScore = 0
+        for c in 0..<cols {
+            guard let lr = landingRows[c] else { continue }
+
+            var floodVisited = Set<Addr>()
+            var colorTotals: [String: Int] = [:]
+            for d in deltas8 {
+                let nr = lr + d.dr, nc = c + d.dc
+                guard nr >= 0, nr < rows, nc >= 0, nc < cols else { continue }
+                let a = Addr(row: nr, col: nc)
+                guard !floodVisited.contains(a),
+                      case .color(let name) = grid[nr][nc] else { continue }
+                let comp = flood8(grid: grid, start: a, colorName: name, visited: &floodVisited)
+                colorTotals[name, default: 0] += comp.count
+            }
+
+            var cellScore = 0
+            for (_, total) in colorTotals {
+                if      total + 1 >= 5 { cellScore += 150 }
+                else if total + 1 == 4 { cellScore += 45  }
+                else if total + 1 == 3 { cellScore += 12  }
+            }
+            // Bonus si L est 8-adjacent à un Brix (coup qui crée chaîne ET avance le Brix).
+            if cellScore > 0 {
+                for d in deltas8 {
+                    let nr = lr + d.dr, nc = c + d.dc
+                    guard nr >= 0, nr < rows, nc >= 0, nc < cols else { continue }
+                    if case .priks = grid[nr][nc] { cellScore += 20; break }
+                }
+            }
+            perCellPreChain[c] = cellScore
+            preChainScore += cellScore
+        }
+
+        // ── 5. risk — coefficient réduit + facteur dynamique ─────────────────────
+        // Le facteur dynamique atténue la pénalité si la colonne la plus haute a
+        // de la valeur structurelle (groupe ≥ 3 présent ou landing spot avec preChain > 0).
+        var dynamicFactor = 1.0
+        if maxH >= 4 {
+            var colHasGoodStructure = false
+            for r in 0..<rows {
+                if cellGroupSize[r * cols + maxHColumn] >= 3 { colHasGoodStructure = true; break }
+            }
+            if colHasGoodStructure || perCellPreChain[maxHColumn] > 0 {
+                dynamicFactor = 0.75
+            }
+        }
+        let risk = -Int(Double(900 * maxH)  * urgencyH  * dynamicFactor)
+                 - Int(Double(85  * sumH)   * urgencySH)
+                 - 3000 * fullCols
+
+        // ── 6. clearing (base + brixTouchBonus) ──────────────────────────────────
+        let clearing = 45 * nGe5 + 30 * nGe4 + 15 * nGe3 + brixTouchBonus
+
+        // ── 7. brixPotential — version dynamique (remplace brixScore) ────────────
+        // base  : récompense l'usure du Brix (comme v1)
+        // +25   : si le Brix est 8-adjacent à un groupe ≥ 3 (prochaine chaîne probable)
+        // +35   : si le Brix est 8-adjacent à une landing spot avec preChainScore ≥ 45
         var brixRaw = 0
         for r in 0..<rows {
             for c in 0..<cols {
-                if case .priks(let n) = grid[r][c] {
-                    brixRaw += 40 * (5 - n) + (r >= 5 ? -30 : 0)
+                guard case .priks(let n) = grid[r][c] else { continue }
+                var base = 40 * (5 - n)
+                if r >= 5 { base -= 30 }
+
+                var futureBonus = 0
+                // Adjacent à un groupe couleur ≥ 3 ?
+                for d in deltas8 {
+                    let nr = r + d.dr, nc = c + d.dc
+                    guard nr >= 0, nr < rows, nc >= 0, nc < cols else { continue }
+                    if cellGroupSize[nr * cols + nc] >= 3 { futureBonus += 25; break }
                 }
+                // Adjacent à une landing spot avec preChainScore ≥ 45 ?
+                for d in deltas8 {
+                    let nr = r + d.dr, nc = c + d.dc
+                    guard nr >= 0, nr < rows, nc >= 0, nc < cols else { continue }
+                    guard grid[nr][nc] == .empty, landingRows[nc] == nr else { continue }
+                    if perCellPreChain[nc] >= 45 { futureBonus += 35; break }
+                }
+                brixRaw += base + futureBonus
             }
         }
-        let brixScore = max(-600, brixRaw)
+        let brixPotential = max(-550, brixRaw)
 
-        // ── 4. Stabilité ──────────────────────────────────────────────────────
-        let stability = 18 * (10 - (moveCount % 10))
+        // ── 8. Stabilité ─────────────────────────────────────────────────────────
+        let stability = 4 * (10 - (moveCount % 10))   // [4 .. 40]
 
-        return risk + clearing + brixScore + stability + structure
+        return risk + clearing + brixPotential + stability + structure + accessibility + preChainScore
     }
 
     // MARK: - Lookahead 3 niveaux
+
+    // MARK: - Bonus d'effacement immédiat
+
+    /// Nombre de cases non vides dans une grille.
+    private static func cellCount(_ g: SimGrid) -> Int {
+        var n = 0
+        for r in 0..<rows { for c in 0..<cols { if g[r][c] != .empty { n += 1 } } }
+        return n
+    }
+
+    /// Bonus pour les blocs NET effacés entre deux états de grille (avant/après simulateDrop).
+    /// Une chaîne de 5 efface 4 blocs nets (5 disparus − 1 posé) → bonus = 4 × 65 = 260 pts.
+    /// Captures les bonnes chaînes qui appauvrissent temporairement la grille aux yeux de evaluate().
+    private static func immediateClearing(before: SimGrid, after: SimGrid) -> Int {
+        let net = cellCount(before) - cellCount(after)   // positif si des blocs ont disparu
+        return max(0, net) * 65
+    }
 
     /// Calcule le meilleur score atteignable à horizon 3 (pièce courante + 2 suivantes).
     /// Retourne le score optimal global et le meilleur score par colonne de départ.
@@ -340,6 +533,11 @@ enum BlomixMoveAnalyzer {
         pendingLine: [BlockType]?
     ) -> BlomixLookAheadResult {
 
+        // Les blocs Magix ont des effets non simulables : on retourne un résultat vide (pas de colonne optimale).
+        if case .magix = piece0 {
+            return BlomixLookAheadResult(optimalScore: 0, scorePerColumn: Array(repeating: nil, count: cols))
+        }
+
         var scorePerCol: [Int?] = Array(repeating: nil, count: cols)
         var globalBest = Int.min
 
@@ -349,6 +547,9 @@ enum BlomixMoveAnalyzer {
                 grid: grid, block: piece0, column: col0,
                 moveCount: moveCount, pendingLine: pendingLine
             ) else { continue }
+
+            // Bonus pour les blocs effacés par la chaîne du coup 0 (non capturés par evaluate(g3)).
+            let bonus0 = immediateClearing(before: grid, after: g1)
 
             // Après niveau 1, la pendingLine a peut-être été injectée → inconnue pour niveaux 2+
             var best1 = Int.min
@@ -360,6 +561,8 @@ enum BlomixMoveAnalyzer {
                     moveCount: mc1, pendingLine: nil
                 ) else { continue }
 
+                let bonus1 = immediateClearing(before: g1, after: g2)
+
                 for col2 in 0..<cols {
                     guard piece2 != .empty else { continue }
                     guard let (g3, mc3) = simulateDropAny(
@@ -367,7 +570,8 @@ enum BlomixMoveAnalyzer {
                         moveCount: mc2, pendingLine: nil
                     ) else { continue }
 
-                    let s = evaluate(grid: g3, moveCount: mc3)
+                    let bonus2 = immediateClearing(before: g2, after: g3)
+                    let s = evaluate(grid: g3, moveCount: mc3) + bonus0 + bonus1 + bonus2
                     if s > best1 { best1 = s }
                 }
             }
@@ -375,7 +579,7 @@ enum BlomixMoveAnalyzer {
             // Fallback si toutes les branches de niveau 2+ sont invalides :
             // on évalue directement la grille après niveau 1.
             if best1 == Int.min {
-                best1 = evaluate(grid: g1, moveCount: mc1)
+                best1 = evaluate(grid: g1, moveCount: mc1) + bonus0
             }
 
             scorePerCol[col0] = best1

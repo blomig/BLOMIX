@@ -313,7 +313,7 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
 
         let margin: CGFloat = 22
         let contentW = width - 2 * margin
-        let spacing: CGFloat = 14
+        let spacing: CGFloat = 20
 
         titleLabel.preferredMaxLayoutWidth = contentW
         bodyLabel.preferredMaxLayoutWidth = contentW
@@ -464,7 +464,7 @@ private final class TutorialChainExampleView: UIView {
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            caption.topAnchor.constraint(equalTo: stack.bottomAnchor, constant: 6),
+            caption.topAnchor.constraint(equalTo: stack.bottomAnchor, constant: 12),
             caption.centerXAnchor.constraint(equalTo: centerXAnchor),
             caption.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])

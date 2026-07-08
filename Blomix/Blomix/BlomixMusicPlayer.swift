@@ -157,8 +157,6 @@ final class BlomixMusicPlayer: @unchecked Sendable {
     }
 
     private func effectiveVolume() -> Float {
-        let master   = BlomixMatchAudioSettings.shared.masterVolume
-        let relative = BlomixAudioMixSettings.shared.relativeVolume(forSoundNamed: Self.soundKey)
-        return min(1, max(0, master * relative))
+        min(1, max(0, BlomixMatchAudioSettings.shared.masterMusicVolume))
     }
 }

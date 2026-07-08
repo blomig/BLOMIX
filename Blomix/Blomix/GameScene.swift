@@ -31,8 +31,6 @@ extension Notification.Name {
     /// Publié quand une invitation sortante (vers un joueur récent) démarre ou se termine.
     /// `userInfo["active"]` : `true` = en cours, `false` = terminée.
     static let blomixPvPOutgoingInviteStateChanged = Notification.Name("blomixPvPOutgoingInviteStateChanged")
-    /// Publié quand `BlomixPvPAutoSearcher.shared.isSearching` change.
-    static let blomixPvPAutoSearchStateChanged = Notification.Name("blomixPvPAutoSearchStateChanged")
     /// Publié quand `BlomixAvailablePlayersManager.shared.isAvailableForChallenge` change.
     static let blomixAvailabilityChanged = Notification.Name("blomixAvailabilityChanged")
     /// Publié après le premier save CloudKit (userInfo: success: Bool, message: String).
@@ -46,14 +44,26 @@ extension Notification.Name {
 /// Accès effectif depuis le main thread (SpriteKit / UI) ; `@unchecked Sendable` pour le singleton Swift 6.
 final class BlomixMatchAudioSettings: @unchecked Sendable {
     static let shared = BlomixMatchAudioSettings()
-    private let userDefaultsKey = "BlomixMasterVolume"
+    private let userDefaultsKey      = "BlomixMasterVolume"
+    private let musicUserDefaultsKey = "BlomixMasterMusicVolume"
     private init() {}
+
+    /// Volume maître des effets sonores (SFX + sons procéduraux).
     var masterVolume: Float {
         get {
             if UserDefaults.standard.object(forKey: userDefaultsKey) == nil { return 1.0 }
             return min(1, max(0, UserDefaults.standard.float(forKey: userDefaultsKey)))
         }
         set { UserDefaults.standard.set(min(1, max(0, newValue)), forKey: userDefaultsKey) }
+    }
+
+    /// Volume maître de la musique d'ambiance (indépendant des SFX).
+    var masterMusicVolume: Float {
+        get {
+            if UserDefaults.standard.object(forKey: musicUserDefaultsKey) == nil { return 0.5 }
+            return min(1, max(0, UserDefaults.standard.float(forKey: musicUserDefaultsKey)))
+        }
+        set { UserDefaults.standard.set(min(1, max(0, newValue)), forKey: musicUserDefaultsKey) }
     }
 }
 
@@ -89,7 +99,10 @@ final class BlomixSkinCatalog: @unchecked Sendable {
     static let shared = BlomixSkinCatalog()
 
     /// Skin personnalisable (couleurs en `UserDefaults`).
-    static let persoSkinId = "perso"
+    static let persoSkinId  = "perso"
+    static let persoSkin2Id = "perso2"
+    /// Skin aléatoire (régénérable par le joueur via le bouton ↺).
+    static let aleaSkinId   = "alea"
 
     private let selectedIdKey = "BlomixSelectedSkinId"
     private let resourceName = "color_skins"
@@ -102,57 +115,142 @@ final class BlomixSkinCatalog: @unchecked Sendable {
 
     func reloadFromBundle() {
         let fallback = Self.builtinDefaultSkin
+        let persoIds: Set<String> = [Self.persoSkinId, Self.persoSkin2Id, Self.aleaSkinId]
         if let url = Bundle.main.url(forResource: resourceName, withExtension: "json"),
            let data = try? Data(contentsOf: url),
            let decoded = try? JSONDecoder().decode(BlomixColorSkinsFile.self, from: data),
            !decoded.skins.isEmpty {
-            skins = decoded.skins.filter { $0.id != Self.persoSkinId }
+            skins = decoded.skins.filter { !persoIds.contains($0.id) }
         } else {
-            skins = [fallback].filter { $0.id != Self.persoSkinId }
+            skins = [fallback].filter { !persoIds.contains($0.id) }
         }
-        appendOrRefreshPersoSkin()
+        appendOrRefreshPersoSkins()
         if skinById[selectedSkinId] == nil {
             UserDefaults.standard.set(skins.first?.id ?? "default", forKey: selectedIdKey)
         }
     }
 
-    /// Après choix dans `UIColorPickerViewController` : enregistre le hex, rafraîchit le skin Perso en mémoire, notifie la scène.
-    func applyPersoColorSave(hex raw: String, slot: BlomixPersoColorSlot) {
+    /// Après choix dans `UIColorPickerViewController` : enregistre le hex, rafraîchit les skins Perso en mémoire, notifie la scène.
+    /// `skinId` : `persoSkinId` (Perso) ou `persoSkin2Id` (Perso 2).
+    func applyPersoColorSave(hex raw: String, slot: BlomixPersoColorSlot, skinId: String = "perso") {
         guard let norm = Self.normalizeHexForStorage(raw) else { return }
-        UserDefaults.standard.set(norm, forKey: slot.userDefaultsHexKey)
-        appendOrRefreshPersoSkin()
+        UserDefaults.standard.set(norm, forKey: Self.udPersoHexKey(slot.storageKey, skinId: skinId))
+        appendOrRefreshPersoSkins()
         NotificationCenter.default.post(name: .blomixSkinDidChange, object: nil)
     }
 
-    func uiColorForPersoSlot(_ slot: BlomixPersoColorSlot) -> UIColor {
-        let h = Self.readPersoHexStatic(bloxKey: slot.storageKey)
+    /// Couleur actuelle d'un slot pour le skin perso désigné par `skinId`.
+    func uiColorForPersoSlot(_ slot: BlomixPersoColorSlot, skinId: String = "perso") -> UIColor {
+        let h = Self.readPersoHexStatic(bloxKey: slot.storageKey, skinId: skinId)
         return (Self.skColorFromHexString(h) as UIColor?) ?? .white
     }
 
-    private func appendOrRefreshPersoSkin() {
-        let def = Self.makePersoSkinDefinitionFromDefaults()
-        skins.removeAll { $0.id == Self.persoSkinId }
-        skins.append(def)
+    /// Reconstruit (ou crée) les skins perso + alea depuis UserDefaults et les place en fin de liste.
+    private func appendOrRefreshPersoSkins() {
+        for id in [Self.persoSkinId, Self.persoSkin2Id, Self.aleaSkinId] {
+            skins.removeAll { $0.id == id }
+            if id == Self.aleaSkinId { Self.ensureAleaColorsExistInDefaults() }
+            skins.append(Self.makePersoSkinDefinitionFromDefaults(skinId: id))
+        }
         skinById = Dictionary(uniqueKeysWithValues: skins.map { ($0.id, $0) })
     }
 
-    private static func makePersoSkinDefinitionFromDefaults() -> BlomixSkinDefinition {
+    // MARK: - Alea : génération aléatoire de couleurs
+
+    /// Convertit HSL (0…1, 0…1, 0…1) en `#RRGGBB`.
+    private static func hslToHex(h: Double, s: Double, l: Double) -> String {
+        let c = (1 - abs(2 * l - 1)) * s
+        let x = c * (1 - abs((h * 6).truncatingRemainder(dividingBy: 2) - 1))
+        let m = l - c / 2
+        let (r1, g1, b1): (Double, Double, Double)
+        switch Int(h * 6) % 6 {
+        case 0: (r1, g1, b1) = (c, x, 0)
+        case 1: (r1, g1, b1) = (x, c, 0)
+        case 2: (r1, g1, b1) = (0, c, x)
+        case 3: (r1, g1, b1) = (0, x, c)
+        case 4: (r1, g1, b1) = (x, 0, c)
+        default: (r1, g1, b1) = (c, 0, x)
+        }
+        return String(format: "#%02X%02X%02X",
+                      Int(((r1 + m) * 255).rounded()),
+                      Int(((g1 + m) * 255).rounded()),
+                      Int(((b1 + m) * 255).rounded()))
+    }
+
+    /// Écrit un set de couleurs aléatoires en UserDefaults pour le skin Alea (sans notifier).
+    private static func writeRandomAleaColorsToDefaults() {
+        // 6 couleurs de blox : cercle chromatique en 6 secteurs de 60° + jitter ±20°.
+        let baseHue = Double.random(in: 0..<360)
+        for (i, key) in bloxDisplayOrder.enumerated() {
+            var rawHue = baseHue + Double(i) * 60.0 + Double.random(in: -20...20)
+            rawHue = (rawHue.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+            let hue = rawHue / 360.0
+            let sat   = Double.random(in: 0.55...0.90)
+            let light = Double.random(in: 0.42...0.62)
+            UserDefaults.standard.set(hslToHex(h: hue, s: sat, l: light),
+                                      forKey: udPersoHexKey(key, skinId: aleaSkinId))
+        }
+        // Brix fond : tirage indépendant.
+        let priksH = Double.random(in: 0..<1)
+        let priksS = Double.random(in: 0.30...0.60)
+        let priksL = Double.random(in: 0.28...0.52)
+        UserDefaults.standard.set(hslToHex(h: priksH, s: priksS, l: priksL),
+                                  forKey: udPersoHexKey("priks", skinId: aleaSkinId))
+        // Brix texte : contraste garanti (clair si fond sombre, sombre si fond clair).
+        let textL = priksL > 0.42 ? Double.random(in: 0.10...0.25) : Double.random(in: 0.75...0.92)
+        var textH = priksH + Double.random(in: -0.08...0.08)
+        textH = (textH.truncatingRemainder(dividingBy: 1.0) + 1.0).truncatingRemainder(dividingBy: 1.0)
+        let textS = Double.random(in: 0.10...0.40)
+        UserDefaults.standard.set(hslToHex(h: textH, s: textS, l: textL),
+                                  forKey: udPersoHexKey("prikstext", skinId: aleaSkinId))
+    }
+
+    /// Génère des couleurs Alea uniquement si aucune n'existe encore en UserDefaults.
+    private static func ensureAleaColorsExistInDefaults() {
+        let firstKey = udPersoHexKey(bloxDisplayOrder[0], skinId: aleaSkinId)
+        guard UserDefaults.standard.string(forKey: firstKey) == nil else { return }
+        writeRandomAleaColorsToDefaults()
+    }
+
+    /// API publique (appelée par le bouton ↺ dans les Réglages) : nouveau set + notifie le jeu.
+    func generateAndSaveAleaColors() {
+        Self.writeRandomAleaColorsToDefaults()
+        appendOrRefreshPersoSkins()
+        NotificationCenter.default.post(name: .blomixSkinDidChange, object: nil)
+    }
+
+    private static func makePersoSkinDefinitionFromDefaults(skinId: String = persoSkinId) -> BlomixSkinDefinition {
         var blox: [String: String] = [:]
         for k in bloxDisplayOrder {
-            blox[k] = readPersoHexStatic(bloxKey: k)
+            blox[k] = readPersoHexStatic(bloxKey: k, skinId: skinId)
+        }
+        let displayName: String
+        switch skinId {
+        case Self.persoSkin2Id: displayName = BlomixL10n.skinDisplayPerso2
+        case Self.aleaSkinId:   displayName = BlomixL10n.skinDisplayAlea
+        default:                displayName = BlomixL10n.skinDisplayPerso
         }
         return BlomixSkinDefinition(
-            id: persoSkinId,
-            displayName: BlomixL10n.skinDisplayPerso,
+            id: skinId,
+            displayName: displayName,
             blox: blox,
-            priks: readPersoHexStatic(bloxKey: "priks"),
-            prikstext: readPersoHexStatic(bloxKey: "prikstext")
+            priks: readPersoHexStatic(bloxKey: "priks", skinId: skinId),
+            prikstext: readPersoHexStatic(bloxKey: "prikstext", skinId: skinId)
         )
     }
 
-    /// Hex `#RRGGBB` pour un slot Perso (bundle par défaut si jamais édité).
-    private static func readPersoHexStatic(bloxKey: String) -> String {
-        let udKey = "BlomixPersoSkin_hex_\(bloxKey)"
+    /// Clé UserDefaults pour un slot perso selon le skin (`perso`, `perso2` ou `alea`).
+    private static func udPersoHexKey(_ bloxKey: String, skinId: String) -> String {
+        switch skinId {
+        case persoSkin2Id: return "BlomixPerso2Skin_hex_\(bloxKey)"
+        case aleaSkinId:   return "BlomixAleaSkin_hex_\(bloxKey)"
+        default:           return "BlomixPersoSkin_hex_\(bloxKey)"
+        }
+    }
+
+    /// Hex `#RRGGBB` pour un slot du skin perso désigné (fallback = palette par défaut).
+    private static func readPersoHexStatic(bloxKey: String, skinId: String = persoSkinId) -> String {
+        let udKey = udPersoHexKey(bloxKey, skinId: skinId)
         if let s = UserDefaults.standard.string(forKey: udKey),
            let norm = normalizeHexForStorage(s) {
             return norm
@@ -226,6 +324,11 @@ final class BlomixSkinCatalog: @unchecked Sendable {
         bloxSKColor(forNormalizedKey: key) as UIColor?
     }
 
+    /// Les 6 couleurs de blox du skin actuel (ordre d'affichage), utilisées pour les particules Magix.
+    func bloxSKColors() -> [SKColor] {
+        Self.bloxDisplayOrder.compactMap { bloxSKColor(forNormalizedKey: $0) }
+    }
+
     func priksUIColor() -> UIColor { priksSKColor() as UIColor }
 
     private static func skColorFromHexString(_ raw: String) -> SKColor? {
@@ -278,6 +381,14 @@ private enum BlomixMatchSFX: String, CaseIterable {
     case priksVanish = "prix.wav"
     /// Son joué au démarrage des écrans de transition (tuto, passage de stage…).
     case transition = "transition.wav"
+    /// Son joué à l'atterrissage d'un bloc Magix.
+    case magix = "magix.wav"
+    /// Son joué quand le joueur active la bombe (la sort du stock pour la mettre en jeu).
+    case bombLoad = "gun_load.wav"
+    /// Son atmosphérique joué au déclenchement de l'effet CLEANX.
+    case cleanx = "cleanx.wav"
+    /// Son atmosphérique joué au déclenchement de l'effet SCRUMBLX.
+    case scrumblx = "scrumblx.wav"
 }
 
 /// Précharge et joue les `AVAudioPlayer` (simple, sans dépendance à `SKAction` pour le décodage à chaque fois).
@@ -333,26 +444,47 @@ struct GridPosition: Hashable {
 // MARK: - Modèle grille (Phase 2 — étapes 1 & 2)
 
 /// Contenu d’une case de la grille 8×8 (aligné sur l’ancien `priks.html`).
+/// Variante d'un bloc Magix.
+enum MagixKind: String, Codable, Equatable, CaseIterable {
+    /// Transformation serpent (chemin aléatoire ≤ 15 blocs) + grosse chaîne garantie.
+    case chromax
+    /// Décrémente de 2 tous les Brix de la grille ; reste dans la grille en tant que Brix(9).
+    case brixed
+    /// Transformation en croix (ligne + colonne) + chaîne.
+    case crosx
+    /// Mélange la grille : chaque ligne se décale aléatoirement (direction + distance 1–7, wrap-around).
+    case scrumblx
+    /// Roulette de couleur : choisit une couleur au ralenti, efface tous les blocs de cette couleur.
+    case colorx
+    /// Efface tout le contenu de la grille et laisse un Brix valant le nombre de cases supprimées.
+    case cleanx
+    /// Échange interactif de deux couleurs : le joueur sélectionne successivement deux couleurs.
+    case twistx
+}
+
 enum BlockType: Equatable {
     case empty
     /// Couleur logique : `red`, `blue`, … — rendu **sprite plein** (hexa = jonctions).
     case color(String)
     /// Priks : carré plein + chiffre au centre — `Int` = **coups restants** avant disparition (ex. 5 → 4 → … → 0).
     case priks(Int)
+    /// Bloc Magix : effet spécial à l'atterrissage selon la variante.
+    case magix(MagixKind)
 }
 
 // MARK: - BlockType Codable (sauvegarde solo)
 
 extension BlockType: Codable {
-    private enum Tag: String, Codable { case e, c, p }
+    private enum Tag: String, Codable { case e, c, p, mx }
     private enum CodingKeys: String, CodingKey { case t, v }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         switch try container.decode(Tag.self, forKey: .t) {
-        case .e: self = .empty
-        case .c: self = .color(try container.decode(String.self, forKey: .v))
-        case .p: self = .priks(try container.decode(Int.self, forKey: .v))
+        case .e:  self = .empty
+        case .c:  self = .color(try container.decode(String.self, forKey: .v))
+        case .p:  self = .priks(try container.decode(Int.self, forKey: .v))
+        case .mx: self = .magix(try container.decode(MagixKind.self, forKey: .v))
         }
     }
 
@@ -367,6 +499,9 @@ extension BlockType: Codable {
         case .priks(let hits):
             try c.encode(Tag.p, forKey: .t)
             try c.encode(hits, forKey: .v)
+        case .magix(let kind):
+            try c.encode(Tag.mx, forKey: .t)
+            try c.encode(kind, forKey: .v)
         }
     }
 }
@@ -374,7 +509,7 @@ extension BlockType: Codable {
 // MARK: - Sauvegarde de partie solo
 
 struct BlomixSoloGameSave: Codable {
-    static let currentVersion = 2   // v1.5 : ajout des champs stage
+    static let currentVersion = 7   // v7 : isZenMode ajouté
     let version: Int
     let grid: [[BlockType]]
     let currentBlock: BlockType
@@ -392,11 +527,67 @@ struct BlomixSoloGameSave: Codable {
     let savedAt: Date
     let currentStageIndex: Int
     let stageTimerSecondsRemaining: Int
+    let moveRecords: [BlomixMoveRecord]
+    let hintsRemaining: Int
+    let isZenMode: Bool
+
+    // Initializer explicite (nécessaire car init(from:) supprime le memberwise synthétique).
+    init(version: Int, grid: [[BlockType]], currentBlock: BlockType, blockAfterCurrent: BlockType,
+         blockTwoAhead: BlockType, selectedColumn: Int, moveCount: Int, nextBottomLine: [BlockType],
+         bombCount: Int, isBombMode: Bool, chainClearWaveCount: Int, score: Int, displayedScore: Int,
+         chainSeriesLevel: Int, savedAt: Date, currentStageIndex: Int, stageTimerSecondsRemaining: Int,
+         moveRecords: [BlomixMoveRecord], hintsRemaining: Int, isZenMode: Bool) {
+        self.version                    = version
+        self.grid                       = grid
+        self.currentBlock               = currentBlock
+        self.blockAfterCurrent          = blockAfterCurrent
+        self.blockTwoAhead              = blockTwoAhead
+        self.selectedColumn             = selectedColumn
+        self.moveCount                  = moveCount
+        self.nextBottomLine             = nextBottomLine
+        self.bombCount                  = bombCount
+        self.isBombMode                 = isBombMode
+        self.chainClearWaveCount        = chainClearWaveCount
+        self.score                      = score
+        self.displayedScore             = displayedScore
+        self.chainSeriesLevel           = chainSeriesLevel
+        self.savedAt                    = savedAt
+        self.currentStageIndex          = currentStageIndex
+        self.stageTimerSecondsRemaining = stageTimerSecondsRemaining
+        self.moveRecords                = moveRecords
+        self.hintsRemaining             = hintsRemaining
+        self.isZenMode                  = isZenMode
+    }
+
+    // Décodage rétrocompatible : isZenMode défaut à false pour les sauvegardes antérieures.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version                   = try c.decode(Int.self,           forKey: .version)
+        grid                      = try c.decode([[BlockType]].self,  forKey: .grid)
+        currentBlock              = try c.decode(BlockType.self,      forKey: .currentBlock)
+        blockAfterCurrent         = try c.decode(BlockType.self,      forKey: .blockAfterCurrent)
+        blockTwoAhead             = try c.decode(BlockType.self,      forKey: .blockTwoAhead)
+        selectedColumn            = try c.decode(Int.self,            forKey: .selectedColumn)
+        moveCount                 = try c.decode(Int.self,            forKey: .moveCount)
+        nextBottomLine            = try c.decode([BlockType].self,    forKey: .nextBottomLine)
+        bombCount                 = try c.decode(Int.self,            forKey: .bombCount)
+        isBombMode                = try c.decode(Bool.self,           forKey: .isBombMode)
+        chainClearWaveCount       = try c.decode(Int.self,            forKey: .chainClearWaveCount)
+        score                     = try c.decode(Int.self,            forKey: .score)
+        displayedScore            = try c.decode(Int.self,            forKey: .displayedScore)
+        chainSeriesLevel          = try c.decode(Int.self,            forKey: .chainSeriesLevel)
+        savedAt                   = try c.decode(Date.self,           forKey: .savedAt)
+        currentStageIndex         = try c.decode(Int.self,            forKey: .currentStageIndex)
+        stageTimerSecondsRemaining = try c.decode(Int.self,           forKey: .stageTimerSecondsRemaining)
+        moveRecords               = try c.decode([BlomixMoveRecord].self, forKey: .moveRecords)
+        hintsRemaining            = try c.decode(Int.self,            forKey: .hintsRemaining)
+        isZenMode                 = (try? c.decode(Bool.self,         forKey: .isZenMode)) ?? false
+    }
 }
 
 final class BlomixSoloSaveManager: @unchecked Sendable {
     static let shared = BlomixSoloSaveManager()
-    private let udKey = "blomix_solo_save_v1"
+    private let udKey = "blomix_solo_save_v2"
     private init() {}
 
     var hasSave: Bool { UserDefaults.standard.data(forKey: udKey) != nil }
@@ -427,6 +618,61 @@ private enum PriksRules {
     static let initialHitsRemaining: Int = 5
 }
 
+private enum MagixRules {
+    /// Probabilité par variante Magix. L'ordre du tableau détermine la priorité de tirage.
+    /// Total ≈ 1/100 + 1/100 + 1/150 + 1/150 ≈ 1/30.
+    static let spawnProbabilityByKind: [(kind: MagixKind, p: Double)] = [
+        (.twistx,   1.0 / 324.0),
+        (.colorx,   1.0 / 180.0),
+        (.scrumblx, 1.0 / 180.0),
+        (.crosx,    1.0 / 216.0),
+        (.chromax,  1.0 / 324.0),
+        (.brixed,   1.0 / 324.0),
+        (.cleanx,   1.0 / 500.0),
+    ]
+    /// Probabilité globale cumulée (utilisée pour le check rapide avant tirage de variante).
+    static var spawnProbability: Double { spawnProbabilityByKind.reduce(0) { $0 + $1.p } }
+    /// Longueur maximale du chemin pour CHROMAX (cellules occupées transformées).
+    static let chromaxPathLength: Int = 15
+    /// Décrément appliqué à tous les Brix lors de l'effet BRIXED.
+    static let brixedGlobalDecrement: Int = 2
+    /// Valeur initiale du Brix créé par BRIXED (il reste dans la grille comme un Priks normal).
+    static let brixedInitialHits: Int = 9
+
+    /// Texte du popup affiché à l'atterrissage d'un bloc Magix.
+    static func label(for kind: MagixKind) -> String {
+        switch kind {
+        case .chromax:  return "CHROMAX"
+        case .brixed:   return "BRIXED"
+        case .crosx:    return "CROSSX"
+        case .scrumblx: return "SCRUMBLX"
+        case .colorx:   return "COLORX"
+        case .cleanx:   return "SAINTX"
+        case .twistx:   return "TWISTX"
+        }
+    }
+
+    /// Symbole court affiché sur le sprite Magix (queue, preview, chute).
+    static func symbol(for kind: MagixKind) -> String {
+        switch kind {
+        case .chromax:  return "?"
+        case .brixed:   return "9"
+        case .crosx:    return "+"
+        case .scrumblx: return "="
+        case .colorx:   return "O"
+        case .cleanx:   return "∞"
+        case .twistx:   return "X"
+        }
+    }
+
+    /// Nom SpriteKit du label de symbole sur les sprites Magix (permet le cleanup lors du reuse).
+    static let symbolLabelName = "magixSymbol"
+    /// Nom SpriteKit du nœud de halo blanc derrière le sprite Magix.
+    static let glowNodeName    = "magixGlow"
+    /// Clé SKAction du spawner de particules orbitales colorées autour d'un bloc Magix.
+    static let orbitParticlesActionKey = "magixOrbitParticles"
+}
+
 /// Constantes de mise en page héritées du canvas web (360×400, zone grille 320×320, 8×8).
 private enum GridLayout {
     static let rowCount = 8
@@ -453,7 +699,6 @@ final class GameScene: SKScene {
     private static let gridFrameOutlineName = "gridFrameOutline"
     /// Préfixe des `SKShapeNode` de jonction (retirés / reconstruits avec `drawGrid`).
     private static let junctionNodeNamePrefix = "junction_"
-    private static let groupBevelNodeNamePrefix  = "group_bevel_"
     private static let previewNodeName = "currentBlockPreview"
     private static let fallingSpriteName = "fallingBlockTemp"
     private static let previewPriksDigitName = "previewPriksDigit"
@@ -463,6 +708,8 @@ final class GameScene: SKScene {
     private static let randomLineRisingSpritePrefix = "randomLineRisingCol"
     private static let bombHudIconName = "bombHudIcon"
     private static let bombHudCountLabelName = "bombHudCountLabel"
+    /// Label de debug temporaire affichant le score d'évaluation en temps réel (visible quand evalEnabled = true).
+    private static let evalDebugLabelName = "evalDebugLabel"
     /// Aperçus **sous** la grille : à gauche = bloc dans **2** coups, à droite = **prochain** après `currentBlock`.
     private static let upcomingSlotTwoAheadName = "upcomingSlotTwoAhead"
     private static let upcomingSlotNextName = "upcomingSlotNext"
@@ -487,6 +734,14 @@ final class GameScene: SKScene {
     private static let gameOverRestartLabelName = "gameOverRestartLabel"
     private static let gameOverLeaderboardLabelName = "gameOverLeaderboardLabel"
     private static let gameOverPersonalBestLabelName = "gameOverPersonalBestLabel"
+    private static let gameOverWorstMoveButtonName = "gameOverWorstMoveButton"
+    private static let worstMistakeOverlayName  = "worstMistakeOverlay"
+    /// Dialog de confirmation "Quitter la partie ?" (SpriteKit natif).
+    private static let quitConfirmOverlayName   = "quitConfirmOverlay"
+    private static let quitConfirmBtnQuitName   = "quitConfirmBtnQuit"
+    private static let quitConfirmBtnCancelName = "quitConfirmBtnCancel"
+    private static let hintGhostContainerName = "hintGhostContainer"
+    private static let colorxOverlayContainerName = "colorxOverlayContainer"
     private static let gameOverQuoteLine1LabelName = "gameOverQuoteLine1Label"
     private static let gameOverQuoteLine2LabelName = "gameOverQuoteLine2Label"
     private static let gameOverQuoteAuthorLabelName = "gameOverQuoteAuthorLabel"
@@ -514,22 +769,26 @@ final class GameScene: SKScene {
     private static let startScreenSubtitleLabelName = "startScreenSubtitleLabel"
     private static let startScreenPlayerNameLabelName = "startScreenPlayerNameLabel"
     private static let startScreenPlayerEloLabelName = "startScreenPlayerEloLabel"
-    private static let startScreenMedalNodeName      = "startScreenMedalNode"
-    private static let startScreenMedalRankLabelName = "startScreenMedalRankLabel"
+    private static let startScreenRankDiscsContainerName = "startScreenRankDiscsContainer"
+    private static let startScreenRankDiscSoloName       = "startScreenRankDiscSolo"
+    private static let startScreenRankDiscAvgName        = "startScreenRankDiscAvg"
+    private static let startScreenRankDiscZenName        = "startScreenRankDiscZen"
+    /// Suffixe ajouté au nom du disc pour nommer le SKLabelNode du rang.
+    private static let rankDiscRankLabelSuffix           = "_rank"
     private static let startScreenStartLabelName = "startScreenStartLabel"
     private static let startScreenScoresLabelName = "startScreenScoresLabel"
     private static let startScreenSettingsLabelName = "startScreenSettingsLabel"
     private static let startScreenCreditsLabelName = "startScreenCreditsLabel"
     private static let startScreenPvPLabelName = "startScreenPvPLabel"
+    private static let startScreenZenLabelName = "startScreenZenLabel"
     private static let startScreenStartChipName = "startScreenStartChip"
     private static let startScreenScoresChipName = "startScreenScoresChip"
     private static let startScreenPvPChipName = "startScreenPvPChip"
     private static let startScreenSettingsChipName = "startScreenSettingsChip"
     private static let startScreenCreditsChipName = "startScreenCreditsChip"
+    private static let startScreenZenChipName = "startScreenZenChip"
     private static let startScreenRulesLabelName = "startScreenRulesLabel"
     private static let startScreenRulesChipName = "startScreenRulesChip"
-    private static let startScreenPvPSearchDotName = "startScreenPvPSearchDot"
-    private static let gameHUDAutoSearchDotName = "gameHUDAutoSearchDot"
     private static let studioSplashOverlayName = "studioSplashOverlay"
     private static let hudPvPTurnTimerName = "hudPvPCountdown"
     private static let hudPvPOpponentName = "hudPvPOpponentName"
@@ -547,7 +806,9 @@ final class GameScene: SKScene {
     private static let tipsOfDayFileBaseName = "tips_of_day"
     private static let startScreenTipContainerName = "startScreenTipContainer"
     private static let startScreenTipTextLabelName = "startScreenTipTextLabel"
-    private static let studioLogoAssetName = "StudioLogo"
+    private static let studioLogoAssetName    = "StudioLogo"
+    // Dans WebImages (provides-namespace:true), le nom de chargement inclut le préfixe.
+    private static let studioLogoOffAssetName = "WebImages/StudioLogo_off"
     private static let startScreenAmbientBlockColorKeys = ["red", "blue", "green", "yellow", "purple", "orange"]
 
     /// Décalages des **8 voisins** (orthogonal + diagonal) pour la détection des chaînes.
@@ -572,20 +833,6 @@ final class GameScene: SKScene {
         let toRow: Int
     }
 
-    /// Biseau lumière/ombre (4 trapèzes enfants de chaque sprite blox coloré).
-    private enum BevelStyle {
-        /// Épaisseur du biseau en points.
-        static let width: CGFloat = 4
-        /// Alpha du blanc (lumière — haut et gauche).
-        static let highlightAlpha: CGFloat = 0.20
-        /// Alpha du noir (ombre — bas et droite).
-        static let shadowAlpha: CGFloat = 0.20
-        // Noms des nœuds enfants du sprite — utilisés pour supprimer les arêtes internes.
-        static let top    = "bevel_top"
-        static let left   = "bevel_left"
-        static let right  = "bevel_right"
-        static let bottom = "bevel_bottom"
-    }
 
     /// Animation des blocs qui remontent après suppression d’une chaîne.
     private enum LandingBounce {
@@ -596,6 +843,15 @@ final class GameScene: SKScene {
         /// Phase C : stabilisation complète — 0.06 s.
         static let settleDuration:  TimeInterval = 0.03
         static var totalDuration: TimeInterval { squashDuration + stretchDuration + settleDuration }
+    }
+
+    /// Déformation du bloc pendant le vol (squash-and-stretch de vol).
+    /// xScale < 1 (resserrement latéral) + yScale > 1 (allongement dans le sens du mouvement).
+    /// Le de-stretch ramène exactement à (1.0, 1.0) à l'atterrissage → transition parfaite
+    /// avec la phase A du LandingBounce qui part de (1.0, 1.0).
+    private enum FlightStretch {
+        static let xScale: CGFloat = 0.82
+        static let yScale: CGFloat = 1.25
     }
 
     private enum CompactRiseAnimation {
@@ -680,17 +936,21 @@ final class GameScene: SKScene {
 
     /// Feedback visuel **explosion bombe** (onde + blox puis mutation grille dans le `completion`).
     private enum BombExplosionFeedback {
-        static let shockWaveDuration: TimeInterval = 0.45   // durée de chaque cercle
-        static let shockWaveCount: Int = 3                  // nombre de cercles en train
-        static let shockWaveStagger: TimeInterval = 0.12    // décalage entre cercles
+        static let shockWaveDuration: TimeInterval = 0.52   // durée de chaque cercle
+        static let shockWaveCount: Int = 5                  // nombre de cercles en train
+        static let shockWaveStagger: TimeInterval = 0.09    // décalage entre cercles
         static var shockWaveTrainDuration: TimeInterval {   // durée totale du train
             shockWaveDuration + TimeInterval(shockWaveCount - 1) * shockWaveStagger
         }
-        static let shockWaveEndScale: CGFloat = 2.8         // scale final (départ = 1.0)
+        static let shockWaveEndScale: CGFloat = 3.5         // scale final (départ = 1.0)
         static let shockWaveStartAlpha: CGFloat = 1.0
-        static let shockWaveBaseRadius: CGFloat = 18        // rayon de départ (visible dès le 1er frame)
-        static let shockWaveRingWidth: CGFloat  = 5.0       // épaisseur de l'anneau (path fill)
+        static let shockWaveBaseRadius: CGFloat = 24        // rayon de départ (visible dès le 1er frame)
+        static let shockWaveRingWidth: CGFloat  = 9.0       // épaisseur de l'anneau (path fill)
         static let shockWaveZ: CGFloat = 46
+        // Flash central
+        static let flashRadius: CGFloat = 28
+        static let flashDuration: TimeInterval = 0.15
+        static let flashZ: CGFloat = 47
 
         static let blockStaggerPerStep: TimeInterval = 0.02
         static let radialPushDuration: TimeInterval = 0.18
@@ -785,6 +1045,8 @@ final class GameScene: SKScene {
 
     /// `true` tant que l’écran d’accueil plein écran est affiché ; la partie n’a pas encore commencé.
     private var isStartScreen = true
+    /// Accesseurs exposés à GameViewController pour les guards de bannière défi entrant.
+    var pvpCoordinatorIsNil: Bool { pvpCoordinator == nil }
     /// Ne montrer le logo studio qu’au tout premier affichage de la scene.
     private var didShowStudioSplash = false
     /// Taille des chips d'accueil, mémorisée pour positionner le dot PvP auto-search.
@@ -814,6 +1076,9 @@ final class GameScene: SKScene {
     private var bombCount: Int = 1
     /// Mode placement bombe (preview bombe ; `B` ou tap sur l’icône pour basculer).
     private var isBombMode: Bool = false
+
+    // (TWISTX n'a pas d'état interactif — effet entièrement automatique à l'atterrissage)
+
     /// Nombre de **vagues** où au moins une chaîne ≥ 5 a été supprimée — aligné sur `chainCount++` dans `checkChains` du web.
     private var chainClearWaveCount: Int = 0
 
@@ -838,13 +1103,25 @@ final class GameScene: SKScene {
     // MARK: - Analyse des coups (BlomixMoveAnalyzer)
 
     /// Queue dédiée aux calculs de lookahead (hors main thread).
-    private static let analyzerQueue = DispatchQueue(label: "blomix.moveAnalyzer", qos: .userInteractive)
+    private static let analyzerQueue = DispatchQueue(label: "blomix.moveAnalyzer", qos: .userInitiated)
+    /// Génération courante : incrémentée à chaque triggerMoveAnalysis, pour ignorer les résultats périmés.
+    private var analyzerGeneration: Int = 0
     /// Dernier résultat de lookahead calculé proactivement après stabilisation.
     private var analyzerLookAhead: BlomixLookAheadResult? = nil
     /// Qualité du coup en attente d'affichage (fixée au tap, consommée à l'atterrissage).
     private var analyzerPendingQuality: BlomixMoveQuality? = nil
     /// Statistiques de la partie en cours.
     private var analyzerGameStats = BlomixGameMoveStats()
+    /// Grille et file de blocs capturés au moment où `analyzerLookAhead` a été lancé
+    /// (= état avant le prochain coup du joueur, identique à ce que voyait le joueur).
+    private var analyzerPreMoveGrid: [[BlockType]]? = nil
+    private var analyzerPreMoveBlock: BlockType = .empty
+    private var analyzerPreMoveNext1: BlockType = .empty
+    private var analyzerPreMoveNext2: BlockType = .empty
+    private var analyzerPreMovePendingLine: [BlockType]? = nil
+    /// Pire coup de la partie en cours (écart optimal − choix le plus élevé).
+    /// Nil jusqu'à ce qu'au moins un coup ait été analysé avec un écart > 0.
+    private(set) var worstMistakeSnapshot: BlomixWorstMistakeSnapshot? = nil
 
     // MARK: - Bonus de score (solo uniquement)
 
@@ -876,6 +1153,12 @@ final class GameScene: SKScene {
     /// Profondeur de remplissage connue de la grille adverse (0 = vide, 8 = jusqu'en bas).
     private var pvpRemoteBoardFillDepth: Int = 0
     private var pvpRemoteScore: Int = 0
+
+    // MARK: - Aide (Hint)
+    /// Nombre d'aides restantes pour la partie en cours.
+    private var hintsRemaining: Int = 5
+    /// true si le joueur a tapé le bouton "?" mais que analyzerLookAhead était encore nil.
+    private var pendingHintRequest: Bool = false
 
     // MARK: Ghost drop preview (appui maintenu → colonne grisée + bloc fantôme)
     /// Timer qui déclenche le mode ghost après `ghostHoldDelay` secondes.
@@ -911,7 +1194,8 @@ final class GameScene: SKScene {
         case brixCelebration  // Overlay 3b : "Super !" (auto-dismiss)
         case freePlay         // Pas d'overlay ; 2 drops libres avant la bombe
         case bombIntro        // Overlay 4 : animation bombe, attendre bomb drop
-        case bombCelebration  // Overlay 4b : "Super ! Tu sais tout !" (auto-dismiss → retour accueil)
+        case bombCelebration  // Overlay 4b : "Super ! Tu sais tout !" (auto-dismiss → magixIntro)
+        case magixIntro       // Overlay 5  : les 3 blocs MAGIX + "Il y a encore des surprises…" (tap ou 3 s → sortie)
     }
 
     private static let tutorialOverlayName      = "tutoStepOverlay"
@@ -920,6 +1204,7 @@ final class GameScene: SKScene {
     private static let tutorialFreePlayDropsNeeded = 2
 
     private var isTutorialMode:       Bool          = false
+    private var isZenMode:            Bool          = false
     private var tutorialStep:         TutorialStep  = .intro
     private var tutorialStepDrops:    Int           = 0
     private var tutorialBombUnlocked: Bool          = false
@@ -988,6 +1273,10 @@ final class GameScene: SKScene {
     override func didMove(to view: SKView) {
         super.didMove(to: view)
 
+        // Pré-chauffe les Taptic Engines pour que les premiers retours soient immédiats.
+        hapticEngine.prepare()
+        hapticLightEngine.prepare()
+
         childNode(withName: Self.backgroundNodeName)?.removeFromParent()
         childNode(withName: Self.titleNodeName)?.removeFromParent()
         childNode(withName: Self.gameplaySubtitleUnderTitleName)?.removeFromParent()
@@ -1001,9 +1290,13 @@ final class GameScene: SKScene {
         addFullscreenBackground()
 
         soundBank.preloadAll()
+        // Pré-chauffe le synthétiseur procédural sur un thread de fond pour éviter
+        // le freeze au premier effet MAGIX (init AVAudioEngine coûteuse).
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = BlomixProceduralSFX.shared
+        }
         BlomixMusicPlayer.shared.start()
         registerSoloSaveObserverIfNeeded()
-        registerPvPAutoSearchObserverIfNeeded()
 
         uiButtonTapObserver = NotificationCenter.default.addObserver(
             forName: .blomixButtonTap,
@@ -1073,6 +1366,7 @@ final class GameScene: SKScene {
 
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
     private func resetSessionModelForNewMatch() {
+        isZenMode = false
         grid = Self.makeEmptyGrid()
         selectedColumn = 3
         currentBlock = nextPlayableBlockForSession()
@@ -1097,9 +1391,19 @@ final class GameScene: SKScene {
         stageTimerSecondsRemaining = Self.soloStages[0].timerSeconds
         pendingBottomLineBloopaSoundPlayedAtMoveCount = nil
         pvpIncomingAttackPreviewSoundPlayedForID = nil
+        pvpNeedsDecadeLineAfterAttackInjection = false
+        analyzerGeneration    &+= 1          // invalide tout résultat encore en vol
         analyzerLookAhead = nil
         analyzerPendingQuality = nil
         analyzerGameStats.reset()
+        analyzerPreMoveGrid        = nil
+        analyzerPreMoveBlock       = .empty
+        analyzerPreMoveNext1       = .empty
+        analyzerPreMoveNext2       = .empty
+        analyzerPreMovePendingLine = nil
+        worstMistakeSnapshot       = nil
+        hintsRemaining  = 5
+        pendingHintRequest = false
     }
 
     private func nextPlayableBlockForSession() -> BlockType {
@@ -1114,10 +1418,15 @@ final class GameScene: SKScene {
 
     private func nextBottomLineRowForSession() -> [BlockType] {
         var row = pvpCoordinator?.nextRandomBottomLineForSharedMatch() ?? Self.generateNextRandomLineRowIndependentCells()
-        // En tutoriel, aucun Brix dans les lignes qui montent : le joueur doit le découvrir via la file.
-        if isTutorialMode {
-            row = row.map { block in
-                if case .priks = block { return Self.randomNextPlayableBlock() }
+        // Pas de blocs Magix ni Priks dans les lignes qui montent en tutoriel.
+        // Les blocs Magix ne doivent jamais apparaître dans les lignes du bas (effet trop brutal).
+        row = row.map { block in
+            switch block {
+            case .magix:
+                return Self.colorPalette.randomElement().map { .color($0) } ?? .color("red")
+            case .priks where isTutorialMode:
+                return Self.randomNextPlayableBlock()
+            default:
                 return block
             }
         }
@@ -1164,6 +1473,7 @@ final class GameScene: SKScene {
     private func presentStartScreenOrRestoreSoloSave() {
         if let save = BlomixSoloSaveManager.shared.load() {
             BlomixSoloSaveManager.shared.clear()
+            isZenMode = save.isZenMode  // restauré avant restoreFromSoloSave pour isInStagedSoloMode
             restoreFromSoloSave(save)
         } else {
             presentStartScreen()
@@ -1265,38 +1575,52 @@ final class GameScene: SKScene {
 
         let startY = size.height * 0.12 + startLift + startScreenVerticalLift
 
-        // ── Badge classement Top 10 ──────────────────────────────────────────────
-        // L'image est centrée dans l'espace vertical entre le label Elo et le bouton
-        // Jouer. Le chiffre de rang est affiché juste au-dessus de l'image.
-        // Le node reste alpha=0 ; il ne devient visible qu'après fetch asynchrone,
-        // si le joueur figure dans le top 10 de BlomixMainScore_v2.
-        let medalMaxSize: CGFloat = 100
-        let medalCenterY = (playerEloLabel.position.y + startY + chipSize.height / 2) / 2 - 8
-        let medalNode = SKNode()
-        medalNode.name = Self.startScreenMedalNodeName
-        medalNode.position = CGPoint(x: size.width / 2, y: medalCenterY)
-        medalNode.zPosition = 1
-        medalNode.alpha = 0
+        // ── Disques de classement (SOLO / MOY. / ZEN) ───────────────────────────
+        // Trois disques animés (style MAGIX) centrés dans l'espace vertical entre
+        // le label Elo et le premier bouton.  Chaque disque démarre alpha=0 et
+        // se révèle indépendamment dès que son fetch Game Center retourne.
+        let discDiameter: CGFloat = 60
+        let discGap:      CGFloat = 14          // espace entre les bords des disques
+        let discCenterY = (playerEloLabel.position.y + startY + chipSize.height / 2) / 2 - 4
+        let discStep = discDiameter + discGap   // pas centre-à-centre
+        let discCx   = size.width / 2
 
-        let medalSprite = SKSpriteNode(imageNamed: "WebImages/medal")
-        medalSprite.size = CGSize(width: medalMaxSize, height: medalMaxSize)
-        medalSprite.position = .zero
-        medalNode.addChild(medalSprite)
+        let discsContainer = SKNode()
+        discsContainer.name      = Self.startScreenRankDiscsContainerName
+        discsContainer.position  = CGPoint(x: discCx, y: discCenterY)
+        discsContainer.zPosition = 1
+        overlay.addChild(discsContainer)
 
-        let medalRankLabel = SKLabelNode(text: "")
-        medalRankLabel.name = Self.startScreenMedalRankLabelName
-        medalRankLabel.fontName = Self.customUIFontPostScriptName
-        medalRankLabel.fontSize = chipFont    // identique à la taille des boutons
-        medalRankLabel.fontColor = .white
-        medalRankLabel.horizontalAlignmentMode = .center
-        medalRankLabel.verticalAlignmentMode   = .center
-        medalRankLabel.position = CGPoint(x: 0, y: 10)  // légèrement au-dessus du centre de l'image
-        medalRankLabel.zPosition = 1          // au-dessus de l'image (z)
-        medalNode.addChild(medalRankLabel)
-        overlay.addChild(medalNode)
+        // Les 3 offsets de phase (0.0 / 0.33 / 0.67) désynchronisent l'ondulation
+        // de couleur entre les disques tout en couvrant le cycle complet de la palette.
+        let soloDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscSoloName,
+                                             category: "SOLO",
+                                             discDiameter: discDiameter,
+                                             timeOffset: 0.0)
+        soloDisc.position = CGPoint(x: -discStep, y: 0)
+        soloDisc.alpha    = 0
+        discsContainer.addChild(soloDisc)
+
+        let avgDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscAvgName,
+                                            category: "MOY.",
+                                            discDiameter: discDiameter,
+                                            timeOffset: 0.33)
+        avgDisc.position = CGPoint(x: 0, y: 0)
+        avgDisc.alpha    = 0
+        discsContainer.addChild(avgDisc)
+
+        let zenDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscZenName,
+                                            category: "ZEN",
+                                            discDiameter: discDiameter,
+                                            timeOffset: 0.67)
+        zenDisc.position = CGPoint(x: discStep, y: 0)
+        zenDisc.alpha    = 0
+        discsContainer.addChild(zenDisc)
         // ─────────────────────────────────────────────────────────────────────────
 
-        var cy = startY
+        // Décale les boutons vers le bas d'un écart supplémentaire égal à l'espacement
+        // inter-boutons, pour aérer l'espace sous les disques de ranking.
+        var cy = startY - (hChip + labelGap) / 2
         let cx = size.width / 2
 
         let startChip = makeStartScreenButtonChip(
@@ -1321,7 +1645,18 @@ final class GameScene: SKScene {
         pvpChip.position = CGPoint(x: cx, y: cy)
         pvpChip.zPosition = 2
         overlay.addChild(pvpChip)
-        refreshPvPAutoSearchDot()
+
+        cy -= hChip / 2 + labelGap + hChip / 2
+        let zenChip = makeStartScreenButtonChip(
+            chipName: Self.startScreenZenChipName,
+            labelName: Self.startScreenZenLabelName,
+            text: BlomixL10n.zenButton,
+            chipSize: chipSize,
+            fontSize: chipFont
+        )
+        zenChip.position = CGPoint(x: cx, y: cy)
+        zenChip.zPosition = 2
+        overlay.addChild(zenChip)
 
         cy -= hChip / 2 + labelGap + hChip / 2
         let scoresChip = makeStartScreenButtonChip(
@@ -1359,19 +1694,7 @@ final class GameScene: SKScene {
         settingsChip.zPosition = 2
         overlay.addChild(settingsChip)
 
-        cy -= hChip / 2 + labelGap + hChip / 2
-        let creditsChip = makeStartScreenButtonChip(
-            chipName: Self.startScreenCreditsChipName,
-            labelName: Self.startScreenCreditsLabelName,
-            text: BlomixL10n.credits,
-            chipSize: chipSize,
-            fontSize: chipFont
-        )
-        creditsChip.position = CGPoint(x: cx, y: cy)
-        creditsChip.zPosition = 2
-        overlay.addChild(creditsChip)
-
-        // --- Conseil du jour (sous Credits) ---
+        // --- Conseil du jour (sous le dernier bouton) ---
         // Vide le pool pour recharger dans la bonne langue et piocher un nouveau conseil.
         tipOfDayPool = []
         lastTipIndex = -1
@@ -1490,12 +1813,12 @@ final class GameScene: SKScene {
 
         // Boutons : stagger de bas en haut (le bouton le plus bas apparaît en premier).
         // Ordre des chips dans l'écran, du bas vers le haut :
-        // credits → settings → rules → scores → pvp → start
+        // settings → rules → scores → zen → pvp → start
         let staggeredChips: [(chip: BlomixSKButtonNode, delay: TimeInterval)] = [
-            (creditsChip,  0.10),
-            (settingsChip, 0.16),
-            (rulesChip,    0.22),
-            (scoresChip,   0.28),
+            (settingsChip, 0.10),
+            (rulesChip,    0.16),
+            (scoresChip,   0.22),
+            (zenChip,      0.28),
             (pvpChip,      0.34),
             (startChip,    0.40),
         ]
@@ -1606,8 +1929,23 @@ final class GameScene: SKScene {
         backdrop.alpha = 1.0
         overlay.addChild(backdrop)
 
+        // Pré-chauffe les 3 shaders des disques de ranking pendant le splash.
+        // Chaque timeOffset produit un source GLSL distinct → Metal doit compiler 3 programmes.
+        // Les sprites sont hors-écran (alpha 0.01, position négative) mais rendus,
+        // ce qui déclenche la compilation GPU avant l'affichage de l'écran d'accueil.
+        for (i, offset) in [Float(0.0), Float(0.33), Float(0.67)].enumerated() {
+            let w = SKSpriteNode(texture: Self.magixShaderBaseTexture,
+                                 size: CGSize(width: 2, height: 2))
+            w.shader    = Self.makeMagixPaletteShader(timeOffset: offset)
+            w.position  = CGPoint(x: -1000, y: -1000 - CGFloat(i) * 3)
+            w.alpha     = 0.01
+            w.zPosition = -200
+            overlay.addChild(w)
+        }
+
+        // Crée le logo via SKSpriteNode(imageNamed:) pour conserver le comportement
+        // de sizing d'origine (gestion x1/x2/x3 identique à avant).
         let logo = SKSpriteNode(imageNamed: Self.studioLogoAssetName)
-        // Si l'asset manque, on évite un écran vide et on enchaine directement.
         guard logo.texture != nil else {
             overlay.removeFromParent()
             presentStartScreenOrRestoreSoloSave()
@@ -1619,17 +1957,51 @@ final class GameScene: SKScene {
         logo.alpha = 0
         logo.setScale(1.0)
 
-        let maxWidth = size.width * 0.62
+        let maxWidth  = size.width  * 0.62
         let maxHeight = size.height * 0.26
         let textureSize = logo.texture?.size() ?? CGSize(width: 1, height: 1)
         let fitRatio = min(maxWidth / max(1, textureSize.width), maxHeight / max(1, textureSize.height))
         logo.size = CGSize(width: textureSize.width * fitRatio, height: textureSize.height * fitRatio)
         overlay.addChild(logo)
 
+        // Pré-charge les deux textures pour les hard-cuts de l'effet néon.
+        let texOn     = logo.texture!
+        let texOff    = SKTexture(imageNamed: Self.studioLogoOffAssetName)
+        let hasOffTex = texOff.size().width > 2   // texture valide si > 1x1 placeholder
+        // Taille figée une fois pour toutes (evite tout recalcul inattendu de SpriteKit).
+        let fixedSize = logo.size
+
+        // Démarre sur la texture "éteinte" si disponible.
+        if hasOffTex {
+            logo.texture = texOff
+            logo.size    = fixedSize   // force explicitement, au cas où
+        }
+
+        // Actions de swap robustes : on impose texture ET taille ensemble via run{}.
+        // setTexture(resize:false) peut recalculer la taille sur certaines versions de SpriteKit.
+        let switchOn: SKAction = .run { [weak logo] in
+            logo?.texture = texOn
+            logo?.size    = fixedSize
+        }
+        let switchOff: SKAction = hasOffTex
+            ? .run { [weak logo] in
+                logo?.texture = texOff
+                logo?.size    = fixedSize
+            }
+            : .run {}   // si texOff absent les phases "éteint" ne font rien
+
+        // Séquence "néon qui s'allume" : clignotements irréguliers, rythme légèrement ralenti.
         let sequence = SKAction.sequence([
-            SKAction.fadeIn(withDuration: 0.22),
-            SKAction.wait(forDuration: 0.78),
-            SKAction.fadeOut(withDuration: 0.24),
+            SKAction.fadeAlpha(to: 1.0, duration: 0.08),   // apparition douce sur éteint
+            SKAction.wait(forDuration: 0.65),               // pause éteint
+            switchOn,  SKAction.wait(forDuration: 0.10),    // flash 1
+            switchOff, SKAction.wait(forDuration: 0.09),
+            switchOn,  SKAction.wait(forDuration: 0.14),    // flash 2
+            switchOff, SKAction.wait(forDuration: 0.11),
+            switchOn,  SKAction.wait(forDuration: 0.18),    // flash 3 (plus long)
+            switchOff, SKAction.wait(forDuration: 0.09),
+            switchOn,  SKAction.wait(forDuration: 0.65),    // stable allumé
+            SKAction.fadeOut(withDuration: 0.28),
             SKAction.run { [weak self, weak overlay] in
                 overlay?.removeFromParent()
                 self?.presentStartScreenOrRestoreSoloSave()
@@ -1653,6 +2025,7 @@ final class GameScene: SKScene {
         if !isTutorialMode { BlomixSoloSaveManager.shared.clear() }
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
+        hapticSoft()
 
         resetSessionModelForNewMatch()
 
@@ -1667,13 +2040,56 @@ final class GameScene: SKScene {
 
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
-        refreshPvPAutoSearchDot()
 
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
 
         // Mode solo (hors tutoriel) : overlay Stage 1 + démarrage du timer.
         if isInStagedSoloMode {
             startStagedSoloSession()
+        }
+    }
+
+    /// Lance une partie en mode Zen (sans timer, sans niveaux) depuis l’écran d’accueil.
+    private func beginZenModeFromStartScreen() {
+        guard isStartScreen else { return }
+
+        cancelGhostPreview()
+        BlomixSoloSaveManager.shared.clear()
+        childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+        isStartScreen = false
+        hapticSoft()
+
+        resetSessionModelForNewMatch()
+        isZenMode = true  // activé après reset pour ne pas être écrasé
+
+        addTopTitle()
+        setupBombHUD()
+        setupScoreHUD()
+        drawGrid()
+        updatePreviewSprite()
+        ensureGameOverflowMenuIfNeeded()
+        layoutGameOverflowMenuIfNeeded()
+        setGameplayNodesHidden(false)
+
+        soundBank.play(.begin)
+        refreshGameCenterStatusLabelText()
+
+        NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+
+        startZenSession()
+    }
+
+    /// Affiche l’overlay d’intro Zen puis démarre la musique Stage 1 en boucle.
+    private func startZenSession() {
+        guard isZenMode else { return }
+        showTransitionOverlay(
+            levelPrefix: "Zen",
+            stageLevelText: "Mode",
+            line1: "tranquille",
+            line2: ""
+        ) { [weak self] in
+            guard let self else { return }
+            BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)
         }
     }
 
@@ -1690,7 +2106,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.upcomingQueueCaptionLabelName)?.isHidden = hidden
         childNode(withName: Self.scoreHudLabelName)?.isHidden = hidden
         childNode(withName: Self.bestScoreAboveName)?.isHidden = hidden || pvpCoordinator != nil
-        childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden
+        childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isZenMode
         // Compteur LIGNE
         childNode(withName: Self.ligneCaptionName)?.isHidden = hidden
         childNode(withName: Self.ligneValueName)?.isHidden = hidden
@@ -1699,7 +2115,7 @@ final class GameScene: SKScene {
         if let stageLbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode {
             stageLbl.isHidden = hidden || !isInStagedSoloMode
         }
-        if let badge = childNode(withName: Self.stageBadgeNodeName) as? SKSpriteNode {
+        if let badge = childNode(withName: Self.stageBadgeNodeName) as? SKLabelNode {
             badge.isHidden = hidden || !isInStagedSoloMode
         }
         if let pvpTimer = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode {
@@ -1734,6 +2150,7 @@ final class GameScene: SKScene {
     /// Son d'arrivée après une pose normale, selon la taille de la composante 8-connexe créée par le blox posé.
     /// Les chaînes (>= 5) laissent la priorité au son de suppression, donc aucun son d'arrivée n'est joué ici.
     private func landingSoundForPlacedBlock(_ placedBlock: BlockType, at address: GridAddress) -> BlomixMatchSFX? {
+        if case .magix = placedBlock { return .magix }
         guard case .color(let colorName) = placedBlock else { return .place }
         var visited = Set<GridAddress>()
         let component = collectColorComponent8(start: address, colorName: colorName, globallyVisited: &visited)
@@ -1776,6 +2193,10 @@ final class GameScene: SKScene {
         sceneHitRectForStartScreenChip(named: Self.startScreenCreditsChipName).contains(scenePoint)
     }
 
+    private func touchHitsStartScreenZenButton(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForStartScreenChip(named: Self.startScreenZenChipName).contains(scenePoint)
+    }
+
     private func touchHitsStartScreenPvPButton(_ scenePoint: CGPoint) -> Bool {
         sceneHitRectForStartScreenChip(named: Self.startScreenPvPChipName).contains(scenePoint)
     }
@@ -1793,6 +2214,12 @@ final class GameScene: SKScene {
     private func touchHitsGameOverLeaderboardButton(_ scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.gameOverOverlayName),
               let node = overlay.childNode(withName: Self.gameOverLeaderboardLabelName) else { return false }
+        return sceneHitRectForGameOverButton(node).contains(scenePoint)
+    }
+
+    private func touchHitsGameOverWorstMoveButton(_ scenePoint: CGPoint) -> Bool {
+        guard let overlay = childNode(withName: Self.gameOverOverlayName),
+              let node = overlay.childNode(withName: Self.gameOverWorstMoveButtonName) else { return false }
         return sceneHitRectForGameOverButton(node).contains(scenePoint)
     }
 
@@ -1850,22 +2277,29 @@ final class GameScene: SKScene {
     private func refreshBestScoreHUDIfNeeded() {
         guard childNode(withName: Self.bestScoreAboveName) != nil else { return }
 
-        let fallbackLocalBest = max(ScoreManager.shared.getLocalHighScore(), score, hudBestScoreValue)
+        let localBest = isZenMode
+            ? ScoreManager.shared.getLocalZenHighScore()
+            : ScoreManager.shared.getLocalHighScore()
+        let fallbackLocalBest = max(localBest, score, hudBestScoreValue)
         applyBestScoreHUDValue(fallbackLocalBest)
 
         bestScoreFetchGeneration += 1
         let generation = bestScoreFetchGeneration
         guard ScoreManager.shared.isAuthenticated else { return }
 
-        ScoreManager.shared.fetchLocalPlayerBestScore { [weak self] result in
+        let leaderboardID = isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
+        ScoreManager.shared.fetchLocalPlayerBestScore(leaderboardID: leaderboardID) { [weak self] result in
             guard let self else { return }
             guard generation == self.bestScoreFetchGeneration else { return }
+            let localFallback = self.isZenMode
+                ? ScoreManager.shared.getLocalZenHighScore()
+                : ScoreManager.shared.getLocalHighScore()
             switch result {
             case .success(let best):
-                let resolved = max(best ?? 0, ScoreManager.shared.getLocalHighScore(), self.score)
+                let resolved = max(best ?? 0, localFallback, self.score)
                 self.applyBestScoreHUDValue(resolved)
             case .failure:
-                let resolved = max(ScoreManager.shared.getLocalHighScore(), self.score, self.hudBestScoreValue)
+                let resolved = max(localFallback, self.score, self.hudBestScoreValue)
                 self.applyBestScoreHUDValue(resolved)
             }
         }
@@ -1897,25 +2331,38 @@ final class GameScene: SKScene {
                 eloLabel.text = BlomixL10n.startScreenPlayerEloUnavailable
             }
         }
-        refreshStartScreenMedalRankIfVisible()
+        refreshStartScreenRankDiscsIfVisible()
     }
 
-    /// Fetches the local player's rank in BlomixMainScore_v2 and, if in the top 10,
-    /// shows the medal badge node with the rank number and animates it in.
-    private func refreshStartScreenMedalRankIfVisible() {
+    /// Fetche le rang du joueur sur les 3 leaderboards (SOLO, Moyenne, Zen) et
+    /// révèle le disque correspondant dès que sa réponse Game Center arrive.
+    /// Aucune restriction de rang : le joueur voit sa position même s'il est 5 000e.
+    private func refreshStartScreenRankDiscsIfVisible() {
         guard isStartScreen, GKLocalPlayer.local.isAuthenticated else { return }
-        ScoreManager.shared.fetchLocalPlayerMainScoreRank { [weak self] rank in
-            guard let self, self.isStartScreen else { return }
-            guard let rank, rank <= 10 else { return }
-            guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                  let medalNode = overlay.childNode(withName: Self.startScreenMedalNodeName),
-                  let rankLabel = medalNode.childNode(withName: Self.startScreenMedalRankLabelName) as? SKLabelNode else { return }
-            rankLabel.text = "#\(rank)"
-            medalNode.removeAllActions()
-            medalNode.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.1),
-                SKAction.fadeIn(withDuration: 0.35),
-            ]))
+
+        let specs: [(leaderboardID: String, discName: String)] = [
+            (ScoreManager.mainLeaderboardID,    Self.startScreenRankDiscSoloName),
+            (ScoreManager.averageLeaderboardID, Self.startScreenRankDiscAvgName),
+            (ScoreManager.zenLeaderboardID,     Self.startScreenRankDiscZenName),
+        ]
+
+        for (leaderboardID, discName) in specs {
+            ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { [weak self] rank in
+                guard let self, self.isStartScreen else { return }
+                guard let rank else { return }          // pas encore d'entrée sur ce leaderboard
+                guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
+                      let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName),
+                      let discNode  = container.childNode(withName: discName),
+                      let rankLabel = discNode.childNode(withName: discName + Self.rankDiscRankLabelSuffix) as? SKLabelNode
+                else { return }
+
+                rankLabel.text = "#\(rank)"
+                discNode.removeAllActions()
+                discNode.run(SKAction.sequence([
+                    SKAction.wait(forDuration: 0.1),
+                    SKAction.fadeIn(withDuration: 0.35),
+                ]))
+            }
         }
     }
 
@@ -1942,6 +2389,7 @@ final class GameScene: SKScene {
             self.drawGrid()
             self.updatePreviewSprite()
             self.refreshUpcomingQueueSlots()
+            self.refreshBombHudIcon()
         }
     }
 
@@ -2057,7 +2505,18 @@ final class GameScene: SKScene {
 
     /// Prochain bloc « preview » : **1 chance sur 8** d’un `.priks(5)`, sinon couleur aléatoire.
     static func randomNextPlayableBlock() -> BlockType {
-        if Double.random(in: 0..<1) < PriksRules.spawnProbability {
+        let r = Double.random(in: 0..<1)
+        if r < MagixRules.spawnProbability {
+            // Tirage pondéré : chaque variante a sa propre probabilité.
+            var cumul = 0.0
+            var chosenKind: MagixKind = .chromax
+            for entry in MagixRules.spawnProbabilityByKind {
+                cumul += entry.p
+                if r < cumul { chosenKind = entry.kind; break }
+            }
+            return .magix(chosenKind)
+        }
+        if r < MagixRules.spawnProbability + PriksRules.spawnProbability {
             return .priks(PriksRules.initialHitsRemaining)
         }
         let name = colorPalette.randomElement() ?? "red"
@@ -2109,6 +2568,7 @@ final class GameScene: SKScene {
         isGameOver = true
         isProcessing = true
         stopStageTimer()
+        hapticHeavy()
 
         let finalScore = score
         gameOverFinalScore = finalScore
@@ -2154,7 +2614,7 @@ final class GameScene: SKScene {
 
         // Décalage vertical pour faire de la place au récapitulatif d'analyse si des coups ont été analysés.
         let showAnalysisRecap = BlomixMoveAnalyzer.evalEnabled && analyzerGameStats.totalMoves > 0
-        let analysisPanelShift: CGFloat = showAnalysisRecap ? -40 : 0
+        let analysisPanelShift: CGFloat = showAnalysisRecap ? -60 : 0
 
         // Blox flottants (entre le fond assombri z=0 et le contenu z=10).
         let gameOverAmbient = SKNode()
@@ -2169,48 +2629,153 @@ final class GameScene: SKScene {
 
         // ── Récap analyse des coups (affiché uniquement si des coups ont été analysés) ──
         if showAnalysisRecap {
-            let stats = analyzerGameStats
-            let recapBaseY = size.height / 2 + 175
+            let stats    = analyzerGameStats
+            let optPct   = stats.optimalityPercent
+            let recapBaseY: CGFloat = size.height / 2 + 230
 
-            let optPct = stats.optimalityPercent
-            let optLabel = SKLabelNode(text: "\u{1F3AF} Optimalité: \(optPct)%")
-            optLabel.fontName  = Self.customUIFontPostScriptName
-            optLabel.fontSize  = 14
-            optLabel.fontColor = SKColor(white: 0.92, alpha: 1)
-            optLabel.horizontalAlignmentMode = .center
-            optLabel.verticalAlignmentMode   = .center
-            optLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY)
-            optLabel.alpha     = 0
-            optLabel.zPosition = 10
-            overlay.addChild(optLabel)
-            optLabel.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.25),
-                SKAction.fadeIn(withDuration: 0.22),
+            // Couleur thématique selon le score
+            let accentColor: SKColor
+            if optPct >= 60 {
+                accentColor = SKColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+            } else if optPct >= 30 {
+                accentColor = SKColor(red: 0.95, green: 0.72, blue: 0.25, alpha: 1)
+            } else {
+                accentColor = SKColor(red: 0.90, green: 0.35, blue: 0.25, alpha: 1)
+            }
+
+            // ── Grand pourcentage animé ──
+            let bigPctLabel = SKLabelNode(text: "0%")
+            bigPctLabel.fontName               = Self.customUIFontPostScriptName
+            bigPctLabel.fontSize               = 34
+            bigPctLabel.fontColor              = accentColor
+            bigPctLabel.horizontalAlignmentMode = .center
+            bigPctLabel.verticalAlignmentMode   = .center
+            bigPctLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY)
+            bigPctLabel.alpha     = 0
+            bigPctLabel.zPosition = 10
+            overlay.addChild(bigPctLabel)
+            bigPctLabel.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.35),
+                SKAction.group([
+                    SKAction.fadeIn(withDuration: 0.2),
+                    SKAction.customAction(withDuration: 1.3) { node, elapsed in
+                        guard let lbl = node as? SKLabelNode else { return }
+                        let eased = min(sqrt(Double(elapsed) / 1.3), 1.0)
+                        lbl.text  = "\(Int(Double(optPct) * eased))%"
+                    },
+                ]),
             ]))
 
-            let excellentLabel = SKLabelNode(text: "✦ \(stats.excellentCount) coups excellents  •  \(stats.badCount) erreurs")
-            excellentLabel.fontName  = Self.customUIFontPostScriptName
-            excellentLabel.fontSize  = 13
-            excellentLabel.fontColor = SKColor(white: 0.76, alpha: 1)
+            // ── Sous-titre "optimalité" ──
+            let subLabel = SKLabelNode(text: "optimalité")
+            subLabel.fontName               = Self.customUIFontPostScriptName
+            subLabel.fontSize               = 11
+            subLabel.fontColor              = SKColor(white: 0.60, alpha: 1)
+            subLabel.horizontalAlignmentMode = .center
+            subLabel.verticalAlignmentMode   = .center
+            subLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 36)
+            subLabel.alpha     = 0
+            subLabel.zPosition = 10
+            overlay.addChild(subLabel)
+            subLabel.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.30),
+                SKAction.fadeIn(withDuration: 0.2),
+            ]))
+
+            // ── Barre de progression ──
+            let barWidth:  CGFloat = 200
+            let barHeight: CGFloat = 14
+            let cornerR:   CGFloat = barHeight / 2
+            let barY = recapBaseY - 60
+
+            // Fond de la barre (remplissage semi-transparent)
+            let barBg = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight),
+                                    cornerRadius: cornerR)
+            barBg.fillColor   = SKColor(white: 1, alpha: 0.10)
+            barBg.strokeColor = .clear
+            barBg.position    = CGPoint(x: size.width / 2, y: barY)
+            barBg.zPosition   = 10
+            barBg.alpha       = 0
+            overlay.addChild(barBg)
+            barBg.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.35),
+                SKAction.fadeIn(withDuration: 0.2),
+            ]))
+
+            // Remplissage animé — SKCropNode pour rester dans les limites arrondies
+            let targetScale = CGFloat(optPct) / 100.0
+            let cropNode = SKCropNode()
+            cropNode.position  = CGPoint(x: size.width / 2, y: barY)
+            cropNode.zPosition = 11
+            cropNode.alpha     = 0
+
+            let fillBar = SKSpriteNode(color: accentColor,
+                                       size: CGSize(width: barWidth, height: barHeight))
+            fillBar.anchorPoint = CGPoint(x: 0, y: 0.5)
+            fillBar.position    = CGPoint(x: -barWidth / 2, y: 0)
+            fillBar.xScale      = 0
+            cropNode.addChild(fillBar)
+
+            let maskShape = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight),
+                                        cornerRadius: cornerR)
+            maskShape.fillColor   = .white
+            maskShape.strokeColor = .clear
+            cropNode.maskNode = maskShape
+            overlay.addChild(cropNode)
+
+            cropNode.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.35),
+                SKAction.fadeIn(withDuration: 0.2),
+            ]))
+            fillBar.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.35),
+                SKAction.customAction(withDuration: 1.3) { node, elapsed in
+                    let eased = min(sqrt(CGFloat(elapsed) / 1.3), 1.0)
+                    node.xScale = eased * targetScale
+                },
+            ]))
+
+            // Contour fin E0E0E0 au-dessus du remplissage
+            let barBorder = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight),
+                                        cornerRadius: cornerR)
+            barBorder.fillColor   = .clear
+            barBorder.strokeColor = SKColor(red: 0.878, green: 0.878, blue: 0.878, alpha: 0.65)
+            barBorder.lineWidth   = 1
+            barBorder.position    = CGPoint(x: size.width / 2, y: barY)
+            barBorder.zPosition   = 12
+            barBorder.alpha       = 0
+            overlay.addChild(barBorder)
+            barBorder.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.35),
+                SKAction.fadeIn(withDuration: 0.2),
+            ]))
+
+            // ── Compteurs coups excellents / erreurs ──
+            let excellentLabel = SKLabelNode(
+                text: "✦ \(stats.excellentCount) coups excellents  •  \(stats.badCount) erreurs"
+            )
+            excellentLabel.fontName               = Self.customUIFontPostScriptName
+            excellentLabel.fontSize               = 13
+            excellentLabel.fontColor              = SKColor(white: 0.76, alpha: 1)
             excellentLabel.horizontalAlignmentMode = .center
             excellentLabel.verticalAlignmentMode   = .center
-            excellentLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 22)
+            excellentLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 84)
             excellentLabel.alpha     = 0
             excellentLabel.zPosition = 10
             overlay.addChild(excellentLabel)
             excellentLabel.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.30),
+                SKAction.wait(forDuration: 1.65),
                 SKAction.fadeIn(withDuration: 0.22),
             ]))
 
-            // Séparateur visuel (trait fin)
+            // ── Séparateur visuel ──
             let sep = SKShapeNode(rect: CGRect(
-                x: size.width / 2 - 80, y: recapBaseY - 36, width: 160, height: 1
+                x: size.width / 2 - 80, y: recapBaseY - 100, width: 160, height: 1
             ))
             sep.fillColor   = SKColor(white: 1, alpha: 0.22)
             sep.strokeColor = .clear
             sep.zPosition   = 10
-            sep.alpha        = 0
+            sep.alpha       = 0
             overlay.addChild(sep)
             sep.run(SKAction.sequence([
                 SKAction.wait(forDuration: 0.18),
@@ -2290,9 +2855,14 @@ final class GameScene: SKScene {
         let quoteMaxChars = max(18, Int((size.width - 40) / 11))
         let wrapped = Self.wrapQuoteForGameOver(quote.text, maxCharsPerLine: quoteMaxChars, maxLines: 4)
 
+        // Si le bouton "pire coup" est visible, la citation descend d'une hauteur de bouton supplémentaire.
+        let worstMoveBtnShift: CGFloat = (BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil)
+            ? goButtonSize.height + 36
+            : 0
+
         if !wrapped.isEmpty {
             let lineHeight: CGFloat = 24
-            let firstLineY = size.height / 2 - 162 - analysisPanelShift
+            let firstLineY = size.height / 2 - 162 - analysisPanelShift - worstMoveBtnShift
             for (index, line) in wrapped.enumerated() {
                 let quoteLine = SKLabelNode(text: line)
                 quoteLine.name = index == 0 ? Self.gameOverQuoteLine1LabelName : Self.gameOverQuoteLine2LabelName
@@ -2319,7 +2889,7 @@ final class GameScene: SKScene {
         author.fontColor = SKColor(white: 0.86, alpha: 1)
         author.horizontalAlignmentMode = .center
         author.verticalAlignmentMode = .center
-        let authorY = size.height / 2 - 162 - CGFloat(max(1, wrapped.count)) * 24 - 10 - analysisPanelShift
+        let authorY = size.height / 2 - 162 - CGFloat(max(1, wrapped.count)) * 24 - 10 - analysisPanelShift - worstMoveBtnShift
         author.position = CGPoint(x: size.width / 2, y: authorY)
         author.alpha = 0
         author.zPosition = 10
@@ -2329,13 +2899,42 @@ final class GameScene: SKScene {
             SKAction.fadeIn(withDuration: 0.24),
         ]))
 
+        // ── Bouton "Voir ton pire coup" ──────────────────────────────────────────
+        // Toujours affiché si le système d'analyse a capturé au moins un coup.
+        if BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil {
+            let worstBtn = BlomixSKButtonNode(
+                name:     Self.gameOverWorstMoveButtonName,
+                text:     "Voir ton pire coup",
+                size:     goButtonSize,
+                fontSize: goButtonFontSize
+            )
+            let leaderboardY = size.height / 2 - 64 - goButtonSize.height - 10 - analysisPanelShift
+            worstBtn.position = CGPoint(x: size.width / 2,
+                                        y: leaderboardY - goButtonSize.height - 10)
+            worstBtn.alpha    = 0
+            worstBtn.zPosition = 10
+            overlay.addChild(worstBtn)
+            worstBtn.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.50),
+                SKAction.fadeIn(withDuration: 0.22),
+            ]))
+        }
+
         // Game Center : soumission solo uniquement sur BlomixMainScore_v3.
         // Les scores PvP sont gérés par le système Elo et n'entrent pas dans ce leaderboard.
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard self.pvpCoordinator == nil else { return }
-            let isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
-            ScoreManager.shared.submitScore(finalScore, completion: nil)
+            let isNewPB = self.isZenMode
+                ? ScoreManager.shared.isNewZenPersonalBest(finalScore)
+                : ScoreManager.shared.isNewPersonalBest(finalScore)
+            if self.isZenMode {
+                // Mode Zen : soumission au leaderboard Zen uniquement, pas de contribution à la moyenne.
+                ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
+            } else {
+                ScoreManager.shared.submitScore(finalScore, completion: nil)
+                ScoreManager.shared.recordGameScore(finalScore)
+            }
             guard isNewPB,
                   let overlay = self.childNode(withName: Self.gameOverOverlayName) else { return }
             let personalBest = SKLabelNode(text: BlomixL10n.gameOverPersonalBest)
@@ -2353,8 +2952,315 @@ final class GameScene: SKScene {
         }
     }
 
+
+    // MARK: - Overlay "Pire coup"
+
+    /// Affiche un overlay plein-ecran avec la mini-grille du pire coup de la partie.
+    /// Un tap n'importe ou ferme l'overlay.
+    private func showWorstMistakeOverlay() {
+        guard let snap = worstMistakeSnapshot else { return }
+
+        childNode(withName: Self.worstMistakeOverlayName)?.removeFromParent()
+
+        let overlay = SKNode()
+        overlay.name      = Self.worstMistakeOverlayName
+        overlay.zPosition = 300
+        addChild(overlay)
+
+        let dim = SKSpriteNode(color: UIColor(white: 0, alpha: 0.88), size: size)
+        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.zPosition   = 0
+        overlay.addChild(dim)
+
+        let cols      = GridLayout.columnCount
+        let rows      = GridLayout.rowCount
+        let cellSize: CGFloat = min(30, (size.width - 48) / CGFloat(cols))
+        let gridW     = cellSize * CGFloat(cols)
+        let gridH     = cellSize * CGFloat(rows)
+
+        // Tailles décroissantes : p0 (joué) > p1 (suivant) > p2 (d'après).
+        let sizeP0: CGFloat = cellSize * 1.15
+        let sizeP1: CGFloat = cellSize * 0.85
+        let sizeP2: CGFloat = cellSize * 0.70
+        let pendingLineH: CGFloat = cellSize * 0.55
+
+        // Hauteur totale sous la grille : ligne entrante (si présente) + file de 3 blocs (2 rangées) + badge stage.
+        // p0 (rangée haute) + gap + p1 (rangée basse) + badge éventuel + label = sizeP0 * 2 + gap + badgeH + 18
+        let hasPendingLine = snap.pendingLine != nil && !(snap.pendingLine!.allSatisfy { $0 == .empty })
+        let hasStageBadgeForLayout = snap.stageLevelText != nil
+        let belowGridH: CGFloat = 8
+            + (hasPendingLine ? pendingLineH + 6 : 0)
+            + 10 + sizeP0 + 6 + sizeP0
+            + (hasStageBadgeForLayout ? 8 + 50 : 0)
+            + 18 + 28
+        let contentH  = 70 + gridH + belowGridH   // 70 = 2 lignes légende + titre
+        let gridOriginX = (size.width - gridW) / 2
+        let gridOriginY = (size.height - contentH) / 2 + belowGridH
+
+        let gridContainer = SKNode()
+        gridContainer.position  = CGPoint(x: gridOriginX, y: gridOriginY)
+        gridContainer.zPosition = 10
+        overlay.addChild(gridContainer)
+
+        let optColsSet = Set(snap.optimalColumns)
+        var landingRowPerCol = [Int: Int]()
+        for c in 0..<cols {
+            if let r = BlomixMoveAnalyzer.landingRow(in: snap.grid, column: c) {
+                landingRowPerCol[c] = r
+            }
+        }
+        let chosenLandingRow    = landingRowPerCol[snap.chosenColumn]
+        let chosenIsAlsoOptimal = optColsSet.contains(snap.chosenColumn)
+
+        for r in 0..<rows {
+            for c in 0..<cols {
+                let block = snap.grid[r][c]
+                let cellX = CGFloat(c) * cellSize
+                let cellY = CGFloat(rows - 1 - r) * cellSize
+
+                let bg = SKShapeNode(
+                    rectOf: CGSize(width: cellSize - 1, height: cellSize - 1),
+                    cornerRadius: 3)
+                bg.position  = CGPoint(x: cellX + cellSize / 2, y: cellY + cellSize / 2)
+                bg.zPosition = 0
+
+                switch block {
+                case .color(let name):
+                    bg.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                    bg.strokeColor = .clear
+                case .priks(let n):
+                    bg.fillColor   = Self.priksSolidFillColor()
+                    bg.strokeColor = .clear
+                    let nLbl = SKLabelNode(text: "\(n)")
+                    nLbl.fontName               = Self.customUIFontPostScriptName
+                    nLbl.fontSize               = cellSize * 0.45
+                    nLbl.fontColor              = .white
+                    nLbl.verticalAlignmentMode  = .center
+                    nLbl.horizontalAlignmentMode = .center
+                    nLbl.zPosition = 1
+                    bg.addChild(nLbl)
+                case .magix(let kind):
+                    bg.fillColor   = SKColor(white: 0.78, alpha: 1)
+                    bg.strokeColor = .clear
+                    let mLbl = SKLabelNode(text: "M")
+                    mLbl.fontName               = "Helvetica-Bold"
+                    mLbl.fontSize               = cellSize * 0.45
+                    mLbl.fontColor              = .black
+                    mLbl.verticalAlignmentMode  = .center
+                    mLbl.horizontalAlignmentMode = .center
+                    mLbl.zPosition = 1
+                    bg.addChild(mLbl)
+                case .empty:
+                    bg.fillColor   = SKColor(white: 0.10, alpha: 1)
+                    bg.strokeColor = SKColor(white: 0.22, alpha: 1)
+                    bg.lineWidth   = 0.5
+                }
+                gridContainer.addChild(bg)
+
+                let isOptimalLanding = optColsSet.contains(c) && landingRowPerCol[c] == r
+                let isChosenLanding  = c == snap.chosenColumn && chosenLandingRow == r
+
+                if isOptimalLanding {
+                    let lbl = SKLabelNode(text: "⭐")
+                    lbl.fontName               = "Helvetica"
+                    lbl.fontSize               = cellSize * 0.52
+                    lbl.verticalAlignmentMode  = .center
+                    lbl.horizontalAlignmentMode = .center
+                    lbl.zPosition = 2
+                    bg.addChild(lbl)
+                } else if isChosenLanding && !chosenIsAlsoOptimal {
+                    let lbl = SKLabelNode(text: "💀")
+                    lbl.fontName               = "Helvetica"
+                    lbl.fontSize               = cellSize * 0.52
+                    lbl.verticalAlignmentMode  = .center
+                    lbl.horizontalAlignmentMode = .center
+                    lbl.zPosition = 2
+                    bg.addChild(lbl)
+                }
+            }
+        }
+
+        // ── Ligne entrante (si visible au moment du coup) ────────────────────────
+        var pendingLineBottomY = gridOriginY - 8   // référence Y pour empiler vers le bas
+        if hasPendingLine, let pLine = snap.pendingLine {
+            let lineCenterY = pendingLineBottomY - pendingLineH / 2
+            for c in 0..<cols {
+                let block = pLine[c]
+                let cx = gridOriginX + CGFloat(c) * cellSize + cellSize / 2
+                let lc = SKShapeNode(rectOf: CGSize(width: cellSize - 2, height: pendingLineH - 1),
+                                     cornerRadius: 2)
+                lc.position  = CGPoint(x: cx, y: lineCenterY)
+                lc.zPosition = 10
+                switch block {
+                case .color(let name):
+                    lc.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.40, alpha: 1)
+                    lc.strokeColor = .clear
+                case .priks(let n):
+                    lc.fillColor   = Self.priksSolidFillColor()
+                    lc.strokeColor = .clear
+                    let nl = SKLabelNode(text: "\(n)")
+                    nl.fontName               = Self.customUIFontPostScriptName
+                    nl.fontSize               = pendingLineH * 0.55
+                    nl.fontColor              = .white
+                    nl.verticalAlignmentMode  = .center
+                    nl.horizontalAlignmentMode = .center
+                    nl.zPosition = 1
+                    lc.addChild(nl)
+                case .magix:
+                    lc.fillColor   = SKColor(white: 0.78, alpha: 1)
+                    lc.strokeColor = .clear
+                case .empty:
+                    lc.fillColor   = SKColor(white: 0.10, alpha: 1)
+                    lc.strokeColor = SKColor(white: 0.20, alpha: 1)
+                    lc.lineWidth   = 0.5
+                }
+                overlay.addChild(lc)
+            }
+            let lineLbl = SKLabelNode(text: "ligne entrante")
+            lineLbl.fontName               = Self.customUIFontPostScriptName
+            lineLbl.fontSize               = 9
+            lineLbl.fontColor              = SKColor(white: 0.42, alpha: 1)
+            lineLbl.horizontalAlignmentMode = .left
+            lineLbl.verticalAlignmentMode   = .center
+            lineLbl.position  = CGPoint(x: gridOriginX, y: lineCenterY - pendingLineH / 2 - 8)
+            lineLbl.zPosition = 10
+            overlay.addChild(lineLbl)
+            pendingLineBottomY -= pendingLineH + 6
+        }
+
+        // ── File de 3 blocs : disposition miroir de l'in-game ────────────────────
+        //   [  p0  ]      ← bloc joué (centré)
+        //   [p2][p1]      ← p1 sous p0, p2 à gauche de p1
+        let bs: CGFloat  = sizeP0   // taille unique pour les 3
+        let gap: CGFloat = 6
+        let badgeSize: CGFloat = 50   // espace réservé pour le badge textuel
+        let hasStageBadge = snap.stageLevelText != nil
+
+        let p0CenterX = size.width / 2
+        let p0CenterY = pendingLineBottomY - 10 - bs / 2
+        let p1CenterX = p0CenterX               // aligné sous p0
+        let p1CenterY = p0CenterY - bs - gap
+        let p2CenterX = p1CenterX - bs - gap    // à gauche de p1
+        let p2CenterY = p1CenterY
+
+        let blockPositions: [(block: BlockType, cx: CGFloat, cy: CGFloat, label: String)] = [
+            (snap.block,         p0CenterX, p0CenterY, "joue"),
+            (snap.nextBlock,     p1CenterX, p1CenterY, "suiv."),
+            (snap.blockTwoAhead, p2CenterX, p2CenterY, "apres"),
+        ]
+
+        func makeBlockCell(_ block: BlockType, size sz: CGFloat) -> SKShapeNode {
+            let cell = SKShapeNode(rectOf: CGSize(width: sz - 2, height: sz - 2), cornerRadius: 4)
+            switch block {
+            case .color(let name):
+                cell.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                cell.strokeColor = .clear
+            case .priks(let n):
+                cell.fillColor   = Self.priksSolidFillColor()
+                cell.strokeColor = .clear
+                let nl = SKLabelNode(text: "\(n)")
+                nl.fontName               = Self.customUIFontPostScriptName
+                nl.fontSize               = sz * 0.45
+                nl.fontColor              = .white
+                nl.verticalAlignmentMode  = .center
+                nl.horizontalAlignmentMode = .center
+                nl.zPosition = 1
+                cell.addChild(nl)
+            case .magix(let kind):
+                cell.fillColor   = SKColor(white: 0.78, alpha: 1)
+                cell.strokeColor = .clear
+                let ml = SKLabelNode(text: MagixRules.label(for: kind))
+                ml.fontName               = "Helvetica-Bold"
+                ml.fontSize               = sz * 0.32
+                ml.fontColor              = .black
+                ml.verticalAlignmentMode  = .center
+                ml.horizontalAlignmentMode = .center
+                ml.zPosition = 1
+                cell.addChild(ml)
+            case .empty:
+                cell.fillColor   = SKColor(white: 0.22, alpha: 1)
+                cell.strokeColor = .clear
+            }
+            return cell
+        }
+
+        for (block, cx, cy, _) in blockPositions {
+            let cell = makeBlockCell(block, size: bs)
+            cell.position  = CGPoint(x: cx, y: cy)
+            cell.zPosition = 10
+            overlay.addChild(cell)
+        }
+
+        // ── Badge de stage textuel (sous la file de blocs, même espace qu'en jeu) ─
+        if hasStageBadge, let lv = snap.stageLevelText {
+            let badgeLabel = SKLabelNode()
+            badgeLabel.fontName               = Self.customUIFontPostScriptName
+            badgeLabel.fontSize               = 18
+            badgeLabel.fontColor              = .white
+            badgeLabel.horizontalAlignmentMode = .center
+            badgeLabel.verticalAlignmentMode   = .center
+            badgeLabel.text      = lv == "Ultimate" ? "L★" : "L\(lv)"
+            badgeLabel.position  = CGPoint(x: size.width / 2, y: p2CenterY - bs / 2 - gap - badgeSize / 2)
+            badgeLabel.zPosition = 10
+            overlay.addChild(badgeLabel)
+        }
+
+        // ── Légende (en haut, même style que le sous-titre) ─────────────────────
+        let legendColor = SKColor(white: 0.50, alpha: 1)
+        let legendFontSize: CGFloat = 14
+        let legendBaseY = gridOriginY + gridH + 76
+
+        let legend1 = SKLabelNode(text: "⭐ : le meilleur coup à jouer")
+        legend1.fontName               = Self.customUIFontPostScriptName
+        legend1.fontSize               = legendFontSize
+        legend1.fontColor              = legendColor
+        legend1.horizontalAlignmentMode = .center
+        legend1.verticalAlignmentMode   = .center
+        legend1.position  = CGPoint(x: size.width / 2, y: legendBaseY)
+        legend1.zPosition = 10
+        overlay.addChild(legend1)
+
+        let legend2 = SKLabelNode(text: "💀 : ton pire coup")
+        legend2.fontName               = Self.customUIFontPostScriptName
+        legend2.fontSize               = legendFontSize
+        legend2.fontColor              = legendColor
+        legend2.horizontalAlignmentMode = .center
+        legend2.verticalAlignmentMode   = .center
+        legend2.position  = CGPoint(x: size.width / 2, y: legendBaseY - 18)
+        legend2.zPosition = 10
+        overlay.addChild(legend2)
+
+        let titleLbl = SKLabelNode(text: "Ton pire coup")
+        titleLbl.fontName               = Self.customUIFontPostScriptName
+        titleLbl.fontSize               = 15
+        titleLbl.fontColor              = SKColor(white: 0.90, alpha: 1)
+        titleLbl.horizontalAlignmentMode = .center
+        titleLbl.verticalAlignmentMode   = .center
+        titleLbl.position  = CGPoint(x: size.width / 2, y: legendBaseY - 40)
+        titleLbl.zPosition = 10
+        overlay.addChild(titleLbl)
+
+        let hintLbl = SKLabelNode(text: "Tape pour fermer")
+        hintLbl.fontName               = Self.customUIFontPostScriptName
+        hintLbl.fontSize               = 11
+        hintLbl.fontColor              = SKColor(white: 0.45, alpha: 1)
+        hintLbl.horizontalAlignmentMode = .center
+        hintLbl.verticalAlignmentMode   = .center
+        hintLbl.position  = CGPoint(x: size.width / 2, y: 20)
+        hintLbl.zPosition = 10
+        overlay.addChild(hintLbl)
+
+        overlay.alpha = 0
+        overlay.run(SKAction.fadeIn(withDuration: 0.22))
+    }
+
     /// Cercles concentriques « lock-on » qui se referment vers `focusPoint` avant l’overlay Game Over.
     private func playGameOverFocusAnimation(at focusPoint: CGPoint, completion: @escaping () -> Void) {
+        // Onde de choc vers l'extérieur + tremblement d'écran au moment de l'impact.
+        addBombShockWave(at: focusPoint)
+        shakeScreen(intensity: 2.5)
+
         let holder = SKNode()
         holder.zPosition = GameOverFocusFeedback.layerZ
         addChild(holder)
@@ -2595,15 +3501,17 @@ final class GameScene: SKScene {
         }
         drawGrid()
         setGameplayNodesHidden(true)
-        // Le modèle est réinitialisé : on peut lever la protection avant la présentation
-        // (presentStartScreen met isStartScreen = true ; restoreFromSoloSave remet isStartScreen = false
-        // et reconstruit l'état correct — dans les deux cas la prochaine sauvegarde sera légitime).
-        isWindingDown = false
+        // isWindingDown reste true jusqu'après la présentation/restauration pour bloquer tout
+        // saveCurrentSoloGameState() déclenché par willResignActive dans la micro-fenêtre
+        // entre la réinitialisation du modèle (grille vide) et la restauration de la sauvegarde solo.
+        // presentStartScreen → isStartScreen = true (prochaine sauvegarde légitimement bloquée).
+        // restoreFromSoloSave → isStartScreen = false mais state solo correctement reconstruit.
         if restoreSave {
             presentStartScreenOrRestoreSoloSave()
         } else {
             presentStartScreen()
         }
+        isWindingDown = false
     }
 
     /// Après Game Over : nettoie la scène, réinitialise le modèle, affiche de nouveau l’écran d’accueil.
@@ -2615,12 +3523,115 @@ final class GameScene: SKScene {
     /// Bouton **New Game** : retour menu depuis une partie active (hors flux Game Over).
     private func returnToStartScreenFromNewGameButton() {
         guard !isStartScreen else { return }
+
+        // Partie solo active (pas PvP, pas encore terminée) → demander confirmation.
+        if pvpCoordinator == nil, !isGameOver {
+            confirmQuitSoloThenUnwind()
+            return
+        }
+
         // En PvP actif (partie commencée, pas encore terminée) : le joueur local abandonne → défaite.
         if let coord = pvpCoordinator, coord.isGameActive, !isGameOver {
             blomixPvP_finalizeEloIfNeeded(outcome: .loss)
             coord.forfeitMatch()
         }
         unwindToStartScreen()
+    }
+
+    /// Affiche la dialog SpriteKit de confirmation avant de quitter une partie solo.
+    /// Les boutons sont détectés dans `touchesBegan` via `pendingButtonAction` (fire-on-release).
+    private func confirmQuitSoloThenUnwind() {
+        showQuitConfirmOverlay()
+    }
+
+    private func showQuitConfirmOverlay() {
+        childNode(withName: Self.quitConfirmOverlayName)?.removeFromParent()
+
+        let overlay = SKNode()
+        overlay.name      = Self.quitConfirmOverlayName
+        overlay.zPosition = 250   // au-dessus de tout (game over = 200, start screen = 120)
+        addChild(overlay)
+
+        // Fond assombri plein écran.
+        let dim = SKSpriteNode(color: .black, size: size)
+        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.alpha       = 0.78
+        dim.zPosition   = 0
+        overlay.addChild(dim)
+
+        // Panneau central arrondi.
+        let panelW: CGFloat = min(300, size.width - 48)
+        let panelH: CGFloat = 185
+        let panelRect = CGRect(x: -panelW / 2, y: -panelH / 2, width: panelW, height: panelH)
+        let panel = SKShapeNode(rect: panelRect, cornerRadius: 14)
+        panel.fillColor   = SKColor(white: 0.10, alpha: 1)
+        panel.strokeColor = SKColor(white: 0.28, alpha: 1)
+        panel.lineWidth   = 0.75
+        panel.position    = CGPoint(x: size.width / 2, y: size.height / 2)
+        panel.zPosition   = 1
+        overlay.addChild(panel)
+
+        // Titre.
+        let title = SKLabelNode(text: BlomixL10n.quitConfirmTitle)
+        title.fontName                = Self.customUIFontPostScriptName
+        title.fontSize                = 18
+        title.fontColor               = .white
+        title.horizontalAlignmentMode = .center
+        title.verticalAlignmentMode   = .center
+        title.position                = CGPoint(x: 0, y: 66)
+        title.zPosition               = 2
+        panel.addChild(title)
+
+        // Message (multi-lignes).
+        let msg = SKLabelNode(text: BlomixL10n.quitConfirmMessage)
+        msg.fontName                = Self.customUIFontPostScriptName
+        msg.fontSize                = 13
+        msg.fontColor               = SKColor(white: 0.75, alpha: 1)
+        msg.horizontalAlignmentMode = .center
+        msg.verticalAlignmentMode   = .center
+        msg.numberOfLines           = 0
+        msg.preferredMaxLayoutWidth = panelW - 32
+        msg.position                = CGPoint(x: 0, y: 24)
+        msg.zPosition               = 2
+        panel.addChild(msg)
+
+        // Boutons côte à côte.
+        let btnFontSize = BlomixUIDestinationButtonStyle.navigationTitleFontSize
+        let btnSize = BlomixSKButtonNode.unifiedSize(
+            for: [BlomixL10n.quitConfirmQuit, BlomixL10n.cancel],
+            fontSize: btnFontSize,
+            maxWidth: (panelW - 40) / 2
+        )
+        let gap: CGFloat  = 10
+        let btnY: CGFloat = -panelH / 2 + btnSize.height / 2 + 14
+
+        let btnCancel = BlomixSKButtonNode(
+            name: Self.quitConfirmBtnCancelName,
+            text: BlomixL10n.cancel,
+            size: btnSize,
+            fontSize: btnFontSize
+        )
+        btnCancel.position = CGPoint(x: -(btnSize.width / 2 + gap / 2), y: btnY)
+        btnCancel.zPosition = 2
+        panel.addChild(btnCancel)
+
+        let btnQuit = BlomixSKButtonNode(
+            name: Self.quitConfirmBtnQuitName,
+            text: BlomixL10n.quitConfirmQuit,
+            size: btnSize,
+            fontSize: btnFontSize
+        )
+        btnQuit.position = CGPoint(x: btnSize.width / 2 + gap / 2, y: btnY)
+        btnQuit.zPosition = 2
+        panel.addChild(btnQuit)
+
+        overlay.alpha = 0
+        overlay.run(SKAction.fadeIn(withDuration: 0.16))
+    }
+
+    private func dismissQuitConfirmOverlay() {
+        childNode(withName: Self.quitConfirmOverlayName)?.removeFromParent()
     }
 
     // MARK: - Chaînes (résolution)
@@ -2636,7 +3647,7 @@ final class GameScene: SKScene {
         case 9:     base = 15
         default:    base = 20   // 10 blox et plus
         }
-        return chainSeriesLevel == 0 ? base : base + 10
+        return base + chainSeriesLevel * 10
     }
 
     /// Toutes les composantes **8-connexes** de `.color` d’au moins **5** cases (chaque groupe = une entrée pour le scoring web).
@@ -2702,6 +3713,29 @@ final class GameScene: SKScene {
         return vanishedPriks
     }
 
+    /// Retourne le nombre de Priks adjacents (8-voisinage) à `touchingRemovedCells` qui ont
+    /// `remaining == 1` et disparaîtront après le décrement — lecture seule, grille inchangée.
+    private func countPriksAboutToVanish(touchingRemovedCells: Set<GridAddress>) -> Int {
+        guard !touchingRemovedCells.isEmpty else { return 0 }
+        var count = 0
+        for row in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for col in 0..<GridLayout.columnCount {
+                guard case .priks(let remaining) = grid[row][col], remaining == 1 else { continue }
+                for delta in Self.chainNeighborDeltas8 {
+                    let nr = row + delta.dr
+                    let nc = col + delta.dc
+                    guard nr >= GridLayout.topRowIndex, nr < GridLayout.rowCount,
+                          nc >= 0, nc < GridLayout.columnCount else { continue }
+                    if touchingRemovedCells.contains(GridAddress(row: nr, col: nc)) {
+                        count += 1
+                        break
+                    }
+                }
+            }
+        }
+        return count
+    }
+
     /// Anime la disparition des Priks arrivés à 0 (tournoiement rapide + fade), puis appelle `completion`.
     private func animateVanishingPriks(cells: Set<GridAddress>, completion: @escaping () -> Void) {
         guard !cells.isEmpty else {
@@ -2711,6 +3745,19 @@ final class GameScene: SKScene {
         guard let container = childNode(withName: Self.gridContainerName) else {
             completion()
             return
+        }
+
+        // Sons staggerés synchronisés avec le début de la disparition visuelle.
+        // Stagger 0.07 s entre chaque Brix si plusieurs disparaissent simultanément.
+        for i in 0..<cells.count {
+            if i == 0 {
+                playMatchSound(.priksVanish)
+            } else {
+                run(SKAction.sequence([
+                    SKAction.wait(forDuration: TimeInterval(i) * 0.07),
+                    SKAction.run { [weak self] in self?.playMatchSound(.priksVanish) },
+                ]))
+            }
         }
 
         for cell in cells {
@@ -2794,6 +3841,12 @@ final class GameScene: SKScene {
                 isProcessing = false
                 pvpCoordinator?.sceneBecameIdleForLocalTurn()
                 refreshPendingBottomLinePreview()
+                // Jitter sur le bloc courant si c'est le dernier avant la ligne entrante.
+                // updatePreviewSprite() est appelé dans dropBlock AVANT moveCount += 1 ;
+                // on corrige ici, une fois moveCount à jour, pour cibler le bon bloc.
+                if moveCount % 10 == 9 {
+                    startPreviewJitter()
+                }
                 triggerMoveAnalysis()
                 // Vérifier passage de stage APRÈS les animations ; si avance → l'overlay relance le timer
                 // lui-même dans sa completion. Sinon on relance directement.
@@ -2814,10 +3867,33 @@ final class GameScene: SKScene {
         updateBombHUD()
 
         // Score : **une** attribution par composante ≥ 5, même `chainSeriesLevel` pour toutes les composantes de cette vague.
+        // La couleur de la composante est extraite (première cellule .color) pour teinter les dots et le label.
         for component in components {
             let pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
             let floatAt = sceneCentroid(for: component)
-            addScore(points: pts, chainMultiplier: chainSeriesLevel, floatAt: floatAt)
+            let dotColor: SKColor? = component.lazy.compactMap { [self] addr -> SKColor? in
+                if case .color(let name) = self.grid[addr.row][addr.col] {
+                    return Self.bloxTrailColor(for: .color(name))
+                }
+                return nil
+            }.first
+            addScore(points: pts, chainMultiplier: chainSeriesLevel, floatAt: floatAt, dotColor: dotColor)
+        }
+
+        // Popup « COMBO » / « SUPER COMBO » à partir du niveau 2 de cascade.
+        // Couleur = celle de la plus grande composante (lue avant que la grille soit effacée).
+        // Position = centroïde de toutes les composantes de la vague.
+        if chainSeriesLevel >= 1 {
+            let allCells = Set(components.flatMap { $0 })
+            let center   = sceneCentroid(for: allCells)
+            let largest  = components.max(by: { $0.count < $1.count }) ?? []
+            let blockType: BlockType = largest.lazy.compactMap { [self] addr -> BlockType? in
+                let bt = self.grid[addr.row][addr.col]
+                if case .color = bt { return bt }
+                return nil
+            }.first ?? .empty
+            let color = Self.bloxTrailColor(for: blockType)
+            spawnComboLabelPopup(level: chainSeriesLevel, at: center, color: color)
         }
 
         if isTutorialMode { tutorialChainDetected() }
@@ -2855,6 +3931,7 @@ final class GameScene: SKScene {
             return
         }
 
+        hapticLight()
         let chainCells = Set(ordered)
         let stagger  = ChainClearFeedback.dissolveStagger
         let cellAnim = ChainClearFeedback.dissolvePerCellAnimationDuration
@@ -2932,28 +4009,46 @@ final class GameScene: SKScene {
         run(SKAction.sequence([SKAction.wait(forDuration: tail), SKAction.run(completion)]))
     }
 
-    /// Paillettes de dissolution : 4–7 cercles colorés éparpillés aléatoirement dans la case,
+    /// Paillettes de dissolution : cercles colorés éparpillés aléatoirement dans la case,
     /// qui tombent lentement vers le bas en s'effaçant.
     private func spawnChainPopDots(at scenePoint: CGPoint, color: SKColor) {
-        let count       = Int.random(in: 7...10)
-        let cellHalf    = GridLayout.cellPoints * 0.42          // ≈16 pt de demi-case
+        let cellHalf = GridLayout.cellPoints * 0.42   // ≈16 pt de demi-case
+        let duration = ChainClearFeedback.popDotFadeDuration
+
+        // Dots principaux (inchangés) : 7–10, rayon 2.0–3.5 pt.
+        let count = Int.random(in: 7...10)
         for _ in 0..<count {
-            let radius = CGFloat.random(in: ChainClearFeedback.popDotRadiusRange)
-            let dot = SKShapeNode(circleOfRadius: radius)
+            let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: ChainClearFeedback.popDotRadiusRange))
             dot.fillColor   = color
             dot.strokeColor = .clear
             dot.alpha       = 1.0
             dot.zPosition   = 36
-            // Position aléatoire à l'intérieur de la case
             dot.position = CGPoint(
                 x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
                 y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
             )
             addChild(dot)
-            // Chute lente vers le bas
-            let fall     = CGFloat.random(in: ChainClearFeedback.popDotFallDistance)
-            let duration = ChainClearFeedback.popDotFadeDuration
-            let move     = SKAction.moveBy(x: 0, y: -fall, duration: duration)
+            let move = SKAction.moveBy(x: 0, y: -CGFloat.random(in: ChainClearFeedback.popDotFallDistance), duration: duration)
+            move.timingMode = .easeIn
+            dot.run(SKAction.sequence([
+                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+
+        // Micro-dots supplémentaires : 10, rayon 1.5 pt, même timing et répartition.
+        for _ in 0..<10 {
+            let dot = SKShapeNode(circleOfRadius: 1.5)
+            dot.fillColor   = color
+            dot.strokeColor = .clear
+            dot.alpha       = 1.0
+            dot.zPosition   = 36
+            dot.position = CGPoint(
+                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
+                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
+            )
+            addChild(dot)
+            let move = SKAction.moveBy(x: 0, y: -CGFloat.random(in: ChainClearFeedback.popDotFallDistance), duration: duration)
             move.timingMode = .easeIn
             dot.run(SKAction.sequence([
                 SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
@@ -3036,10 +4131,10 @@ final class GameScene: SKScene {
             return
         }
 
-        playMatchSound(.priksVanish)
+        // Le son prix.wav est joué en amont dans resolveChains() (avant chain_new.wav).
         animateVanishingPriks(cells: vanishedPriks) { [weak self] in
             guard let self else { return }
-            let bonus = vanishedPriks.count * 10
+            let bonus = vanishedPriks.count * 20
             if bonus > 0 {
                 let floatAt = self.sceneCentroid(for: vanishedPriks)
                 self.addScore(points: bonus, chainMultiplier: 0, floatAt: floatAt)
@@ -3050,12 +4145,25 @@ final class GameScene: SKScene {
 
     /// +10 par colonne passée entièrement vide alors qu’elle contenait au moins un bloc avant cette vague.
     private func awardFullyClearedColumnBonuses(columnHadBlockBefore: [Bool]) {
-        for col in 0..<GridLayout.columnCount {
-            let allEmpty = (GridLayout.topRowIndex..<GridLayout.rowCount).allSatisfy { grid[$0][col] == .empty }
-            guard allEmpty, columnHadBlockBefore[col] else { continue }
+        // Collecte les colonnes vidées de gauche à droite.
+        let clearedCols = (0..<GridLayout.columnCount).filter { col in
+            columnHadBlockBefore[col] &&
+            (GridLayout.topRowIndex..<GridLayout.rowCount).allSatisfy { grid[$0][col] == .empty }
+        }
+        guard !clearedCols.isEmpty else { return }
+
+        // Stagger gauche → droite : chaque colonne se décale de 90 ms par rapport à la précédente.
+        let stagger: TimeInterval = 0.09
+        for (i, col) in clearedCols.enumerated() {
             let floatAt = scenePointCellCenter(row: GridLayout.topRowIndex, column: col)
-            playMatchSound(.emptyColumnClear)
-            addScore(points: 10, chainMultiplier: 0, floatAt: floatAt)
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: Double(i) * stagger),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    self.playMatchSound(.emptyColumnClear)
+                    self.addScore(points: 10, chainMultiplier: 0, floatAt: floatAt)
+                },
+            ]))
         }
     }
 
@@ -3088,7 +4196,7 @@ final class GameScene: SKScene {
 
     /// Ajoute les points au total, met à jour le label ; `chainMultiplier` = `chainSeriesLevel` **utilisé** pour ce gain (animation un peu plus forte en combo).
     /// `floatAt` : affiche « +N » à cet endroit (fade légèrement plus lent pour une meilleure lisibilité).
-    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil) {
+    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil) {
         guard points > 0 else { return }
         let multipliedPoints = isInStagedSoloMode ? points * currentStageConfig.multiplier : points
         let scoreBefore = score
@@ -3111,15 +4219,15 @@ final class GameScene: SKScene {
             triggerPvPAttackSentVisuals()
         }
         if let p = scenePoint {
-            spawnFloatingScorePopup(points: multipliedPoints, at: p) { [weak self] in
-                self?.applyDisplayedScoreIncrement(points: multipliedPoints, chainMultiplier: chainMultiplier)
+            spawnFloatingScorePopup(points: multipliedPoints, at: p, dotColor: dotColor) { [weak self] in
+                self?.applyDisplayedScoreIncrement(points: multipliedPoints, chainMultiplier: chainMultiplier, scoreColor: dotColor)
             }
             return
         }
         applyDisplayedScoreIncrement(points: multipliedPoints, chainMultiplier: chainMultiplier)
     }
 
-    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int) {
+    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil) {
         guard points > 0 else { return }
         displayedScore += points
         displayedScore = min(displayedScore, score)
@@ -3153,6 +4261,26 @@ final class GameScene: SKScene {
         }
         label.run(roll, withKey: Self.scoreRollActionKey)
 
+        // ── Flash couleur de chaîne → retour au blanc ────────────────────────────
+        // Déclenché uniquement quand les dots viennent d'une chaîne colorée.
+        if let scoreColor {
+            var cr: CGFloat = 0, cg: CGFloat = 0, cb: CGFloat = 0, ca: CGFloat = 0
+            scoreColor.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+            label.removeAction(forKey: "scoreColorFlash")
+            label.fontColor = scoreColor
+            // Retour au blanc après le rolling counter.
+            let fadeBack = SKAction.customAction(withDuration: 0.30) { node, elapsed in
+                guard let lbl = node as? SKLabelNode else { return }
+                let t = min(1, CGFloat(elapsed) / 0.30)
+                lbl.fontColor = SKColor(red: cr + (1-cr)*t, green: cg + (1-cg)*t, blue: cb + (1-cb)*t, alpha: 1)
+            }
+            label.run(SKAction.sequence([
+                SKAction.wait(forDuration: rollDuration),
+                fadeBack,
+                SKAction.run { label.fontColor = .white },
+            ]), withKey: "scoreColorFlash")
+        }
+
         // ── Bump de scale (inchangé) ─────────────────────────────────────────────
         // Plancher x1.2 à chaque arrivée de dots ; le chainMultiplier amplifie jusqu'à x1.38.
         label.removeAction(forKey: Self.scorePulseActionKey)
@@ -3165,12 +4293,11 @@ final class GameScene: SKScene {
         label.run(pulse, withKey: Self.scorePulseActionKey)
     }
 
-    private func spawnFloatingScorePopup(points: Int, at scenePoint: CGPoint, onTransferArrival: @escaping () -> Void) {
+    private func spawnFloatingScorePopup(points: Int, at scenePoint: CGPoint, dotColor: SKColor? = nil, onTransferArrival: @escaping () -> Void) {
         let text = SKLabelNode(text: "+\(points)")
         text.fontName = Self.customUIFontPostScriptName
-        // Taille max visée en fin de croissance (presque x2 vs avant).
         text.fontSize = 62
-        text.fontColor = .white
+        text.fontColor = dotColor ?? .white
         text.horizontalAlignmentMode = .center
         text.verticalAlignmentMode = .center
         text.position = scenePoint
@@ -3178,10 +4305,20 @@ final class GameScene: SKScene {
         text.alpha = 1
         text.zPosition = 35
         addChild(text)
-        let growDuration: TimeInterval = 0.58
-        let fadeDuration: TimeInterval = 0.68
 
-        spawnScoreTransferDots(points: points, from: scenePoint)
+        // Grow à pleine opacité, puis fondu + légère décroissance simultanés pour une sortie souple.
+        let grow = SKAction.scale(to: 1.0, duration: 0.58)
+        grow.timingMode = .easeOut
+        let shrink = SKAction.scale(to: 0.72, duration: 0.33)
+        shrink.timingMode = .easeIn
+        let fade = SKAction.fadeOut(withDuration: 0.33)
+        text.run(SKAction.sequence([
+            grow,
+            SKAction.group([shrink, fade]),
+            SKAction.removeFromParent(),
+        ]))
+
+        spawnScoreTransferDots(points: points, from: scenePoint, color: dotColor ?? .white)
 
         run(
             SKAction.sequence([
@@ -3189,32 +4326,76 @@ final class GameScene: SKScene {
                 SKAction.run(onTransferArrival),
             ])
         )
-
-        let grow = SKAction.scale(to: 1.0, duration: growDuration)
-        grow.timingMode = .easeOut
-        let fade = SKAction.fadeAlpha(to: 0, duration: fadeDuration)
-        text.run(
-            SKAction.sequence([
-                SKAction.group([grow, fade]),
-                SKAction.removeFromParent(),
-            ])
-        )
     }
 
-    /// Petits points blancs : **même début** que le popup `+N`, puis enchaînement continu fade-in + éjection + move (sans attente sur le popup).
-    private func spawnScoreTransferDots(points: Int, from sourceCenter: CGPoint) {
+    // MARK: - Combo label popup (cascade niveaux 2 et 3+)
+
+    /// Affiche « COMBO » (cascade niveau 2) ou « SUPER / COMBO » (cascade niveau 3+) au centroïde de la vague.
+    /// La couleur reprend celle de la composante la plus grande.
+    private func spawnComboLabelPopup(level: Int, at position: CGPoint, color: SKColor) {
+        let delay: TimeInterval = 0.45
+
+        let container = SKNode()
+        container.position = position
+        container.setScale(0.12)
+        container.alpha   = 1
+        container.zPosition = 37        // au-dessus du "+N" (zPos 35)
+        addChild(container)
+
+        let font = Self.customUIFontPostScriptName
+        let fSize: CGFloat = 62
+        let lineSpacing: CGFloat = 56
+
+        func makeLabel(_ text: String, yOffset: CGFloat) -> SKLabelNode {
+            let lbl = SKLabelNode(text: text)
+            lbl.fontName = font
+            lbl.fontSize = fSize
+            lbl.fontColor = color   // couleur de la composante (différence intentionnelle vs "+N" blanc)
+            lbl.horizontalAlignmentMode = .center
+            lbl.verticalAlignmentMode   = .center
+            lbl.position = CGPoint(x: 0, y: yOffset)
+            return lbl
+        }
+
+        if level >= 2 {
+            container.addChild(makeLabel("SUPER", yOffset:  lineSpacing / 2))
+            container.addChild(makeLabel("COMBO", yOffset: -lineSpacing / 2))
+        } else {
+            container.addChild(makeLabel("COMBO", yOffset: 0))
+        }
+
+        // Mêmes paramètres que le "+N" : grow à pleine opacité, puis shrink + fade simultanés.
+        let grow = SKAction.scale(to: 1.0, duration: 0.58)
+        grow.timingMode = .easeOut
+        let shrink = SKAction.scale(to: 0.72, duration: 0.33)
+        shrink.timingMode = .easeIn
+        let fade = SKAction.fadeOut(withDuration: 0.33)
+
+        // SUPER COMBO (level ≥ 2) : shake un peu plus marqué.
+        let shakeIntensity: CGFloat = level >= 2 ? 2.0 : 1.4
+        container.run(SKAction.sequence([
+            SKAction.wait(forDuration: delay),
+            SKAction.run { [weak self] in self?.shakeScreen(intensity: shakeIntensity) },
+            grow,
+            SKAction.group([shrink, fade]),
+            SKAction.removeFromParent(),
+        ]))
+    }
+
+    /// Points de score : blancs par défaut, ou de la couleur de la chaîne si `color` est fourni.
+    private func spawnScoreTransferDots(points: Int, from sourceCenter: CGPoint, color: SKColor = .white) {
         guard points > 0 else { return }
         guard let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
         let targetFrame = scoreLabel.calculateAccumulatedFrame()
         let targetCenter = CGPoint(x: targetFrame.midX, y: targetFrame.midY)
         let rawCount = Int((CGFloat(points) * ScorePopupFeedback.dotsPerPoint).rounded())
         let dotCount = min(ScorePopupFeedback.maxDots, max(ScorePopupFeedback.minDots, rawCount))
-        spawnTransferDots(count: dotCount, from: sourceCenter, to: targetCenter, onArrival: nil)
+        spawnTransferDots(count: dotCount, from: sourceCenter, to: targetCenter, color: color, onArrival: nil)
     }
 
-    /// Moteur générique de transfert de points blancs entre deux nœuds.
+    /// Moteur générique de transfert de dots entre deux nœuds.
     /// `onArrival` est appelé une seule fois quand le dernier dot arrive.
-    private func spawnTransferDots(count: Int, from sourceCenter: CGPoint, to targetCenter: CGPoint, flightDuration: TimeInterval = ScorePopupFeedback.transferDuration, onArrival: (() -> Void)?) {
+    private func spawnTransferDots(count: Int, from sourceCenter: CGPoint, to targetCenter: CGPoint, flightDuration: TimeInterval = ScorePopupFeedback.transferDuration, color: SKColor = .white, onArrival: (() -> Void)?) {
         guard count > 0 else { return }
         let totalFlight = ScorePopupFeedback.transferStartFadeDuration
                         + ScorePopupFeedback.radialBurstDuration
@@ -3223,7 +4404,7 @@ final class GameScene: SKScene {
         for i in 0..<count {
             let radius = CGFloat.random(in: ScorePopupFeedback.transferDotRadiusRange)
             let dot = SKShapeNode(circleOfRadius: radius)
-            dot.fillColor = .white
+            dot.fillColor = color
             dot.strokeColor = .clear
             dot.alpha = 0
             dot.zPosition = 36
@@ -3359,15 +4540,16 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Explosion XXL au passage d'un millier (1000, 2000, …) : 10× les particules et 2× la distance de l'explosion centaine.
+    /// Explosion XXL au passage d'un millier (1000, 2000, …) : 10× les particules, 2× la distance, dots multicolores (palette du joueur).
     private func spawnScoreThousandExplosion() {
         guard let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
         let center = scoreLabel.position
+        let palette = Self.colorPalette.compactMap { Self.bloxSolidFillColor(colorName: $0) }
         let dotCount = 220
         for _ in 0..<dotCount {
             let radius = CGFloat.random(in: 2.0...4.0)
             let dot = SKShapeNode(circleOfRadius: radius)
-            dot.fillColor   = .white
+            dot.fillColor   = palette.isEmpty ? .white : palette[Int.random(in: 0..<palette.count)]
             dot.strokeColor = .clear
             dot.alpha       = 1.0
             dot.zPosition   = 38
@@ -3414,9 +4596,14 @@ final class GameScene: SKScene {
     func triggerMoveAnalysis() {
         guard BlomixMoveAnalyzer.evalEnabled else { return }
         guard pvpCoordinator == nil, !isTutorialMode, !isGameOver, !isStartScreen else { return }
-        // Bombe active : on skip (analyse hors-scope per spec).
+        // Bombe active ou bloc Magix : pas d'analyse (effet déterministe ou aléatoire non simulable).
         guard !isBombMode else { return }
         guard currentBlock != .empty else { return }
+        if case .magix = currentBlock {
+            analyzerLookAhead = nil
+            analyzerPendingQuality = nil
+            return
+        }
 
         // Snapshot sur le main thread.
         let gridSnap   = grid
@@ -3428,6 +4615,18 @@ final class GameScene: SKScene {
         let pending: [BlockType]? = (mc % 10 == 9) ? nextBottomLine : nil
 
         analyzerLookAhead = nil   // invalide l'ancien résultat
+        // Capture la position et la file de blocs AVANT le prochain coup du joueur —
+        // identique à ce que voyait le joueur (grille, blocs en file, ligne éventuelle).
+        analyzerPreMoveGrid        = gridSnap
+        analyzerPreMoveBlock       = p0
+        analyzerPreMoveNext1       = p1
+        analyzerPreMoveNext2       = p2
+        analyzerPreMovePendingLine = pending
+
+        // Incrémente la génération : le callback ignorera silencieusement tout résultat
+        // calculé pour une génération antérieure (joueur qui joue vite → résultats périmés).
+        analyzerGeneration &+= 1
+        let gen = analyzerGeneration
 
         Self.analyzerQueue.async { [weak self] in
             let result = BlomixMoveAnalyzer.computeOptimal(
@@ -3439,7 +4638,12 @@ final class GameScene: SKScene {
                 pendingLine: pending
             )
             DispatchQueue.main.async { [weak self] in
-                self?.analyzerLookAhead = result
+                guard let self, self.analyzerGeneration == gen else { return }
+                self.analyzerLookAhead = result
+                // Si le joueur avait tapé "?" avant que l'analyse soit prête, l'honorer maintenant.
+                if self.pendingHintRequest {
+                    self.showHintGhost()
+                }
             }
         }
     }
@@ -3458,6 +4662,26 @@ final class GameScene: SKScene {
         // On enregistre quand même le coup pour les stats de fin de partie.
         let record = la.record(forChosenColumn: column)
         analyzerGameStats.append(record)
+
+        // Mise à jour du pire coup si cet écart est le plus grand de la partie.
+        if record.delta > (worstMistakeSnapshot?.delta ?? 0),
+           let preMoveGrid = analyzerPreMoveGrid {
+            let optCols = la.scorePerColumn.indices.filter { idx in
+                guard let s = la.scorePerColumn[idx] else { return false }
+                return s == la.optimalScore
+            }
+            worstMistakeSnapshot = BlomixWorstMistakeSnapshot(
+                grid:          preMoveGrid,
+                block:         analyzerPreMoveBlock,
+                nextBlock:     analyzerPreMoveNext1,
+                blockTwoAhead: analyzerPreMoveNext2,
+                pendingLine:   analyzerPreMovePendingLine,
+                chosenColumn:  column,
+                optimalColumns: optCols,
+                delta:          record.delta,
+                stageLevelText: isInStagedSoloMode ? currentStageConfig.levelText : nil
+            )
+        }
 
         let currentMaxH = (0..<GridLayout.columnCount).map { col in
             (0..<GridLayout.rowCount).first(where: { grid[$0][col] == .empty }) ?? GridLayout.rowCount
@@ -3606,11 +4830,12 @@ final class GameScene: SKScene {
         let timerCaptionLabel = SKLabelNode(text: "TEMPS")
         timerCaptionLabel.name = Self.hudTimerCaptionName
         timerCaptionLabel.fontName = Self.customUIFontPostScriptName
-        timerCaptionLabel.fontSize = 11
+        timerCaptionLabel.fontSize = 14
         timerCaptionLabel.fontColor = grayColor14
         timerCaptionLabel.horizontalAlignmentMode = .right
         timerCaptionLabel.verticalAlignmentMode = .center
         timerCaptionLabel.zPosition = 12
+        timerCaptionLabel.isHidden = isZenMode   // pas de timer en mode Zen
         addChild(timerCaptionLabel)
 
         // Compteur LIGNE (gauche du score — symétrique du RECORD à droite)
@@ -3660,26 +4885,44 @@ final class GameScene: SKScene {
         }
         // Caption "TEMPS" — positionné à droite du score (emplacement ancien compteur BOMBE)
         if let timerCaption = childNode(withName: Self.hudTimerCaptionName) as? SKLabelNode {
-            timerCaption.fontSize = 11
+            timerCaption.fontSize = 14
             timerCaption.position = CGPoint(
                 x: gridAreaCenter.x + half,
                 y: label.position.y + 11
             )
         }
-        // Compteur LIGNE — aligné à gauche, symétrique du RECORD
-        if let ligneCaption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode {
-            ligneCaption.fontSize = 14
-            ligneCaption.position = CGPoint(
-                x: gridAreaCenter.x - half,
-                y: label.position.y + 11
-            )
-        }
-        if let ligneValue = childNode(withName: Self.ligneValueName) as? SKLabelNode {
-            ligneValue.fontSize = 14
-            ligneValue.position = CGPoint(
-                x: gridAreaCenter.x - half,
-                y: label.position.y - 11
-            )
+        // Compteur LIGNE
+        // Mode normal : en haut à gauche (symétrique de TEMPS à droite).
+        // Mode Zen    : en bas à gauche, LIGNE aligné en haut avec l'icône bombe.
+        if isZenMode {
+            let bandY  = sceneYCenterForBombAndUpcomingBand()
+            let leftX  = gridAreaCenter.x - half
+            // Alignement : haut texte "LIGNE" (centre + ½ hauteur ≈ 7 pts) == haut icône bombe (bandY + 18).
+            // → centre LIGNE = bandY + 18 − 7 = bandY + 11
+            let ligneCaptionY = bandY + 11
+            if let ligneCaption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode {
+                ligneCaption.fontSize = 14
+                ligneCaption.position = CGPoint(x: leftX, y: ligneCaptionY)
+            }
+            if let ligneValue = childNode(withName: Self.ligneValueName) as? SKLabelNode {
+                ligneValue.fontSize = 14
+                ligneValue.position = CGPoint(x: leftX, y: ligneCaptionY - 14)
+            }
+        } else {
+            if let ligneCaption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode {
+                ligneCaption.fontSize = 14
+                ligneCaption.position = CGPoint(
+                    x: gridAreaCenter.x - half,
+                    y: label.position.y + 11
+                )
+            }
+            if let ligneValue = childNode(withName: Self.ligneValueName) as? SKLabelNode {
+                ligneValue.fontSize = 14
+                ligneValue.position = CGPoint(
+                    x: gridAreaCenter.x - half,
+                    y: label.position.y - 11
+                )
+            }
         }
     }
 
@@ -4052,9 +5295,8 @@ final class GameScene: SKScene {
         switch block {
         case .color:
             let s = makeSolidGameplayBlockSprite(block: block, pixelSize: size)
-            for bevel in Self.makeBevelShapes(for: size) { s.addChild(bevel) }
             return s
-        case .priks:
+        case .priks, .magix:
             return makeSolidGameplayBlockSprite(block: block, pixelSize: size)
         case .empty:
             let slot = SKSpriteNode(color: SKColor(white: 0.12, alpha: 1), size: size)
@@ -4199,7 +5441,13 @@ final class GameScene: SKScene {
         }
 
         let startY = sceneIncomingLineRiseStartY()
-        let duration = CompactRiseAnimation.duration
+
+        // Vitesse constante : durée calée sur la colonne qui parcourt la plus grande distance.
+        let blockFallSpeed = GridLayout.cellPoints * CGFloat(GridLayout.rowCount) / 0.25  // ≈ 1280 pts/s
+        let maxColumnDistance = placements.map {
+            abs(scenePointCellCenter(row: $0.row, column: $0.column).y - startY)
+        }.max() ?? GridLayout.cellPoints
+        let duration = max(0.10, TimeInterval(maxColumnDistance / blockFallSpeed))
 
         for placement in placements {
             let col = placement.column
@@ -4209,7 +5457,20 @@ final class GameScene: SKScene {
             sprite.position = CGPoint(x: scenePointCellCenter(row: GridLayout.bottomRowIndex, column: col).x, y: startY)
             sprite.size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
             sprite.zPosition = 22
+
+            // Stretch proportionnel à la vitesse relative de la colonne (plus loin = plus étiré).
+            let colDistance = abs(scenePointCellCenter(row: placement.row, column: col).y - startY)
+            let stretchFactor = maxColumnDistance > 0 ? colDistance / maxColumnDistance : 0
+            sprite.xScale = 1.0 - (1.0 - FlightStretch.xScale) * stretchFactor
+            sprite.yScale = 1.0 + (FlightStretch.yScale - 1.0) * stretchFactor
+
             addChild(sprite)
+
+            // De-stretch pendant le vol : revient exactement à (1.0, 1.0) à l’atterrissage.
+            let unstretchX = SKAction.scaleX(to: 1.0, duration: duration)
+            unstretchX.timingMode = .easeIn
+            let unstretchY = SKAction.scaleY(to: 1.0, duration: duration)
+            unstretchY.timingMode = .easeIn
 
             // Traîne de paillettes pour chaque colonne de la ligne entrante.
             run(makeTrailSpawnAction(riseDuration: duration,
@@ -4219,7 +5480,7 @@ final class GameScene: SKScene {
             let endPoint = scenePointCellCenter(row: placement.row, column: col)
             let move = SKAction.move(to: endPoint, duration: duration)
             move.timingMode = .easeOut
-            sprite.run(move)
+            sprite.run(SKAction.group([move, unstretchX, unstretchY]))
         }
 
         let lineCopy = line
@@ -4228,6 +5489,7 @@ final class GameScene: SKScene {
         let finishInjection: () -> Void = { [weak self] in
             guard let self else { return }
             self.playMatchSound(.line)
+            self.hapticHeavy()
             for col in 0..<GridLayout.columnCount {
                 self.childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()
             }
@@ -4250,9 +5512,10 @@ final class GameScene: SKScene {
                 for (i, p) in placementsCopy.enumerated() {
                     if let cell = container.childNode(withName: "cell_\(p.row)_\(p.column)") as? SKSpriteNode {
                         let delay = Double(i) * 0.018
+                        let blockColor = Self.bloxTrailColor(for: lineCopy[p.column])
                         cell.run(SKAction.sequence([
                             SKAction.wait(forDuration: delay),
-                            SKAction.run { [weak self] in self?.playLandingBounce(on: cell) },
+                            SKAction.run { [weak self] in self?.playLandingBounce(on: cell, blockColor: blockColor) },
                         ]))
                     }
                 }
@@ -4282,7 +5545,7 @@ final class GameScene: SKScene {
 
         let placedKind = currentBlock
         switch placedKind {
-        case .color, .priks:
+        case .color, .priks, .magix:
             break
         case .empty:
             return
@@ -4308,6 +5571,7 @@ final class GameScene: SKScene {
         let placedBlock = placedKind
         isProcessing = true
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
+        childNode(withName: Self.hintGhostContainerName)?.removeFromParent()
 
         if let preview = childNode(withName: Self.previewNodeName) {
             preview.isHidden = true
@@ -4322,6 +5586,8 @@ final class GameScene: SKScene {
         falling.name = Self.fallingSpriteName
         falling.position = start
         falling.size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+        falling.xScale = FlightStretch.xScale
+        falling.yScale = FlightStretch.yScale
         falling.zPosition = 20
         addChild(falling)
 
@@ -4335,13 +5601,24 @@ final class GameScene: SKScene {
 
         let snapToColumn = SKAction.move(to: launchStart, duration: 0.0)
 
-        let rise = SKAction.move(to: end, duration: 0.25)
+        // Vitesse constante calée sur la hauteur totale de la grille (8 cases = 0.25 s pour le trajet le plus long).
+        let blockFallSpeed = GridLayout.cellPoints * CGFloat(GridLayout.rowCount) / 0.25  // ≈ 1280 pts/s
+        let riseDuration = max(0.07, TimeInterval(abs(end.y - launchStart.y) / blockFallSpeed))
+
+        let rise = SKAction.move(to: end, duration: riseDuration)
         rise.timingMode = .easeOut
+
+        // De-stretch pendant le vol : easeIn pour que la forme revienne exactement à (1.0, 1.0)
+        // à l’atterrissage — transition parfaite avec le squash du LandingBounce.
+        let unstretchX = SKAction.scaleX(to: 1.0, duration: riseDuration)
+        unstretchX.timingMode = .easeIn
+        let unstretchY = SKAction.scaleY(to: 1.0, duration: riseDuration)
+        unstretchY.timingMode = .easeIn
 
         // Traîne de paillettes : démarre après le snap instantané (snapToColumn dure 0 s).
         run(SKAction.sequence([
             SKAction.wait(forDuration: 0.001),
-            makeTrailSpawnAction(riseDuration: 0.25,
+            makeTrailSpawnAction(riseDuration: riseDuration,
                                  color: Self.bloxTrailColor(for: placedBlock),
                                  trackedSprite: falling),
         ]))
@@ -4366,7 +5643,7 @@ final class GameScene: SKScene {
             // Bounce sur le sprite fraîchement créé par drawGrid.
             if let container = self.childNode(withName: Self.gridContainerName),
                let cell = container.childNode(withName: "cell_\(row)_\(columnIndex)") as? SKSpriteNode {
-                self.playLandingBounce(on: cell)
+                self.playLandingBounce(on: cell, blockColor: Self.bloxTrailColor(for: placedBlock))
             }
             // Feedback qualité du coup (si disponible, mode solo uniquement).
             if let quality = self.analyzerPendingQuality {
@@ -4376,16 +5653,1599 @@ final class GameScene: SKScene {
             // `isProcessing` reste `true` jusqu’à la fin de toute la résolution des chaînes (y compris cascades + ligne des 10).
             self.shouldRunPostPlacementHooks = true
             // Délai = durée du bounce pour éviter conflit avec la dissolution si chaîne immédiate.
+            let magixAddress = GridAddress(row: row, col: columnIndex)
             self.run(SKAction.sequence([
                 SKAction.wait(forDuration: LandingBounce.totalDuration),
-                SKAction.run { [weak self] in self?.resolveChains() },
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    if case .magix(let kind) = placedBlock {
+                        self.applyMagixEffect(kind: kind, at: magixAddress)
+                    } else {
+                        self.resolveChains()
+                    }
+                },
             ]))
         }
 
-        falling.run(SKAction.sequence([snapToColumn, rise, finish]))
+        falling.run(SKAction.sequence([snapToColumn, SKAction.group([rise, unstretchX, unstretchY]), finish]))
     }
 
-    // MARK: - Bombes (`priks.html`)
+    // MARK: - Blocs Magix — rendu visuel
+
+    /// Construit un SKShader qui affiche un dégradé mouvant entre 3 couleurs de la palette du skin.
+    /// Le dégradé est piloté par `u_time` (fourni automatiquement par SpriteKit) ; aucune SKAction
+    /// n'est nécessaire — le shader tourne en continu tant qu'il est attaché au sprite.
+    ///
+    /// Principe : une texture 1D encode les 6 couleurs du skin en un dégradé continu (avec wrap).
+    /// Trois coordonnées de sample glissent dans des directions différentes, créant à tout instant
+    /// un mélange de ~3 couleurs qui évolue en continu.
+    private static func makeMagixPaletteShader(timeOffset: Float = 0.0) -> SKShader {
+        // Les couleurs de la palette sont intégrées directement dans le source GLSL
+        // pour éviter tout problème de mapping de sampler (SpriteKit peut remapper
+        // les uniformes de type texture sur la texture du sprite).
+        let uiColors = colorPalette.compactMap { bloxSolidFillColor(colorName: $0) }
+        let safeColors = uiColors.isEmpty
+            ? [SKColor.red, SKColor.green, SKColor.blue,
+               SKColor.yellow, SKColor(red: 0.6, green: 0, blue: 0.9, alpha: 1), SKColor.orange]
+            : uiColors
+        let n = safeColors.count
+
+        // Convertit une SKColor en littéral vec3 GLSL.
+        func v3(_ c: SKColor) -> String {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            c.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return String(format: "vec3(%.4f,%.4f,%.4f)", Float(r), Float(g), Float(b))
+        }
+
+        // Génère une chaîne if-else qui associe chaque segment de palette à deux couleurs.
+        var branches = ""
+        for i in 0..<n {
+            let next = (i + 1) % n
+            let limit = String(format: "%.1f", Float(i + 1))
+            if i == 0 {
+                branches += "    if (fi<\(limit)){ca=\(v3(safeColors[i]));cb=\(v3(safeColors[next]));}\n"
+            } else if i < n - 1 {
+                branches += "    else if (fi<\(limit)){ca=\(v3(safeColors[i]));cb=\(v3(safeColors[next]));}\n"
+            } else {
+                branches += "    else{ca=\(v3(safeColors[i]));cb=\(v3(safeColors[next]));}\n"
+            }
+        }
+        let nStr = String(format: "%.1f", Float(n))
+
+        // Shader GLSL : une fonction de palette + main.
+        // v_tex_coord est fourni par SpriteKit (UV normalisés 0→1 sur le sprite).
+        // u_time      est fourni automatiquement par SpriteKit (secondes).
+        let src = """
+        vec3 mgxPal(float t){
+            float N=\(nStr);
+            float ti=fract(t)*N;
+            float fi=floor(ti);
+            float f=smoothstep(0.0,1.0,fract(ti));
+            vec3 ca=vec3(1.0),cb=vec3(1.0);
+        \(branches)    return mix(ca,cb,f);
+        }
+        void main(){
+            vec2 uv=v_tex_coord;
+            // t pilote le cycle couleur (lent) ; la position dans la palette avance doucement.
+            float t=u_time*0.09+\(String(format: "%.4f", timeOffset));
+            // 3 couleurs equidistantes dans la palette — toujours 3 teintes distinctes.
+            vec3 c1=mgxPal(t);
+            vec3 c2=mgxPal(t+0.333);
+            vec3 c3=mgxPal(t+0.667);
+            // Gradient spatial doux : demi-cycle sur la largeur du bloc (pas de bandes).
+            // Fréquence basse = grandes zones lisses.
+            float wx=sin(uv.x*3.14159+t*0.5)*0.5+0.5;
+            float wy=cos(uv.y*2.2-t*0.35)*0.5+0.5;
+            // Fusion en deux étapes : c1↔c2 dominants, c3 subtile.
+            vec3 ab=mix(c1,c2,wx);
+            vec3 col=mix(ab,c3,wy*0.38);
+            gl_FragColor=vec4(col,1.0);
+        }
+        """
+        // Aucun uniforme personnalisé : les couleurs sont compilées dans le shader.
+        return SKShader(source: src)
+    }
+
+    /// Texture halo pré-générée pour les disques de ranking (paramètres fixes : rayon 30, spread 12).
+    /// Mise en cache pour éviter un rendu Core Graphics synchrone à chaque `makeRankDiscNode`.
+    private static let rankDiscHaloTextureCached: SKTexture = makeRankDiscHaloTexture(discRadius: 30, spread: 12)
+
+    /// Texture pixel blanc 2×2 : base obligatoire pour que SpriteKit initialise
+    /// correctement `v_tex_coord` dans le fragment shader (sans texture, les UV
+    /// peuvent être indéfinis et le shader sort noir).
+    private static let magixShaderBaseTexture: SKTexture = {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2))
+        let img = renderer.image { ctx in
+            SKColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        }
+        let tex = SKTexture(image: img)
+        tex.filteringMode = .nearest
+        return tex
+    }()
+
+    /// Applique le shader dégradé Magix sur `sprite` (réutilisé ou neuf).
+    /// Texture blanche avec dégradé radial : opaque au bord du bloc, transparent au bord du halo.
+    /// `blockSize` = taille du sprite Magix, `spread` = extension en pts au-delà de chaque bord.
+    private static func makeMagixHaloTexture(blockSize: CGSize, spread: CGFloat) -> SKTexture {
+        let total = CGSize(width: blockSize.width + spread * 2, height: blockSize.height + spread * 2)
+        let renderer = UIGraphicsImageRenderer(size: total)
+        let image = renderer.image { ctx in
+            let center   = CGPoint(x: total.width * 0.5, y: total.height * 0.5)
+            let innerR   = min(blockSize.width, blockSize.height) * 0.5   // bord du bloc
+            let outerR   = innerR + spread                                  // bord du halo
+            let cs       = CGColorSpaceCreateDeviceRGB()
+            let colors   = [UIColor.white.cgColor, UIColor.white.withAlphaComponent(0).cgColor] as CFArray
+            let locs: [CGFloat] = [0, 1]
+            guard let grad = CGGradient(colorsSpace: cs, colors: colors, locations: locs) else { return }
+            // .drawsBeforeStartLocation remplit le centre (zone couverte par le bloc) avec la couleur de départ.
+            ctx.cgContext.drawRadialGradient(grad,
+                                             startCenter: center, startRadius: innerR,
+                                             endCenter:   center, endRadius:   outerR,
+                                             options: .drawsBeforeStartLocation)
+        }
+        return SKTexture(image: image)
+    }
+
+    // MARK: - Disques de rang (écran d'accueil)
+
+    /// Texture halo radial pour un disque (cercle), analogue à `makeMagixHaloTexture`.
+    /// Le dégradé va de blanc opaque (bord du disque) à blanc transparent (bord du halo).
+    private static func makeRankDiscHaloTexture(discRadius: CGFloat, spread: CGFloat) -> SKTexture {
+        let total = (discRadius + spread) * 2
+        let sz = CGSize(width: total, height: total)
+        let renderer = UIGraphicsImageRenderer(size: sz)
+        let image = renderer.image { ctx in
+            let center = CGPoint(x: total * 0.5, y: total * 0.5)
+            let cs = CGColorSpaceCreateDeviceRGB()
+            let colors = [UIColor.white.cgColor,
+                          UIColor.white.withAlphaComponent(0).cgColor] as CFArray
+            let locs: [CGFloat] = [0, 1]
+            guard let grad = CGGradient(colorsSpace: cs, colors: colors, locations: locs) else { return }
+            ctx.cgContext.drawRadialGradient(grad,
+                                             startCenter: center, startRadius: discRadius,
+                                             endCenter:   center, endRadius:   discRadius + spread,
+                                             options: .drawsBeforeStartLocation)
+        }
+        return SKTexture(image: image)
+    }
+
+    /// Nœud SK complet représentant un classement : disque animé (shader MAGIX via SKCropNode circulaire)
+    /// + halo radial + rang centré + label catégorie en dessous.
+    /// Le rang est vide ("") à la construction ; il est mis à jour après le fetch Game Center.
+    /// - Parameters:
+    ///   - name:         Identifiant unique du nœud racine.
+    ///   - category:     Texte affiché sous le disque ("SOLO", "MOY.", "ZEN").
+    ///   - discDiameter: Diamètre du disque en pts.
+    private static func makeRankDiscNode(name: String, category: String, discDiameter: CGFloat,
+                                          timeOffset: Float = 0.0) -> SKNode {
+        let container = SKNode()
+        container.name = name
+
+        let radius      = discDiameter / 2
+        let haloSpread: CGFloat = 12
+
+        // ── Halo radial ───────────────────────────────────────────────────────
+        // Texture pré-générée (paramètres fixes) : évite un rendu Core Graphics à chaque appel.
+        let haloTex = (radius == 30 && haloSpread == 12)
+            ? rankDiscHaloTextureCached
+            : makeRankDiscHaloTexture(discRadius: radius, spread: haloSpread)
+        let haloSide = (radius + haloSpread) * 2
+        let halo     = SKSpriteNode(texture: haloTex, size: CGSize(width: haloSide, height: haloSide))
+        halo.alpha     = 0.40
+        halo.zPosition = -2
+        halo.run(SKAction.repeatForever(SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.55, duration: 1.2),
+            SKAction.fadeAlpha(to: 0.22, duration: 1.2),
+        ])))
+        container.addChild(halo)
+
+        // ── Disque animé : shader MAGIX (éprouvé) clipé par SKCropNode ────────
+        // Le clip circulaire est délégué à SKCropNode + masque SKShapeNode,
+        // évitant tout problème de compilation GLSL lié à un early-return.
+        let cropNode  = SKCropNode()
+        cropNode.zPosition = 0
+
+        let maskCircle = SKShapeNode(circleOfRadius: radius)
+        maskCircle.fillColor   = .white
+        maskCircle.strokeColor = .clear
+        cropNode.maskNode = maskCircle
+
+        let disc = SKSpriteNode(texture: magixShaderBaseTexture,
+                                size: CGSize(width: discDiameter, height: discDiameter))
+        disc.colorBlendFactor = 0
+        disc.color  = .white
+        disc.shader = makeMagixPaletteShader(timeOffset: timeOffset)
+        cropNode.addChild(disc)
+        container.addChild(cropNode)
+
+        // ── Bordure circulaire (jaune du set joueur) ───────────────────────────
+        let borderColor = bloxSolidFillColor(colorName: "yellow")
+            ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
+        let border = SKShapeNode(circleOfRadius: radius)
+        border.fillColor   = .clear
+        border.strokeColor = borderColor
+        border.lineWidth   = 2.5
+        border.zPosition   = 1.5
+        container.addChild(border)
+
+        // ── Rang centré dans le disque (au-dessus du cropNode) ────────────────
+        let rankLabel = SKLabelNode(text: "")
+        rankLabel.name                    = name + rankDiscRankLabelSuffix
+        rankLabel.fontName                = customUIFontPostScriptName
+        rankLabel.fontSize                = discDiameter * 0.30
+        rankLabel.fontColor               = .white
+        rankLabel.horizontalAlignmentMode = .center
+        rankLabel.verticalAlignmentMode   = .center
+        rankLabel.position                = .zero
+        rankLabel.zPosition               = 2
+        container.addChild(rankLabel)
+
+        // ── Catégorie sous le disque ──────────────────────────────────────────
+        let catLabel = SKLabelNode(text: category)
+        catLabel.fontName                = customUIFontPostScriptName
+        catLabel.fontSize                = discDiameter * 0.21
+        catLabel.fontColor               = SKColor(white: 0.60, alpha: 1)
+        catLabel.horizontalAlignmentMode = .center
+        catLabel.verticalAlignmentMode   = .top
+        catLabel.position                = CGPoint(x: 0, y: -(radius + 6))
+        catLabel.zPosition               = 1
+        container.addChild(catLabel)
+
+        return container
+    }
+
+    private static func applyMagixShader(to sprite: SKSpriteNode, size: CGSize,
+                                          kind: MagixKind, symbolLabelName: String) {
+        // La texture blanche garantit que v_tex_coord est correctement interpolé.
+        sprite.texture          = magixShaderBaseTexture
+        sprite.colorBlendFactor = 0   // le shader fournit 100 % de la couleur
+        sprite.color            = .white
+        sprite.size             = size
+        sprite.shader           = makeMagixPaletteShader()
+
+        // ── Halo blanc dégradé radial (glow) ───────────────────────────────────
+        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+        let haloSpread: CGFloat = 16   // pts au-delà du bord du bloc jusqu'au transparent total
+        let haloTexture = Self.makeMagixHaloTexture(blockSize: size, spread: haloSpread)
+        let glow = SKSpriteNode(texture: haloTexture,
+                                size: CGSize(width:  size.width  + haloSpread * 2,
+                                             height: size.height + haloSpread * 2))
+        glow.name        = MagixRules.glowNodeName
+        glow.alpha       = 0.45
+        glow.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        glow.zPosition   = -2   // derrière le sprite principal et les biseaux
+        // Pulsing doux indépendant du breathing général.
+        glow.run(SKAction.repeatForever(SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.55, duration: 1.2),
+            SKAction.fadeAlpha(to: 0.28, duration: 1.2),
+        ])))
+        sprite.addChild(glow)
+
+        // ── Particules orbitales colorées (palette du joueur) ──────────────────
+        // Rayon de base : bord du bloc + 35 % du spread (zone lumineuse du dégradé).
+        let orbitR = size.width * 0.5 + haloSpread * 0.35
+        let orbitSpawner = SKAction.repeatForever(SKAction.sequence([
+            SKAction.wait(forDuration: 0.175, withRange: 0.09),
+            SKAction.run { [weak sprite] in
+                guard let sprite else { return }
+                let colors = BlomixSkinCatalog.shared.bloxSKColors()
+                guard !colors.isEmpty else { return }
+                let color = colors.randomElement()!
+                let angle  = CGFloat.random(in: 0..<(2 * .pi))
+                let r      = CGFloat.random(in: (orbitR - 3)...(orbitR + 4))
+                let pos    = CGPoint(x: cos(angle) * r,  y: sin(angle) * r)
+                let drift  = CGFloat.random(in: 6...12)
+                let endPos = CGPoint(x: cos(angle) * (r + drift), y: sin(angle) * (r + drift))
+                let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 1.0...1.8))
+                dot.fillColor   = color
+                dot.strokeColor = .clear
+                dot.position    = pos
+                dot.alpha       = 0
+                dot.zPosition   = -1   // entre le halo (-2) et le corps du bloc (0+)
+                sprite.addChild(dot)
+                dot.run(.sequence([
+                    .group([
+                        .sequence([.fadeAlpha(to: 0.82, duration: 0.28),
+                                   .wait(forDuration: 0.35),
+                                   .fadeOut(withDuration: 0.62)]),
+                        .move(to: endPos, duration: 1.25),
+                    ]),
+                    .removeFromParent(),
+                ]))
+            },
+        ]))
+        sprite.run(orbitSpawner, withKey: MagixRules.orbitParticlesActionKey)
+
+        // ── Symbole "?", "+", "9" ──────────────────────────────────────────────
+        sprite.childNode(withName: symbolLabelName)?.removeFromParent()
+        let sym = SKLabelNode(text: MagixRules.symbol(for: kind))
+        sym.name                     = symbolLabelName
+        sym.fontName                 = customUIFontPostScriptName
+        sym.fontSize                 = size.height * 0.69
+        sym.fontColor                = .black
+        sym.horizontalAlignmentMode  = .center
+        sym.verticalAlignmentMode    = .center
+        sym.position                 = .zero
+        sym.zPosition                = 5
+        sprite.addChild(sym)
+    }
+
+    /// Crée un sprite Magix autonome avec shader dégradé + biseau + symbole. Utilisé pour le bloc en chute.
+    private static func makeMagixShaderSprite(size: CGSize, kind: MagixKind) -> SKSpriteNode {
+        let sprite = SKSpriteNode(texture: magixShaderBaseTexture, size: size)
+        sprite.colorBlendFactor = 0
+        sprite.color            = .white
+        sprite.anchorPoint      = CGPoint(x: 0.5, y: 0.5)
+        applyMagixShader(to: sprite, size: size, kind: kind,
+                         symbolLabelName: MagixRules.symbolLabelName)
+        return sprite
+    }
+
+    // MARK: - Bombe (sprite MAGIX-style noir/rouge/jaune)
+
+    /// Shader cyclique noir → rouge joueur → jaune joueur, identique au MAGIX mais sur 3 couleurs.
+    private static func makeBombPaletteShader() -> SKShader {
+        let red    = bloxSolidFillColor(colorName: "red")    ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
+        let yellow = bloxSolidFillColor(colorName: "yellow") ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
+        let black  = SKColor.black
+
+        func v3(_ c: SKColor) -> String {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            c.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return String(format: "vec3(%.4f,%.4f,%.4f)", Float(r), Float(g), Float(b))
+        }
+        // 3 couleurs : noir → rouge → jaune (cycle continu, même formule que MAGIX).
+        let cols = [black, red, yellow]
+        var branches = ""
+        for (i, c) in cols.enumerated() {
+            let next = (i + 1) % cols.count
+            let lim  = String(format: "%.1f", Float(i + 1))
+            if i == 0 {
+                branches += "    if(fi<\(lim)){ca=\(v3(c));cb=\(v3(cols[next]));}\n"
+            } else if i < cols.count - 1 {
+                branches += "    else if(fi<\(lim)){ca=\(v3(c));cb=\(v3(cols[next]));}\n"
+            } else {
+                branches += "    else{ca=\(v3(c));cb=\(v3(cols[next]));}\n"
+            }
+        }
+        let src = """
+        vec3 bmbPal(float t){
+            float N=3.0;
+            float ti=fract(t)*N;
+            float fi=floor(ti);
+            float f=smoothstep(0.0,1.0,fract(ti));
+            vec3 ca=vec3(0.0),cb=vec3(0.0);
+        \(branches)    return mix(ca,cb,f);
+        }
+        void main(){
+            vec2 uv=v_tex_coord;
+            float t=u_time*0.09;
+            vec3 c1=bmbPal(t);
+            vec3 c2=bmbPal(t+0.333);
+            vec3 c3=bmbPal(t+0.667);
+            float wx=sin(uv.x*3.14159+t*0.5)*0.5+0.5;
+            float wy=cos(uv.y*2.2-t*0.35)*0.5+0.5;
+            vec3 ab=mix(c1,c2,wx);
+            vec3 col=mix(ab,c3,wy*0.38);
+            // Disque avec contour noir : ring masque la couleur dans la couronne externe (~2-3 pt).
+            float d=distance(uv,vec2(0.5,0.5));
+            float a=1.0-smoothstep(0.46,0.50,d);
+            float ring=1.0-smoothstep(0.38,0.43,d);
+            gl_FragColor=vec4(col*ring*a,a);
+        }
+        """
+        return SKShader(source: src)
+    }
+
+    /// Applique le look bombe MAGIX-style sur un sprite existant (réutilisable pour icône HUD).
+    private static func applyBombShader(to sprite: SKSpriteNode, size: CGSize) {
+        sprite.texture          = magixShaderBaseTexture
+        sprite.colorBlendFactor = 0
+        sprite.color            = .white
+        sprite.size             = size
+        sprite.shader           = makeBombPaletteShader()
+
+        // Nettoyer le symbole MAGIX éventuel (preview réutilisée).
+        sprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
+
+        // ── Halo dégradé radial ────────────────────────────────────────────────
+        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+        let haloSpread: CGFloat = 16
+        let haloTexture = makeMagixHaloTexture(blockSize: size, spread: haloSpread)
+        let glow = SKSpriteNode(texture: haloTexture,
+                                size: CGSize(width:  size.width  + haloSpread * 2,
+                                             height: size.height + haloSpread * 2))
+        glow.name        = MagixRules.glowNodeName
+        glow.alpha       = 0.45
+        glow.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        glow.zPosition   = -2
+        glow.run(SKAction.repeatForever(SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.55, duration: 1.2),
+            SKAction.fadeAlpha(to: 0.28, duration: 1.2),
+        ])))
+        sprite.addChild(glow)
+
+        // ── Particules orbitales noir / rouge joueur / jaune joueur ────────────
+        let orbitR = size.width * 0.5 + haloSpread * 0.35
+        let orbitSpawner = SKAction.repeatForever(SKAction.sequence([
+            SKAction.wait(forDuration: 0.175, withRange: 0.09),
+            SKAction.run { [weak sprite] in
+                guard let sprite else { return }
+                // Couleurs : rouge palette, jaune palette, ou quasi-noir.
+                let roll = Int.random(in: 0..<3)
+                let color: SKColor
+                switch roll {
+                case 0: color = bloxSolidFillColor(colorName: "red")    ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
+                case 1: color = bloxSolidFillColor(colorName: "yellow") ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
+                default: color = SKColor(white: 0.12, alpha: 1)
+                }
+                let angle  = CGFloat.random(in: 0..<(2 * .pi))
+                let r      = CGFloat.random(in: (orbitR - 3)...(orbitR + 4))
+                let pos    = CGPoint(x: cos(angle) * r,  y: sin(angle) * r)
+                let drift  = CGFloat.random(in: 6...12)
+                let endPos = CGPoint(x: cos(angle) * (r + drift), y: sin(angle) * (r + drift))
+                let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 1.0...1.8))
+                dot.fillColor   = color
+                dot.strokeColor = .clear
+                dot.position    = pos
+                dot.alpha       = 0
+                dot.zPosition   = -1
+                sprite.addChild(dot)
+                dot.run(.sequence([
+                    .group([
+                        .sequence([.fadeAlpha(to: 0.82, duration: 0.28),
+                                   .wait(forDuration: 0.35),
+                                   .fadeOut(withDuration: 0.62)]),
+                        .move(to: endPos, duration: 1.25),
+                    ]),
+                    .removeFromParent(),
+                ]))
+            },
+        ]))
+        sprite.run(orbitSpawner, withKey: MagixRules.orbitParticlesActionKey)
+    }
+
+    /// Crée un sprite bombe MAGIX-style autonome (shader + biseau + halo + particules).
+    private static func makeBombShaderSprite(size: CGSize) -> SKSpriteNode {
+        let sprite = SKSpriteNode(texture: magixShaderBaseTexture, size: size)
+        sprite.colorBlendFactor = 0
+        sprite.color            = .white
+        sprite.anchorPoint      = CGPoint(x: 0.5, y: 0.5)
+        applyBombShader(to: sprite, size: size)
+        return sprite
+    }
+
+    /// Popup texte "CHROMAX" / "BRIXED" / "CROSSX" au centre de la case d'atterrissage,
+    /// sur le même modèle que les popups COMBO.
+    private func spawnMagixNamePopup(name: String, at position: CGPoint) {
+        let lbl = SKLabelNode(text: name)
+        lbl.fontName   = Self.customUIFontPostScriptName
+        lbl.fontSize   = 22
+        lbl.fontColor  = .white
+        lbl.horizontalAlignmentMode = .center
+        lbl.verticalAlignmentMode   = .center
+        lbl.position   = position
+        lbl.zPosition  = 45
+        addChild(lbl)
+
+        let rise = SKAction.moveBy(x: 0, y: 44, duration: 0.85)
+        rise.timingMode = .easeOut
+        let fade = SKAction.sequence([
+            SKAction.wait(forDuration: 0.38),
+            SKAction.fadeAlpha(to: 0, duration: 0.47),
+        ])
+        lbl.run(SKAction.group([rise, fade])) { lbl.removeFromParent() }
+    }
+
+    // MARK: - Blocs Magix — logique
+
+    /// Dispatche vers la bonne routine selon la variante du bloc Magix qui vient d'atterrir.
+    private func applyMagixEffect(kind: MagixKind, at cell: GridAddress) {
+        // Popup "CHROMAX" / "BRIXED" / "CROSSX" centré sur la case d'atterrissage.
+        spawnMagixNamePopup(name: MagixRules.label(for: kind),
+                            at: scenePointCellCenter(row: cell.row, column: cell.col))
+        switch kind {
+        case .chromax:  applyMagixEffect_chromax(at: cell)
+        case .brixed:   applyMagixEffect_brixed(at: cell)
+        case .crosx:    applyMagixEffect_crosx(at: cell)
+        case .scrumblx: applyMagixEffect_scrumblx(at: cell)
+        case .colorx:   applyMagixEffect_colorx(at: cell)
+        case .cleanx:   applyMagixEffect_cleanx(at: cell)
+        case .twistx:   applyMagixEffect_twistx(at: cell)
+        }
+    }
+
+    // MARK: COLORX
+
+    /// Crée ou rafraîchit le container d'overlays blancs sur les cellules de `colorName`.
+    /// Appelé à chaque étape de la roulette COLORX.
+    private func showColorxOverlays(for colorName: String) {
+        guard let container = childNode(withName: Self.gridContainerName) else { return }
+
+        let overlayContainer: SKNode
+        if let existing = container.childNode(withName: Self.colorxOverlayContainerName) {
+            overlayContainer = existing
+            overlayContainer.removeAllChildren()
+            overlayContainer.removeAllActions()
+            overlayContainer.alpha = 1
+        } else {
+            let nc = SKNode()
+            nc.name = Self.colorxOverlayContainerName
+            container.addChild(nc)
+            overlayContainer = nc
+        }
+
+        let cellSize = CGSize(width: GridLayout.cellPoints, height: GridLayout.cellPoints)
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                guard case .color(let name) = grid[r][c], name == colorName else { continue }
+                guard let cell = container.childNode(withName: "cell_\(r)_\(c)") as? SKSpriteNode else { continue }
+                let ov = SKSpriteNode(color: .white, size: cellSize)
+                ov.alpha = 0
+                ov.position = cell.position
+                ov.zPosition = 8   // au-dessus des cellules (z 1) et de toutes les jonctions (z 2.01+)
+                overlayContainer.addChild(ov)
+                ov.run(SKAction.fadeAlpha(to: 0.70, duration: 0.06))
+            }
+        }
+    }
+
+    /// Supprime le container d'overlays COLORX (appel de sécurité hors dissolution normale).
+    private func removeColorxOverlays() {
+        childNode(withName: Self.gridContainerName)?
+            .childNode(withName: Self.colorxOverlayContainerName)?
+            .removeFromParent()
+    }
+
+    /// Roulette de couleur : le sprite COLORX s'arrête sur une couleur de la grille, puis tous
+    /// les blocs de cette couleur disparaissent (score chaîne pour le nombre effacé).
+    private func applyMagixEffect_colorx(at cell: GridAddress) {
+        // Snapshot AVANT toute modification (bonus colonne vidée).
+        let columnHadBlock: [Bool] = (0..<GridLayout.columnCount).map { col in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
+        }
+
+        // ── 1. COLORX consommé immédiatement.
+        grid[cell.row][cell.col] = .empty
+        removeBloxJunctionElementsTouching([cell])
+
+        // ── 2. Couleur finale : priorité aux couleurs présentes dans la grille.
+        let presentColors: [String] = Self.colorPalette.filter { name in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { r in
+                (0..<GridLayout.columnCount).contains { c in
+                    if case .color(let n) = grid[r][c] { return n == name }
+                    return false
+                }
+            }
+        }
+        let candidatePool = presentColors.isEmpty ? Self.colorPalette : presentColors
+        let finalColor    = candidatePool.randomElement() ?? Self.colorPalette.randomElement() ?? "red"
+
+        // ── 3. Séquence de couleurs intermédiaires (4 couleurs ≠ finale, puis finale).
+        //    Durées croissantes → effet de "ralentissement sur la couleur choisie".
+        let stepDurations: [TimeInterval] = [0.10, 0.15, 0.22, 0.30, 0.50]
+        var cycleColors: [String] = []
+        var tempPool = Self.colorPalette.filter { $0 != finalColor }
+        for _ in 0..<(stepDurations.count - 1) {
+            if tempPool.isEmpty { tempPool = Self.colorPalette.filter { $0 != finalColor } }
+            if let c = tempPool.randomElement() {
+                cycleColors.append(c)
+                tempPool.removeAll { $0 == c }
+            }
+        }
+        cycleColors.append(finalColor)
+
+        // ── 4. Fallback si pas de container.
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            dissolveColorxMatchingBlocks(color: finalColor, columnHadBlockBefore: columnHadBlock)
+            return
+        }
+
+        // ── 5. Animation roulette sur le sprite COLORX dans le container.
+        let cellNodeName = "cell_\(cell.row)_\(cell.col)"
+        guard let colorxSprite = container.childNode(withName: cellNodeName) as? SKSpriteNode else {
+            dissolveColorxMatchingBlocks(color: finalColor, columnHadBlockBefore: columnHadBlock)
+            return
+        }
+        colorxSprite.name = "cell_colorx_spinning"
+        // Retirer shader et décorations Magix pour afficher une couleur unie.
+        colorxSprite.shader           = nil
+        colorxSprite.colorBlendFactor = 1
+        colorxSprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        colorxSprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+        colorxSprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
+
+        // Chaîne d'actions : changement de couleur + pop, puis dissolution.
+        var steps: [SKAction] = []
+        for (i, colorName) in cycleColors.enumerated() {
+            let duration    = stepDurations[i]
+            let captured    = colorName
+            let capturedIdx = i
+            steps.append(SKAction.run { [weak self, weak colorxSprite] in
+                guard let self, let sprite = colorxSprite else { return }
+                BlomixProceduralSFX.shared.playColorxRouletteClick(step: capturedIdx)
+                sprite.color = Self.bloxSolidFillColor(colorName: captured) ?? SKColor(white: 0.5, alpha: 1)
+                let pop = SKAction.sequence([
+                    SKAction.scale(to: 1.25, duration: duration * 0.35),
+                    SKAction.scale(to: 1.00, duration: duration * 0.65),
+                ])
+                sprite.run(pop)
+                self.showColorxOverlays(for: captured)
+            })
+            steps.append(SKAction.wait(forDuration: duration))
+        }
+        // Bref hold sur la couleur finale, puis dissolution.
+        steps.append(SKAction.run { [weak self, weak colorxSprite] in
+            guard let self else { return }
+            colorxSprite?.removeFromParent()
+            self.dissolveColorxMatchingBlocks(color: finalColor, columnHadBlockBefore: columnHadBlock)
+        })
+        run(SKAction.sequence(steps))
+    }
+
+    /// Efface tous les blocs de `color` dans la grille, attribue les points (formule chaîne),
+    /// anime leur disparition, puis applique la gravité et continue.
+    private func dissolveColorxMatchingBlocks(color: String, columnHadBlockBefore: [Bool]) {
+        // ── 1. Collecter et effacer les blocs de la couleur choisie.
+        var targets: [GridAddress] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                if case .color(let name) = grid[r][c], name == color {
+                    targets.append(GridAddress(row: r, col: c))
+                    grid[r][c] = .empty
+                }
+            }
+        }
+
+        // ── 2. Score (formule chaîne pour N blocs).
+        if !targets.isEmpty {
+            let pts      = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel,
+                                                      groupSize: targets.count)
+            let center   = sceneCentroid(for: Set(targets))
+            let dotColor = Self.bloxSolidFillColor(colorName: color)
+            addScore(points: pts, chainMultiplier: chainSeriesLevel,
+                     floatAt: center, dotColor: dotColor)
+        }
+        removeBloxJunctionElementsTouching(Set(targets))
+
+        // ── 3. Animation de dissolution (pop → fondu).
+        guard let container = childNode(withName: Self.gridContainerName), !targets.isEmpty else {
+            removeColorxOverlays()
+            drawGrid()
+            applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlockBefore)
+            return
+        }
+
+        let stagger: TimeInterval = 0.025
+        // Sons de pop pour les 8 premiers blocs au maximum (évite la saturation audio).
+        let popLimit = min(targets.count, 8)
+        for (i, addr) in targets.enumerated() {
+            guard let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode
+            else { continue }
+            let shouldPlayPop = i < popLimit
+            sprite.run(SKAction.sequence([
+                SKAction.wait(forDuration: Double(i) * stagger),
+                SKAction.run {
+                    if shouldPlayPop {
+                        BlomixProceduralSFX.shared.playColorxDissolvePop()
+                    }
+                },
+                SKAction.group([
+                    SKAction.sequence([
+                        SKAction.scale(to: 1.30, duration: 0.10),
+                        SKAction.scale(to: 0.01, duration: 0.14),
+                    ]),
+                    SKAction.sequence([
+                        SKAction.wait(forDuration: 0.10),
+                        SKAction.fadeOut(withDuration: 0.14),
+                    ]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+
+        // Fade-out synchronisé des overlays COLORX avec la dissolution des blocs.
+        let dissolveDuration = Double(max(0, targets.count - 1)) * stagger + 0.24
+        if let overlayContainer = container.childNode(withName: Self.colorxOverlayContainerName) {
+            overlayContainer.run(SKAction.sequence([
+                SKAction.fadeOut(withDuration: dissolveDuration),
+                SKAction.removeFromParent()
+            ]))
+        }
+
+        let totalWait = Double(max(0, targets.count - 1)) * stagger + 0.26
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: totalWait),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlockBefore)
+            },
+        ]))
+    }
+
+    // MARK: CLEANX
+
+    /// Efface tout le contenu de la grille (animation 2 s : cycle couleurs + overlay blanc 0.1→1.0),
+    /// puis laisse un Brix dont la valeur = nombre de cases supprimées.
+    /// Le sprite CLEANX se transforme visuellement en ce Brix au moment de la dissolution.
+    private func applyMagixEffect_cleanx(at cell: GridAddress) {
+
+        // ── 1. Snapshot colonnes occupées (pour bonus colonne vidée).
+        let columnHadBlock: [Bool] = (0..<GridLayout.columnCount).map { col in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
+        }
+
+        // ── 2. Collecter toutes les cases occupées (hors CLEANX lui-même).
+        var targets: [GridAddress] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                guard !(r == cell.row && c == cell.col) else { continue }
+                guard grid[r][c] != .empty else { continue }
+                targets.append(GridAddress(row: r, col: c))
+            }
+        }
+        let clearedCount = targets.count
+
+        // ── 3. Supprimer jonctions et biseaux de groupe.
+        removeBloxJunctionElementsTouching(Set(targets).union([cell]))
+
+        // ── 4. Fallback sans container.
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            for addr in targets { grid[addr.row][addr.col] = .empty }
+            grid[cell.row][cell.col] = .priks(max(1, clearedCount))
+            addScore(points: 200, chainMultiplier: chainSeriesLevel,
+                     floatAt: scenePointCellCenter(row: cell.row, column: cell.col), dotColor: .white)
+            drawGrid()
+            applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
+            return
+        }
+
+        // ── 5. Animation : cycle couleurs + overlay blanc progressif sur les blocs cibles.
+        let overlayDuration: TimeInterval = 2.0
+        let cycleInterval:   TimeInterval = 0.40   // ≈ 5 changements sur 2 s
+        let palette = Self.colorPalette
+
+        // Son atmosphérique CLEANX — démarre avec l'animation.
+        playMatchSound(.cleanx)
+
+        // Container d'overlays (préfixe "cell_" → supprimé automatiquement par drawGrid).
+        let overlayContainer = SKNode()
+        overlayContainer.name = "cell_cleanxOverlays"
+        container.addChild(overlayContainer)
+
+        for addr in targets {
+            guard let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode
+            else { continue }
+
+            // Cycle de couleurs sous l'overlay.
+            var colorActions: [SKAction] = []
+            let steps = Int(overlayDuration / cycleInterval) + 2
+            for _ in 0..<steps {
+                let col = palette.randomElement() ?? "red"
+                colorActions.append(SKAction.run { [weak sprite] in
+                    sprite?.color = Self.bloxSolidFillColor(colorName: col) ?? .white
+                    sprite?.colorBlendFactor = 1
+                })
+                colorActions.append(SKAction.wait(forDuration: cycleInterval))
+            }
+            sprite.run(SKAction.sequence(colorActions), withKey: "cleanxColorCycle")
+
+            // Overlay blanc 0.1 → 1.0.
+            let cellSize = CGSize(width: GridLayout.cellPoints, height: GridLayout.cellPoints)
+            let ov = SKSpriteNode(color: .white, size: cellSize)
+            ov.alpha    = 0.1
+            ov.position = sprite.position
+            ov.zPosition = 8
+            overlayContainer.addChild(ov)
+            ov.run(SKAction.fadeAlpha(to: 1.0, duration: overlayDuration))
+        }
+
+        // ── 6. Après 2 s : fade-out overlay → dissolution visible + transformation CLEANX → Brix.
+        let overlayFadeDuration: TimeInterval = 0.20
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: overlayDuration),
+            // Phase A : l'overlay blanc disparaît, révélant les blocs colorés en dessous.
+            SKAction.run { [weak overlayContainer] in
+                overlayContainer?.run(SKAction.sequence([
+                    SKAction.fadeOut(withDuration: overlayFadeDuration),
+                    SKAction.removeFromParent(),
+                ]))
+            },
+            SKAction.wait(forDuration: overlayFadeDuration),
+            // Phase B : dissolution des blocs + particules, maintenant visibles sur fond sombre.
+            SKAction.run { [weak self] in
+                guard let self else { return }
+
+                // Arrêter cycles couleur + dissoudre chaque cible.
+                for addr in targets {
+                    guard let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode
+                    else { continue }
+                    sprite.removeAction(forKey: "cleanxColorCycle")
+                    let scenePos = self.convert(sprite.position, from: container)
+                    self.spawnChainPopDots(at: scenePos, color: sprite.color)
+                    sprite.run(SKAction.sequence([
+                        SKAction.group([
+                            SKAction.sequence([
+                                SKAction.scale(to: 1.30, duration: 0.10),
+                                SKAction.scale(to: 0.01, duration: 0.14),
+                            ]),
+                            SKAction.sequence([
+                                SKAction.wait(forDuration: 0.10),
+                                SKAction.fadeOut(withDuration: 0.14),
+                            ]),
+                        ]),
+                        SKAction.removeFromParent(),
+                    ]))
+                }
+
+                // Transformer le sprite CLEANX en Brix visuellement.
+                if let cleanxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
+                    cleanxSprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+                    cleanxSprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+                    cleanxSprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
+                    cleanxSprite.shader           = nil
+                    cleanxSprite.color            = Self.priksSolidFillColor()
+                    cleanxSprite.colorBlendFactor = 1
+                    let digitNode = SKLabelNode(text: "\(max(1, clearedCount))")
+                    digitNode.fontName                = Self.customUIFontPostScriptName
+                    digitNode.fontSize                = clearedCount >= 10 ? 13 : 18
+                    digitNode.fontColor               = Self.priksDigitLabelColor()
+                    digitNode.horizontalAlignmentMode = .center
+                    digitNode.verticalAlignmentMode   = .center
+                    digitNode.position                = .zero
+                    digitNode.zPosition               = 2
+                    cleanxSprite.addChild(digitNode)
+                    let cellSize = Self.solidGameplayBloxPixelSize()
+                    cleanxSprite.run(SKAction.sequence([
+                        SKAction.scale(to: 1.25, duration: 0.10),
+                        SKAction.scale(to: 1.00, duration: 0.15),
+                    ]))
+                }
+
+                // Mettre à jour le modèle de grille.
+                for addr in targets { self.grid[addr.row][addr.col] = .empty }
+                self.grid[cell.row][cell.col] = .priks(max(1, clearedCount))
+
+                // Score : 200 pts de base, multiplicateur de stage appliqué dans addScore.
+                let scorePos = self.scenePointCellCenter(row: cell.row, column: cell.col)
+                self.addScore(points: 200, chainMultiplier: self.chainSeriesLevel,
+                              floatAt: scorePos, dotColor: .white)
+
+                // Après la dissolution, redessiner et compacter.
+                self.run(SKAction.sequence([
+                    SKAction.wait(forDuration: 0.30),
+                    SKAction.run { [weak self] in
+                        guard let self else { return }
+                        self.drawGrid()
+                        self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
+                    },
+                ]))
+            },
+        ]))
+    }
+
+    // MARK: TWISTX
+
+    /// TWISTX — échange automatique d'une couleur aléatoire avec les Priks.
+    ///
+    /// À l'atterrissage :
+    /// 1. Choisit aléatoirement une couleur présente dans la grille.
+    /// 2. Trouve la valeur minimale parmi tous les Priks existants (défaut 3 si aucun Priks).
+    /// 3. Échange : blocs de la couleur choisie → Priks(minValue), tous les Priks → color(chosenColor).
+    private func applyMagixEffect_twistx(at cell: GridAddress) {
+        grid[cell.row][cell.col] = .empty
+        removeBloxJunctionElementsTouching([cell])
+
+        // ── 1. Couleur cible aléatoire parmi celles présentes ─────────────────
+        let presentColors: [String] = Self.colorPalette.filter { name in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { r in
+                (0..<GridLayout.columnCount).contains { c in
+                    if case .color(let n) = grid[r][c] { return n == name }
+                    return false
+                }
+            }
+        }
+        guard let chosenColor = presentColors.randomElement() else {
+            // Aucune couleur dans la grille → rien à faire.
+            isProcessing = false
+            return
+        }
+
+        // ── 2. Valeur minimale des Priks (défaut 3 si aucun) ─────────────────
+        var minPriks = Int.max
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                if case .priks(let n) = grid[r][c] { minPriks = min(minPriks, n) }
+            }
+        }
+        let priksValue = (minPriks == Int.max) ? 3 : minPriks
+
+        // ── 3. Collecte + suppression des jonctions ────────────────────────────
+        var colorCells: [GridAddress] = []
+        var priksCells: [GridAddress] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                switch grid[r][c] {
+                case .color(let n) where n == chosenColor: colorCells.append(GridAddress(row: r, col: c))
+                case .priks:                               priksCells.append(GridAddress(row: r, col: c))
+                default: break
+                }
+            }
+        }
+        let allAffected = Set(colorCells + priksCells)
+        if !allAffected.isEmpty { removeBloxJunctionElementsTouching(allAffected) }
+
+        // ── 4. Animation pop case par case (mélangé, stagger 0.04 s) ──────────
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            for addr in colorCells { grid[addr.row][addr.col] = .priks(priksValue) }
+            for addr in priksCells { grid[addr.row][addr.col] = .color(chosenColor) }
+            drawGrid(); resolveChains()
+            return
+        }
+
+        // Paires (adresse, nouveau bloc) mélangées pour un rendu organique.
+        var swapPairs: [(GridAddress, BlockType)] = []
+        for addr in colorCells { swapPairs.append((addr, .priks(priksValue))) }
+        for addr in priksCells { swapPairs.append((addr, .color(chosenColor))) }
+        swapPairs.shuffle()
+
+        let stagger: TimeInterval = 0.04
+        for (idx, (addr, newBlock)) in swapPairs.enumerated() {
+            let delay         = TimeInterval(idx) * stagger
+            let captured      = addr
+            let capturedBlock = newBlock
+            let capturedIdx   = idx
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: delay),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    BlomixProceduralSFX.shared.playTwistxFlip(index: capturedIdx)
+                    self.grid[captured.row][captured.col] = capturedBlock
+                    let nodeName = "cell_\(captured.row)_\(captured.col)"
+                    container.childNode(withName: nodeName)?.removeFromParent()
+                    let newSprite = Self.makeSolidGameplayBlockSprite(block: capturedBlock)
+                    newSprite.name     = nodeName
+                    newSprite.position = Self.gridContainerLocalCellCenter(
+                        row: captured.row, column: captured.col)
+                    newSprite.setScale(0.5)
+                    container.addChild(newSprite)
+                    newSprite.run(SKAction.sequence([
+                        SKAction.scale(to: 1.35, duration: 0.07),
+                        SKAction.scale(to: 1.00, duration: 0.05),
+                    ]))
+                },
+            ]))
+        }
+
+        let totalDelay = TimeInterval(swapPairs.count) * stagger + 0.15
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: totalDelay),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                self.resolveChains()
+            },
+        ]))
+    }
+
+    // MARK: CHROMAX
+
+    /// Marche aléatoire 8-connexe depuis `startCell`, transforme jusqu'à 15 cellules occupées
+    /// (y compris la case d'atterrissage) en `chosenColor`, anime la propagation cellule par cellule,
+    /// puis appelle `resolveChains()` pour déclencher la chaîne.
+    private func applyMagixEffect_chromax(at startCell: GridAddress) {
+        let chosenColor = Self.colorPalette.randomElement() ?? "red"
+
+        // ── 1. Marche aléatoire 8-connexe ─────────────────────────────────────
+        var path: [GridAddress] = [startCell]
+        var visited: Set<GridAddress> = [startCell]
+        var current = startCell
+
+        while path.count < MagixRules.chromaxPathLength {
+            let candidates = Self.chainNeighborDeltas8.compactMap { d -> GridAddress? in
+                let nr = current.row + d.dr
+                let nc = current.col + d.dc
+                guard nr >= GridLayout.topRowIndex, nr < GridLayout.rowCount,
+                      nc >= 0, nc < GridLayout.columnCount else { return nil }
+                let addr = GridAddress(row: nr, col: nc)
+                guard !visited.contains(addr), grid[nr][nc] != .empty else { return nil }
+                return addr
+            }
+            guard !candidates.isEmpty else { break }
+            let next = candidates.randomElement()!
+            path.append(next)
+            visited.insert(next)
+            current = next
+        }
+
+        // ── 2. Suppression immédiate des barres de jonction (diagonales) touchant
+        //      le chemin — évite les artefacts visuels pendant la transformation.
+        removeBloxJunctionElementsTouching(Set(path))
+
+        // ── 3. Fallback sans container ─────────────────────────────────────────
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            for addr in path { grid[addr.row][addr.col] = .color(chosenColor) }
+            drawGrid()
+            resolveChains()
+            return
+        }
+
+        // ── 4. Transformation PROGRESSIVE : une case à la fois ────────────────
+        // Chaque case : on remplace son sprite par un nouveau sprite coloré avec
+        // un effet « pop » (scale 0.5 → 1.4 → 1.0), puis on met à jour la grille.
+        // La grille logique est mise à jour au fil de l'animation pour que
+        // resolveChains() trouve l'état final correct.
+        let stepDelay: TimeInterval = 0.08
+        var totalDelay: TimeInterval = 0
+        let pathTotal = path.count
+
+        for (stepIdx, addr) in path.enumerated() {
+            let capturedAddr  = addr
+            let capturedStep  = stepIdx
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: totalDelay),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    BlomixProceduralSFX.shared.playChromaxTick(step: capturedStep, total: pathTotal)
+                    // Mise à jour logique
+                    self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColor)
+                    // Remplacement du sprite
+                    let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
+                    container.childNode(withName: nodeName)?.removeFromParent()
+                    let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColor))
+                    newSprite.name = nodeName
+                    newSprite.position = Self.gridContainerLocalCellCenter(
+                        row: capturedAddr.row, column: capturedAddr.col)
+                    newSprite.setScale(0.5)
+                    container.addChild(newSprite)
+                    newSprite.run(SKAction.sequence([
+                        SKAction.scale(to: 1.40, duration: 0.07),
+                        SKAction.scale(to: 1.00, duration: 0.05),
+                    ]))
+                },
+            ]))
+            totalDelay += stepDelay
+        }
+
+        // ── 4. Resynchronisation + résolution des chaînes après l'animation ────
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: totalDelay + 0.12),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                self.resolveChains()
+            },
+        ]))
+    }
+
+        // MARK: BRIXED
+
+    /// Pose le BRIXED comme un Priks(9), applique un flash sur tous les Brix existants,
+    /// puis les décrémente de 2 (ceux à ≤ 0 disparaissent), applique la gravité et appelle `resolveChains()`.
+    private func applyMagixEffect_brixed(at cell: GridAddress) {
+        // ── 1. Le BRIXED devient un Priks(9) dans la grille ───────────────────
+        grid[cell.row][cell.col] = .priks(MagixRules.brixedInitialHits)
+
+        // ── 2. Collecte tous les autres Brix (avec leur valeur courante) ───────
+        var affectedPriks: [(addr: GridAddress, currentValue: Int)] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                let addr = GridAddress(row: r, col: c)
+                if addr == cell { continue }
+                guard case .priks(let n) = grid[r][c] else { continue }
+                affectedPriks.append((addr, n))
+            }
+        }
+
+        // ── 3. Dessin initial (Priks(9) visible à la case d'atterrissage) ─────
+        drawGrid()
+
+        // ── 4. Flash blanc sur tous les Brix ────────────────────────────────
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            finishBrixedDecrement(at: cell, affected: affectedPriks)
+            return
+        }
+        let flashDuration: TimeInterval = 0.20
+
+        // Impact grave au déclenchement du flash BRIXED.
+        BlomixProceduralSFX.shared.playBrixedImpact()
+
+        // Flash sur le nouveau Priks(9) + tous les autres Brix affectés
+        var allPriksAddrs = affectedPriks.map { $0.addr }
+        allPriksAddrs.append(cell)
+        for addr in allPriksAddrs {
+            guard let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode else { continue }
+            sprite.run(SKAction.sequence([
+                SKAction.colorize(with: .white, colorBlendFactor: 0.85, duration: flashDuration * 0.35),
+                SKAction.colorize(with: .white, colorBlendFactor: 0.0,  duration: flashDuration * 0.65),
+            ]))
+        }
+
+        // ── 5. Après le flash, décrement + gravité ────────────────────────────
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: flashDuration + 0.05),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.finishBrixedDecrement(at: cell, affected: self.affectedPriks_snapshot)
+            },
+        ]))
+
+        // Sauvegarde temporaire pour le callback (capture sans retain cycle fort)
+        affectedPriks_snapshot = affectedPriks
+    }
+
+    /// Snapshot temporaire utilisé par `applyMagixEffect_brixed` pour le callback asynchrone.
+    private var affectedPriks_snapshot: [(addr: GridAddress, currentValue: Int)] = []
+
+    private func finishBrixedDecrement(at cell: GridAddress, affected: [(addr: GridAddress, currentValue: Int)]) {
+        affectedPriks_snapshot = []
+        let columnHadBlockBefore: [Bool] = (0..<GridLayout.columnCount).map { col in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { grid[$0][col] != .empty }
+        }
+
+        // Élimine TOUS les Brix existants — seul le Priks(9) apporté par le BRIXED reste.
+        var vanishedPriks = Set<GridAddress>()
+        for item in affected {
+            grid[item.addr.row][item.addr.col] = .empty
+            vanishedPriks.insert(item.addr)
+        }
+        // Supprimer les barres de jonction des cases détruites avant l'animation.
+        if !vanishedPriks.isEmpty {
+            removeBloxJunctionElementsTouching(vanishedPriks)
+        }
+
+        // Score immédiat pour les Brix détruits.
+        if !vanishedPriks.isEmpty {
+            let pts = vanishedPriks.count * 20
+            addScore(points: pts, chainMultiplier: 0, floatAt: sceneCentroid(for: vanishedPriks))
+        }
+
+        // Animation de disparition des Brix → puis gravité → resolveChains.
+        let continueAfterVanish: () -> Void = { [weak self] in
+            guard let self else { return }
+            self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlockBefore)
+        }
+
+        if vanishedPriks.isEmpty {
+            drawGrid()
+            continueAfterVanish()
+        } else {
+            animateVanishingPriks(cells: vanishedPriks) { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                continueAfterVanish()
+            }
+        }
+    }
+
+    // MARK: CROSX
+
+    /// Transforme toutes les cases `.color()` de la croix (même ligne + même colonne)
+    /// ainsi que la case d'atterrissage en une couleur aléatoire, puis appelle `resolveChains()`.
+    private func applyMagixEffect_crosx(at cell: GridAddress) {
+        let chosenColor = Self.colorPalette.randomElement() ?? "red"
+
+        // ── 1. Collecte : LIGNE ENTIÈRE + COLONNE ENTIÈRE centrées sur la case d'atterrissage.
+        // Transformées : Blox (.color) ET Brix (.priks) → tous deviennent la couleur aléatoire.
+        // Cases vides et Magix ignorées.
+        var crossCells: [GridAddress] = []
+
+        // Ligne horizontale complète
+        for c in 0..<GridLayout.columnCount {
+            let addr = GridAddress(row: cell.row, col: c)
+            switch grid[cell.row][c] {
+            case .color, .priks: crossCells.append(addr)
+            default: break
+            }
+        }
+        // Colonne verticale complète (évite le doublon sur la case centrale)
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            if r == cell.row { continue }
+            let addr = GridAddress(row: r, col: cell.col)
+            switch grid[r][cell.col] {
+            case .color, .priks: crossCells.append(addr)
+            default: break
+            }
+        }
+        // La case centrale elle-même (le CROSX qui vient d'atterrir)
+        if !crossCells.contains(cell) { crossCells.append(cell) }
+
+        // ── 2. Suppression immédiate des barres de jonction touchant la croix.
+        removeBloxJunctionElementsTouching(Set(crossCells))
+
+        // ── 3. Fallback sans container ─────────────────────────────────────────
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            for addr in crossCells { grid[addr.row][addr.col] = .color(chosenColor) }
+            drawGrid()
+            resolveChains()
+            return
+        }
+
+        // ── 3. Animation PROGRESSIVE depuis le centre vers l'extérieur.
+        // Les cases sont triées par distance de Manhattan au centre (0, 1, 2, …).
+        // Toutes les cases d'une même distance s'animent simultanément, puis les
+        // cases plus éloignées suivent avec un léger décalage.
+        let sorted = crossCells.sorted {
+            let d1 = abs($0.row - cell.row) + abs($0.col - cell.col)
+            let d2 = abs($1.row - cell.row) + abs($1.col - cell.col)
+            return d1 < d2
+        }
+
+        let waveDelay: TimeInterval = 0.06
+        var totalDelay: TimeInterval = 0
+        var prevDist  = -1
+        var ringIndex = 0
+
+        for addr in sorted {
+            let dist = abs(addr.row - cell.row) + abs(addr.col - cell.col)
+            if dist != prevDist {
+                // Nouvelle vague : décalage supplémentaire + son d'anneau.
+                if prevDist >= 0 { totalDelay += waveDelay }
+                let capturedRing  = ringIndex
+                let capturedDelay = totalDelay
+                run(SKAction.sequence([
+                    SKAction.wait(forDuration: capturedDelay),
+                    SKAction.run { BlomixProceduralSFX.shared.playCrosxPulse(ring: capturedRing) },
+                ]))
+                prevDist  = dist
+                ringIndex += 1
+            }
+            let capturedAddr = addr
+            let capturedDelay = totalDelay
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: capturedDelay),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColor)
+                    let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
+                    container.childNode(withName: nodeName)?.removeFromParent()
+                    let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColor))
+                    newSprite.name = nodeName
+                    newSprite.position = Self.gridContainerLocalCellCenter(
+                        row: capturedAddr.row, column: capturedAddr.col)
+                    newSprite.setScale(0.5)
+                    container.addChild(newSprite)
+                    newSprite.run(SKAction.sequence([
+                        SKAction.scale(to: 1.35, duration: 0.07),
+                        SKAction.scale(to: 1.00, duration: 0.05),
+                    ]))
+                },
+            ]))
+        }
+        let finalDelay = totalDelay + waveDelay  // inclut la dernière vague
+
+        // ── 4. Resynchronisation + résolution des chaînes ─────────────────────
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: finalDelay + 0.12),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                self.resolveChains()
+            },
+        ]))
+    }
+
+    // MARK: SCRUMBLX
+
+    /// Chaque ligne occupée se décale horizontalement d'un nombre de crans aléatoire (1–7)
+    /// dans une direction aléatoire, avec wrap-around.
+    /// Les déplacements sont animés cran par cran (0.08 s/cran) avec un décalage de 0.3 s entre lignes.
+    /// Séquence : flash blanc sur toute la grille → animations → drawGrid + resolveChains.
+    private func applyMagixEffect_scrumblx(at cell: GridAddress) {
+        // ── 1. La case d'atterrissage disparaît immédiatement (le SCRUMBLX n'est pas dans la grille après).
+        grid[cell.row][cell.col] = .empty
+
+        // ── 2. −1 sur tous les Brix de la grille (avant l'animation de décalage).
+        var vanishedBrixAddrs = Set<GridAddress>()
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                guard case .priks(let n) = grid[r][c] else { continue }
+                if n <= 1 {
+                    grid[r][c] = .empty
+                    vanishedBrixAddrs.insert(GridAddress(row: r, col: c))
+                } else {
+                    grid[r][c] = .priks(n - 1)
+                }
+            }
+        }
+        if !vanishedBrixAddrs.isEmpty {
+            let pts = vanishedBrixAddrs.count * 20
+            addScore(points: pts, chainMultiplier: 0, floatAt: sceneCentroid(for: vanishedBrixAddrs))
+        }
+
+        // ── 3. Supprime toutes les barres de jonction (fausses après décalage + Brix disparus).
+        let allOccupied: Set<GridAddress> = {
+            var s = Set<GridAddress>()
+            for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+                for c in 0..<GridLayout.columnCount {
+                    if grid[r][c] != .empty { s.insert(GridAddress(row: r, col: c)) }
+                }
+            }
+            return s
+        }()
+        removeBloxJunctionElementsTouching(allOccupied.union(vanishedBrixAddrs))
+
+
+        // ── 4. Flash blanc sur le sprite SCRUMBLX uniquement, puis il disparaît.
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            // Fallback sans container : décalage instantané, compaction, puis resolveChains.
+            let colHad: [Bool] = (0..<GridLayout.columnCount).map { col in
+                (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
+            }
+            applyMagixEffect_scrumblx_shiftGrid()
+            drawGrid()
+            applyMagixCompactionAndContinue(columnHadBlockBefore: colHad)
+            return
+        }
+
+        // Mise à jour visuelle des Brix dans le container existant (avant l'animation).
+        // Brix disparus : sprite supprimé. Brix survivants : label mis à jour.
+        // Sons staggerés pour les Brix qui disparaissent à cause du SCRUMBLX (−1 → 0).
+        let sortedVanished = vanishedBrixAddrs.sorted { a, b in
+            a.row != b.row ? a.row < b.row : a.col < b.col
+        }
+        for (i, _) in sortedVanished.enumerated() {
+            if i == 0 {
+                playMatchSound(.priksVanish)
+            } else {
+                run(SKAction.sequence([
+                    SKAction.wait(forDuration: TimeInterval(i) * 0.07),
+                    SKAction.run { [weak self] in self?.playMatchSound(.priksVanish) },
+                ]))
+            }
+        }
+
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                let addr = GridAddress(row: r, col: c)
+                let nodeName = "cell_\(r)_\(c)"
+                if vanishedBrixAddrs.contains(addr) {
+                    container.childNode(withName: nodeName)?.removeFromParent()
+                } else if case .priks(let newN) = grid[r][c],
+                          let bg = container.childNode(withName: nodeName),
+                          let lbl = bg.children.first(where: { $0 is SKLabelNode }) as? SKLabelNode {
+                    lbl.text = "\(newN)"
+                }
+            }
+        }
+
+        // ── Clip visuel : on enveloppe le container dans un SKCropNode masqué à la taille exacte
+        //    de la grille. Aucun sprite ne peut apparaître en dehors quelle que soit l'animation.
+        //
+        //    Le gridFrameOutline dépasse légèrement hors du masque (frameMargin + strokeW/2 ≈ 2.5 pt).
+        //    On le détache du container AVANT le clip et on le pose directement dans la scène
+        //    pour qu'il reste visible pendant toute l'animation.
+        //    drawGrid() le recrée à l'intérieur du container à la fin de l'animation.
+        let containerScenePos = container.position
+        let tempOutline = container.childNode(withName: Self.gridFrameOutlineName)
+        tempOutline?.removeFromParent()
+        if let outline = tempOutline {
+            outline.position = containerScenePos   // identique à sa position scène d'origine
+            addChild(outline)
+        }
+
+        let gridClipSize = CGSize(
+            width:  GridLayout.spanPoints,
+            height: CGFloat(GridLayout.rowCount) * GridLayout.cellPoints)
+        let cropWrapper = SKCropNode()
+        cropWrapper.maskNode = SKSpriteNode(color: .white, size: gridClipSize)
+        cropWrapper.position  = containerScenePos
+        cropWrapper.zPosition = container.zPosition
+        container.removeFromParent()
+        container.position = .zero          // position relative au cropWrapper
+        cropWrapper.addChild(container)
+        addChild(cropWrapper)
+
+        // Son atmosphérique SCRUMBLX — démarre avec le flash.
+        playMatchSound(.scrumblx)
+
+        let flashDur: TimeInterval = 0.18
+        if let scrumblxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
+            // Renommer immédiatement pour que le loop de décalage de ligne ne le trouve pas
+            // et ne tente pas de l'animer en même temps que le fondu de disparition.
+            scrumblxSprite.name = "cell_scrumblx_vanishing"
+            scrumblxSprite.run(SKAction.sequence([
+                SKAction.colorize(with: .white, colorBlendFactor: 0.95, duration: flashDur * 0.35),
+                SKAction.fadeAlpha(to: 0, duration: flashDur * 0.65),
+                SKAction.removeFromParent(),
+            ]))
+        }
+
+        // ── 4. Prépare les décalages par ligne (haut → bas, seulement les lignes non vides).
+        // Structure : (rowIndex, direction: +1 right / -1 left, steps: 1…7)
+        struct RowShift { let row: Int; let direction: Int; let steps: Int }
+        var shifts: [RowShift] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            let hasBlock = (0..<GridLayout.columnCount).contains { grid[r][$0] != .empty }
+            guard hasBlock else { continue }
+            let dir   = Bool.random() ? 1 : -1
+            let steps = Int.random(in: 1...7)
+            shifts.append(RowShift(row: r, direction: dir, steps: steps))
+        }
+
+        // ── 5. Animation : un cran à la fois, wrap-around visuel à chaque bord.
+        //
+        // Pour chaque cran, on identifie les sprites qui sortiraient de la grille et on les
+        // téléporte instantanément à l'opposé (colonne −1 ou colonne 8) avant le moveBy.
+        // Résultat : on ne voit jamais un bloc hors de la grille.
+        let cranDur:  TimeInterval = 0.08
+        let rowGap:   TimeInterval = 0.30
+        let cellPts:  CGFloat      = GridLayout.cellPoints
+        let cols      = GridLayout.columnCount
+        let half      = GridLayout.spanPoints / 2   // demi-largeur du container
+
+        for (shiftIdx, shift) in shifts.enumerated() {
+            let lineStartDelay = flashDur + Double(shiftIdx) * rowGap
+
+            for step in 1...shift.steps {
+                let stepDelay        = lineStartDelay + Double(step - 1) * cranDur
+                let stepsDoneBefore  = step - 1   // crans déjà effectués avant celui-ci
+
+                run(SKAction.sequence([
+                    SKAction.wait(forDuration: stepDelay),
+                    SKAction.run { [weak self] in
+                        guard let self else { return }
+                        let dx = CGFloat(shift.direction) * cellPts
+
+                        for c in 0..<cols {
+                            guard let sprite = container.childNode(
+                                withName: "cell_\(shift.row)_\(c)") as? SKSpriteNode
+                            else { continue }
+
+                            // Colonne logique courante du sprite (après stepsDoneBefore crans).
+                            let currentCol = ((c + shift.direction * stepsDoneBefore) % cols + cols) % cols
+
+                            // Stoppe tout moveBy résiduel et snap à la position grille exacte.
+                            // Évite les dérives de position liées au timing sub-frame entre steps.
+                            sprite.removeAllActions()
+                            let snapX = (-half) + (CGFloat(currentCol) + 0.5) * cellPts
+                            sprite.position = CGPoint(x: snapX, y: sprite.position.y)
+
+                            // Wrap-around : ce cran fait-il sortir le sprite de la grille ?
+                            let wraps = (shift.direction == 1 && currentCol == cols - 1)
+                                     || (shift.direction == -1 && currentCol == 0)
+                            if wraps {
+                                // Téléportation au bord opposé (hors grille d'1 case) avant le moveBy.
+                                let teleportX: CGFloat = shift.direction == 1
+                                    ? -half - cellPts / 2   // juste à gauche de la colonne 0
+                                    :  half + cellPts / 2   // juste à droite de la colonne (cols−1)
+                                sprite.position = CGPoint(x: teleportX, y: sprite.position.y)
+                            }
+
+                            let move = SKAction.moveBy(x: dx, y: 0, duration: cranDur * 0.9)
+                            move.timingMode = .easeInEaseOut
+                            sprite.run(move)
+                        }
+                    },
+                ]))
+            }
+
+            // Après le dernier cran : mise à jour grille + renommage sprites.
+            let finalDelay = lineStartDelay + Double(shift.steps) * cranDur
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: finalDelay),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    let r     = shift.row
+                    let delta = shift.direction * shift.steps
+
+                    let oldRow = self.grid[r]
+                    var newRow = [BlockType](repeating: .empty, count: cols)
+                    for c in 0..<cols {
+                        let newC = ((c + delta) % cols + cols) % cols
+                        newRow[newC] = oldRow[c]
+                    }
+                    self.grid[r] = newRow
+
+                    // Renommage via préfixe temporaire pour éviter les collisions.
+                    for c in 0..<cols {
+                        container.childNode(withName: "cell_\(r)_\(c)")?.name = "cell_tmp_\(r)_\(c)"
+                    }
+                    for c in 0..<cols {
+                        let origC = ((c - delta) % cols + cols) % cols
+                        container.childNode(withName: "cell_tmp_\(r)_\(origC)")?.name = "cell_\(r)_\(c)"
+                    }
+                },
+            ]))
+        }
+
+        // ── 6. Après toutes les animations : gravité (compaction vers le haut) puis resolveChains.
+        let lastShiftEnd: TimeInterval = {
+            guard let last = shifts.last else { return flashDur }
+            return flashDur + Double(shifts.count - 1) * rowGap + Double(last.steps) * cranDur
+        }()
+
+        // Snapshot des colonnes occupées pris maintenant (avant compaction) pour les bonus colonne vidée.
+        let columnHadBlock: [Bool] = (0..<GridLayout.columnCount).map { col in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
+        }
+
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: lastShiftEnd + 0.15),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                // Retirer le border temporaire posé dans la scène : drawGrid() le recrée dans le container.
+                tempOutline?.removeFromParent()
+                // Restaurer le container depuis le cropWrapper avant de redessiner la grille.
+                cropWrapper.removeFromParent()
+                container.removeFromParent()
+                container.position = containerScenePos
+                self.addChild(container)
+                self.drawGrid()
+                self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
+            },
+        ]))
+    }
+
+    /// Version synchrone sans animation — décale la grille logique uniquement (fallback).
+    private func applyMagixEffect_scrumblx_shiftGrid() {
+        let cols = GridLayout.columnCount
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            let hasBlock = (0..<cols).contains { grid[r][$0] != .empty }
+            guard hasBlock else { continue }
+            let dir   = Bool.random() ? 1 : -1
+            let steps = Int.random(in: 1...7)
+            let delta = dir * steps
+            let oldRow = grid[r]
+            var newRow = [BlockType](repeating: .empty, count: cols)
+            for c in 0..<cols {
+                let newC = ((c + delta) % cols + cols) % cols
+                newRow[newC] = oldRow[c]
+            }
+            grid[r] = newRow
+        }
+    }
+
+        // MARK: Compaction helper Magix
+
+    /// Compacte la grille (gravité vers le haut), anime les blocs, puis appelle `finishChainWaveAfterPhysicalPhase()`.
+    /// Utilisé après les effets BRIXED (les Brix disparaissent mais ne forment pas une chaîne ordinaire).
+    private func applyMagixCompactionAndContinue(columnHadBlockBefore: [Bool]) {
+        let riseMoves = computeCompactRiseMovesReadingCurrentGrid()
+        compactGridTowardTop()
+
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            drawGrid()
+            awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
+            finishChainWaveAfterPhysicalPhase()
+            return
+        }
+
+        if riseMoves.isEmpty {
+            drawGrid()
+            awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
+            finishChainWaveAfterPhysicalPhase()
+            return
+        }
+
+        let movingSourceCells = Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) })
+        removeBloxJunctionElementsTouching(movingSourceCells)
+
+        for move in riseMoves {
+            let nodeName = "cell_\(move.fromRow)_\(move.column)"
+            guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
+            let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
+            let moveAction = SKAction.move(to: targetLocal, duration: CompactRiseAnimation.duration)
+            moveAction.timingMode = .easeOut
+            sprite.run(moveAction)
+        }
+
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: CompactRiseAnimation.duration),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
+                self.finishChainWaveAfterPhysicalPhase()
+            },
+        ]))
+    }
+
+        // MARK: - Bombes (`priks.html`)
 
     /// Icône + compteur **sous** la zone d’aperçu des lignes (à droite) ; file des 2 prochains blocs à sa gauche.
     private func setupBombHUD() {
@@ -4394,12 +7254,12 @@ final class GameScene: SKScene {
         childNode(withName: Self.upcomingSlotTwoAheadName)?.removeFromParent()
         childNode(withName: Self.upcomingSlotNextName)?.removeFromParent()
         childNode(withName: Self.upcomingQueueCaptionLabelName)?.removeFromParent()
+        childNode(withName: Self.evalDebugLabelName)?.removeFromParent()
 
         let iconSize = CGSize(width: 36, height: 36)
-        let icon = SKSpriteNode(imageNamed: "WebImages/bomb")
+        let icon = Self.makeBombShaderSprite(size: iconSize)
         icon.name = Self.bombHudIconName
         icon.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        icon.size = iconSize
         icon.zPosition = 12
 
         let label = SKLabelNode(text: "1")
@@ -4440,6 +7300,8 @@ final class GameScene: SKScene {
         caption.zPosition = 12
         addChild(caption)
 
+        // Label de debug eval désactivé (affichage masqué, fonction toujours active).
+
         layoutBombHUD()
         refreshUpcomingQueueSlots()
         updateBombHUD()
@@ -4473,9 +7335,10 @@ final class GameScene: SKScene {
         let priksFont = max(6, priksDigitRef * (slotCellPoints / UpcomingQueueLayout.cellPoints))
         // Nettoyer les anciens enfants (Priks digit + biseau) — le sprite est réutilisé entre les appels.
         sprite.childNode(withName: Self.queueSlotPriksDigitName)?.removeFromParent()
-        for name in [BevelStyle.top, BevelStyle.left, BevelStyle.right, BevelStyle.bottom] {
-            sprite.childNode(withName: name)?.removeFromParent()
-        }
+        // Supprimer le shader, le halo et les particules Magix si le slot change de type.
+        sprite.shader = nil
+        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
         sprite.colorBlendFactor = 0
         sprite.color = .white
         switch block {
@@ -4484,7 +7347,6 @@ final class GameScene: SKScene {
             sprite.color = Self.bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
             sprite.colorBlendFactor = 1
             sprite.size = innerSize
-            for bevel in makeBevelShapes(for: innerSize) { sprite.addChild(bevel) }
         case .priks(let value):
             sprite.texture = nil
             sprite.color = Self.priksSolidFillColor()
@@ -4500,7 +7362,11 @@ final class GameScene: SKScene {
             digit.position = .zero
             digit.zPosition = 2
             sprite.addChild(digit)
-            for bevel in makeBevelShapes(for: innerSize) { sprite.addChild(bevel) }
+        case .magix(let kind):
+            // Shader dégradé mouvant — piloté par u_time ; symbole centré via queueSlotPriksDigitName
+            // (nettoyé automatiquement par le bloc de cleanup en tête de fonction).
+            applyMagixShader(to: sprite, size: innerSize, kind: kind,
+                             symbolLabelName: Self.queueSlotPriksDigitName)
         case .empty:
             sprite.texture = nil
             sprite.color = SKColor(white: 0.12, alpha: 1)
@@ -4549,6 +7415,11 @@ final class GameScene: SKScene {
             x: icon.position.x - icon.size.width / 2 - gapCount,
             y: bandY
         )
+
+        // Debug eval label — sous l'icône bombe, aligné à droite sur le bord de la grille.
+        if let evalLbl = childNode(withName: Self.evalDebugLabelName) as? SKLabelNode {
+            evalLbl.position = CGPoint(x: gridRight, y: bandY - icon.size.height / 2 - 10)
+        }
     }
 
     /// Met à jour le chiffre ; désactive le mode bombe si plus de munitions.
@@ -4577,12 +7448,14 @@ final class GameScene: SKScene {
         } else {
             guard bombCount > 0 else { return }
             // Activation : la bombe sort du stock immédiatement
+            playMatchSound(.bombLoad)
             isBombMode = true
             bombCount -= 1
             updateBombHUD()
         }
         updatePreviewSprite()
         refreshUpcomingQueueSlots()
+        updateHintButton()
     }
 
     private func touchHitsBombHUD(_ locationInScene: CGPoint) -> Bool {
@@ -4673,7 +7546,7 @@ final class GameScene: SKScene {
         digit.name                   = Self.bombNukeDigitName
         digit.fontName               = Self.customUIFontPostScriptName
         digit.fontSize               = max(10, size.width * 0.38)
-        digit.fontColor              = .black
+        digit.fontColor              = .white
         digit.horizontalAlignmentMode = .center
         digit.verticalAlignmentMode   = .center
         digit.position               = .zero
@@ -4681,10 +7554,10 @@ final class GameScene: SKScene {
         sprite.addChild(digit)
     }
 
-    /// Met à jour la texture et le digit de l'icône bombe HUD du bas (appelé au changement de stage).
+    /// Met à jour le shader et le digit de l'icône bombe HUD du bas (appelé au changement de stage ou de palette).
     private func refreshBombHudIcon() {
         guard let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode else { return }
-        icon.texture = SKTexture(imageNamed: currentBombImageName)
+        Self.applyBombShader(to: icon, size: icon.size)
         attachNukeDigitIfNeeded(to: icon, size: icon.size)
     }
 
@@ -4707,7 +7580,7 @@ final class GameScene: SKScene {
                 case .priks:
                     guard seen.insert("__priks__").inserted else { continue }
                     colors.append(Self.priksSolidFillColor())
-                case .empty:
+                case .magix, .empty:
                     break
                 }
                 if colors.count >= maxColors { return colors }
@@ -4717,7 +7590,8 @@ final class GameScene: SKScene {
     }
 
     /// Crée un nœud annulaire via un CGPath fill (évite le bug strokeColor/Metal de SKShapeNode).
-    private func makeShockWaveRing() -> SKShapeNode {
+    /// - Parameter color: couleur de remplissage (blanc par défaut, jaune pour les premiers anneaux).
+    private func makeShockWaveRing(color: SKColor = SKColor(white: 0.95, alpha: 1)) -> SKShapeNode {
         let outerR = BombExplosionFeedback.shockWaveBaseRadius
         let innerR = outerR - BombExplosionFeedback.shockWaveRingWidth
         let path   = CGMutablePath()
@@ -4725,21 +7599,25 @@ final class GameScene: SKScene {
         path.addEllipse(in: CGRect(x: -outerR, y: -outerR, width: outerR * 2, height: outerR * 2))
         path.addEllipse(in: CGRect(x: -innerR, y: -innerR, width: innerR * 2, height: innerR * 2))
         let node = SKShapeNode(path: path, centered: false)
-        node.fillColor   = SKColor(white: 0.95, alpha: 1)
+        node.fillColor   = color
         node.strokeColor = .clear
         node.lineWidth   = 0
         return node
     }
 
-    /// Train de 3 anneaux concentriques échelonnés.
+    /// Train de 5 anneaux concentriques échelonnés (2 jaunis + 3 blancs).
     /// Tous les rings sont ajoutés immédiatement (alpha=0) ; chacun attend son délai via SKAction
     /// puis apparaît instantanément (fadeAlpha duration:0) et lance grow+fade.
     private func addBombShockWave(at scenePoint: CGPoint) {
         let count   = BombExplosionFeedback.shockWaveCount
         let stagger = BombExplosionFeedback.shockWaveStagger
+        // Les 2 premiers anneaux utilisent le jaune du set du joueur pour un effet de chaleur à l'épicentre.
+        let yellow  = Self.bloxSolidFillColor(colorName: "yellow") ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
+        let white   = SKColor(white: 0.95, alpha: 1)
         for i in 0..<count {
             let delay = TimeInterval(i) * stagger
-            let ring  = makeShockWaveRing()
+            let ringColor = i < 2 ? yellow : white
+            let ring  = makeShockWaveRing(color: ringColor)
             ring.position  = scenePoint
             ring.zPosition = BombExplosionFeedback.shockWaveZ
             ring.alpha     = 0          // invisible jusqu'à son tour
@@ -4829,11 +7707,28 @@ final class GameScene: SKScene {
         completion: @escaping () -> Void
     ) {
         playMatchSound(.bomb)
+        shakeScreen(intensity: 2.5)
+        hapticHeavy()
 
         guard let container = childNode(withName: Self.gridContainerName) as? SKNode else {
             completion()
             return
         }
+
+        // Flash central : disque plein qui apparaît instantanément puis se réduit et s'efface.
+        let flash = SKShapeNode(circleOfRadius: BombExplosionFeedback.flashRadius)
+        flash.fillColor   = SKColor(white: 1.0, alpha: 0.9)
+        flash.strokeColor = .clear
+        flash.position    = centerScenePoint
+        flash.zPosition   = BombExplosionFeedback.flashZ
+        addChild(flash)
+        flash.run(SKAction.sequence([
+            SKAction.group([
+                SKAction.scale(to: 0.1, duration: BombExplosionFeedback.flashDuration),
+                SKAction.fadeAlpha(to: 0, duration: BombExplosionFeedback.flashDuration),
+            ]),
+            SKAction.removeFromParent(),
+        ]))
 
         addBombShockWave(at: centerScenePoint)
         if spawnEmitter {
@@ -4926,12 +7821,11 @@ final class GameScene: SKScene {
 
         let cellCenter = scenePointCellCenter(row: row, column: col)
 
-        let bombSprite = SKSpriteNode(imageNamed: currentBombImageName)
+        let bombSpriteSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+        let bombSprite = Self.makeBombShaderSprite(size: bombSpriteSize)
         bombSprite.name       = Self.fallingSpriteName
         bombSprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         bombSprite.position   = cellCenter
-        let bombSpriteSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
-        bombSprite.size       = bombSpriteSize
         bombSprite.zPosition  = 22
         attachNukeDigitIfNeeded(to: bombSprite, size: bombSpriteSize)
         addChild(bombSprite)
@@ -4963,8 +7857,15 @@ final class GameScene: SKScene {
                 spawnEmitter: false
             ) { [weak self] in
                 guard let self else { return }
+                // Capture les Brix dans la zone avant effacement (applyBombExplosion3x3 met tout à .empty).
+                let blastCells   = self.bombAffectedCells(centerRow: row, centerCol: col)
+                let priksInBlast = Set(blastCells.filter { if case .priks = self.grid[$0.row][$0.col] { return true }; return false })
                 self.applyBombExplosion3x3(centerRow: row, centerCol: col)
                 self.addScore(points: 10, chainMultiplier: 0, floatAt: cellCenter)
+                if !priksInBlast.isEmpty {
+                    let priksCenter = self.sceneCentroid(for: priksInBlast)
+                    self.addScore(points: priksInBlast.count * 20, chainMultiplier: 0, floatAt: priksCenter)
+                }
                 self.isBombMode = false
                 self.updateBombHUD()
                 if self.isTutorialMode { self.tutorialBombDropped() }
@@ -4979,6 +7880,9 @@ final class GameScene: SKScene {
                     self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                     self.childNode(withName: Self.previewNodeName)?.isHidden = false
                     self.updatePreviewSprite()
+                    // Les chaînes qui suivent une explosion de bombe démarrent au niveau 1 (cascade),
+                    // de sorte que les cascades éventuelles soient comptées niveau 2, 3, etc.
+                    self.chainSeriesLevel = 1
                     self.resolveChains()
                 }
 
@@ -5049,11 +7953,13 @@ final class GameScene: SKScene {
         let launchStart = scenePointLaunchStartBelowGrid(column: columnIndex)
         let end = scenePointCellCenter(row: landingRow, column: columnIndex)
 
-        let falling = SKSpriteNode(imageNamed: "WebImages/bomb")
+        let bombDropSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+        let falling = Self.makeBombShaderSprite(size: bombDropSize)
         falling.name = Self.fallingSpriteName
         falling.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         falling.position = start
-        falling.size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+        falling.xScale = FlightStretch.xScale
+        falling.yScale = FlightStretch.yScale
         falling.zPosition = 20
         addChild(falling)
 
@@ -5061,6 +7967,11 @@ final class GameScene: SKScene {
 
         let rise = SKAction.move(to: end, duration: 0.4)
         rise.timingMode = .easeOut
+
+        let unstretchX = SKAction.scaleX(to: 1.0, duration: 0.4)
+        unstretchX.timingMode = .easeIn
+        let unstretchY = SKAction.scaleY(to: 1.0, duration: 0.4)
+        unstretchY.timingMode = .easeIn
 
         // Traîne dorée pour la bombe.
         run(SKAction.sequence([
@@ -5085,10 +7996,17 @@ final class GameScene: SKScene {
                 spawnEmitter: false
             ) { [weak self] in
                 guard let self else { return }
+                // Capture les Brix dans la zone avant effacement.
+                let blastCells   = self.bombAffectedCells(centerRow: landingRow, centerCol: columnIndex)
+                let priksInBlast = Set(blastCells.filter { if case .priks = self.grid[$0.row][$0.col] { return true }; return false })
                 self.applyBombExplosion3x3(centerRow: landingRow, centerCol: columnIndex)
 
                 // Non-visual updates first (order-independent of animation)
                 self.addScore(points: 10, chainMultiplier: 0, floatAt: bombFloatAt)
+                if !priksInBlast.isEmpty {
+                    let priksCenter = self.sceneCentroid(for: priksInBlast)
+                    self.addScore(points: priksInBlast.count * 20, chainMultiplier: 0, floatAt: priksCenter)
+                }
                 self.isBombMode = false
                 self.updateBombHUD()
                 if self.isTutorialMode { self.tutorialBombDropped() }
@@ -5107,6 +8025,8 @@ final class GameScene: SKScene {
                         preview.isHidden = false
                     }
                     self.updatePreviewSprite()
+                    // Idem placeBombAtCell : la première chaîne après la bombe = niveau 1.
+                    self.chainSeriesLevel = 1
                     self.resolveChains()
                 }
 
@@ -5138,7 +8058,7 @@ final class GameScene: SKScene {
             }
         }
 
-        falling.run(SKAction.sequence([snapToColumn, rise, finish]))
+        falling.run(SKAction.sequence([snapToColumn, SKAction.group([rise, unstretchX, unstretchY]), finish]))
     }
 
     /// Sprite de la pièce qui **monte** (couleur classique ou Priks + étiquette chiffre).
@@ -5146,10 +8066,12 @@ final class GameScene: SKScene {
         switch block {
         case .color:
             let s = Self.makeSolidGameplayBlockSprite(block: block)
-            for bevel in Self.makeBevelShapes(for: s.size) { s.addChild(bevel) }
             return s
         case .priks(let value):
             return Self.makeSolidGameplayBlockSprite(block: .priks(value), priksDigitFontSize: 20)
+        case .magix(let kind):
+            let size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+            return Self.makeMagixShaderSprite(size: size, kind: kind)
         case .empty:
             return SKSpriteNode(color: .clear, size: CGSize(width: 1, height: 1))
         }
@@ -5273,26 +8195,28 @@ final class GameScene: SKScene {
 
         preview.childNode(withName: Self.previewPriksDigitName)?.removeFromParent()
         preview.childNode(withName: Self.bombNukeDigitName)?.removeFromParent()
-        // Nettoyage du biseau existant (sprite réutilisé entre les appels).
-        for name in [BevelStyle.top, BevelStyle.left, BevelStyle.right, BevelStyle.bottom] {
-            preview.childNode(withName: name)?.removeFromParent()
-        }
         preview.colorBlendFactor = 0
         preview.color = .white
 
         if isBombMode {
-            preview.childNode(withName: Self.bombNukeDigitName)?.removeFromParent()
-            preview.texture = SKTexture(imageNamed: currentBombImageName)
-            preview.color = .white
-            preview.colorBlendFactor = 0
+            // Nettoyer shader/halo/particules MAGIX éventuels (preview réutilisée).
+            preview.shader = nil
+            preview.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+            preview.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+            preview.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
             let previewBombSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
-            preview.size = previewBombSize
+            Self.applyBombShader(to: preview, size: previewBombSize)
             attachNukeDigitIfNeeded(to: preview, size: previewBombSize)
             preview.position = scenePointPreviewRow(column: selectedColumn)
             refreshPendingBottomLinePreview()
             startPreviewBreathing()
             return
         }
+
+        // Supprimer le shader, le halo et les particules Magix si le bloc courant a changé de type.
+        preview.shader = nil
+        preview.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        preview.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
 
         switch currentBlock {
         case .color(let colorName):
@@ -5313,6 +8237,14 @@ final class GameScene: SKScene {
             digit.position = .zero
             digit.zPosition = 2
             preview.addChild(digit)
+        case .magix(let kind):
+            // Shader dégradé mouvant — piloté par u_time ; symbole centré via previewPriksDigitName
+            // (nettoyé automatiquement par le bloc de cleanup en tête de fonction).
+            Self.applyMagixShader(to: preview,
+                                  size: CGSize(width: GridLayout.cellPoints - 4,
+                                               height: GridLayout.cellPoints - 4),
+                                  kind: kind,
+                                  symbolLabelName: Self.previewPriksDigitName)
         case .empty:
             preview.texture = nil
             preview.colorBlendFactor = 1
@@ -5325,20 +8257,22 @@ final class GameScene: SKScene {
 
         // Biseau sur le blox courant (pas sur la bombe ni sur .empty).
         if case .empty = currentBlock {} else {
-            for bevel in Self.makeBevelShapes(for: previewBlockSize) { preview.addChild(bevel) }
         }
 
         refreshPendingBottomLinePreview()
         startPreviewBreathing()
     }
 
-    private static let previewBreathKey = "previewBreath"
+    private static let previewBreathKey  = "previewBreath"
+    private static let previewJitterKey  = "previewJitter"
 
     private func startPreviewBreathing() {
         guard let preview = childNode(withName: Self.previewNodeName) as? SKSpriteNode,
               !preview.isHidden else { return }
         preview.removeAction(forKey: Self.previewBreathKey)
+        preview.removeAction(forKey: Self.previewJitterKey)
         preview.setScale(1.0)
+        preview.position = scenePointPreviewRow(column: selectedColumn) // reset position après éventuel jitter
         let up   = SKAction.scale(to: 1.2, duration: 0.5)
         up.timingMode   = .easeInEaseOut
         let down = SKAction.scale(to: 1.0, duration: 0.5)
@@ -5347,12 +8281,40 @@ final class GameScene: SKScene {
                     withKey: Self.previewBreathKey)
     }
 
+    /// Tremblement organique du bloc preview quand la ligne entrante est imminente (9e coup sur 10).
+    /// Même signature sin/cos que le jitter du strip de prévisualisation en bas.
+    private func startPreviewJitter() {
+        guard let preview = childNode(withName: Self.previewNodeName) as? SKSpriteNode,
+              !preview.isHidden else { return }
+        preview.removeAction(forKey: Self.previewBreathKey)
+        preview.removeAction(forKey: Self.previewJitterKey)
+        preview.setScale(1.0)
+        let jitter = SKAction.repeatForever(
+            SKAction.customAction(withDuration: PendingLinePreviewFeedback.organicCycleDuration) { [weak self] node, elapsed in
+                guard let self else { return }
+                let t  = CGFloat(elapsed)
+                // Fréquences ~1.7× plus rapides que le strip du bas pour différencier les deux.
+                let dx = sin(t * 30.0) * PendingLinePreviewFeedback.jitterAmplitudeX
+                     + sin(t * 12.5 + 1.2) * PendingLinePreviewFeedback.jitterAmplitudeX * 0.55
+                let dy = cos(t * 26.0 + 0.7) * PendingLinePreviewFeedback.jitterAmplitudeY
+                let base = self.scenePointPreviewRow(column: self.selectedColumn)
+                node.position = CGPoint(x: base.x + dx, y: base.y + dy)
+            }
+        )
+        preview.run(jitter, withKey: Self.previewJitterKey)
+    }
+
     private func stopPreviewBreathing() {
         guard let preview = childNode(withName: Self.previewNodeName) else { return }
         preview.removeAction(forKey: Self.previewBreathKey)
+        preview.removeAction(forKey: Self.previewJitterKey)
         let snap = SKAction.scale(to: 1.0, duration: 0.06)
         snap.timingMode = .easeOut
         preview.run(snap)
+        // Snap de position vers le centre de colonne (annule le décalage du jitter).
+        if let spr = preview as? SKSpriteNode {
+            spr.position = scenePointPreviewRow(column: selectedColumn)
+        }
     }
 
     /// Centre de la case `(row, col)` en coordonnées **scène** (aligné sur `drawGrid`).
@@ -5528,9 +8490,11 @@ final class GameScene: SKScene {
     ///   B – rebond élastique : centre redescend sous p0 (p0−h×0.13), allongement vertical, rétrécissement latéral
     ///   C – stabilisation : retour exact à p0, scales 1.0
     /// Pas de changement d'anchorPoint : les positions cibles sont calculées analytiquement.
-    private func playLandingBounce(on sprite: SKSpriteNode) {
+    private func playLandingBounce(on sprite: SKSpriteNode, blockColor: SKColor = SKColor(white: 0.8, alpha: 1)) {
         let p0 = sprite.position
         let h  = sprite.size.height
+        // Coordonnées scène pour les paillettes (sprite est enfant du gridContainer, pas de la scène).
+        let sceneCenter = sprite.parent.map { convert(sprite.position, from: $0) } ?? sprite.position
 
         // Phase A : squash à l'impact — centre légèrement au-dessus, bloc aplati et étalé
         let moveA   = SKAction.move(to: CGPoint(x: p0.x, y: p0.y + h * 0.055),
@@ -5562,6 +8526,91 @@ final class GameScene: SKScene {
         let phaseC  = SKAction.group([moveC, scaleXC, scaleYC])
 
         sprite.run(SKAction.sequence([phaseA, phaseB, phaseC]))
+
+        // Burst centrifuge synchrone avec l'impact : les paillettes partent du bord du bloc,
+        // se dispersent radialement (easeOut) et disparaissent quand le bloc a retrouvé
+        // sa taille définitive (durée totale = LandingBounce.totalDuration).
+        spawnLandingImpactSparkles(at: sceneCenter, color: blockColor)
+    }
+
+    /// Effet d'impact à l'atterrissage : deux couches de paillettes superposées.
+    /// - Couche 1 (éjection) : ~12 particules, déplacement radial rapide, disparaissent en ~0.22s.
+    /// - Couche 2 (nuage/poudre) : ~26 particules très fines, quasi sur place, s'estompent en ~0.55s.
+    private func spawnLandingImpactSparkles(at center: CGPoint, color: SKColor) {
+        let blockRadius: CGFloat = GridLayout.cellPoints / 2   // 20 pt
+
+        // ── Couche 1 : éjection rapide ──────────────────────────────────────────────
+        let ejectDuration: TimeInterval = 0.22
+
+        for _ in 0..<12 {
+            let angle     = CGFloat.random(in: 0...(2 * .pi))
+            let startDist = CGFloat.random(in: (blockRadius - 3)...(blockRadius + 3))
+            let endDist   = startDist + CGFloat.random(in: 12...26)
+
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.8...1.8))
+            spark.fillColor   = color
+            spark.strokeColor = .clear
+            spark.alpha       = 0
+            spark.zPosition   = 37
+            spark.position    = CGPoint(x: center.x + cos(angle) * startDist,
+                                        y: center.y + sin(angle) * startDist)
+            addChild(spark)
+
+            let move = SKAction.move(
+                to: CGPoint(x: center.x + cos(angle) * endDist,
+                            y: center.y + sin(angle) * endDist),
+                duration: ejectDuration)
+            move.timingMode = .easeOut
+
+            spark.run(SKAction.sequence([
+                SKAction.group([
+                    move,
+                    SKAction.sequence([
+                        SKAction.fadeAlpha(to: 0.9, duration: 0.03),
+                        SKAction.fadeAlpha(to: 0,   duration: ejectDuration - 0.03),
+                    ]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+
+        // ── Couche 2 : nuage en suspension (poudre) ─────────────────────────────────
+        let cloudDuration: TimeInterval = 0.80
+
+        for _ in 0..<38 {
+            let angle     = CGFloat.random(in: 0...(2 * .pi))
+            let startDist = CGFloat.random(in: (blockRadius - 5)...(blockRadius + 5))
+            // Déplacement minimal = particules quasi immobiles, effet poudre en suspension.
+            let drift     = CGFloat.random(in: 1...5)
+            let upBias    = CGFloat.random(in: 0...3)   // légère dérive vers le haut
+
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.5...1.2))
+            spark.fillColor   = color
+            spark.strokeColor = .clear
+            spark.alpha       = 0
+            spark.zPosition   = 36
+            spark.position    = CGPoint(x: center.x + cos(angle) * startDist,
+                                        y: center.y + sin(angle) * startDist)
+            addChild(spark)
+
+            let move = SKAction.move(
+                to: CGPoint(x: center.x + cos(angle) * (startDist + drift),
+                            y: center.y + sin(angle) * (startDist + drift) + upBias),
+                duration: cloudDuration)
+            move.timingMode = .easeOut
+
+            let peakAlpha = CGFloat.random(in: 0.60...0.95)
+            spark.run(SKAction.sequence([
+                SKAction.group([
+                    move,
+                    SKAction.sequence([
+                        SKAction.fadeAlpha(to: peakAlpha, duration: 0.05),
+                        SKAction.fadeAlpha(to: 0,         duration: cloudDuration - 0.05),
+                    ]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
     }
 
     // MARK: - Effet traîne (paillettes lors du lancement d'un blox/brix/bombe)
@@ -5571,6 +8620,7 @@ final class GameScene: SKScene {
         switch block {
         case .color(let name): return bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.8, alpha: 1)
         case .priks:           return priksSolidFillColor()
+        case .magix:           return SKColor(white: 0.92, alpha: 1)   // traîne blanche "magique"
         case .empty:           return SKColor(white: 0.7, alpha: 1)
         }
     }
@@ -5614,69 +8664,28 @@ final class GameScene: SKScene {
                         SKAction.removeFromParent(),
                     ]))
                 }
+                // 4 micro-paillettes supplémentaires à positions X/Y entièrement aléatoires.
+                for _ in 0..<4 {
+                    let micro = SKShapeNode(circleOfRadius: 1.0)
+                    micro.fillColor   = color
+                    micro.strokeColor = .clear
+                    micro.alpha       = 0.9
+                    micro.zPosition   = 36
+                    micro.position    = CGPoint(
+                        x: sprite.position.x + CGFloat.random(in: -15...15),
+                        y: sprite.position.y + CGFloat.random(in: -20...0)
+                    )
+                    self.addChild(micro)
+                    micro.run(SKAction.sequence([
+                        SKAction.fadeOut(withDuration: 0.38),
+                        SKAction.removeFromParent(),
+                    ]))
+                }
             })
         }
         return SKAction.sequence(steps)
     }
 
-
-    private static func makeBevelShapes(for size: CGSize) -> [SKShapeNode] {
-        let hw = size.width  / 2   // demi-largeur  = 18
-        let hh = size.height / 2   // demi-hauteur  = 18
-        let bw = BevelStyle.width  // épaisseur biseau = 4
-
-        // Coordonnées : origine au centre du sprite (anchor 0.5, 0.5).
-        //   hw, hh = coins extérieurs ; hw-bw, hh-bw = coins intérieurs (miter à 45°).
-
-        func makeShape(path: CGMutablePath, name: String, white: CGFloat, alpha: CGFloat) -> SKShapeNode {
-            path.closeSubpath()
-            let n = SKShapeNode(path: path)
-            n.name        = name
-            n.fillColor   = SKColor(white: white, alpha: alpha)
-            n.strokeColor = .clear
-            n.lineWidth   = 0
-            n.zPosition   = 0.5  // au-dessus du corps du sprite mais sous les jonctions du container
-            return n
-        }
-
-        // --- Haut (lumière) ---
-        let tp = CGMutablePath()
-        tp.move(to:    CGPoint(x: -hw,    y:  hh))
-        tp.addLine(to: CGPoint(x:  hw,    y:  hh))
-        tp.addLine(to: CGPoint(x:  hw-bw, y:  hh-bw))
-        tp.addLine(to: CGPoint(x: -hw+bw, y:  hh-bw))
-        let topShape = makeShape(path: tp, name: BevelStyle.top,
-                                 white: 1, alpha: BevelStyle.highlightAlpha)
-
-        // --- Gauche (lumière) ---
-        let lp = CGMutablePath()
-        lp.move(to:    CGPoint(x: -hw,    y:  hh))
-        lp.addLine(to: CGPoint(x: -hw,    y: -hh))
-        lp.addLine(to: CGPoint(x: -hw+bw, y: -hh+bw))
-        lp.addLine(to: CGPoint(x: -hw+bw, y:  hh-bw))
-        let leftShape = makeShape(path: lp, name: BevelStyle.left,
-                                  white: 1, alpha: BevelStyle.highlightAlpha)
-
-        // --- Droite (ombre) ---
-        let rp = CGMutablePath()
-        rp.move(to:    CGPoint(x:  hw,    y:  hh))
-        rp.addLine(to: CGPoint(x:  hw,    y: -hh))
-        rp.addLine(to: CGPoint(x:  hw-bw, y: -hh+bw))
-        rp.addLine(to: CGPoint(x:  hw-bw, y:  hh-bw))
-        let rightShape = makeShape(path: rp, name: BevelStyle.right,
-                                   white: 0, alpha: BevelStyle.shadowAlpha)
-
-        // --- Bas (ombre) ---
-        let bp = CGMutablePath()
-        bp.move(to:    CGPoint(x: -hw,    y: -hh))
-        bp.addLine(to: CGPoint(x:  hw,    y: -hh))
-        bp.addLine(to: CGPoint(x:  hw-bw, y: -hh+bw))
-        bp.addLine(to: CGPoint(x: -hw+bw, y: -hh+bw))
-        let bottomShape = makeShape(path: bp, name: BevelStyle.bottom,
-                                    white: 0, alpha: BevelStyle.shadowAlpha)
-
-        return [topShape, leftShape, rightShape, bottomShape]
-    }
 
     /// Carré couleur unie 36×36 (ou `pixelSize`) : blox classique ou Priks + chiffre.
     private static func makeSolidGameplayBlockSprite(
@@ -5696,14 +8705,31 @@ final class GameScene: SKScene {
             s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             let digit = SKLabelNode(text: "\(value)")
             digit.fontName = customUIFontPostScriptName
-            digit.fontSize = priksDigitFontSize
+            // Réduction automatique de la taille de police pour les valeurs à 2 chiffres (≥10).
+            digit.fontSize = value >= 10 ? priksDigitFontSize * 0.72 : priksDigitFontSize
             digit.fontColor = Self.priksDigitLabelColor()
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
             digit.zPosition = 2
             s.addChild(digit)
-            for bevel in makeBevelShapes(for: size) { s.addChild(bevel) }
+            return s
+        case .magix(let kind):
+            // Grille : apparition brève (~0.3 s pendant le bounce) → couleur statique aléatoire suffit.
+            let c = colorPalette.randomElement().flatMap { bloxSolidFillColor(colorName: $0) }
+                    ?? SKColor(white: 0.75, alpha: 1)
+            let s = SKSpriteNode(color: c, size: size)
+            s.colorBlendFactor = 1
+            s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            let sym = SKLabelNode(text: MagixRules.symbol(for: kind))
+            sym.fontName                = customUIFontPostScriptName
+            sym.fontSize                = size.height * 0.69
+            sym.fontColor               = .black
+            sym.horizontalAlignmentMode = .center
+            sym.verticalAlignmentMode   = .center
+            sym.position                = .zero
+            sym.zPosition               = 5
+            s.addChild(sym)
             return s
         case .empty:
             let s = SKSpriteNode(color: .clear, size: size)
@@ -5882,137 +8908,6 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Calcule les biseaux (lumière haut/gauche, ombre bas/droite) au niveau des groupes.
-    /// Un biseau est un trapèze continu couvrant toute une arête extérieure du groupe,
-    /// jonctions incluses — c'est la "Solution B" par rapport aux biseaux par-sprite.
-    private func rebuildGroupBevelShapes(in container: SKNode) {
-        let cp        = GridLayout.cellPoints          // 40 pt
-        let half      = GridLayout.spanPoints / 2      // 160 pt
-        let bw        = BevelStyle.width               // 4 pt
-        let blockHalf = cp / 2 - 2                     // 18 pt (demi-côté du sprite 36×36)
-
-        func cellX(_ col: Int) -> CGFloat { -half + (CGFloat(col) + 0.5) * cp }
-        func cellY(_ row: Int) -> CGFloat {  half - (CGFloat(row) + 0.5) * cp }
-
-        // Retourne le nom de la couleur en (row, col), ou nil pour vide/priks/hors-grille.
-        func colorAt(_ row: Int, _ col: Int) -> String? {
-            guard row >= GridLayout.topRowIndex, row < GridLayout.rowCount,
-                  col >= 0, col < GridLayout.columnCount else { return nil }
-            if case .color(let name) = grid[row][col] { return name }
-            return nil
-        }
-
-        func makeTrap(path: CGMutablePath, white: CGFloat, alpha: CGFloat) -> SKShapeNode {
-            path.closeSubpath()
-            let s = SKShapeNode(path: path)
-            s.fillColor   = SKColor(white: white, alpha: alpha)
-            s.strokeColor = .clear
-            s.lineWidth   = 0
-            s.zPosition   = 50   // au-dessus des jonctions (max ~16) et du sprite (z=1)
-            return s
-        }
-
-        // ── HAUT : bandes horizontales (lumière) ──────────────────────────────
-        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
-            var c = 0
-            while c < GridLayout.columnCount {
-                guard let color = colorAt(r, c), colorAt(r - 1, c) != color else { c += 1; continue }
-                let c1 = c
-                while c + 1 < GridLayout.columnCount,
-                      colorAt(r, c + 1) == color,
-                      colorAt(r - 1, c + 1) != color { c += 1 }
-                let c2 = c
-                let x1 = cellX(c1) - blockHalf
-                let x2 = cellX(c2) + blockHalf
-                let y  = cellY(r)  + blockHalf
-                let p  = CGMutablePath()
-                p.move(to:    CGPoint(x: x1,    y: y))
-                p.addLine(to: CGPoint(x: x2,    y: y))
-                p.addLine(to: CGPoint(x: x2-bw, y: y-bw))
-                p.addLine(to: CGPoint(x: x1+bw, y: y-bw))
-                let node = makeTrap(path: p, white: 1, alpha: BevelStyle.highlightAlpha)
-                node.name = "\(Self.groupBevelNodeNamePrefix)t_\(r)_\(c1)_\(c2)"
-                container.addChild(node)
-                c += 1
-            }
-        }
-
-        // ── BAS : bandes horizontales (ombre) ────────────────────────────────
-        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
-            var c = 0
-            while c < GridLayout.columnCount {
-                guard let color = colorAt(r, c), colorAt(r + 1, c) != color else { c += 1; continue }
-                let c1 = c
-                while c + 1 < GridLayout.columnCount,
-                      colorAt(r, c + 1) == color,
-                      colorAt(r + 1, c + 1) != color { c += 1 }
-                let c2 = c
-                let x1 = cellX(c1) - blockHalf
-                let x2 = cellX(c2) + blockHalf
-                let y  = cellY(r)  - blockHalf
-                let p  = CGMutablePath()
-                p.move(to:    CGPoint(x: x1,    y: y))
-                p.addLine(to: CGPoint(x: x2,    y: y))
-                p.addLine(to: CGPoint(x: x2-bw, y: y+bw))
-                p.addLine(to: CGPoint(x: x1+bw, y: y+bw))
-                let node = makeTrap(path: p, white: 0, alpha: BevelStyle.shadowAlpha)
-                node.name = "\(Self.groupBevelNodeNamePrefix)b_\(r)_\(c1)_\(c2)"
-                container.addChild(node)
-                c += 1
-            }
-        }
-
-        // ── GAUCHE : bandes verticales (lumière) ─────────────────────────────
-        for c in 0..<GridLayout.columnCount {
-            var r = GridLayout.topRowIndex
-            while r < GridLayout.rowCount {
-                guard let color = colorAt(r, c), colorAt(r, c - 1) != color else { r += 1; continue }
-                let r1 = r
-                while r + 1 < GridLayout.rowCount,
-                      colorAt(r + 1, c) == color,
-                      colorAt(r + 1, c - 1) != color { r += 1 }
-                let r2 = r
-                let y1 = cellY(r1) + blockHalf
-                let y2 = cellY(r2) - blockHalf
-                let x  = cellX(c)  - blockHalf
-                let p  = CGMutablePath()
-                p.move(to:    CGPoint(x: x,    y: y1))
-                p.addLine(to: CGPoint(x: x,    y: y2))
-                p.addLine(to: CGPoint(x: x+bw, y: y2+bw))
-                p.addLine(to: CGPoint(x: x+bw, y: y1-bw))
-                let node = makeTrap(path: p, white: 1, alpha: BevelStyle.highlightAlpha)
-                node.name = "\(Self.groupBevelNodeNamePrefix)l_\(c)_\(r1)_\(r2)"
-                container.addChild(node)
-                r += 1
-            }
-        }
-
-        // ── DROITE : bandes verticales (ombre) ───────────────────────────────
-        for c in 0..<GridLayout.columnCount {
-            var r = GridLayout.topRowIndex
-            while r < GridLayout.rowCount {
-                guard let color = colorAt(r, c), colorAt(r, c + 1) != color else { r += 1; continue }
-                let r1 = r
-                while r + 1 < GridLayout.rowCount,
-                      colorAt(r + 1, c) == color,
-                      colorAt(r + 1, c + 1) != color { r += 1 }
-                let r2 = r
-                let y1 = cellY(r1) + blockHalf
-                let y2 = cellY(r2) - blockHalf
-                let x  = cellX(c)  + blockHalf
-                let p  = CGMutablePath()
-                p.move(to:    CGPoint(x: x,    y: y1))
-                p.addLine(to: CGPoint(x: x,    y: y2))
-                p.addLine(to: CGPoint(x: x-bw, y: y2+bw))
-                p.addLine(to: CGPoint(x: x-bw, y: y1-bw))
-                let node = makeTrap(path: p, white: 0, alpha: BevelStyle.shadowAlpha)
-                node.name = "\(Self.groupBevelNodeNamePrefix)r_\(c)_\(r1)_\(r2)"
-                container.addChild(node)
-                r += 1
-            }
-        }
-    }
-
     private func rebuildBloxJunctionShapes(in container: SKNode) {
         borderConnections.removeAll()
         diagonalConnections.removeAll()
@@ -6046,9 +8941,6 @@ final class GameScene: SKScene {
     /// Retire les liaisons (H / V / diagonales) qui touchent au moins une case de la chaîne, **avant** l’animation des blox.
     private func removeBloxJunctionElementsTouching(_ cells: Set<GridAddress>) {
         guard !cells.isEmpty else { return }
-        // Les biseaux de groupe (group_bevel_*) ne sont PAS supprimés ici : ils persistent
-        // jusqu'au prochain drawGrid() qui les nettoie et les recrée correctement.
-        // Cela évite tout flash "sans biseau" pendant les animations de dissolution et compaction.
 
         let borderKeys = borderConnections.keys.filter { key in
             cells.contains { junctionBorderKeyTouchesCell(key, row: $0.row, col: $0.col) }
@@ -6094,7 +8986,7 @@ final class GameScene: SKScene {
         for child in Array(container.children) {
             guard let name = child.name else { continue }
             if name.hasPrefix("cell_") || name.hasPrefix(Self.junctionNodeNamePrefix)
-                || name.hasPrefix(Self.groupBevelNodeNamePrefix) {
+                || name == Self.colorxOverlayContainerName {
                 child.removeFromParent()
             }
         }
@@ -6134,12 +9026,18 @@ final class GameScene: SKScene {
                     sprite.position = CGPoint(x: x, y: y)
                     sprite.zPosition = 1
                     container.addChild(sprite)
+
+                case .magix(let kind):
+                    let sprite = Self.makeSolidGameplayBlockSprite(block: .magix(kind))
+                    sprite.name = "cell_\(row)_\(col)"
+                    sprite.position = CGPoint(x: x, y: y)
+                    sprite.zPosition = 1
+                    container.addChild(sprite)
                 }
             }
         }
 
         rebuildBloxJunctionShapes(in: container)
-        rebuildGroupBevelShapes(in: container)
         if let focus = junctionFocus {
             elevateBloxJunctionsTouching(focus)
         }
@@ -6239,6 +9137,16 @@ final class GameScene: SKScene {
         guard !isStartScreen else { return }
         refreshRemoteBoardFillIndicator()
         refreshLigneCounterHUD()
+        updateEvalDebugHUD()
+    }
+
+    /// Affiche le score d'évaluation de la grille courante sous l'icône bombe (debug, temporaire).
+    private func updateEvalDebugHUD() {
+        guard BlomixMoveAnalyzer.evalEnabled else { return }
+        guard let lbl = childNode(withName: Self.evalDebugLabelName) as? SKLabelNode else { return }
+        guard !isStartScreen, !isGameOver else { lbl.text = "eval: –"; return }
+        let score = BlomixMoveAnalyzer.evaluate(grid: grid, moveCount: moveCount)
+        lbl.text = "eval: \(score)"
     }
 
     /// Met à jour le compteur "LIGNE x/10" en haut à gauche.
@@ -6324,79 +9232,6 @@ final class GameScene: SKScene {
         }
     }
 
-    // MARK: - PvP recherche auto (dot indicateur accueil)
-
-    private func registerPvPAutoSearchObserverIfNeeded() {
-        NotificationCenter.default.addObserver(
-            forName: .blomixPvPAutoSearchStateChanged,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.refreshPvPAutoSearchDot()
-        }
-    }
-
-    private func refreshPvPAutoSearchDot() {
-        // Nettoyage systématique (peu importe le nom utilisé précédemment)
-        childNode(withName: Self.startScreenPvPSearchDotName)?.removeFromParent()
-        childNode(withName: Self.gameHUDAutoSearchDotName)?.removeFromParent()
-
-        // Pas de dot pendant une partie PvP, ni après un game over
-        guard BlomixPvPAutoSearcher.shared.isSearching,
-              pvpCoordinator == nil,
-              !isGameOver else { return }
-
-        // Conteneur positionné en haut-gauche (symétrique du menu overflow haut-droit)
-        let margin: CGFloat = 14
-        let chipW: CGFloat = 44
-        let chipH: CGFloat = 34
-        let badge = makePvPAutoSearchBadge(name: Self.gameHUDAutoSearchDotName, zPosition: 200)
-        badge.position = CGPoint(x: margin + chipW / 2, y: gameplayTitleTopY() - chipH / 2)
-        addChild(badge)
-    }
-
-    /// Crée un conteneur avec le point vert clignotant et le texte "Recherche / PvP..." dessous.
-    private func makePvPAutoSearchBadge(name: String, zPosition: CGFloat) -> SKNode {
-        let green = SKColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
-        let container = SKNode()
-        container.name = name
-        container.zPosition = zPosition
-
-        // Point vert
-        let dot = SKShapeNode(circleOfRadius: 5)
-        dot.fillColor = green
-        dot.strokeColor = .clear
-        dot.position = .zero
-        container.addChild(dot)
-
-        // "Recherche" (ligne 1)
-        let line1 = SKLabelNode(text: "Recherche")
-        line1.fontName  = Self.customUIFontPostScriptName
-        line1.fontSize  = 9
-        line1.fontColor = green
-        line1.horizontalAlignmentMode = .center
-        line1.verticalAlignmentMode   = .top
-        line1.position = CGPoint(x: 0, y: -10)
-        container.addChild(line1)
-
-        // "PvP..." (ligne 2)
-        let line2 = SKLabelNode(text: "PvP...")
-        line2.fontName  = Self.customUIFontPostScriptName
-        line2.fontSize  = 9
-        line2.fontColor = green
-        line2.horizontalAlignmentMode = .center
-        line2.verticalAlignmentMode   = .top
-        line2.position = CGPoint(x: 0, y: -21)
-        container.addChild(line2)
-
-        // Animation de clignotement sur le conteneur entier
-        container.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.25, duration: 0.65),
-            SKAction.fadeAlpha(to: 1.0,  duration: 0.65),
-        ])))
-        return container
-    }
-
     // MARK: - Sauvegarde automatique solo
 
     private func registerSoloSaveObserverIfNeeded() {
@@ -6431,7 +9266,10 @@ final class GameScene: SKScene {
             chainSeriesLevel: chainSeriesLevel,
             savedAt: Date(),
             currentStageIndex: currentStageIndex,
-            stageTimerSecondsRemaining: stageTimerSecondsRemaining
+            stageTimerSecondsRemaining: stageTimerSecondsRemaining,
+            moveRecords: analyzerGameStats.records,
+            hintsRemaining: hintsRemaining,
+            isZenMode: isZenMode
         )
         BlomixSoloSaveManager.shared.save(save)
     }
@@ -6456,6 +9294,8 @@ final class GameScene: SKScene {
         chainSeriesLevel = save.chainSeriesLevel
         currentStageIndex = save.currentStageIndex
         stageTimerSecondsRemaining = save.stageTimerSecondsRemaining
+        analyzerGameStats.restore(records: save.moveRecords)
+        hintsRemaining = save.hintsRemaining
 
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
@@ -6475,6 +9315,7 @@ final class GameScene: SKScene {
             label.text = "\(displayedScore)"
         }
         updateBombHUD()
+        updateHintButton()
         refreshBombHudIcon()
         ensureStageBadge()
         layoutStageBadge()
@@ -6482,16 +9323,19 @@ final class GameScene: SKScene {
         refreshBestScoreHUDIfNeeded()
         refreshLigneCounterHUD()
         refreshPendingBottomLinePreview()
-        ensureStageTimerHUD()
-        layoutStageTimerHUD()
-        updateStageTimerHUD()
-        restartStageTimer()
+        if !isZenMode {
+            ensureStageTimerHUD()
+            layoutStageTimerHUD()
+            updateStageTimerHUD()
+            restartStageTimer()
+        }
 
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
-        refreshPvPAutoSearchDot()
-        // Reprendre la musique du stage sauvegardé.
-        if isInStagedSoloMode {
+        // Reprendre la musique du mode sauvegardé.
+        if isZenMode {
+            BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)
+        } else if isInStagedSoloMode {
             BlomixMusicPlayer.shared.switchToFile(Self.soloStages[currentStageIndex].musicFilename)
         }
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
@@ -6564,6 +9408,70 @@ final class GameScene: SKScene {
         }
     }
 
+    // MARK: - Retours haptiques
+
+    // MARK: - Retours haptiques
+
+    /// Générateur haptique `.medium` pour les événements clés (démarrage, game over, auto-drop, nouvelle ligne).
+    private let hapticEngine      = UIImpactFeedbackGenerator(style: .medium)
+    /// Générateur haptique `.heavy` pour les impacts percutants (explosion bombe).
+    private let hapticHeavyEngine = UIImpactFeedbackGenerator(style: .heavy)
+    /// Générateur haptique `.light` pour les chaînes (action fréquente, toucher doux).
+    private let hapticLightEngine = UIImpactFeedbackGenerator(style: .light)
+
+    private func hapticSoft() {
+        if Thread.isMainThread {
+            hapticEngine.impactOccurred()
+            hapticEngine.prepare()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.hapticEngine.impactOccurred()
+                self?.hapticEngine.prepare()
+            }
+        }
+    }
+
+    private func hapticHeavy() {
+        if Thread.isMainThread {
+            hapticHeavyEngine.impactOccurred()
+            hapticHeavyEngine.prepare()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.hapticHeavyEngine.impactOccurred()
+                self?.hapticHeavyEngine.prepare()
+            }
+        }
+    }
+
+    /// Retour haptique léger — déclenché à chaque création de chaîne.
+    private func hapticLight() {
+        if Thread.isMainThread {
+            hapticLightEngine.impactOccurred()
+            hapticLightEngine.prepare()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.hapticLightEngine.impactOccurred()
+                self?.hapticLightEngine.prepare()
+            }
+        }
+    }
+
+    /// Micro-tremblement de l'écran via `CAKeyframeAnimation` sur la vue hôte.
+    /// `intensity` : amplitude en points (~1.5 = léger, ~2.5 = marqué).
+    private func shakeScreen(intensity: CGFloat = 2.0) {
+        guard let view = self.view else { return }
+        let anim = CAKeyframeAnimation(keyPath: "position.x")
+        let v = intensity
+        anim.values    = [0, v, -v, v * 0.55, -v * 0.55, v * 0.20, -v * 0.20, 0]
+        anim.duration  = 0.14
+        anim.isAdditive = true
+        if Thread.isMainThread {
+            view.layer.add(anim, forKey: "screenShake")
+        } else {
+            DispatchQueue.main.async { view.layer.add(anim, forKey: "screenShake") }
+        }
+    }
+
     /// Retire le ghost et nettoie tout l'état de tracking (appelé sur drop, cancel ou interruption).
     private func cancelGhostPreview() {
         ghostTouchIsLive = false
@@ -6571,10 +9479,70 @@ final class GameScene: SKScene {
         ghostHoldTimer = nil
         ghostPreviewColumn = nil
         childNode(withName: Self.ghostContainerName)?.removeFromParent()
+        childNode(withName: Self.hintGhostContainerName)?.removeFromParent()
+        pendingHintRequest = false
         // Recentre le sprite preview à sa position d'origine (annulation sans drop).
         childNode(withName: Self.previewNodeName)?.position.x = size.width / 2
     }
 
+    // MARK: - Hint
+
+    /// Met à jour l'apparence du bouton "?" selon le stock et la disponibilité de l'analyse.
+    func updateHintButton() { /* bouton hint supprimé */ }
+
+    /// Affiche les ghost blocs fantômes sur toutes les colonnes optimales, avec clignotement.
+    /// Décrémente `hintsRemaining` et auto-supprime après 2.5 s.
+    func showHintGhost() {
+        guard hintsRemaining > 0 else { return }
+        guard !isProcessing, !isGameOver, !isStartScreen, !isBombMode else { return }
+        guard pvpCoordinator == nil, !isTutorialMode else { return }
+
+        guard let la = analyzerLookAhead else {
+            // Analyse pas encore prête : mémoriser la demande, elle sera honorée dès que le résultat arrive.
+            pendingHintRequest = true
+            return
+        }
+
+        pendingHintRequest = false
+        hintsRemaining -= 1
+        updateHintButton()
+
+        // Retire un éventuel hint ghost déjà présent.
+        childNode(withName: Self.hintGhostContainerName)?.removeFromParent()
+
+        let container = SKNode()
+        container.name = Self.hintGhostContainerName
+        container.zPosition = 17  // juste sous le ghost d'appui long (18)
+        addChild(container)
+
+        // Trouve les colonnes optimales.
+        let optCols = la.scorePerColumn.indices.filter { idx in
+            guard let s = la.scorePerColumn[idx] else { return false }
+            return s == la.optimalScore
+        }
+
+        for col in optCols {
+            guard let landingRow = highestEmptyRow(inColumn: col) else { continue }
+            let ghost = Self.makeSolidGameplayBlockSprite(block: currentBlock)
+            ghost.position = scenePointCellCenter(row: landingRow, column: col)
+            ghost.alpha    = 0.60
+            ghost.zPosition = 2
+            // Clignotement doux
+            let blink = SKAction.repeatForever(SKAction.sequence([
+                SKAction.fadeAlpha(to: 0.20, duration: 0.45),
+                SKAction.fadeAlpha(to: 0.60, duration: 0.45),
+            ]))
+            ghost.run(blink)
+            container.addChild(ghost)
+        }
+
+        // Le ghost reste visible jusqu'au prochain coup du joueur (supprimé par cancelGhostPreview / dropBlock).
+    }
+
+    /// Retourne toujours false — bouton hint supprimé.
+    private func touchHitsHintButton(_ pt: CGPoint) -> Bool {
+        return false
+    }
     /// Construit (ou reconstruit) le nœud ghost pour la colonne donnée :
     /// cases vides en gris #444 + sprite semi-transparent du bloc courant à l'emplacement d'atterrissage.
     private func showGhostPreview(column: Int) {
@@ -6662,8 +9630,8 @@ final class GameScene: SKScene {
         let timerSeconds: Int
         let multiplier: Int
         let displayName: String
-        /// Nom d'asset (WebImages/levelX) à afficher dans l'overlay et comme badge en jeu.
-        let imageName: String
+        /// Texte affiché sous "Level" dans l'overlay de transition et dans les badges.
+        let levelText: String
         /// Nom du fichier audio à jouer en boucle pendant ce stage.
         let musicFilename: String
         /// Ligne 1 de l'overlay de transition.
@@ -6673,12 +9641,12 @@ final class GameScene: SKScene {
     }
 
     private static let soloStages: [SoloStageConfig] = [
-        SoloStageConfig(minScore:    0, timerSeconds: 32, multiplier: 1, displayName: "STAGE 1",      imageName: "WebImages/level1",       musicFilename: "Puzzle Game 2.mp3"),
-        SoloStageConfig(minScore:  250, timerSeconds: 16, multiplier: 2, displayName: "STAGE 2",      imageName: "WebImages/level2",       musicFilename: "Puzzle Game 2 - 1.1.mp3"),
-        SoloStageConfig(minScore: 1000, timerSeconds:  8, multiplier: 3, displayName: "STAGE 3",      imageName: "WebImages/level3",       musicFilename: "Puzzle Game 2 - 1.2.mp3"),
-        SoloStageConfig(minScore: 2000, timerSeconds:  4, multiplier: 4, displayName: "STAGE 4",      imageName: "WebImages/level4",       musicFilename: "Puzzle Game 2 - 1.3.mp3"),
-        SoloStageConfig(minScore: 3000, timerSeconds:  2, multiplier: 5, displayName: "STAGE 5",      imageName: "WebImages/level5",       musicFilename: "Puzzle Game 2 - 1.4.mp3"),
-        SoloStageConfig(minScore: 5000, timerSeconds:  1, multiplier: 6, displayName: "STAGE ULTIME", imageName: "WebImages/level_ultimate", musicFilename: "Puzzle Game 2 - 1.5.mp3"),
+        SoloStageConfig(minScore:    0, timerSeconds: 32, multiplier: 1, displayName: "STAGE 1",      levelText: "1",        musicFilename: "Puzzle Game 2.mp3"),
+        SoloStageConfig(minScore:  250, timerSeconds: 16, multiplier: 2, displayName: "STAGE 2",      levelText: "2",        musicFilename: "Puzzle Game 2 - 1.1.mp3"),
+        SoloStageConfig(minScore: 1000, timerSeconds:  8, multiplier: 3, displayName: "STAGE 3",      levelText: "3",        musicFilename: "Puzzle Game 2 - 1.2.mp3"),
+        SoloStageConfig(minScore: 2000, timerSeconds:  4, multiplier: 4, displayName: "STAGE 4",      levelText: "4",        musicFilename: "Puzzle Game 2 - 1.3.mp3"),
+        SoloStageConfig(minScore: 3000, timerSeconds:  2, multiplier: 5, displayName: "STAGE 5",      levelText: "5",        musicFilename: "Puzzle Game 2 - 1.4.mp3"),
+        SoloStageConfig(minScore: 5000, timerSeconds:  1, multiplier: 6, displayName: "STAGE ULTIME", levelText: "Ultimate", musicFilename: "Puzzle Game 2 - 1.5.mp3"),
     ]
 
     private static let stageTimerHudName    = "hudStageTimer"
@@ -6691,7 +9659,7 @@ final class GameScene: SKScene {
     private var currentStageIndex: Int = 0
     private var stageTimerSecondsRemaining: Int = 32
 
-    private var isInStagedSoloMode: Bool { pvpCoordinator == nil && !isTutorialMode }
+    private var isInStagedSoloMode: Bool { pvpCoordinator == nil && !isTutorialMode && !isZenMode }
 
     private var currentStageConfig: SoloStageConfig {
         Self.soloStages[min(currentStageIndex, Self.soloStages.count - 1)]
@@ -6743,28 +9711,31 @@ final class GameScene: SKScene {
     private func ensureStageBadge() {
         guard isInStagedSoloMode else { return }
         guard childNode(withName: Self.stageBadgeNodeName) == nil else { return }
-        let badge = SKSpriteNode(imageNamed: currentStageConfig.imageName)
-        badge.name        = Self.stageBadgeNodeName
-        badge.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        badge.size        = CGSize(width: 50, height: 50)
-        badge.zPosition   = 12
-        badge.isHidden    = true   // layoutStageBadge + refreshStageBadge l'affichent
+        let badge = SKLabelNode()
+        badge.name                   = Self.stageBadgeNodeName
+        badge.fontName               = Self.customUIFontPostScriptName
+        badge.fontSize               = 18
+        badge.fontColor              = .white
+        badge.horizontalAlignmentMode = .center
+        badge.verticalAlignmentMode   = .center
+        badge.zPosition              = 12
+        badge.isHidden               = true   // layoutStageBadge + refreshStageBadge l'affichent
         addChild(badge)
     }
 
-    /// Positionne le badge à gauche de la grille, au niveau de la bande bombe/prochains blox.
+    /// Positionne le badge à gauche de la grille, aligné verticalement sur le compteur de bombes.
     private func layoutStageBadge() {
-        guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKSpriteNode else { return }
+        guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKLabelNode else { return }
         let half  = GridLayout.spanPoints / 2
         let bandY = sceneYCenterForBombAndUpcomingBand()
-        // Haut du badge aligné sur le haut de l'icône bombe (bandY + 18 = top bombe 36pt)
-        badge.position = CGPoint(x: gridAreaCenter.x - half + 25, y: bandY - 7)
+        badge.position = CGPoint(x: gridAreaCenter.x - half + 25, y: bandY)
     }
 
-    /// Met à jour la texture et la visibilité du badge.
+    /// Met à jour le texte et la visibilité du badge.
     private func refreshStageBadge() {
-        guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKSpriteNode else { return }
-        badge.texture  = SKTexture(imageNamed: currentStageConfig.imageName)
+        guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKLabelNode else { return }
+        let lv = currentStageConfig.levelText
+        badge.text     = lv == "Ultimate" ? "L★" : "L\(lv)"
         badge.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
     }
 
@@ -6809,6 +9780,7 @@ final class GameScene: SKScene {
             if let col = autoDropPreferredColumn() {
                 selectedColumn = col
                 updatePreviewSprite()
+                hapticSoft()
                 dropBlock(usingColumn: col)
             } else {
                 triggerGameOver()
@@ -6834,7 +9806,7 @@ final class GameScene: SKScene {
         refreshBombHudIcon()   // mise à jour icône bombe → nuke si stage ≥ 2
         childNode(withName: Self.stageBadgeNodeName)?.isHidden = true  // masqué pendant la transition
         stopStageTimer()
-        showTransitionOverlay(stageImageName: newCfg.imageName,
+        showTransitionOverlay(stageLevelText: newCfg.levelText,
                               line1: newCfg.overlayLine1,
                               line2: newCfg.overlayLine2) { [weak self] in
             // Changement de musique APRÈS disparition de l'overlay (évite la superposition avec transition.wav).
@@ -6850,7 +9822,7 @@ final class GameScene: SKScene {
         ensureStageTimerHUD()
         layoutStageTimerHUD()
         let cfg = Self.soloStages[0]
-        showTransitionOverlay(stageImageName: cfg.imageName,
+        showTransitionOverlay(stageLevelText: cfg.levelText,
                               line1: cfg.overlayLine1,
                               line2: cfg.overlayLine2) { [weak self] in
             guard let self else { return }
@@ -6866,13 +9838,80 @@ final class GameScene: SKScene {
 
     // MARK: - Transition overlay (réutilisable)
 
+    /// Retourne une `SKAction` qui, pendant `slideDuration`, lit la position scène de `trackedNode`
+    /// toutes les 0.04 s et dépose des petits cercles de couleur qui restent sur place et se fondent.
+    /// Identique à `makeTrailSpawnAction` pour les blox, adapté au déplacement horizontal.
+    /// - `movingRight` : true = nœud vient de la gauche, false = vient de la droite.
+    private func makeTextSlideTrailAction(
+        slideDuration: TimeInterval,
+        color: SKColor,
+        trackedNode: SKNode,
+        movingRight: Bool
+    ) -> SKAction {
+        let interval: TimeInterval = 0.04
+        let count = max(1, Int((slideDuration / interval).rounded()))
+        // Trois lignes de traîne verticales (centrale + haut + bas), comme pour les blox.
+        let vertOffsets: [CGFloat] = [0, -9, 9]
+        // Décalage horizontal derrière le déplacement pour "peupler" le sillage.
+        let behindSign: CGFloat = movingRight ? -1 : 1
+
+        var steps: [SKAction] = []
+        for _ in 0..<count {
+            steps.append(SKAction.wait(forDuration: interval))
+            steps.append(SKAction.run { [weak self, weak trackedNode] in
+                guard let self, let node = trackedNode else { return }
+                // Position du nœud en coordonnées scène (overlayNode est à l'origine).
+                let pos = node.position
+
+                for (idx, yOff) in vertOffsets.enumerated() {
+                    let radius: CGFloat = idx == 0
+                        ? CGFloat.random(in: 1.8...3.0)   // ligne centrale, plus épaisse
+                        : CGFloat.random(in: 1.0...2.0)   // lignes latérales, plus fines
+                    let dot = SKShapeNode(circleOfRadius: radius)
+                    dot.fillColor   = color
+                    dot.strokeColor = .clear
+                    dot.alpha       = 0.9
+                    dot.zPosition   = 301
+                    dot.position    = CGPoint(
+                        x: pos.x + behindSign * CGFloat.random(in: 0...8) + CGFloat.random(in: -3...3),
+                        y: pos.y + yOff + CGFloat.random(in: -4...4)
+                    )
+                    self.addChild(dot)
+                    dot.run(SKAction.sequence([
+                        SKAction.fadeOut(withDuration: 0.38),
+                        SKAction.removeFromParent(),
+                    ]))
+                }
+                // 4 micro-paillettes dispersées autour du sillage.
+                for _ in 0..<4 {
+                    let micro = SKShapeNode(circleOfRadius: 1.0)
+                    micro.fillColor   = color
+                    micro.strokeColor = .clear
+                    micro.alpha       = 0.9
+                    micro.zPosition   = 301
+                    micro.position    = CGPoint(
+                        x: pos.x + behindSign * CGFloat.random(in: 0...20) + CGFloat.random(in: -8...8),
+                        y: pos.y + CGFloat.random(in: -15...15)
+                    )
+                    self.addChild(micro)
+                    micro.run(SKAction.sequence([
+                        SKAction.fadeOut(withDuration: 0.38),
+                        SKAction.removeFromParent(),
+                    ]))
+                }
+            })
+        }
+        return SKAction.sequence(steps)
+    }
+
     /// Affiche un overlay de transition cinématique :
     /// `line1` arrive de la gauche, `line2` arrive de la droite, les deux convergent vers le centre.
     /// Après 1 s de pause l'overlay disparaît en fondu, puis `completion` est appelé.
     /// Overlay de transition cinématique.
-    /// - `stageImageName` non-nil → variante "stage" : image centrée + 2 lignes de texte en dessous.
-    /// - `stageImageName` nil      → variante "texte seul" : line1 glisse de gauche, line2 de droite.
-    private func showTransitionOverlay(stageImageName: String? = nil,
+    /// - `stageLevelText` non-nil → variante "stage" : "Level" + chiffre/texte + 2 lignes d'infos.
+    /// - `stageLevelText` nil      → variante "texte seul" : line1 glisse de gauche, line2 de droite.
+    private func showTransitionOverlay(levelPrefix: String = "Level",
+                                       stageLevelText: String? = nil,
                                        line1: String, line2: String,
                                        completion: @escaping () -> Void) {
         // Bloque toute saisie pendant la durée de l'overlay (empêche de poser le 10ème blox
@@ -6891,72 +9930,123 @@ final class GameScene: SKScene {
         dim.alpha       = 0
         dim.zPosition   = 0
         overlayNode.addChild(dim)
-        dim.run(SKAction.fadeAlpha(to: 0.82, duration: 0.20))
+        dim.run(SKAction.fadeAlpha(to: 0.52, duration: 0.20))
 
         let centerX    = size.width  / 2
         let slideIn:  TimeInterval = 0.45
         let pause:    TimeInterval = 1.0
         let fadeOut:  TimeInterval = 0.35
-        let fontSize:  CGFloat = 36
         let maxW:      CGFloat = size.width - 48
 
-        func makeLabel(_ text: String) -> SKLabelNode {
-            let para = NSMutableParagraphStyle()
-            para.alignment     = .center
-            para.lineBreakMode = .byWordWrapping
+        // Couleurs du skin joueur (fallback si skin non chargé).
+        let yellowColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "yellow")
+                       ?? SKColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1)
+        let outlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
+                        ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
+
+        func makeOutlinedLabel(_ text: String, fontSize: CGFloat) -> SKLabelNode {
             let uiFont = UIFont(name: Self.customUIFontPostScriptName, size: fontSize)
-                      ?? UIFont.systemFont(ofSize: fontSize, weight: .bold)
+                      ?? UIFont.boldSystemFont(ofSize: fontSize)
             let attrs: [NSAttributedString.Key: Any] = [
-                .font: uiFont, .foregroundColor: UIColor.white, .paragraphStyle: para,
+                .font:            uiFont,
+                .foregroundColor: yellowColor,
+                .strokeColor:     outlineColor,
+                .strokeWidth:     -4.5,
             ]
             let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
             lbl.horizontalAlignmentMode = .center
             lbl.verticalAlignmentMode   = .center
-            lbl.numberOfLines           = 0
+            lbl.numberOfLines           = 1
             lbl.preferredMaxLayoutWidth = maxW
             lbl.zPosition               = 1
             return lbl
         }
 
-        if let imgName = stageImageName {
-            // ── Variante STAGE : image + 2 lignes en dessous ─────────
-            let imgPt:  CGFloat = min(size.width * 0.48, 200)  // taille affichée (max 200 pt)
-            let imgCenterY = size.height / 2 + imgPt * 0.28 + fontSize * 1.4
-            let line1Y = imgCenterY - imgPt / 2 - 22 - fontSize * 0.6
-            let line2Y = line1Y - fontSize * 1.5
+        if let levelText = stageLevelText {
+            // ── Variante STAGE : "Level" + numéro/mot + 2 lignes d'infos ──────
+            let levelFontSize: CGFloat = 34
+            let numFontSize:   CGFloat = 76
+            let infoFontSize:  CGFloat = 26
 
-            // Image : glisse depuis la gauche (même sens que l'animation texte principale)
-            let imgNode = SKSpriteNode(imageNamed: imgName)
-            imgNode.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            imgNode.size        = CGSize(width: imgPt, height: imgPt)
-            imgNode.position    = CGPoint(x: -size.width - 20, y: imgCenterY)
-            imgNode.zPosition   = 1
-            overlayNode.addChild(imgNode)
+            // Layout vertical centré légèrement au-dessus du milieu.
+            let blockCenterY = size.height / 2 + 18
+            let levelLabelY  = blockCenterY + numFontSize * 0.55 + levelFontSize * 0.45
+            let numberY      = blockCenterY + 8
+            let line1Y       = blockCenterY - numFontSize * 0.55 - infoFontSize * 0.8
+            let line2Y       = line1Y - infoFontSize * 1.6
 
-            let label1 = makeLabel(line1)
-            label1.position = CGPoint(x: size.width * 2 + 20, y: line1Y)  // droite
-            overlayNode.addChild(label1)
+            // Groupe "Level" + numéro dans un SKNode pour animer ensemble.
+            let headerNode = SKNode()
+            headerNode.zPosition = 1
 
-            let label2 = makeLabel(line2)
-            label2.position = CGPoint(x: -size.width - 20, y: line2Y)     // gauche
-            overlayNode.addChild(label2)
+            let labelLevel = makeOutlinedLabel(levelPrefix, fontSize: levelFontSize)
+            labelLevel.position = CGPoint(x: 0, y: levelLabelY - blockCenterY)
+            headerNode.addChild(labelLevel)
 
-            let slideImg = SKAction.moveTo(x: centerX, duration: slideIn)
-            slideImg.timingMode = .easeOut
-            imgNode.run(slideImg)
+            let labelNum = makeOutlinedLabel(levelText, fontSize: numFontSize)
+            labelNum.position = CGPoint(x: 0, y: numberY - blockCenterY)
+            headerNode.addChild(labelNum)
+
+            headerNode.position = CGPoint(x: -size.width - 20, y: blockCenterY)
+            overlayNode.addChild(headerNode)
+
+            let infoLabel1 = makeOutlinedLabel(line1, fontSize: infoFontSize)
+            infoLabel1.position = CGPoint(x: size.width * 2 + 20, y: line1Y)
+            overlayNode.addChild(infoLabel1)
+
+            let infoLabel2 = makeOutlinedLabel(line2, fontSize: infoFontSize)
+            infoLabel2.position = CGPoint(x: -size.width - 20, y: line2Y)
+            overlayNode.addChild(infoLabel2)
+
+            let slideHeader = SKAction.moveTo(x: centerX, duration: slideIn)
+            slideHeader.timingMode = .easeOut
+            headerNode.run(slideHeader)
 
             let slide1 = SKAction.moveTo(x: centerX, duration: slideIn)
             slide1.timingMode = .easeOut
-            label1.run(slide1)
+            infoLabel1.run(slide1)
 
             let slide2 = SKAction.moveTo(x: centerX, duration: slideIn)
             slide2.timingMode = .easeOut
-            label2.run(slide2)
+            infoLabel2.run(slide2)
+
+            // ── Traînées de particules dans le sillage du slide ──────────
+            // headerNode  : vient de la gauche → movingRight = true
+            headerNode.run(makeTextSlideTrailAction(
+                slideDuration: slideIn, color: yellowColor,
+                trackedNode: headerNode, movingRight: true))
+            // infoLabel1  : vient de la droite → movingRight = false
+            infoLabel1.run(makeTextSlideTrailAction(
+                slideDuration: slideIn, color: yellowColor,
+                trackedNode: infoLabel1, movingRight: false))
+            // infoLabel2  : vient de la gauche → movingRight = true
+            infoLabel2.run(makeTextSlideTrailAction(
+                slideDuration: slideIn, color: yellowColor,
+                trackedNode: infoLabel2, movingRight: true))
 
         } else {
             // ── Variante TEXTE (tuto) : deux lignes qui se croisent ──
+            let fontSize:  CGFloat = 36
             let lineGap: CGFloat = fontSize * 2.8
             let centerY = size.height / 2 + lineGap / 2
+
+            func makeLabel(_ text: String) -> SKLabelNode {
+                let para = NSMutableParagraphStyle()
+                para.alignment     = .center
+                para.lineBreakMode = .byWordWrapping
+                let uiFont = UIFont(name: Self.customUIFontPostScriptName, size: fontSize)
+                          ?? UIFont.systemFont(ofSize: fontSize, weight: .bold)
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: uiFont, .foregroundColor: UIColor.white, .paragraphStyle: para,
+                ]
+                let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
+                lbl.horizontalAlignmentMode = .center
+                lbl.verticalAlignmentMode   = .center
+                lbl.numberOfLines           = 0
+                lbl.preferredMaxLayoutWidth = maxW
+                lbl.zPosition               = 1
+                return lbl
+            }
 
             let label1 = makeLabel(line1)
             label1.position = CGPoint(x: -size.width - 20, y: centerY)
@@ -7075,7 +10165,7 @@ final class GameScene: SKScene {
     /// Bombe lancée.
     private func tutorialBombDropped() {
         guard tutorialStep == .bombIntro else { return }
-        tutorialAdvanceTo(.bombCelebration)
+        tutorialAdvanceTo(.magixIntro)
     }
 
     private func tutorialAdvanceTo(_ step: TutorialStep) {
@@ -7098,6 +10188,12 @@ final class GameScene: SKScene {
                 self.dismissCurrentTutorialOverlay()
                 self.tutorialStep     = .freePlay
                 self.tutorialStepDrops = 0
+            }
+        case .magixIntro:
+            // Auto-dismiss après 3 s ; le tap est géré dans touchesBegan.
+            run(SKAction.wait(forDuration: 3.0)) { [weak self] in
+                guard let self, self.tutorialStep == .magixIntro else { return }
+                self.tutorialAdvanceTo(.bombCelebration)
             }
         case .bombCelebration:
             run(SKAction.wait(forDuration: 3.0)) { [weak self] in
@@ -7166,6 +10262,9 @@ final class GameScene: SKScene {
             buildCelebrationOverlay(node: overlay, width: bannerW,
                                     text: BlomixL10n.tutorialBombSuccess)
 
+        case .magixIntro:
+            buildMagixIntroOverlay(node: overlay, width: bannerW)
+
         case .awaitingBrix, .freePlay:
             overlay.removeFromParent()
             return
@@ -7190,9 +10289,26 @@ final class GameScene: SKScene {
         let mainFont: CGFloat = 16
         let hintFont: CGFloat = 12
         let bombImageSize: CGFloat = 36
+        let textWidth = width - pad * 2
 
-        var contentHeight: CGFloat = pad * 2 + mainFont + 4
-        if let hint = hint { contentHeight += hintFont + 8 }
+        // Mesurer la hauteur réelle des textes (ils peuvent wrapper sur plusieurs lignes).
+        let mainAttr = tutorialAttributedText(main, size: mainFont, bold: true)
+        let mainLabelH = ceil(mainAttr.boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil).height)
+
+        var hintLabelH: CGFloat = 0
+        if let hint {
+            let hintAttr = tutorialAttributedText(hint, size: hintFont, bold: false)
+            hintLabelH = ceil(hintAttr.boundingRect(
+                with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                context: nil).height)
+        }
+
+        var contentHeight: CGFloat = pad * 2 + mainLabelH + 4
+        if hint != nil     { contentHeight += hintLabelH + 10 }
         if showChainImage  { contentHeight += 28 }
         if showFingerAnim  { contentHeight += 36 }
         if showBombImage   { contentHeight += bombImageSize + 8 }
@@ -7230,11 +10346,11 @@ final class GameScene: SKScene {
             curY -= 28
         }
 
-        // Image bombe réelle + animation pulsée (overlay bombe)
+        // Sprite bombe animé (shader couleurs + halo + particules) + animation pulsée
         if showBombImage {
-            let bombSprite = SKSpriteNode(imageNamed: "WebImages/bomb")
-            bombSprite.size     = CGSize(width: bombImageSize, height: bombImageSize)
-            bombSprite.position = CGPoint(x: 0, y: curY - bombImageSize / 2)
+            let bombSize = CGSize(width: bombImageSize, height: bombImageSize)
+            let bombSprite = Self.makeBombShaderSprite(size: bombSize)
+            bombSprite.position  = CGPoint(x: 0, y: curY - bombImageSize / 2)
             bombSprite.zPosition = 1
             node.addChild(bombSprite)
             bombSprite.run(SKAction.repeatForever(SKAction.sequence([
@@ -7244,24 +10360,24 @@ final class GameScene: SKScene {
             curY -= bombImageSize + 8
         }
 
-        // Texte principal
+        // Texte principal — descend de sa hauteur réelle mesurée.
         let mainLabel = SKLabelNode()
-        mainLabel.attributedText = tutorialAttributedText(main, size: mainFont, bold: true)
-        mainLabel.numberOfLines         = 0
-        mainLabel.preferredMaxLayoutWidth = width - pad * 2
-        mainLabel.verticalAlignmentMode = .top
+        mainLabel.attributedText          = mainAttr
+        mainLabel.numberOfLines           = 0
+        mainLabel.preferredMaxLayoutWidth = textWidth
+        mainLabel.verticalAlignmentMode   = .top
         mainLabel.position  = CGPoint(x: 0, y: curY)
         mainLabel.zPosition = 1
         node.addChild(mainLabel)
-        curY -= mainFont + 8
+        curY -= mainLabelH + 10
 
-        // Texte hint
-        if let hint = hint {
+        // Texte hint — positionné après la hauteur réelle du texte principal.
+        if let hint {
             let hintLabel = SKLabelNode()
-            hintLabel.attributedText = tutorialAttributedText(hint, size: hintFont, bold: false)
-            hintLabel.numberOfLines          = 0
-            hintLabel.preferredMaxLayoutWidth = width - pad * 2
-            hintLabel.verticalAlignmentMode  = .top
+            hintLabel.attributedText          = tutorialAttributedText(hint, size: hintFont, bold: false)
+            hintLabel.numberOfLines           = 0
+            hintLabel.preferredMaxLayoutWidth = textWidth
+            hintLabel.verticalAlignmentMode   = .top
             hintLabel.position  = CGPoint(x: 0, y: curY)
             hintLabel.zPosition = 1
             node.addChild(hintLabel)
@@ -7289,6 +10405,69 @@ final class GameScene: SKScene {
 
         // Petit pop-in
         node.setScale(0.85)
+        node.run(SKAction.scale(to: 1.0, duration: 0.2))
+    }
+
+    /// Overlay Magix : 3 blocs animés (CHROMAX, CROSX, BRIXED) + texte "surprises".
+    /// Tap ou auto-dismiss 3 s → `exitTutorial()`.
+    private func buildMagixIntroOverlay(node: SKNode, width: CGFloat) {
+        let pad: CGFloat        = 14
+        let blockSize: CGFloat  = 30
+        let blockGap: CGFloat   = 8
+        let blocksRowH: CGFloat = blockSize + 10   // hauteur réservée à la rangée de blocs
+        let mainFont: CGFloat   = 14
+
+        // Mesurer la hauteur du texte.
+        let textWidth = width - pad * 2
+        let text = BlomixL10n.tutorialMagixIntro
+        let mainAttr = tutorialAttributedText(text, size: mainFont, bold: false)
+        let textH = ceil(mainAttr.boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil).height)
+
+        let contentH = pad * 2 + blocksRowH + 8 + textH
+
+        // Fond.
+        let bg = SKShapeNode(rectOf: CGSize(width: width, height: contentH), cornerRadius: 10)
+        bg.fillColor   = UIColor(white: 0.08, alpha: 0.93)
+        bg.strokeColor = UIColor(white: 1, alpha: 0.18)
+        bg.lineWidth   = 0.5
+        bg.zPosition   = 0
+        node.addChild(bg)
+
+        var curY: CGFloat = contentH / 2 - pad
+
+        // 3 blocs MAGIX animés (un par variante).
+        let kinds: [MagixKind] = [.chromax, .crosx, .brixed, .scrumblx]
+        let totalBlocksW = CGFloat(kinds.count) * blockSize + CGFloat(kinds.count - 1) * blockGap
+        var blockX = -totalBlocksW / 2 + blockSize / 2
+        let blockY = curY - blockSize / 2
+
+        for kind in kinds {
+            let sprite = Self.makeMagixShaderSprite(
+                size: CGSize(width: blockSize, height: blockSize),
+                kind: kind
+            )
+            sprite.position  = CGPoint(x: blockX, y: blockY)
+            sprite.zPosition = 1
+            node.addChild(sprite)
+            blockX += blockSize + blockGap
+        }
+        curY -= blocksRowH + 8
+
+        // Texte explicatif.
+        let mainLabel = SKLabelNode()
+        mainLabel.attributedText          = mainAttr
+        mainLabel.numberOfLines           = 0
+        mainLabel.preferredMaxLayoutWidth = textWidth
+        mainLabel.verticalAlignmentMode   = .top
+        mainLabel.position  = CGPoint(x: 0, y: curY)
+        mainLabel.zPosition = 1
+        node.addChild(mainLabel)
+
+        // Léger pop-in identique aux célébrations.
+        node.setScale(0.88)
         node.run(SKAction.scale(to: 1.0, duration: 0.2))
     }
 
@@ -7328,14 +10507,23 @@ final class GameScene: SKScene {
     private func showTutorialSkipButton() {
         childNode(withName: Self.tutorialSkipBtnName)?.removeFromParent()
 
+        let chipSize = CGSize(width: 80, height: 34)
         let chip = makeStartScreenButtonChip(
             chipName:  Self.tutorialSkipBtnName,
             labelName: Self.tutorialSkipBtnName + "_lbl",
             text:      BlomixL10n.tutorialSkip,
-            chipSize:  CGSize(width: 80, height: 34),
+            chipSize:  chipSize,
             fontSize:  13
         )
-        chip.position  = CGPoint(x: size.width - 56, y: size.height - 56)
+
+        // Centre horizontal aligné sur la file de blocs (preview centré sur la largeur).
+        let chipX = size.width / 2
+        // Vertical : juste sous le label caption de la queue ; fallback en bas d'écran si absent.
+        let captionY = (childNode(withName: Self.upcomingQueueCaptionLabelName)?.position.y)
+                    ?? (size.height * 0.12)
+        let chipY = captionY - chipSize.height - 8
+
+        chip.position  = CGPoint(x: chipX, y: chipY)
         chip.zPosition = 210
         addChild(chip)
     }
@@ -7425,7 +10613,7 @@ final class GameScene: SKScene {
         overlay.childNode(withName: Self.updateBannerName)?.removeFromParent()
 
         let bannerW: CGFloat = size.width - 48
-        let bannerH: CGFloat = 36
+        let bannerH: CGFloat = 54
         let bannerY: CGFloat = 26
 
         let banner = SKNode()
@@ -7434,7 +10622,7 @@ final class GameScene: SKScene {
         banner.zPosition = 10
         overlay.addChild(banner)
 
-        let bg = SKShapeNode(rectOf: CGSize(width: bannerW, height: bannerH), cornerRadius: 8)
+        let bg = SKShapeNode(rectOf: CGSize(width: bannerW, height: bannerH), cornerRadius: 10)
         bg.fillColor   = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
         bg.strokeColor = BlomixUIDestinationButtonStyle.borderColor
         bg.lineWidth   = BlomixUIDestinationButtonStyle.hairlineBorderWidth
@@ -7443,30 +10631,39 @@ final class GameScene: SKScene {
 
         let textLabel = SKLabelNode(text: BlomixL10n.updateBannerAvailable(version))
         textLabel.fontName              = Self.customUIFontPostScriptName
-        textLabel.fontSize              = 11
+        textLabel.fontSize              = 15
         textLabel.fontColor             = .white
         textLabel.horizontalAlignmentMode = .left
         textLabel.verticalAlignmentMode   = .center
-        textLabel.position  = CGPoint(x: -bannerW / 2 + 14, y: 0)
+        textLabel.position  = CGPoint(x: -bannerW / 2 + 16, y: 0)
         textLabel.zPosition = 1
         banner.addChild(textLabel)
 
         let closeLabel = SKLabelNode(text: "✕")
         closeLabel.name                 = Self.updateBannerCloseName
         closeLabel.fontName             = Self.customUIFontPostScriptName
-        closeLabel.fontSize             = 13
+        closeLabel.fontSize             = 16
         closeLabel.fontColor            = UIColor(white: 1, alpha: 0.55)
         closeLabel.horizontalAlignmentMode = .center
         closeLabel.verticalAlignmentMode   = .center
-        closeLabel.position  = CGPoint(x: bannerW / 2 - 18, y: 0)
+        closeLabel.position  = CGPoint(x: bannerW / 2 - 20, y: 0)
         closeLabel.zPosition = 1
         banner.addChild(closeLabel)
 
-        banner.alpha = 0
-        banner.run(SKAction.sequence([
+        // Animation de "respiration" : oscillation subtile de scale, démarre après le fade-in.
+        let breathe = SKAction.repeatForever(SKAction.sequence([
+            SKAction.scale(to: 1.04, duration: 1.1),
+            SKAction.scale(to: 1.00, duration: 1.1),
+        ]))
+        // Les deux phases ont un timing doux pour une pulsation naturelle.
+        let fadeInThenBreathe = SKAction.sequence([
             SKAction.wait(forDuration: 0.6),
             SKAction.fadeIn(withDuration: 0.4),
-        ]))
+            SKAction.run { banner.run(breathe, withKey: "breathe") },
+        ])
+
+        banner.alpha = 0
+        banner.run(fadeInThenBreathe)
     }
 
     // MARK: - Entrées utilisateur (tactile)
@@ -7501,6 +10698,32 @@ final class GameScene: SKScene {
             return
         }
 
+        // Overlay Magix (étape 4c du tutoriel) : tap n'importe où → écran "Tu sais tout".
+        if isTutorialMode && tutorialStep == .magixIntro {
+            pendingButtonAction = { [weak self] in
+                guard let self, self.tutorialStep == .magixIntro else { return }
+                self.tutorialAdvanceTo(.bombCelebration)
+            }
+            return
+        }
+
+        // Dialog de confirmation "Quitter" — intercepte tout le reste tant qu'elle est visible.
+        if childNode(withName: Self.quitConfirmOverlayName) != nil {
+            let tappedBtn = blomixButtonAtPoint(location)
+            if tappedBtn?.name == Self.quitConfirmBtnQuitName {
+                pendingButtonAction = { [weak self] in
+                    guard let self else { return }
+                    self.dismissQuitConfirmOverlay()
+                    ScoreManager.shared.recordGameScore(self.score)
+                    self.unwindToStartScreen()
+                }
+            } else {
+                // Tap sur "Annuler" ou hors du panneau → fermeture uniquement.
+                pendingButtonAction = { [weak self] in self?.dismissQuitConfirmOverlay() }
+            }
+            return
+        }
+
         if isStartScreen {
             // Bannière de mise à jour : "✕" ferme, le reste ouvre l'App Store.
             if let overlay = childNode(withName: Self.startScreenOverlayName),
@@ -7516,8 +10739,8 @@ final class GameScene: SKScene {
                 }
             }
 
-            if touchHitsStartScreenCreditsButton(location) {
-                pendingButtonAction = { [weak self] in self?.showCredits() }
+            if touchHitsStartScreenZenButton(location) {
+                pendingButtonAction = { [weak self] in self?.beginZenModeFromStartScreen() }
                 return
             }
             if touchHitsStartScreenScoresButton(location) {
@@ -7543,12 +10766,21 @@ final class GameScene: SKScene {
         }
 
         if isGameOver {
+            // Fermer l'overlay du pire coup si ouvert.
+            if childNode(withName: Self.worstMistakeOverlayName) != nil {
+                childNode(withName: Self.worstMistakeOverlayName)?.removeFromParent()
+                return
+            }
             if touchHitsGameOverRestartButton(location) {
                 pendingButtonAction = { [weak self] in self?.returnToStartScreenFromGameOver() }
                 return
             }
             if touchHitsGameOverLeaderboardButton(location) {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard() }
+                return
+            }
+            if touchHitsGameOverWorstMoveButton(location) {
+                pendingButtonAction = { [weak self] in self?.showWorstMistakeOverlay() }
                 return
             }
             return
@@ -7732,6 +10964,8 @@ final class GameScene: SKScene {
     // MARK: - Multijoueur PvP (optionnel ; `pvpCoordinator == nil` → tout le solo inchangé)
 
     private func blomixPvP_teardown() {
+        // Reprend le polling de défi entrant si le joueur était disponible.
+        BlomixAvailablePlayersManager.shared.setActiveMatch(false)
         pvpMatchSetupInProgress = false
         pvpNeedsDecadeLineAfterAttackInjection = false
         didFinalizePvPEloForCurrentMatch = false
@@ -7749,10 +10983,6 @@ final class GameScene: SKScene {
     }
 
     private func showPvPLobby() {
-        BlomixPvPAutoSearcher.shared.onMatch = { [weak self] match in
-            guard let self else { return }
-            self.beginPvPWithMatch(match)
-        }
         let lobby = BlomixPvPLobbyViewController()
         lobby.modalPresentationStyle = .overFullScreen
         lobby.modalTransitionStyle = .crossDissolve
@@ -7800,6 +11030,8 @@ final class GameScene: SKScene {
         }
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
 
+        // Signale au manager que le polling de défi doit être suspendu.
+        BlomixAvailablePlayersManager.shared.setActiveMatch(true)
         pvpCoordinator = BlomixPvPMatchCoordinator(match: match)
         pvpOpponentDisplayName = match.players.first?.displayName ?? BlomixL10n.pvpUnknownOpponent
         pvpLastEloResult = nil
@@ -7810,30 +11042,118 @@ final class GameScene: SKScene {
     private func blomixPvP_showConnectingOverlayIfNeeded() {
         childNode(withName: Self.pvpConnectingOverlayName)?.removeFromParent()
 
-        // Conteneur parent : retirer le conteneur supprime automatiquement dim + label.
+        // Conteneur parent : retirer le conteneur supprime automatiquement tous les enfants.
         let container = SKNode()
         container.name = Self.pvpConnectingOverlayName
         container.zPosition = 170
         addChild(container)
 
+        // Fond semi-transparent — même opacité que l'overlay de stage.
         let dim = SKSpriteNode(color: .black, size: size)
         dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        dim.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        dim.alpha = 0.72
-        dim.zPosition = 0
+        dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.alpha       = 0
+        dim.zPosition   = 0
         container.addChild(dim)
+        dim.run(SKAction.fadeAlpha(to: 0.52, duration: 0.20))
 
+        let centerX:   CGFloat       = size.width / 2
+        let slideIn:   TimeInterval  = 0.45
+        let phraseFontSize: CGFloat  = 22
+        let maxW:      CGFloat       = size.width - 80
+
+        // Couleurs du skin joueur.
+        let pvpYellowColor  = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "yellow")
+                           ?? SKColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1)
+        let pvpOutlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
+                           ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
+
+        // ── En-tête "P vs P" (remplace l'image) — glisse depuis la gauche ──────────
+        let pvpFontSize: CGFloat = 72
+        let blockCenterY = size.height / 2 + 40
+        let labelY       = blockCenterY - pvpFontSize * 0.7 - phraseFontSize * 0.8
+
+        let pvpHeaderFont = UIFont(name: Self.customUIFontPostScriptName, size: pvpFontSize)
+                         ?? UIFont.boldSystemFont(ofSize: pvpFontSize)
+        let pvpHeaderAttrs: [NSAttributedString.Key: Any] = [
+            .font:            pvpHeaderFont,
+            .foregroundColor: pvpYellowColor,
+            .strokeColor:     pvpOutlineColor,
+            .strokeWidth:     -4.5,
+        ]
+        let pvpTitleNode = SKLabelNode(
+            attributedText: NSAttributedString(string: "P vs P", attributes: pvpHeaderAttrs))
+        pvpTitleNode.horizontalAlignmentMode = .center
+        pvpTitleNode.verticalAlignmentMode   = .center
+        pvpTitleNode.numberOfLines           = 1
+        pvpTitleNode.zPosition               = 1
+        pvpTitleNode.position = CGPoint(x: -size.width - 20, y: blockCenterY)
+        container.addChild(pvpTitleNode)
+
+        let slidePvP = SKAction.moveTo(x: centerX, duration: slideIn)
+        slidePvP.timingMode = .easeOut
+        pvpTitleNode.run(slidePvP)
+
+        // Traînée de particules dans le sillage de "P vs P" (vient de la gauche).
+        pvpTitleNode.run(makeTextSlideTrailAction(
+            slideDuration: slideIn, color: pvpYellowColor,
+            trackedNode: pvpTitleNode, movingRight: true))
+
+        // ── Texte tournant (phrases d'attente) — glisse depuis la droite ─────────
         let label = SKLabelNode()
-        label.fontName = Self.customUIFontPostScriptName
-        label.fontSize = 22
-        label.fontColor = .white
+        label.fontName                = Self.customUIFontPostScriptName
+        label.fontSize                = phraseFontSize
+        label.fontColor               = .white
         label.horizontalAlignmentMode = .center
-        label.verticalAlignmentMode = .center
-        label.numberOfLines = 2
-        label.text = BlomixL10n.pvpMatchFoundLaunching
-        label.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        label.zPosition = 1
+        label.verticalAlignmentMode   = .center
+        label.numberOfLines           = 0
+        label.lineBreakMode           = .byWordWrapping
+        label.preferredMaxLayoutWidth = maxW
+        label.zPosition               = 1
+
+        let phrases = BlomixL10n.pvpWaitingPhrases.filter { !$0.isEmpty }
+        label.text     = phrases.first ?? BlomixL10n.pvpMatchFoundLaunching
+        label.position = CGPoint(x: size.width * 2 + 20, y: labelY)
         container.addChild(label)
+
+        let slideLabel = SKAction.moveTo(x: centerX, duration: slideIn)
+        slideLabel.timingMode = .easeOut
+        label.run(slideLabel)
+
+        // Rotation des phrases après le slide-in.
+        guard phrases.count > 1 else { return }
+        let phraseDur: TimeInterval = 1.8
+        let fadeDur:   TimeInterval = 0.28
+
+        var steps: [SKAction] = [
+            // Attente initiale : laisse la première phrase visible le temps du slide + une durée complète.
+            SKAction.wait(forDuration: slideIn + phraseDur - fadeDur),
+        ]
+        for i in 1...phrases.count {       // boucle infinie : index modulo
+            let phrase = phrases[i % phrases.count]
+            steps += [
+                SKAction.fadeOut(withDuration: fadeDur),
+                SKAction.run { label.text = phrase },
+                SKAction.fadeIn(withDuration: fadeDur),
+                SKAction.wait(forDuration: phraseDur - fadeDur * 2),
+            ]
+        }
+        label.run(SKAction.repeatForever(SKAction.sequence(steps)))
+    }
+
+    // MARK: - Wrappers publics pour l'overlay PvP de préparation
+
+    /// Affiche immédiatement l'overlay PvP (image + textes rotatifs) dès l'acceptation du défi,
+    /// **avant** que GameKit ait terminé de trouver/connecter le match.
+    /// Appelé depuis `GameViewController.acceptIncomingChallenge()`.
+    func showPvPWaitingForMatchOverlay() {
+        blomixPvP_showConnectingOverlayIfNeeded()
+    }
+
+    /// Retire l'overlay de préparation PvP (cas d'échec : timeout, erreur réseau…).
+    /// Appelé depuis `GameViewController` quand le matchmaking échoue avant `beginPvPWithMatch`.
+    func hidePvPWaitingForMatchOverlay() {
+        blomixPvP_removeConnectingOverlay()
     }
 
     private func blomixPvP_removeConnectingOverlay() {
@@ -7938,6 +11258,7 @@ final class GameScene: SKScene {
         if isStartScreen {
             childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
             isStartScreen = false
+            hapticSoft()
         }
         if childNode(withName: Self.titleNodeName) == nil {
             addTopTitle()
@@ -7979,7 +11300,6 @@ final class GameScene: SKScene {
         refreshRemoteBoardFillIndicator()
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
-        refreshPvPAutoSearchDot()
         // Informe le lobby du vrai nom juste avant qu'il se ferme —
         // c'est ici que GKPlayer.displayName est garanti disponible.
         if let resolvedName = pvpOpponentDisplayName, !resolvedName.isEmpty,
@@ -8021,6 +11341,9 @@ final class GameScene: SKScene {
         label.fontColor = SKColor(white: 0.84, alpha: 1)
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .center
+        label.numberOfLines = 2
+        label.lineBreakMode = .byTruncatingTail
+        label.preferredMaxLayoutWidth = GridLayout.spanPoints
         label.zPosition = 125
         addChild(label)
         layoutPvPTurnCountdownIfNeeded()
@@ -8190,6 +11513,12 @@ final class GameScene: SKScene {
     }
 
     private func blomixPvP_returnToHomeAfterMatch() {
+        // isWindingDown bloque saveCurrentSoloGameState() dans la micro-fenêtre entre
+        // blomixPvP_teardown() (qui met pvpCoordinator = nil) et unwindToStartScreen()
+        // (qui pose lui-même isWindingDown = true). Sans cette protection, un
+        // willResignActiveNotification peut sauver un état PvP invalide (isZenMode:false,
+        // grille PvP) et écraser la save Zen correcte écrite lors du beginPvPWithMatch.
+        isWindingDown = true
         blomixPvP_teardown()
         unwindToStartScreen(restoreSave: true)
     }
@@ -8203,9 +11532,14 @@ final class GameScene: SKScene {
         if wasInGame {
             blomixPvP_finalizeEloIfNeeded(outcome: .win)
         }
+        // Protège la sauvegarde solo pendant l'overlay de déconnexion (≈2,5 s) :
+        // blomixPvP_teardown() met pvpCoordinator = nil, ce qui lèverait sinon le guard
+        // de saveCurrentSoloGameState() alors que la grille contient encore l'état PvP.
+        isWindingDown = true
         blomixPvP_teardown()
         // Overlay de notification avant le retour à l'écran d'accueil.
         showPvPDisconnectOverlay(wasInGame: wasInGame) { [weak self] in
+            // unwindToStartScreen gère lui-même isWindingDown (true→reset→false→restore).
             self?.unwindToStartScreen(restoreSave: true)
         }
     }
@@ -8238,24 +11572,30 @@ final class GameScene: SKScene {
 
         let titleText = BlomixL10n.pvpDisconnectTitle.uppercased()
         let title = SKLabelNode(text: titleText)
-        title.fontName               = Self.customUIFontPostScriptName
-        title.fontSize               = 26
-        title.fontColor              = .white
+        title.fontName                = Self.customUIFontPostScriptName
+        title.fontSize                = 26
+        title.fontColor               = .white
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode   = .center
-        title.position               = CGPoint(x: 0, y: wasInGame ? 24 : 0)
-        title.zPosition              = 1
+        title.numberOfLines           = 0
+        title.lineBreakMode           = .byWordWrapping
+        title.preferredMaxLayoutWidth = size.width - 80
+        title.position                = CGPoint(x: 0, y: wasInGame ? 36 : 0)
+        title.zPosition               = 1
         overlay.addChild(title)
 
         if wasInGame {
             let sub = SKLabelNode(text: BlomixL10n.pvpDisconnectMessage)
-            sub.fontName               = Self.customUIFontPostScriptName
-            sub.fontSize               = 20
-            sub.fontColor              = SKColor(red: 0.4, green: 1.0, blue: 0.4, alpha: 1)
+            sub.fontName                = Self.customUIFontPostScriptName
+            sub.fontSize                = 18
+            sub.fontColor               = SKColor(red: 0.4, green: 1.0, blue: 0.4, alpha: 1)
             sub.horizontalAlignmentMode = .center
             sub.verticalAlignmentMode   = .center
-            sub.position               = CGPoint(x: 0, y: -20)
-            sub.zPosition              = 1
+            sub.numberOfLines           = 0
+            sub.lineBreakMode           = .byWordWrapping
+            sub.preferredMaxLayoutWidth = size.width - 80
+            sub.position                = CGPoint(x: 0, y: -28)
+            sub.zPosition               = 1
             overlay.addChild(sub)
         }
 

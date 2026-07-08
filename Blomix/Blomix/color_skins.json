@@ -15,20 +15,6 @@
       "prikstext": "#FFFFFF"
     },
 {
-      "id": "old",
-      "displayName": "Old",
-      "blox": {
-        "blue": "#33588A",
-        "red": "#66081B",
-        "purple": "#861E8F",
-        "yellow": "#BFB728",
-        "green": "#77A135",
-        "orange": "#A35A03"
-      },
-      "priks": "#7F7F7F",
-      "prikstext": "#333333"
-    },
-{
       "id": "fresh",
       "displayName": "Fresh",
       "blox": {

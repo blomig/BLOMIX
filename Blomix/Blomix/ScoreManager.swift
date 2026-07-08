@@ -22,7 +22,11 @@ final class ScoreManager {
     static let shared = ScoreManager()
 
     /// Identifiant du leaderboard configuré dans App Store Connect (doit correspondre exactement).
-    static let mainLeaderboardID = "BlomixMainScore_v3"
+    nonisolated static let mainLeaderboardID    = "BlomixMainScore_v3"
+    /// Leaderboard « score moyen » (Most Recent Score dans App Store Connect).
+    nonisolated static let averageLeaderboardID = "BlomixAverageScore_v1"
+    /// Leaderboard dédié au mode Zen.
+    nonisolated static let zenLeaderboardID     = "ZenMode"
 
     private init() {
         migrateScoreVersionIfNeeded()
@@ -50,11 +54,19 @@ final class ScoreManager {
 
     private enum LocalPersistence {
         static let highScoreKey      = "BlomixLocalHighScore"
+        /// Meilleur score Zen enregistré localement (indépendant du record Solo).
+        static let zenHighScoreKey   = "BlomixLocalZenHighScore"
         /// Meilleur score réalisé hors ligne (GC inaccessible) — soumis automatiquement à la reconnexion.
         static let pendingGCScoreKey = "BlomixPendingGCScore"
         /// Version du système de score. Incrémentée quand les scores ne sont plus comparables (nouveau leaderboard, nouveau système de points…).
         static let scoreVersionKey   = "BlomixScoreVersion"
-        static let currentScoreVersion = 2
+        static let currentScoreVersion = 3   // v3 : nouveau leaderboard BlomixMainScore_v3 + nouveau système de points
+
+        // ── Statistiques de moyenne (JAMAIS réinitialisées par la migration de version) ──
+        /// Somme cumulée de tous les scores de parties solo complètes (de tout temps).
+        static let avgTotalScoreKey  = "BlomixAvgTotalScore"
+        /// Nombre de parties solo complètes enregistrées dans la moyenne.
+        static let avgGameCountKey   = "BlomixAvgGameCount"
     }
 
     /// Meilleur score enregistré sur l’appareil (synchronisé avec `UserDefaults`, clé **BlomixLocalHighScore**).
@@ -63,7 +75,13 @@ final class ScoreManager {
         set { UserDefaults.standard.set(newValue, forKey: LocalPersistence.highScoreKey) }
     }
 
-    /// Met à jour le high-score **disque** uniquement si `score` est strictement supérieur à la valeur actuelle.
+    /// Meilleur score Zen enregistré sur l'appareil, indépendant du record Solo.
+    private var localZenHighScore: Int {
+        get { UserDefaults.standard.integer(forKey: LocalPersistence.zenHighScoreKey) }
+        set { UserDefaults.standard.set(newValue, forKey: LocalPersistence.zenHighScoreKey) }
+    }
+
+    /// Met à jour le high-score Solo **disque** uniquement si `score` est strictement supérieur à la valeur actuelle.
     @discardableResult
     func updateLocalHighScoreIfBetter(_ score: Int) -> Bool {
         guard score > localHighScore else {
@@ -75,10 +93,20 @@ final class ScoreManager {
         return true
     }
 
-    /// Retourne le meilleur score persisté localement (0 si aucune partie enregistrée).
-    func getLocalHighScore() -> Int {
-        localHighScore
+    /// Met à jour le high-score Zen **disque** uniquement si `score` est strictement supérieur à la valeur actuelle.
+    @discardableResult
+    func updateLocalZenHighScoreIfBetter(_ score: Int) -> Bool {
+        guard score > localZenHighScore else { return false }
+        localZenHighScore = score
+        print("[ScoreManager] Backup Zen local mis à jour : nouveau record Zen = \(score).")
+        return true
     }
+
+    /// Retourne le meilleur score Solo persisté localement (0 si aucune partie enregistrée).
+    func getLocalHighScore() -> Int { localHighScore }
+
+    /// Retourne le meilleur score Zen persisté localement (0 si aucune partie enregistrée).
+    func getLocalZenHighScore() -> Int { localZenHighScore }
 
     // MARK: - Référence Game Center (pour comparaisons « record personnel »)
 
@@ -89,9 +117,14 @@ final class ScoreManager {
     private var cachedGameCenterPersonalBest: Int = 0
 
     /// Mémorise le résultat d’un chargement Game Center pour alimenter **`isNewPersonalBest`**.
-    private func recordGameCenterPersonalBestFromFetch(_ best: Int?) {
-        hasFetchedGameCenterPersonalBest = true
-        cachedGameCenterPersonalBest = best ?? 0
+    private func recordGameCenterPersonalBestFromFetch(_ best: Int?, leaderboardID: String = ScoreManager.mainLeaderboardID) {
+        if leaderboardID == ScoreManager.zenLeaderboardID {
+            hasFetchedGameCenterZenPersonalBest = true
+            cachedGameCenterZenPersonalBest = best ?? 0
+        } else {
+            hasFetchedGameCenterPersonalBest = true
+            cachedGameCenterPersonalBest = best ?? 0
+        }
     }
 
     /// Indique si `score` bat le **meilleur connu** : max entre le backup local et, si déjà chargé, le meilleur score Game Center.
@@ -103,6 +136,19 @@ final class ScoreManager {
         } else {
             reference = local
         }
+        return score > reference
+    }
+
+    // ── Cache Game Center Zen (symétrique du cache Solo) ───────────────────────
+    private var hasFetchedGameCenterZenPersonalBest = false
+    private var cachedGameCenterZenPersonalBest: Int = 0
+
+    /// Indique si `score` bat le **meilleur Zen connu** : max entre backup local et cache GC Zen (si chargé).
+    func isNewZenPersonalBest(_ score: Int) -> Bool {
+        let local = getLocalZenHighScore()
+        let reference = hasFetchedGameCenterZenPersonalBest
+            ? max(local, cachedGameCenterZenPersonalBest)
+            : local
         return score > reference
     }
 
@@ -177,6 +223,66 @@ final class ScoreManager {
         submitScore(pending)
     }
 
+    // MARK: - Moyenne des scores (leaderboard BlomixAverageScore_v1)
+
+    /// Enregistre le score d'une partie solo complète, recalcule la moyenne et la soumet à Game Center.
+    ///
+    /// Les clés UserDefaults utilisées (`BlomixAvgTotalScore` / `BlomixAvgGameCount`) ne sont jamais
+    /// effacées par `migrateScoreVersionIfNeeded()` — elles survivent à toutes les mises à jour de l'app.
+    ///
+    /// - Parameter score: Score final de la partie (ignoré s'il est ≤ 0).
+    func recordGameScore(_ score: Int) {
+        guard score > 0 else { return }
+        let ud = UserDefaults.standard
+        let total = max(0, ud.integer(forKey: LocalPersistence.avgTotalScoreKey)) + score
+        let count = max(0, ud.integer(forKey: LocalPersistence.avgGameCountKey)) + 1
+        ud.set(total, forKey: LocalPersistence.avgTotalScoreKey)
+        ud.set(count, forKey: LocalPersistence.avgGameCountKey)
+        let average = total / count   // entier, arrondi vers le bas
+        print("[ScoreManager] Moyenne mise à jour : \(total) / \(count) = \(average) pts (après \(count) partie(s)).")
+        // Soumission directe vers le leaderboard dédié — on ne passe PAS par submitScore()
+        // pour ne pas risquer de modifier le high score local (updateLocalHighScoreIfBetter).
+        // Le nombre de parties est stocké dans le champ `context` (Int64) pour être
+        // visible sur le classement par tous les joueurs.
+        submitAverageScoreToGC(average, gameCount: count)
+    }
+
+    private func submitAverageScoreToGC(_ average: Int, gameCount: Int) {
+        guard isAuthenticated else {
+            print("[ScoreManager] submitAverageScoreToGC(\(average)) : Game Center non disponible — valeur conservée localement.")
+            return
+        }
+        GKLeaderboard.submitScore(
+            average,
+            context: gameCount,
+            player: GKLocalPlayer.local,
+            leaderboardIDs: [ScoreManager.averageLeaderboardID]
+        ) { error in
+            DispatchQueue.main.async {
+                if let error {
+                    print("[ScoreManager] Erreur soumission moyenne : \(error.localizedDescription)")
+                } else {
+                    print("[ScoreManager] Moyenne \(average) soumise avec succès sur « \(ScoreManager.averageLeaderboardID) ».")
+                }
+            }
+        }
+    }
+
+    /// Retourne la moyenne locale actuelle (0 si aucune partie enregistrée). Lecture seule, sans appel réseau.
+    func localAverageScore() -> Int {
+        let ud = UserDefaults.standard
+        let total = max(0, ud.integer(forKey: LocalPersistence.avgTotalScoreKey))
+        let count = max(0, ud.integer(forKey: LocalPersistence.avgGameCountKey))
+        guard count > 0 else { return 0 }
+        return total / count
+    }
+
+    /// Nombre de parties enregistrées dans la moyenne locale (0 si aucune). Utilisé comme fallback
+    /// dans le classement quand `entry.context` vaut 0 (entrée soumise avant l'ajout du context).
+    func localGameCount() -> Int {
+        max(0, UserDefaults.standard.integer(forKey: LocalPersistence.avgGameCountKey))
+    }
+
     // MARK: - Soumission de score
 
     /// Envoie un score entier au leaderboard **BlomigMainScore_v2** (ou un autre ID si vous le surchargez).
@@ -195,7 +301,11 @@ final class ScoreManager {
         completion: ((Result<Void, Error>) -> Void)? = nil
     ) {
         // Backup disque **toujours** tenté en premier (hors ligne, échec réseau Game Center, ou joueur non connecté).
-        _ = updateLocalHighScoreIfBetter(score)
+        if leaderboardID == ScoreManager.zenLeaderboardID {
+            _ = updateLocalZenHighScoreIfBetter(score)
+        } else {
+            _ = updateLocalHighScoreIfBetter(score)
+        }
 
         guard isAuthenticated else {
             // GC inaccessible : on mémorise le score pour l'envoyer à la prochaine reconnexion.
@@ -294,11 +404,11 @@ final class ScoreManager {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     if let value = bestScore {
-                        self.recordGameCenterPersonalBestFromFetch(value)
+                        self.recordGameCenterPersonalBestFromFetch(value, leaderboardID: leaderboardID)
                         print("[ScoreManager] Meilleur score local sur « \(leaderboardID) » : \(value).")
                         completion(.success(value))
                     } else {
-                        self.recordGameCenterPersonalBestFromFetch(nil)
+                        self.recordGameCenterPersonalBestFromFetch(nil, leaderboardID: leaderboardID)
                         print("[ScoreManager] Aucune entrée locale encore enregistrée sur « \(leaderboardID) ».")
                         completion(.success(nil))
                     }
@@ -307,16 +417,24 @@ final class ScoreManager {
         }
     }
 
-    /// Fetches the local player's global rank in `mainLeaderboardID` (BlomixMainScore_v2).
+    /// Fetches the local player's global rank in `mainLeaderboardID` (BlomixMainScore_v3).
     /// Calls `completion` on the **main thread** with the rank (1-based), or `nil` on failure
     /// or if the player has no entry yet.
     func fetchLocalPlayerMainScoreRank(completion: @escaping (Int?) -> Void) {
+        fetchLocalPlayerRank(leaderboardID: ScoreManager.mainLeaderboardID, completion: completion)
+    }
+
+    /// Fetches the local player's global rank in any leaderboard.
+    /// Calls `completion` on the **main thread** with the rank (1-based), or `nil` on failure
+    /// or if the player has no entry yet. Rank is not capped — the player's actual position
+    /// in the full global leaderboard is returned regardless of their standing.
+    func fetchLocalPlayerRank(leaderboardID: String, completion: @escaping (Int?) -> Void) {
         guard isAuthenticated else {
             completion(nil)
             return
         }
 
-        GKLeaderboard.loadLeaderboards(IDs: [ScoreManager.mainLeaderboardID]) { leaderboards, error in
+        GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, error in
             guard let leaderboard = leaderboards?.first, error == nil else {
                 Task { @MainActor in completion(nil) }
                 return

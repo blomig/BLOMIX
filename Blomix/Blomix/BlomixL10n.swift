@@ -20,12 +20,17 @@ enum BlomixL10n {
     static var cancel: String { tr("common.cancel", comment: "Cancel action (alerts)") }
     static var loading: String { tr("common.loading", comment: "Generic loading label") }
 
+    static var quitConfirmTitle:   String { tr("quit_confirm.title",   comment: "Alert: quit solo game?") }
+    static var quitConfirmMessage: String { tr("quit_confirm.message", comment: "Alert: score counted in average") }
+    static var quitConfirmQuit:    String { tr("quit_confirm.quit",    comment: "Alert: confirm quit button") }
+
     // MARK: - Accueil & jeu (SpriteKit)
 
     static var gameTagline: String { tr("game.tagline", comment: "Subtitle under BLOMIX title") }
     static var startButton: String { tr("start.button", comment: "Start game on welcome screen") }
     static var settings: String { tr("start.settings", comment: "Settings link on welcome") }
     static var credits: String { tr("start.credits", comment: "Credits link on welcome") }
+    static var zenButton: String { tr("start.zen", comment: "Zen mode button on welcome screen") }
     static var startScreenPlayerUnknown: String { tr("start.player_unknown", comment: "Start screen fallback player name") }
     static func startScreenPlayerName(_ name: String) -> String {
         String(format: tr("start.player_name_format", comment: "Start screen player name; %@ = display name"), name)
@@ -64,7 +69,9 @@ enum BlomixL10n {
     static var gcStatusOff: String { tr("gc.status.off", comment: "Game Center not signed in") }
 
     static var skinDisplayPerso: String { tr("skin.display.perso", comment: "Custom skin row name") }
+    static var skinDisplayPerso2: String { tr("skin.display.perso2", comment: "Second custom skin row name") }
     static var skinDisplayDefault: String { tr("skin.display.default", comment: "Built-in default skin name") }
+    static var skinDisplayAlea: String { tr("skin.display.alea", comment: "Random-generated skin row name") }
 
     // MARK: - Règles / crédits (fallback si fichier txt absent)
 
@@ -98,21 +105,32 @@ enum BlomixL10n {
         String(format: tr("leaderboard.elo_format", comment: "Row secondary for Elo leaderboard; %lld = rating"), score)
     }
     static var leaderboardMainTab: String { tr("leaderboard.main_tab", comment: "Main score leaderboard tab") }
-    static var leaderboardEloTab: String { tr("leaderboard.elo_tab", comment: "Elo leaderboard tab") }
+    static var leaderboardEloTab:  String { tr("leaderboard.elo_tab",  comment: "Elo leaderboard tab") }
+    static var leaderboardAvgTab:  String { tr("leaderboard.avg_tab",  comment: "Average score leaderboard tab") }
+    static var leaderboardZenTab:  String { tr("leaderboard.zen_tab",  comment: "Zen mode leaderboard tab") }
+    static func leaderboardAverage(_ score: Int) -> String {
+        String(format: tr("leaderboard.avg_format", comment: "Row secondary for avg leaderboard; %lld = avg score"), score)
+    }
+    static func leaderboardAvgGameCount(_ count: Int) -> String {
+        String(format: tr("leaderboard.avg_game_count", comment: "Game count shown on avg leaderboard row; %lld = count"), count)
+    }
 
     // MARK: - Réglages (UIKit)
 
     static var settingsTitle: String { tr("settings.title", comment: "Settings screen title") }
-    static var settingsSoundSection: String { tr("settings.section_sound", comment: "Settings section heading") }
-    static var settingsFontSection: String { tr("settings.section_font", comment: "Settings section heading") }
-    static var settingsColorsSection: String { tr("settings.section_colors", comment: "Settings section heading") }
-    static var settingsAdjustSounds: String { tr("settings.adjust_sounds", comment: "Settings button to open sound mix screen") }
+    static var settingsSoundSection: String         { tr("settings.section_sound",       comment: "Settings section heading") }
+    static var settingsFontSection: String           { tr("settings.section_font",        comment: "Settings section heading") }
+    static var settingsColorsSection: String         { tr("settings.section_colors",      comment: "Settings section heading") }
+    static var settingsAdjustSounds: String          { tr("settings.adjust_sounds",       comment: "Settings button to open sound mix screen") }
+    static var settingsSoundsSliderLabel: String     { tr("settings.sounds_slider_label", comment: "Label above the master SFX volume slider") }
+    static var settingsMusicSliderLabel: String      { tr("settings.music_slider_label",  comment: "Label above the master music volume slider") }
     static var settingsSoundMixTitle: String { tr("settings.sound_mix_title", comment: "Sound mix screen title") }
     static var settingsFontPreview: String { tr("settings.font_preview", comment: "Font choice sample text") }
     static var settingsFontNameBitcount: String { tr("settings.font.bitcount", comment: "Font choice name") }
     static var settingsFontNameGoogleSans: String { tr("settings.font.google_sans", comment: "Font choice name") }
     static var settingsFontNameDynaPuff: String { tr("settings.font.dynapuff", comment: "Font choice name") }
     static var settingsFontNameAlfaSlabOne: String { tr("settings.font.alfa_slab_one", comment: "Font choice name") }
+    static var settingsFontNameChangaOne: String   { tr("settings.font.changa_one",    comment: "Font choice name") }
     static func settingsSoundPercent(_ percent: Int) -> String {
         String(format: tr("settings.sound_percent_format", comment: "Sound relative volume percent; %lld = integer percent"), percent)
     }
@@ -184,6 +202,16 @@ enum BlomixL10n {
     static var pvpUnknownOpponent: String { tr("pvp.unknown_opponent", comment: "Fallback opponent display name") }
     /// Overlay de lancement PvP affiché pendant le handshake et la fermeture du lobby.
     static var pvpMatchFoundLaunching: String { tr("pvp.match_found_launching", comment: "PvP connecting overlay — match found, launching") }
+
+    /// Phrases affichées en rotation dans l'overlay de préparation PvP (attente du handshake).
+    static var pvpWaitingPhrases: [String] {
+        [
+            tr("pvp.waiting_phrase_1", comment: "PvP prep overlay phrase 1"),
+            tr("pvp.waiting_phrase_2", comment: "PvP prep overlay phrase 2"),
+            tr("pvp.waiting_phrase_3", comment: "PvP prep overlay phrase 3"),
+            tr("pvp.waiting_phrase_4", comment: "PvP prep overlay phrase 4"),
+        ]
+    }
     static var pvpRemoteFillLabelLine1: String { tr("pvp.remote_fill_label_line1", comment: "HUD fill indicator label — line 1") }
     static var pvpRemoteFillLabelLine2: String { tr("pvp.remote_fill_label_line2", comment: "HUD fill indicator label — line 2") }
     static func pvpLobbyOpponentFound(_ name: String) -> String {
@@ -262,6 +290,8 @@ enum BlomixL10n {
     static var tutorialBombPrompt: String     { tr("tutorial.bomb_prompt",         comment: "Tuto step 4 — main text") }
     static var tutorialBombHint: String       { tr("tutorial.bomb_hint",           comment: "Tuto step 4 — hint text") }
     static var tutorialBombSuccess: String    { tr("tutorial.bomb_success",        comment: "Tuto step 4b — final celebration") }
+    static var tutorialMagixIntro: String     { tr("tutorial.magix_intro",         comment: "Tuto step 5 — Magix blocks intro before exit") }
+    // NOTE: popup labels for Magix are defined in MagixRules.label(for:) directly in GameScene.
     static var tutorialLineArrival: String    { tr("tutorial.line_arrival",        comment: "Tuto informational — first bottom line push") }
 
     // MARK: - Music track picker
@@ -312,6 +342,7 @@ enum BlomixL10n {
     static var pvpAvailableEmptyHint: String { tr("pvp.available_empty_hint",  comment: "Available players — empty state hint") }
     static var pvpAvailableYouAreVisible: String    { tr("pvp.available_you_visible",     comment: "Available players — local player is visible badge") }
     static var pvpAvailableYouAreNotVisible: String { tr("pvp.available_you_not_visible", comment: "Available players — local player not visible badge") }
+    static var pvpPlayerInMatch: String             { tr("pvp.player_in_match",           comment: "Available players — player currently in a PvP match") }
     static func pvpAvailableError(_ message: String) -> String {
         String(format: tr("pvp.available_error_format", comment: "Available players — load error; %@ = message"), message)
     }

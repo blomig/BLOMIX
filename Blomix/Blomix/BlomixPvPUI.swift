@@ -252,7 +252,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
     // MARK: - Mode choice UI
     private let modeStackView        = UIStackView()
-    private let modeAutoButton       = BlomixUIButton()
     private let modeRecentButton     = BlomixUIButton()
     private let modeAvailableButton  = BlomixUIButton()
     private let modeAvailableToggle  = BlomixUIButton()
@@ -274,12 +273,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
         registerPreparationObserversIfNeeded()
         buildLayout()
         transitionTo(.choosingMode)
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleAutoSearchStateChanged),
-            name: .blomixPvPAutoSearchStateChanged,
-            object: nil
-        )
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleAvailabilityChanged),
@@ -307,7 +300,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
         super.viewWillAppear(animated)
         // L'animation UIView démarrée dans viewDidLoad (avant la fenêtre) est annulée
         // par UIKit ; on la relance ici pour garantir le clignotement des dots.
-        updateAutoButtonAppearance()
         updateAvailableToggleAppearance()
     }
 
@@ -320,7 +312,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
             NotificationCenter.default.removeObserver(self, name: .blomixPvPPreparationFailed, object: nil)
             NotificationCenter.default.removeObserver(self, name: .blomixPvPOpponentConnected, object: nil)
         }
-        NotificationCenter.default.removeObserver(self, name: .blomixPvPAutoSearchStateChanged, object: nil)
         NotificationCenter.default.removeObserver(self, name: .blomixAvailabilityChanged, object: nil)
     }
 
@@ -367,7 +358,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
             statusLabel.text = ""
             searchBlocksView.stopAnimating(settle: false)
             modeStackView.isHidden = false
-            updateAutoButtonAppearance()
             queryAndDisplayPlayerActivity()
         case .searching:
             modeActivityLabel.text = ""
@@ -750,8 +740,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
         modeHintLabel.textAlignment = .center
         modeHintLabel.numberOfLines = 0
 
-        for (btn, title) in [(modeAutoButton,      BlomixL10n.pvpModeAutoDesc),
-                             (modeRecentButton,    BlomixL10n.pvpModeRecentDesc),
+        for (btn, title) in [(modeRecentButton,    BlomixL10n.pvpModeRecentDesc),
                              (modeAvailableButton, BlomixL10n.pvpModeAvailableDesc),
                              (modeAvailableToggle, BlomixL10n.pvpAvailableToggleLabel)] {
             btn.setTitle(title, for: .normal)
@@ -759,7 +748,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
             btn.contentEdgeInsets = UIEdgeInsets(top: 14, left: 24, bottom: 14, right: 24)
             btn.titleLabel?.font = FontTheme.gameFont(size: 17, weight: .semibold)
         }
-        modeAutoButton.addTarget(self, action: #selector(modeAutoTapped), for: .touchUpInside)
         modeRecentButton.addTarget(self, action: #selector(modeRecentTapped), for: .touchUpInside)
         modeAvailableButton.addTarget(self, action: #selector(modeAvailableTapped), for: .touchUpInside)
         modeAvailableToggle.addTarget(self, action: #selector(modeAvailableToggleTapped), for: .touchUpInside)
@@ -778,7 +766,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
         modeStackView.setCustomSpacing(24, after: modeHintLabel)
         modeStackView.addArrangedSubview(modeRecentButton)
         modeStackView.addArrangedSubview(modeAvailableButton)
-        modeStackView.addArrangedSubview(modeAutoButton)
         modeStackView.addArrangedSubview(modeAvailableToggle)
         modeStackView.setCustomSpacing(6, after: modeAvailableToggle)
 
@@ -821,62 +808,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
     }
 
     // MARK: - Mode choice actions
-
-    @objc private func handleAutoSearchStateChanged() {
-        updateAutoButtonAppearance()
-    }
-
-    @objc private func modeAutoTapped() {
-        if BlomixPvPAutoSearcher.shared.isSearching {
-            BlomixPvPAutoSearcher.shared.stopSearching()
-        } else {
-            BlomixPvPAutoSearcher.shared.startSearching()
-        }
-        updateAutoButtonAppearance()
-    }
-
-    private func updateAutoButtonAppearance() {
-        let active = BlomixPvPAutoSearcher.shared.isSearching
-        let green = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
-
-        // Retirer le dot existant (tag 9901)
-        modeAutoButton.viewWithTag(9901)?.removeFromSuperview()
-
-        if active {
-            modeAutoButton.layer.borderColor = green.cgColor
-            modeAutoButton.layer.borderWidth = 1.5
-            modeAutoButton.setTitleColor(green, for: .normal)
-            // Le message est affiché sous les boutons (dans le stack) pour éviter tout chevauchement.
-            hintLabel.text = ""
-            modeActivityLabel.text = BlomixL10n.pvpAutoSearchActiveHint
-
-            // Dot vert pulsant à droite du texte
-            let dotSize: CGFloat = 10
-            let dot = UIView()
-            dot.tag = 9901
-            dot.backgroundColor = green
-            dot.layer.cornerRadius = dotSize / 2
-            dot.isUserInteractionEnabled = false
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            modeAutoButton.addSubview(dot)
-            NSLayoutConstraint.activate([
-                dot.widthAnchor.constraint(equalToConstant: dotSize),
-                dot.heightAnchor.constraint(equalToConstant: dotSize),
-                dot.centerYAnchor.constraint(equalTo: modeAutoButton.centerYAnchor),
-                dot.trailingAnchor.constraint(equalTo: modeAutoButton.trailingAnchor, constant: -16),
-            ])
-            UIView.animate(withDuration: 0.65, delay: 0,
-                           options: [.repeat, .autoreverse, .allowUserInteraction],
-                           animations: { dot.alpha = 0.25 })
-        } else {
-            modeAutoButton.layer.borderColor = BlomixUIDestinationButtonStyle.borderColor.cgColor
-            modeAutoButton.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
-            modeAutoButton.setTitleColor(.white, for: .normal)
-            hintLabel.text = ""
-            modeActivityLabel.text = ""
-            queryAndDisplayPlayerActivity()
-        }
-    }
 
     @objc private func handleAvailabilityChanged() {
         updateAvailableToggleAppearance()
@@ -944,10 +875,23 @@ final class BlomixPvPLobbyViewController: UIViewController {
             UIView.animate(withDuration: 0.65, delay: 0,
                            options: [.repeat, .autoreverse, .allowUserInteraction],
                            animations: { dot.alpha = 0.25 })
+
+            // Afficher immédiatement le nom du joueur sous le toggle (synchrone, pas besoin
+            // d'attendre le résultat CloudKit). Évite la label vide après cold start ou
+            // retour en foreground si la notification CloudKit a été émise avant la VC.
+            if availabilityStatusLabel.text?.isEmpty != false {
+                let player = GKLocalPlayer.local
+                if player.isAuthenticated {
+                    setAvailabilityStatus("✓ \(player.displayName)", color: green)
+                } else {
+                    setAvailabilityStatus("⚠️ Game Center non connecté", color: .systemOrange)
+                }
+            }
         } else {
             modeAvailableToggle.layer.borderColor = BlomixUIDestinationButtonStyle.borderColor.cgColor
             modeAvailableToggle.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
             modeAvailableToggle.setTitleColor(.white, for: .normal)
+            setAvailabilityStatus("", color: .clear)
         }
     }
 
@@ -1077,10 +1021,9 @@ final class BlomixPvPResultViewController: UIViewController {
         applyRematchButtonStyle()
 
         NSLayoutConstraint.activate([
-            titleLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -60),
-            titleLabel.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 24),
-            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -24),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
             subtitleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
@@ -2342,7 +2285,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         let nameLabel = UILabel()
         nameLabel.text = item.displayName
-        nameLabel.textColor = .white
+        nameLabel.textColor = item.inMatch ? UIColor(white: 0.45, alpha: 1) : .white
         nameLabel.font = FontTheme.gameFont(size: 16, weight: .semibold)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -2352,34 +2295,59 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         } else {
             eloLabel.text = BlomixL10n.pvpRecentEloUnavailable
         }
-        eloLabel.textColor = UIColor(white: 0.55, alpha: 1)
+        eloLabel.textColor = UIColor(white: item.inMatch ? 0.35 : 0.55, alpha: 1)
         eloLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
         eloLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        let challengeBtn = BlomixUIButton()
-        challengeBtn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
-        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: challengeBtn)
-        challengeBtn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
-        challengeBtn.titleLabel?.font = FontTheme.gameFont(size: 14, weight: .semibold)
-        challengeBtn.translatesAutoresizingMaskIntoConstraints = false
-        challengeBtn.tag = index
-        challengeBtn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
+        if item.inMatch {
+            // Badge "En match" — remplace le bouton Défier
+            let badge = UILabel()
+            badge.text = BlomixL10n.pvpPlayerInMatch
+            badge.textColor = UIColor(white: 0.45, alpha: 1)
+            badge.font = FontTheme.gameFont(size: 13, weight: .regular)
+            badge.translatesAutoresizingMaskIntoConstraints = false
 
-        [nameLabel, eloLabel, challengeBtn].forEach { container.addSubview($0) }
+            [nameLabel, eloLabel, badge].forEach { container.addSubview($0) }
 
-        let topPad: CGFloat = index == 0 ? 10 : 18
-        NSLayoutConstraint.activate([
-            nameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: topPad),
-            nameLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            let topPad: CGFloat = index == 0 ? 10 : 18
+            NSLayoutConstraint.activate([
+                nameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: topPad),
+                nameLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
 
-            eloLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
-            eloLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
-            eloLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
+                eloLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+                eloLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+                eloLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
 
-            challengeBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-            challengeBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
-            challengeBtn.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 8),
-        ])
+                badge.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+                badge.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
+                badge.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 8),
+            ])
+        } else {
+            let challengeBtn = BlomixUIButton()
+            challengeBtn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
+            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: challengeBtn)
+            challengeBtn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
+            challengeBtn.titleLabel?.font = FontTheme.gameFont(size: 14, weight: .semibold)
+            challengeBtn.translatesAutoresizingMaskIntoConstraints = false
+            challengeBtn.tag = index
+            challengeBtn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
+
+            [nameLabel, eloLabel, challengeBtn].forEach { container.addSubview($0) }
+
+            let topPad: CGFloat = index == 0 ? 10 : 18
+            NSLayoutConstraint.activate([
+                nameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: topPad),
+                nameLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+
+                eloLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+                eloLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+                eloLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
+
+                challengeBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+                challengeBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
+                challengeBtn.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 8),
+            ])
+        }
 
         return container
     }
@@ -2429,6 +2397,11 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
     /// Démarre GKMatchmaker avec un playerGroup déterministe — pas de recipients nécessaire.
     private func startChallengeMatchmaking(targetGameID: String, playerGroup: Int) {
+        // Option B : annule proprement toute recherche automatique en cours
+        // avant d'initier un défi direct, pour éviter le conflit GKMatchmaker.
+        BlomixPvPAutoSearcher.shared.stopSearching()
+        GKMatchmaker.shared().cancel()
+
         NotificationCenter.default.post(
             name: .blomixPvPOutgoingInviteStateChanged, object: nil,
             userInfo: ["active": true, "targetPlayerID": targetGameID])

@@ -63,6 +63,34 @@ enum BlomixUIDestinationButtonStyle {
     /// Durée totale du relâchement (≈ 0.16 s).
     static var releaseTotalDuration: TimeInterval { releasePhase1Duration + releasePhase2Duration }
 
+    // MARK: - "Vie" des boutons : couleur réactive, ombre portée, ressort
+
+    /// Fond légèrement plus clair à l'état appuyé (#2D2D2D vs #232323 au repos).
+    static let pressedBackgroundColor = UIColor(
+        red: CGFloat(0x2D) / 255,
+        green: CGFloat(0x2D) / 255,
+        blue: CGFloat(0x2D) / 255,
+        alpha: 1
+    )
+    /// Même valeur en SKColor pour les boutons SpriteKit.
+    static var pressedBackgroundSKColor: SKColor { SKColor(cgColor: pressedBackgroundColor.cgColor) }
+
+    /// Opacité de l'ombre portée au repos (UIKit ; nécessite clipsToBounds = false).
+    static let shadowOpacity: Float  = 0.40
+    /// Décalage de l'ombre vers le bas — donne un effet « surface surélevée ».
+    static let shadowOffset          = CGSize(width: 0, height: 3)
+    /// Rayon du flou de l'ombre.
+    static let shadowRadius: CGFloat = 5
+
+    /// Amortissement du ressort de relâchement (CASpringAnimation) — 13 = rebond léger perceptible.
+    static let springDamping: CGFloat         = 13
+    /// Rigidité du ressort.
+    static let springStiffness: CGFloat       = 260
+    /// Masse de la particule virtuelle du ressort (1 = comportement standard).
+    static let springMass: CGFloat            = 1
+    /// Vélocité initiale injectée au ressort (crée l'overshoot naturel).
+    static let springInitialVelocity: CGFloat = 10
+
     // MARK: - Typographie
 
     /// Épaisseur d'une ligne de 1 pixel physique (comme en CSS).
@@ -95,9 +123,14 @@ enum BlomixUIDestinationButtonStyle {
         button.backgroundColor = backgroundColor
         button.titleLabel?.font = titleFont(size: fontSize, weight: weight)
         button.layer.cornerRadius = cr
-        button.layer.borderWidth = hairlineBorderWidth
-        button.layer.borderColor = borderColor.cgColor
-        button.clipsToBounds = true
+        button.layer.borderWidth  = hairlineBorderWidth
+        button.layer.borderColor  = borderColor.cgColor
+        // clipsToBounds = false pour laisser l'ombre portée se dessiner hors des limites du bouton.
+        button.clipsToBounds      = false
+        button.layer.shadowColor   = UIColor.black.cgColor
+        button.layer.shadowOpacity = shadowOpacity
+        button.layer.shadowOffset  = shadowOffset
+        button.layer.shadowRadius  = shadowRadius
     }
 
     /// Fond #232323 pour `SKShapeNode` / pastilles d'accueil (aligné sur UIKit).
@@ -144,6 +177,16 @@ class BlomixUIButton: UIButton {
 
     // MARK: - Tracking
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !bounds.isEmpty else { return }
+        // Fournir un shadowPath explicite : Core Animation dessine l'ombre sans recalcul coûteux.
+        layer.shadowPath = UIBezierPath(
+            roundedRect: bounds,
+            cornerRadius: layer.cornerRadius
+        ).cgPath
+    }
+
     override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
         let result = super.beginTracking(touch, with: event)
         if result { blomixAnimatePress() }
@@ -167,6 +210,7 @@ class BlomixUIButton: UIButton {
     // → aucune perturbation du UIStackView ni de la mise en page environnante.
 
     private static let blomixCAKey = "blomixBtn"
+    private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
     /// Valeur courante du scale dans la couche de présentation (ou modèle si pas d'animation).
     private func blomixCurrentScale() -> Double {
@@ -181,32 +225,41 @@ class BlomixUIButton: UIButton {
     }
 
     private func blomixAnimatePress() {
+        Self.haptic.impactOccurred()
+        Self.haptic.prepare()
         let fromScale = blomixCurrentScale()
         let fromDY    = blomixCurrentTranslateY()
-        // On retire les animations en cours APRÈS avoir capturé l'état de présentation.
         layer.removeAnimation(forKey: Self.blomixCAKey)
 
         let toScale = Double(BlomixUIDestinationButtonStyle.pressScale)
         let toDY    = Double(BlomixUIDestinationButtonStyle.pressTranslateY)
         let dur     = BlomixUIDestinationButtonStyle.pressAnimDuration
 
-        let scaleAnim              = CABasicAnimation(keyPath: "transform.scale")
-        scaleAnim.fromValue        = fromScale
-        scaleAnim.toValue          = toScale
-        scaleAnim.timingFunction   = CAMediaTimingFunction(name: .easeIn)
+        // ── Scale + translate (CAAnimation explicite) ────────────────────────
+        let scaleAnim            = CABasicAnimation(keyPath: "transform.scale")
+        scaleAnim.fromValue      = fromScale
+        scaleAnim.toValue        = toScale
+        scaleAnim.timingFunction = CAMediaTimingFunction(name: .easeIn)
 
-        let txAnim                 = CABasicAnimation(keyPath: "transform.translation.y")
-        txAnim.fromValue           = fromDY
-        txAnim.toValue             = toDY
-        txAnim.timingFunction      = CAMediaTimingFunction(name: .easeIn)
+        let txAnim               = CABasicAnimation(keyPath: "transform.translation.y")
+        txAnim.fromValue         = fromDY
+        txAnim.toValue           = toDY
+        txAnim.timingFunction    = CAMediaTimingFunction(name: .easeIn)
 
-        let group                  = CAAnimationGroup()
-        group.animations           = [scaleAnim, txAnim]
-        group.duration             = dur
-        group.fillMode             = .forwards
-        group.isRemovedOnCompletion = false
-
+        let group                    = CAAnimationGroup()
+        group.animations             = [scaleAnim, txAnim]
+        group.duration               = dur
+        group.fillMode               = .forwards
+        group.isRemovedOnCompletion  = false
         layer.add(group, forKey: Self.blomixCAKey)
+
+        // ── Fond + ombre (UIView animation implicite) ────────────────────────
+        UIView.animate(withDuration: dur, delay: 0,
+                       options: [.allowUserInteraction, .beginFromCurrentState]) {
+            self.backgroundColor        = BlomixUIDestinationButtonStyle.pressedBackgroundColor
+            self.layer.shadowOpacity    = 0
+            self.layer.shadowOffset     = .zero
+        }
     }
 
     private func blomixAnimateRelease() {
@@ -214,31 +267,44 @@ class BlomixUIButton: UIButton {
         let fromDY    = blomixCurrentTranslateY()
         layer.removeAnimation(forKey: Self.blomixCAKey)
 
-        let overshoot = Double(BlomixUIDestinationButtonStyle.releaseOvershootScale)
-        let dur1      = BlomixUIDestinationButtonStyle.releasePhase1Duration
-        let dur2      = BlomixUIDestinationButtonStyle.releasePhase2Duration
-        let total     = dur1 + dur2
-        let t1        = NSNumber(value: dur1 / total)
+        // ── CASpringAnimation : scale + translate ────────────────────────────
+        // Le ressort produit un léger overshoot organique sans courbe codée en dur.
+        let d = BlomixUIDestinationButtonStyle.springDamping
+        let k = BlomixUIDestinationButtonStyle.springStiffness
+        let m = BlomixUIDestinationButtonStyle.springMass
+        let v = BlomixUIDestinationButtonStyle.springInitialVelocity
 
-        let easeOut      = CAMediaTimingFunction(name: .easeOut)
-        let easeInOut    = CAMediaTimingFunction(name: .easeInEaseOut)
+        let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
+        scaleAnim.damping         = d
+        scaleAnim.stiffness       = k
+        scaleAnim.mass            = m
+        scaleAnim.initialVelocity = v
+        scaleAnim.fromValue       = fromScale
+        scaleAnim.toValue         = 1.0
 
-        let scaleAnim              = CAKeyframeAnimation(keyPath: "transform.scale")
-        scaleAnim.values           = [fromScale, overshoot, 1.0]
-        scaleAnim.keyTimes         = [0, t1, 1.0]
-        scaleAnim.timingFunctions  = [easeOut, easeInOut]
+        let txAnim = CASpringAnimation(keyPath: "transform.translation.y")
+        txAnim.damping         = d
+        txAnim.stiffness       = k
+        txAnim.mass            = m
+        txAnim.initialVelocity = -v * 0.6   // kick vers le haut
+        txAnim.fromValue       = fromDY
+        txAnim.toValue         = 0.0
 
-        let txAnim                 = CAKeyframeAnimation(keyPath: "transform.translation.y")
-        txAnim.values              = [fromDY, 0.0, 0.0]
-        txAnim.keyTimes            = [0, t1, 1.0]
-        txAnim.timingFunctions     = [easeOut, easeInOut]
+        let springDur = max(scaleAnim.settlingDuration, txAnim.settlingDuration)
 
-        let group                  = CAAnimationGroup()
-        group.animations           = [scaleAnim, txAnim]
-        group.duration             = total
-        group.fillMode             = .forwards
+        let group                   = CAAnimationGroup()
+        group.animations            = [scaleAnim, txAnim]
+        group.duration              = springDur
+        group.fillMode              = .forwards
         group.isRemovedOnCompletion = false
-
         layer.add(group, forKey: Self.blomixCAKey)
+
+        // ── Fond + ombre (UIView animation implicite) ────────────────────────
+        UIView.animate(withDuration: 0.22, delay: 0,
+                       options: [.allowUserInteraction, .beginFromCurrentState]) {
+            self.backgroundColor     = BlomixUIDestinationButtonStyle.backgroundColor
+            self.layer.shadowOpacity = BlomixUIDestinationButtonStyle.shadowOpacity
+            self.layer.shadowOffset  = BlomixUIDestinationButtonStyle.shadowOffset
+        }
     }
 }

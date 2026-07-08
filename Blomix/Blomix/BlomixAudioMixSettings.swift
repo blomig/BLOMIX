@@ -7,7 +7,6 @@ final class BlomixAudioMixSettings: @unchecked Sendable {
     static let shared = BlomixAudioMixSettings()
 
     static let adjustableSoundNames: [String] = [
-        "Puzzle Game 2.mp3",
         "begin.wav",
         "place.wav",
         "bomb.wav",
@@ -24,15 +23,33 @@ final class BlomixAudioMixSettings: @unchecked Sendable {
         "empty_coll.wav",
         "5251__noisecollector__bloopa01.aiff",
         "prix.wav",
+        "gun_load.wav",
+        "cleanx.wav",
+        "scrumblx.wav",
     ]
 
     private let userDefaultsKey = "BlomixRelativeSoundVolumes"
 
     private let defaultRelativeVolumes: [String: Float] = [
-        "Puzzle Game 2.mp3": 0.5,
-        "connect_E.wav": 0.5,
-        "connect_F.wav": 0.5,
-        "connect_Gb.wav": 0.5,
+        "begin.wav":                              0.75,
+        "place.wav":                              0.60,
+        "bomb.wav":                               0.85,
+        "connect_E.wav":                          0.55,
+        "connect_F.wav":                          0.65,
+        "connect_Gb.wav":                         0.75,
+        "chain_new.wav":                          0.80,
+        "chain_new-1.wav":                        0.80,
+        "chain_new-2.wav":                        0.80,
+        "line.mp3":                               0.75,
+        "end.wav":                                0.80,
+        "victory.mp3":                            0.80,
+        "wrong.wav":                              0.65,
+        "empty_coll.wav":                         0.70,
+        "5251__noisecollector__bloopa01.aiff":    0.75,
+        "prix.wav":                               0.70,
+        "gun_load.wav":                           0.75,
+        "cleanx.wav":                             0.80,
+        "scrumblx.wav":                           0.80,
     ]
 
     private init() {}

@@ -34,7 +34,6 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
         findMatchRetryAttempt = 0
         startMaxDurationTimer()
         Task { await launchFindMatch() }
-        NotificationCenter.default.post(name: .blomixPvPAutoSearchStateChanged, object: nil)
         print("[PvP AutoSearch] Démarré — disponible pendant 15 min.")
     }
 
@@ -45,7 +44,6 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
         maxDurationTimer?.invalidate()
         maxDurationTimer = nil
         GKMatchmaker.shared().cancel()
-        NotificationCenter.default.post(name: .blomixPvPAutoSearchStateChanged, object: nil)
         print("[PvP AutoSearch] Arrêté.")
     }
 
@@ -74,7 +72,6 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
                     self.maxDurationTimer?.invalidate()
                     self.maxDurationTimer = nil
                     GKMatchmaker.shared().finishMatchmaking(for: box.match)
-                    NotificationCenter.default.post(name: .blomixPvPAutoSearchStateChanged, object: nil)
                     self.onMatch?(box.match)
                     print("[PvP AutoSearch] Match trouvé !")
                 } else if self.isSearching {
@@ -121,9 +118,10 @@ private struct BlomixPvPWireEnvelope: Codable {
 extension BlockType {
     fileprivate func blomixPvPWireToken() -> String {
         switch self {
-        case .empty: return "e"
-        case .color(let n): return "c:\(n)"
-        case .priks(let v): return "p:\(v)"
+        case .empty:         return "e"
+        case .color(let n):  return "c:\(n)"
+        case .priks(let v):  return "p:\(v)"
+        case .magix:         return "e"   // Magix n'existe pas en PvP — traité comme vide sur le fil
         }
     }
 

@@ -17,22 +17,25 @@ enum BlomixFontChoice: String, CaseIterable, Sendable {
     case googleSans
     case dynaPuff
     case alfaSlabOne
+    case changaOne
 
     var postScriptName: String {
         switch self {
-        case .bitcount: return "BitcountGridSingleInk-Regular"
-        case .googleSans: return "GoogleSans-Regular"
-        case .dynaPuff: return "DynaPuff-Regular"
+        case .bitcount:    return "BitcountGridSingleInk-Regular"
+        case .googleSans:  return "GoogleSans-Regular"
+        case .dynaPuff:    return "DynaPuff-Regular"
         case .alfaSlabOne: return "AlfaSlabOne-Regular"
+        case .changaOne:   return "ChangaOne"
         }
     }
 
     var fileName: String {
         switch self {
-        case .bitcount: return "BitcountGridSingleInk-Variable.ttf"
-        case .googleSans: return "GoogleSans-Regular.ttf"
-        case .dynaPuff: return "DynaPuff-Regular.ttf"
+        case .bitcount:    return "BitcountGridSingleInk-Variable.ttf"
+        case .googleSans:  return "GoogleSans-Regular.ttf"
+        case .dynaPuff:    return "DynaPuff-Regular.ttf"
         case .alfaSlabOne: return "AlfaSlabOne-Regular.ttf"
+        case .changaOne:   return "ChangaOne-Regular.ttf"
         }
     }
 }
@@ -73,10 +76,11 @@ final class BlomixTypography {
 
     func fontDisplayName(for choice: BlomixFontChoice) -> String {
         switch choice {
-        case .bitcount: return BlomixL10n.settingsFontNameBitcount
-        case .googleSans: return BlomixL10n.settingsFontNameGoogleSans
-        case .dynaPuff: return BlomixL10n.settingsFontNameDynaPuff
+        case .bitcount:    return BlomixL10n.settingsFontNameBitcount
+        case .googleSans:  return BlomixL10n.settingsFontNameGoogleSans
+        case .dynaPuff:    return BlomixL10n.settingsFontNameDynaPuff
         case .alfaSlabOne: return BlomixL10n.settingsFontNameAlfaSlabOne
+        case .changaOne:   return BlomixL10n.settingsFontNameChangaOne
         }
     }
 

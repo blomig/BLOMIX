@@ -24,37 +24,49 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         let gamePlayerID: String
         let score: Int
         let isLocalPlayer: Bool
+        /// Nombre de parties ayant servi au calcul (uniquement renseigné pour `.averageScore`, via `entry.context`).
+        let gameCount: Int
     }
 
     private enum LeaderboardKind: CaseIterable {
         case mainScore
         case elo
+        case averageScore
+        case zenScore
 
         var title: String {
             switch self {
-            case .mainScore: return BlomixL10n.leaderboardMainTab
-            case .elo: return BlomixL10n.leaderboardEloTab
+            case .mainScore:    return BlomixL10n.leaderboardMainTab
+            case .elo:          return BlomixL10n.leaderboardEloTab
+            case .averageScore: return BlomixL10n.leaderboardAvgTab
+            case .zenScore:     return BlomixL10n.leaderboardZenTab
             }
         }
 
         var subtitle: String {
             switch self {
-            case .mainScore: return "BlomigMainScore_v2"
-            case .elo: return "elotype"
+            case .mainScore:    return ScoreManager.mainLeaderboardID
+            case .elo:          return "elotype"
+            case .averageScore: return ScoreManager.averageLeaderboardID
+            case .zenScore:     return ScoreManager.zenLeaderboardID
             }
         }
 
         var leaderboardID: String {
             switch self {
-            case .mainScore: return "BlomigMainScore_v2"
-            case .elo: return "elotype"
+            case .mainScore:    return ScoreManager.mainLeaderboardID
+            case .elo:          return "elotype"
+            case .averageScore: return ScoreManager.averageLeaderboardID
+            case .zenScore:     return ScoreManager.zenLeaderboardID
             }
         }
 
         func secondaryText(for score: Int) -> String {
             switch self {
-            case .mainScore: return BlomixL10n.leaderboardPoints(score)
-            case .elo: return BlomixL10n.leaderboardElo(score)
+            case .mainScore:    return BlomixL10n.leaderboardPoints(score)
+            case .elo:          return BlomixL10n.leaderboardElo(score)
+            case .averageScore: return BlomixL10n.leaderboardAverage(score)
+            case .zenScore:     return BlomixL10n.leaderboardPoints(score)
             }
         }
     }
@@ -69,7 +81,9 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private let closeButton = BlomixUIButton()
     private let tabsStack = UIStackView()
     private let mainTabButton = BlomixUIButton()
-    private let eloTabButton = BlomixUIButton()
+    private let eloTabButton  = BlomixUIButton()
+    private let avgTabButton  = BlomixUIButton()
+    private let zenTabButton  = BlomixUIButton()
     private let statusLabel = UILabel()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let spinner = BlomixPvPSearchBlocksView()
@@ -124,15 +138,21 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         view.addSubview(tabsStack)
 
         mainTabButton.setTitle(BlomixL10n.leaderboardMainTab, for: .normal)
-        eloTabButton.setTitle(BlomixL10n.leaderboardEloTab, for: .normal)
-        [mainTabButton, eloTabButton].forEach {
+        eloTabButton.setTitle(BlomixL10n.leaderboardEloTab,  for: .normal)
+        avgTabButton.setTitle(BlomixL10n.leaderboardAvgTab,  for: .normal)
+        zenTabButton.setTitle(BlomixL10n.leaderboardZenTab,  for: .normal)
+        [mainTabButton, eloTabButton, avgTabButton, zenTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
-            $0.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+            $0.contentEdgeInsets = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
         }
         mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
-        eloTabButton.addTarget(self, action: #selector(eloTabTapped), for: .touchUpInside)
+        eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
+        avgTabButton.addTarget(self,  action: #selector(avgTabTapped),  for: .touchUpInside)
+        zenTabButton.addTarget(self,  action: #selector(zenTabTapped),  for: .touchUpInside)
         tabsStack.addArrangedSubview(mainTabButton)
         tabsStack.addArrangedSubview(eloTabButton)
+        tabsStack.addArrangedSubview(avgTabButton)
+        tabsStack.addArrangedSubview(zenTabButton)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -273,6 +293,14 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         switchToLeaderboard(.elo)
     }
 
+    @objc private func avgTabTapped() {
+        switchToLeaderboard(.averageScore)
+    }
+
+    @objc private func zenTabTapped() {
+        switchToLeaderboard(.zenScore)
+    }
+
     private func switchToLeaderboard(_ kind: LeaderboardKind) {
         guard selectedLeaderboardKind != kind else { return }
         selectedLeaderboardKind = kind
@@ -285,7 +313,9 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private func updateSelectedLeaderboardUI() {
         subtitleLabel.text = selectedLeaderboardKind.subtitle
         applyTabSelectionStyle(button: mainTabButton, selected: selectedLeaderboardKind == .mainScore)
-        applyTabSelectionStyle(button: eloTabButton, selected: selectedLeaderboardKind == .elo)
+        applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
+        applyTabSelectionStyle(button: avgTabButton,  selected: selectedLeaderboardKind == .averageScore)
+        applyTabSelectionStyle(button: zenTabButton,  selected: selectedLeaderboardKind == .zenScore)
     }
 
     private func applyTabSelectionStyle(button: UIButton, selected: Bool) {
@@ -353,6 +383,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
             let localPlayer = GKLocalPlayer.local
             let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
+            // Lu sur le main actor ici (avant le callback non-isolé) puis capturé comme constante.
+            let localAvgGameCount = selectedKind == .averageScore ? ScoreManager.shared.localGameCount() : 0
             leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 100)) { _, rankedEntries, _, loadError in
                 if let loadError {
                     Task { @MainActor [weak self] in
@@ -376,12 +408,29 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     } else {
                         resolvedScore = Int(entry.score)
                     }
+                    // Pour le leaderboard de moyenne, le nombre de parties est stocké dans `context`.
+                    // Fallback UserDefaults pour le joueur local si context = 0 (entrée soumise avant
+                    // l'introduction du context dans la version actuelle).
+                    let gameCount: Int
+                    if selectedKind == .averageScore {
+                        let ctx = Int(entry.context)
+                        if ctx > 0 {
+                            gameCount = ctx
+                        } else if isLocalPlayer {
+                            gameCount = localAvgGameCount
+                        } else {
+                            gameCount = 0
+                        }
+                    } else {
+                        gameCount = 0
+                    }
                     return LeaderboardRow(
                         rank: entry.rank,
                         playerName: entry.player.displayName,
                         gamePlayerID: entry.player.gamePlayerID,
                         score: resolvedScore,
-                        isLocalPlayer: isLocalPlayer
+                        isLocalPlayer: isLocalPlayer,
+                        gameCount: gameCount
                     )
                 }
 
@@ -461,6 +510,18 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         content.textProperties.font = FontTheme.gameFont(size: 16, fallbackWeight: row.isLocalPlayer ? .bold : .regular)
         content.secondaryTextProperties.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
         cell.contentConfiguration = content
+
+        // Nombre de parties (onglet Moyenne uniquement) — affiché à droite de la ligne.
+        if selectedLeaderboardKind == .averageScore && row.gameCount > 0 {
+            let countLabel = UILabel()
+            countLabel.text = BlomixL10n.leaderboardAvgGameCount(row.gameCount)
+            countLabel.font = FontTheme.gameFont(size: 12, fallbackWeight: .regular)
+            countLabel.textColor = row.isLocalPlayer ? UIColor(white: 0.9, alpha: 1) : UIColor(white: 0.55, alpha: 1)
+            countLabel.textAlignment = .right
+            countLabel.sizeToFit()
+            cell.accessoryView = countLabel
+            return cell
+        }
 
         // Bouton "Défier" uniquement sur l'onglet Elo, pour les autres joueurs.
         if selectedLeaderboardKind == .elo && !row.isLocalPlayer && onMatch != nil {
@@ -1048,6 +1109,74 @@ final class SoundMixSettingsViewController: UIViewController {
     }
 }
 
+/// Ligne de réglage de volume maître (Sons ou Musique) : carte grise, label, % et tirette.
+@MainActor
+private final class BlomixMasterVolumeRowView: UIView {
+    private let titleLabel   = UILabel()
+    private let percentLabel = UILabel()
+    private let slider       = BlomixGridSoundSlider()
+
+    var onValueChange: ((Float) -> Void)?
+
+    override init(frame: CGRect) {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        layer.cornerRadius = 8
+        layer.borderWidth = 0.5
+        layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+
+        titleLabel.textColor = .white
+        titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
+
+        percentLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        percentLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
+        percentLabel.textAlignment = .right
+
+        slider.translatesAutoresizingMaskIntoConstraints = false
+        slider.onValueChange = { [weak self] value in
+            self?.updatePercent(value)
+            self?.onValueChange?(value)
+        }
+        slider.heightAnchor.constraint(equalToConstant: 44).isActive = true
+
+        let headerStack = UIStackView(arrangedSubviews: [titleLabel, percentLabel])
+        headerStack.axis = .horizontal
+        headerStack.alignment = .center
+        headerStack.spacing = 12
+        headerStack.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = UIStackView(arrangedSubviews: [headerStack, slider])
+        stack.axis = .vertical
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
+            percentLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 52),
+        ])
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    func configure(title: String, value: Float) {
+        titleLabel.text = title
+        slider.value = value
+        updatePercent(value)
+    }
+
+    private func updatePercent(_ value: Float) {
+        percentLabel.text = BlomixL10n.settingsSoundPercent(Int(round(value * 100)))
+    }
+}
+
+// MARK: -
+
 @MainActor
 final class SettingsViewController: UIViewController, UIColorPickerViewControllerDelegate {
 
@@ -1058,18 +1187,19 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         }
     }
 
-    private let closeButton = BlomixUIButton()
-    private let titleLabel = UILabel()
-    private let scrollView = UIScrollView()
-    private let contentStack = UIStackView()
-    private let soundSlider = BlomixGridSoundSlider()
-    private let adjustSoundsButton = BlomixUIButton()
+    private let closeButton       = BlomixUIButton()
+    private let titleLabel        = UILabel()
+    private let scrollView        = UIScrollView()
+    private let contentStack      = UIStackView()
+    private let soundsVolumeRow   = BlomixMasterVolumeRowView()
+    private let musicVolumeRow    = BlomixMasterVolumeRowView()
     private let soundSectionLabel = UILabel()
     private let fontSectionLabel = UILabel()
     private let colorsSectionLabel = UILabel()
     private let fontStack = UIStackView()
     private let skinsStack = UIStackView()
     private var persoPickerSlot: BlomixPersoColorSlot?
+    private var persoPickerSkinId: String = BlomixSkinCatalog.persoSkinId
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -1101,21 +1231,23 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         configureSectionHeading(soundSectionLabel, text: BlomixL10n.settingsSoundSection)
         contentStack.addArrangedSubview(soundSectionLabel)
 
-        soundSlider.translatesAutoresizingMaskIntoConstraints = false
-        soundSlider.value = BlomixMatchAudioSettings.shared.masterVolume
-        soundSlider.onValueChange = { v in
+        soundsVolumeRow.configure(
+            title: BlomixL10n.settingsSoundsSliderLabel,
+            value: BlomixMatchAudioSettings.shared.masterVolume
+        )
+        soundsVolumeRow.onValueChange = { v in
             BlomixMatchAudioSettings.shared.masterVolume = v
         }
-        soundSlider.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        contentStack.addArrangedSubview(soundSlider)
+        contentStack.addArrangedSubview(soundsVolumeRow)
 
-        adjustSoundsButton.setTitle(BlomixL10n.settingsAdjustSounds, for: .normal)
-        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: adjustSoundsButton)
-        adjustSoundsButton.contentEdgeInsets = UIEdgeInsets(top: 10, left: 14, bottom: 10, right: 14)
-        adjustSoundsButton.translatesAutoresizingMaskIntoConstraints = false
-        adjustSoundsButton.addTarget(self, action: #selector(adjustSoundsTapped), for: .touchUpInside)
-        adjustSoundsButton.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        contentStack.addArrangedSubview(adjustSoundsButton)
+        musicVolumeRow.configure(
+            title: BlomixL10n.settingsMusicSliderLabel,
+            value: BlomixMatchAudioSettings.shared.masterMusicVolume
+        )
+        musicVolumeRow.onValueChange = { v in
+            BlomixMatchAudioSettings.shared.masterMusicVolume = v
+        }
+        contentStack.addArrangedSubview(musicVolumeRow)
 
         configureSectionHeading(fontSectionLabel, text: BlomixL10n.settingsFontSection)
         contentStack.addArrangedSubview(fontSectionLabel)
@@ -1166,7 +1298,6 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         configureSectionHeading(fontSectionLabel, text: BlomixL10n.settingsFontSection)
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
-        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: adjustSoundsButton)
     }
 
     private func rebuildFontRows() {
@@ -1192,11 +1323,18 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         let catalog = BlomixSkinCatalog.shared
         let selected = catalog.selectedSkinId
         for skin in catalog.allSkins() {
-            let persoTap: ((BlomixPersoColorSlot) -> Void)? =
-                skin.id == BlomixSkinCatalog.persoSkinId
-                ? { [weak self] slot in
-                    BlomixSkinCatalog.shared.selectedSkinId = BlomixSkinCatalog.persoSkinId
-                    self?.presentPersoColorPicker(slot: slot)
+            let isPerso = skin.id == BlomixSkinCatalog.persoSkinId || skin.id == BlomixSkinCatalog.persoSkin2Id
+            let persoTap: ((BlomixPersoColorSlot) -> Void)? = isPerso
+                ? { [weak self, skinId = skin.id] slot in
+                    BlomixSkinCatalog.shared.selectedSkinId = skinId
+                    self?.presentPersoColorPicker(slot: slot, skinId: skinId)
+                }
+                : nil
+            let aleaTap: (() -> Void)? = skin.id == BlomixSkinCatalog.aleaSkinId
+                ? { [weak self] in
+                    BlomixSkinCatalog.shared.generateAndSaveAleaColors()
+                    BlomixSkinCatalog.shared.selectedSkinId = BlomixSkinCatalog.aleaSkinId
+                    self?.rebuildSkinRows()
                 }
                 : nil
             let row = SkinChoiceRowView(
@@ -1206,30 +1344,35 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
                     BlomixSkinCatalog.shared.selectedSkinId = id
                     self?.rebuildSkinRows()
                 },
-                onPersoSwatchTapped: persoTap
+                onPersoSwatchTapped: persoTap,
+                onAleaNewTapped: aleaTap
             )
             skinsStack.addArrangedSubview(row)
         }
     }
 
-    private func presentPersoColorPicker(slot: BlomixPersoColorSlot) {
-        persoPickerSlot = slot
+    private func presentPersoColorPicker(slot: BlomixPersoColorSlot, skinId: String = BlomixSkinCatalog.persoSkinId) {
+        persoPickerSlot   = slot
+        persoPickerSkinId = skinId
         let picker = UIColorPickerViewController()
         picker.delegate = self
-        picker.selectedColor = BlomixSkinCatalog.shared.uiColorForPersoSlot(slot)
+        picker.selectedColor = BlomixSkinCatalog.shared.uiColorForPersoSlot(slot, skinId: skinId)
         picker.supportsAlpha = false
         present(picker, animated: true)
     }
 
     func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
-        defer { persoPickerSlot = nil }
+        defer {
+            persoPickerSlot   = nil
+            persoPickerSkinId = BlomixSkinCatalog.persoSkinId
+        }
         guard let slot = persoPickerSlot else {
             viewController.dismiss(animated: true)
             return
         }
         let c = viewController.selectedColor.resolvedColor(with: view.traitCollection)
         if let hex = c.blomixHexForPersoSave(traitCollection: view.traitCollection) {
-            BlomixSkinCatalog.shared.applyPersoColorSave(hex: hex, slot: slot)
+            BlomixSkinCatalog.shared.applyPersoColorSave(hex: hex, slot: slot, skinId: persoPickerSkinId)
         }
         viewController.dismiss(animated: true)
         rebuildSkinRows()
@@ -1242,11 +1385,6 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         }
     }
 
-    @objc private func adjustSoundsTapped() {
-        let controller = SoundMixSettingsViewController()
-        controller.modalPresentationStyle = .fullScreen
-        present(controller, animated: true)
-    }
 }
 
 @MainActor
@@ -1255,6 +1393,7 @@ private final class SkinChoiceRowView: UIView {
     private let skinId: String
     private let onSelect: (String) -> Void
     private let onPersoSwatchTapped: ((BlomixPersoColorSlot) -> Void)?
+    private let onAleaNewTapped: (() -> Void)?
     private let radio = UIImageView()
     private let nameLabel = UILabel()
     private let swatchStack = UIStackView()
@@ -1263,11 +1402,13 @@ private final class SkinChoiceRowView: UIView {
         skin: BlomixSkinDefinition,
         isSelected: Bool,
         onSelect: @escaping (String) -> Void,
-        onPersoSwatchTapped: ((BlomixPersoColorSlot) -> Void)? = nil
+        onPersoSwatchTapped: ((BlomixPersoColorSlot) -> Void)? = nil,
+        onAleaNewTapped: (() -> Void)? = nil
     ) {
         self.skinId = skin.id
         self.onSelect = onSelect
         self.onPersoSwatchTapped = onPersoSwatchTapped
+        self.onAleaNewTapped = onAleaNewTapped
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         layer.cornerRadius = 8
@@ -1294,7 +1435,8 @@ private final class SkinChoiceRowView: UIView {
         swatchStack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(swatchStack)
 
-        if skin.id == BlomixSkinCatalog.persoSkinId, onPersoSwatchTapped != nil {
+        if (skin.id == BlomixSkinCatalog.persoSkinId || skin.id == BlomixSkinCatalog.persoSkin2Id),
+           onPersoSwatchTapped != nil {
             var lastPriksFill: UIView?
             for slot in BlomixPersoColorSlot.displayOrdered {
                 let hex: String?
@@ -1361,18 +1503,41 @@ private final class SkinChoiceRowView: UIView {
             swatchStack.setCustomSpacing(5, after: pri)
         }
 
-        NSLayoutConstraint.activate([
-            heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
-            radio.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            radio.centerYAnchor.constraint(equalTo: centerYAnchor),
+        // Bouton ↺ pour le skin Alea : inséré entre le nom et les swatches.
+        if skin.id == BlomixSkinCatalog.aleaSkinId, let handler = onAleaNewTapped {
+            let btn = UIButton(type: .system)
+            btn.setTitle("↺", for: .normal)
+            btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+            btn.setTitleColor(UIColor(white: 0.72, alpha: 1), for: .normal)
+            btn.setTitleColor(UIColor.white, for: .highlighted)
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            addSubview(btn)
+            btn.addAction(UIAction { _ in handler() }, for: .touchUpInside)
 
-            nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
-            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            swatchStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            swatchStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: swatchStack.leadingAnchor, constant: -8),
-        ])
+            NSLayoutConstraint.activate([
+                heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+                radio.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+                radio.centerYAnchor.constraint(equalTo: centerYAnchor),
+                nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
+                nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+                btn.leadingAnchor.constraint(equalTo: nameLabel.trailingAnchor, constant: 6),
+                btn.centerYAnchor.constraint(equalTo: centerYAnchor),
+                btn.trailingAnchor.constraint(lessThanOrEqualTo: swatchStack.leadingAnchor, constant: -6),
+                swatchStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+                swatchStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+                radio.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+                radio.centerYAnchor.constraint(equalTo: centerYAnchor),
+                nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
+                nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+                swatchStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+                swatchStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+                nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: swatchStack.leadingAnchor, constant: -8),
+            ])
+        }
 
         if skin.id == BlomixSkinCatalog.persoSkinId {
             radio.isUserInteractionEnabled = true

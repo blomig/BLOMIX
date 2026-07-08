@@ -12,6 +12,23 @@ private struct GKMatchInviteBox: @unchecked Sendable {
     let match: GKMatch
 }
 
+/// Délégué GKMatch dédié au côté « challengé » du défi CloudKit.
+/// Attend que la connexion P2P soit complète (expectedPlayerCount == 0) avant d'entrer en partie,
+/// symétrique du comportement du côté « challenger » dans BlomixPvPAvailablePlayersViewController.
+private final class ChallengeMatchDelegate: NSObject, @preconcurrency GKMatchDelegate, @unchecked Sendable {
+    var onConnected: (() -> Void)?
+    var onFailed:    (() -> Void)?
+
+    nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
+        guard state == .connected, match.expectedPlayerCount == 0 else { return }
+        Task { @MainActor [weak self] in self?.onConnected?() }
+    }
+
+    nonisolated func match(_ match: GKMatch, didFailWithError error: (any Error)?) {
+        Task { @MainActor [weak self] in self?.onFailed?() }
+    }
+}
+
 /// Contrôleur racine : le storyboard fournit une `UIView` ; on y intègre un `SKView` en code
 /// (évite l’erreur Interface Builder « Unknown class … SKView » liée au chargement SpriteKit).
 final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerListener, @preconcurrency GKMatchmakerViewControllerDelegate {
@@ -29,9 +46,23 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     private var outgoingInviteSafetyTimer: Timer?
     /// Timer d'annulation pour le matchmaking d'un défi CloudKit accepté.
     private var challengeMatchCancelTimer: Timer?
+    /// Match CloudKit en attente de connexion P2P complète (même pattern que le côté challenger).
+    private var pendingChallengeMatch: GKMatch?
+    /// Délégué retenu pour le match en attente.
+    private var challengeMatchDelegate: ChallengeMatchDelegate?
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // Enregistrement manuel de ChangaOne-Regular : UIAppFonts ne charge pas ce fichier
+        // automatiquement (PostScript name "ChangaOne" sans suffixe de style, comportement iOS).
+        if let url = Bundle.main.url(forResource: "ChangaOne-Regular", withExtension: "ttf"),
+           let data = try? Data(contentsOf: url),
+           let provider = CGDataProvider(data: data as CFData),
+           let cgFont = CGFont(provider) {
+            CTFontManagerRegisterGraphicsFont(cgFont, nil)
+        }
+
         view.backgroundColor = .black
 
         let skView = BlomixSKView()
@@ -205,6 +236,8 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
             let challengerName = notification.userInfo?["challengerDisplayName"]  as? String,
             let matchGroup     = notification.userInfo?["matchPlayerGroup"]        as? Int
         else { return }
+        // Pas de bannière pendant une partie PvP active.
+        guard !BlomixAvailablePlayersManager.shared.isInActiveMatch else { return }
         // Ne pas afficher une deuxième bannière si l'une est déjà visible.
         let alreadyShowing = (view.window ?? view).subviews
             .contains(where: { $0 is BlomixChallengeBannerView })
@@ -231,45 +264,120 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         guard GKLocalPlayer.local.isAuthenticated else { return }
         let localGameID = GKLocalPlayer.local.gamePlayerID
 
-        // Supprime le record CloudKit et réinitialise le tracker.
+        // Option B : annule proprement toute recherche automatique en cours
+        // avant d'accepter un défi entrant, pour éviter le conflit GKMatchmaker.
+        BlomixPvPAutoSearcher.shared.stopSearching()
+        GKMatchmaker.shared().cancel()
+
+        // Supprime le record CloudKit. On ne remet PAS clearLastNotifiedChallenger() ici :
+        // le tracker doit rester positionné jusqu'à ce que le match soit lancé (ou échoue).
+        // Il sera remis à nil par setActiveMatch(true) → stopChallengePolling (via GameScene)
+        // ou par suppressChallengeWithDelay en cas d'échec.
         BlomixAvailablePlayersManager.shared.deleteChallenge(challengedGamePlayerID: localGameID)
-        BlomixAvailablePlayersManager.shared.clearLastNotifiedChallenger()
 
         let request      = GKMatchRequest()
         request.minPlayers  = 2
         request.maxPlayers  = 2
         request.playerGroup = challenge.matchPlayerGroup
 
-        // Timer de sécurité : annule le matchmaking si le challenger n'est pas là dans 60 s.
+        // Affiche immédiatement l'overlay PvP (image + textes rotatifs) dès l'acceptation,
+        // avant même que GKMatchmaker ait trouvé le match — évite les secondes de blanc.
+        // On ferme d'abord tout modal ouvert (la bannière est une UIView, pas un modal,
+        // mais l'écran de classement ou de réglages pourrait être présenté).
+        if presentedViewController != nil {
+            dismiss(animated: false)
+        }
+        if let scene = spriteKitView?.scene as? GameScene {
+            scene.showPvPWaitingForMatchOverlay()
+        }
+
+        // Timer de sécurité : annule tout si le challenger ne se connecte pas dans 60 s.
         challengeMatchCancelTimer?.invalidate()
         challengeMatchCancelTimer = Timer.scheduledTimer(withTimeInterval: 60,
                                                          repeats: false) { [weak self] _ in
-            GKMatchmaker.shared().cancel()
-            self?.challengeMatchCancelTimer = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                GKMatchmaker.shared().cancel()
+                self.pendingChallengeMatch?.delegate = nil
+                self.pendingChallengeMatch?.disconnect()
+                self.pendingChallengeMatch    = nil
+                self.challengeMatchDelegate   = nil
+                self.challengeMatchCancelTimer = nil
+                // Retire l'overlay de préparation avant d'afficher l'alerte d'erreur.
+                (self.spriteKitView?.scene as? GameScene)?.hidePvPWaitingForMatchOverlay()
+                self.showChallengeTimeoutAlert()
+            }
         }
 
         GKMatchmaker.shared().findMatch(for: request) { [weak self] match, error in
             let box = match.map { GKMatchInviteBox(match: $0) }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.challengeMatchCancelTimer?.invalidate()
-                self.challengeMatchCancelTimer = nil
                 if let box {
-                    GKMatchmaker.shared().finishMatchmaking(for: box.match)
-                    self.beginPvPMatchOrQueueIfNeeded(box.match)
+                    // Stocker le match et attendre la connexion P2P complète via GKMatchDelegate,
+                    // exactement comme le côté challenger — évite d'entrer en partie avant que
+                    // expectedPlayerCount == 0 (cause principale des handshakes perdus).
+                    let delegate = ChallengeMatchDelegate()
+                    delegate.onConnected = { [weak self, weak delegate] in
+                        guard let self else { return }
+                        self.pendingChallengeMatch = nil
+                        self.challengeMatchDelegate = nil
+                        self.challengeMatchCancelTimer?.invalidate()
+                        self.challengeMatchCancelTimer = nil
+                        box.match.delegate = nil
+                        GKMatchmaker.shared().finishMatchmaking(for: box.match)
+                        self.beginPvPMatchOrQueueIfNeeded(box.match)
+                        _ = delegate
+                    }
+                    delegate.onFailed = { [weak self] in
+                        guard let self else { return }
+                        self.pendingChallengeMatch = nil
+                        self.challengeMatchDelegate = nil
+                        self.challengeMatchCancelTimer?.invalidate()
+                        self.challengeMatchCancelTimer = nil
+                        GKMatchmaker.shared().cancel()
+                        // Retire l'overlay de préparation avant d'afficher l'alerte d'erreur.
+                        (self.spriteKitView?.scene as? GameScene)?.hidePvPWaitingForMatchOverlay()
+                        // Échec matchmaking : libère le verrou avec délai (anti-rebond bannière).
+                        BlomixAvailablePlayersManager.shared.suppressChallengeWithDelay(
+                            challengedGamePlayerID: localGameID)
+                        self.showChallengeTimeoutAlert()
+                    }
+                    self.pendingChallengeMatch  = box.match
+                    self.challengeMatchDelegate = delegate
+                    box.match.delegate          = delegate
                 } else {
+                    self.challengeMatchCancelTimer?.invalidate()
+                    self.challengeMatchCancelTimer = nil
                     let desc = error?.localizedDescription ?? "inconnu"
                     print("[PvP] Défi CloudKit — matchmaking échoué : \(desc)")
+                    // Retire l'overlay de préparation avant d'afficher l'alerte d'erreur.
+                    (self.spriteKitView?.scene as? GameScene)?.hidePvPWaitingForMatchOverlay()
+                    // Libère le verrou avec délai (anti-rebond bannière).
+                    BlomixAvailablePlayersManager.shared.suppressChallengeWithDelay(
+                        challengedGamePlayerID: localGameID)
+                    self.showChallengeTimeoutAlert()
                 }
             }
         }
     }
 
+    private func showChallengeTimeoutAlert() {
+        let alert = UIAlertController(
+            title: BlomixL10n.pvpInviteErrorTitle,
+            message: BlomixL10n.pvpInviteErrorMessage(""),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: BlomixL10n.ok, style: .default))
+        topPresentedViewController().present(alert, animated: true)
+    }
+
     private func declineIncomingChallenge() {
         guard GKLocalPlayer.local.isAuthenticated else { return }
         let localGameID = GKLocalPlayer.local.gamePlayerID
-        BlomixAvailablePlayersManager.shared.deleteChallenge(challengedGamePlayerID: localGameID)
-        BlomixAvailablePlayersManager.shared.clearLastNotifiedChallenger()
+        // Supprime le record et remet le tracker à nil après 8 s (anti-rebond CloudKit).
+        BlomixAvailablePlayersManager.shared.suppressChallengeWithDelay(
+            challengedGamePlayerID: localGameID)
     }
 
     // MARK: - GKLocalPlayerListener — invitation reçue

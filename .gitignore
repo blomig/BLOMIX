@@ -1,0 +1,52 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode — utilisateur local (ne pas versionner)
+**/xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Xcode — build
+DerivedData/
+build/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Éditeurs / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Secrets / env local
+.env
+.env.*
+!.env.example

@@ -12,6 +12,7 @@
 |---|---|
 | [RULES.md](RULES.md) | Règles du jeu pour les joueurs (mécaniques, scoring, modes) |
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Documentation technique du projet (architecture, HUD, sauvegarde, localisation) |
+| [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Spécification VFX : animations, particules, sons, timings par objet/événement |
 | [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) et système de hints |
 
 ---

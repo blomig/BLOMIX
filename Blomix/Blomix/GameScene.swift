@@ -699,6 +699,8 @@ final class GameScene: SKScene {
     private static let gridFrameOutlineName = "gridFrameOutline"
     /// Préfixe des `SKShapeNode` de jonction (retirés / reconstruits avec `drawGrid`).
     private static let junctionNodeNamePrefix = "junction_"
+    /// Placeholders visuels des cases vides pendant l'animation SCRUMBLX (hors `cell_*` pour ne pas perturber la compaction).
+    private static let scrumblxHoleNodePrefix = "scrumblx_hole_"
     private static let previewNodeName = "currentBlockPreview"
     private static let fallingSpriteName = "fallingBlockTemp"
     private static let previewPriksDigitName = "previewPriksDigit"
@@ -6962,6 +6964,44 @@ final class GameScene: SKScene {
 
     // MARK: SCRUMBLX
 
+    private static func scrumblxHoleNodeName(row: Int, column: Int) -> String {
+        "\(scrumblxHoleNodePrefix)\(row)_\(column)"
+    }
+
+    private static func makeScrumblxHolePlaceholderSprite() -> SKSpriteNode {
+        makeBottomLinePreviewCellNode(block: .empty)
+    }
+
+    private func removeScrumblxHolePlaceholders(in container: SKNode) {
+        for child in Array(container.children) {
+            guard let name = child.name, name.hasPrefix(Self.scrumblxHoleNodePrefix) else { continue }
+            child.removeFromParent()
+        }
+    }
+
+    /// Sprite animé lors du décalage horizontal : bloc réel (`cell_*`) ou trou visuel (`scrumblx_hole_*`).
+    private func scrumblxShiftSprite(in container: SKNode, row: Int, column: Int) -> SKSpriteNode? {
+        if let block = container.childNode(withName: "cell_\(row)_\(column)") as? SKSpriteNode {
+            return block
+        }
+        return container.childNode(withName: Self.scrumblxHoleNodeName(row: row, column: column)) as? SKSpriteNode
+    }
+
+    private func renameScrumblxShiftRowSprites(in container: SKNode, row: Int, delta: Int) {
+        let cols = GridLayout.columnCount
+        let holeTmpPrefix = "\(Self.scrumblxHoleNodePrefix)tmp_"
+        for c in 0..<cols {
+            container.childNode(withName: "cell_\(row)_\(c)")?.name = "cell_tmp_\(row)_\(c)"
+            container.childNode(withName: Self.scrumblxHoleNodeName(row: row, column: c))?.name = "\(holeTmpPrefix)\(row)_\(c)"
+        }
+        for c in 0..<cols {
+            let origC = ((c - delta) % cols + cols) % cols
+            container.childNode(withName: "cell_tmp_\(row)_\(origC)")?.name = "cell_\(row)_\(c)"
+            container.childNode(withName: "\(holeTmpPrefix)\(row)_\(origC)")?.name =
+                Self.scrumblxHoleNodeName(row: row, column: c)
+        }
+    }
+
     /// Chaque ligne occupée se décale horizontalement d'un nombre de crans aléatoire (1–7)
     /// dans une direction aléatoire, avec wrap-around.
     /// Les déplacements sont animés cran par cran (0.08 s/cran) avec un décalage de 0.3 s entre lignes.
@@ -7014,7 +7054,7 @@ final class GameScene: SKScene {
         }
 
         // Mise à jour visuelle des Brix dans le container existant (avant l'animation).
-        // Brix disparus : sprite supprimé. Brix survivants : label mis à jour.
+        // Brix disparus : trou visuel gris (préfixe scrumblx_hole_, pas cell_). Brix survivants : label mis à jour.
         // Sons staggerés pour les Brix qui disparaissent à cause du SCRUMBLX (−1 → 0).
         let sortedVanished = vanishedBrixAddrs.sorted { a, b in
             a.row != b.row ? a.row < b.row : a.col < b.col
@@ -7038,8 +7078,8 @@ final class GameScene: SKScene {
                     if let sprite = container.childNode(withName: nodeName) {
                         let pos = sprite.position
                         sprite.removeFromParent()
-                        let slot = Self.makeBottomLinePreviewCellNode(block: .empty)
-                        slot.name = nodeName
+                        let slot = Self.makeScrumblxHolePlaceholderSprite()
+                        slot.name = Self.scrumblxHoleNodeName(row: r, column: c)
                         slot.position = pos
                         slot.zPosition = 0
                         container.addChild(slot)
@@ -7090,8 +7130,8 @@ final class GameScene: SKScene {
             scrumblxSprite.name = "cell_scrumblx_vanishing"
             scrumblxSprite.zPosition = 1
             // Placeholder gris : le trou reste visible (couleur fond grille) et participe au décalage.
-            let landingSlot = Self.makeBottomLinePreviewCellNode(block: .empty)
-            landingSlot.name = "cell_\(cell.row)_\(cell.col)"
+            let landingSlot = Self.makeScrumblxHolePlaceholderSprite()
+            landingSlot.name = Self.scrumblxHoleNodeName(row: cell.row, column: cell.col)
             landingSlot.position = landingPos
             landingSlot.zPosition = 0
             container.addChild(landingSlot)
@@ -7139,9 +7179,8 @@ final class GameScene: SKScene {
                         let dx = CGFloat(shift.direction) * cellPts
 
                         for c in 0..<cols {
-                            guard let sprite = container.childNode(
-                                withName: "cell_\(shift.row)_\(c)") as? SKSpriteNode
-                            else { continue }
+                            guard let sprite = self.scrumblxShiftSprite(
+                                in: container, row: shift.row, column: c) else { continue }
 
                             // Colonne logique courante du sprite (après stepsDoneBefore crans).
                             let currentCol = ((c + shift.direction * stepsDoneBefore) % cols + cols) % cols
@@ -7188,14 +7227,7 @@ final class GameScene: SKScene {
                     }
                     self.grid[r] = newRow
 
-                    // Renommage via préfixe temporaire pour éviter les collisions.
-                    for c in 0..<cols {
-                        container.childNode(withName: "cell_\(r)_\(c)")?.name = "cell_tmp_\(r)_\(c)"
-                    }
-                    for c in 0..<cols {
-                        let origC = ((c - delta) % cols + cols) % cols
-                        container.childNode(withName: "cell_tmp_\(r)_\(origC)")?.name = "cell_\(r)_\(c)"
-                    }
+                    self.renameScrumblxShiftRowSprites(in: container, row: r, delta: delta)
                 },
             ]))
         }
@@ -7222,6 +7254,8 @@ final class GameScene: SKScene {
                 container.removeFromParent()
                 container.position = containerScenePos
                 self.addChild(container)
+                // Retire les trous visuels SCRUMBLX : seuls les vrais blocs (`cell_*`) servent à la compaction.
+                self.removeScrumblxHolePlaceholders(in: container)
                 self.drawGrid()
                 self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
             },

@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 4.7  
+> **Version de référence** : 4.9  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 
@@ -353,7 +353,7 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 | | |
 |---|---|
-| **Visuel** | Flash blanc sprite ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes |
+| **Visuel** | Flash blanc sprite ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
 | **Logique** | −1 tous Brix avant shift |
 | **Audio** | `scrumblx` + `priksVanish` staggeré pour Brix à 0 |
 | **Suite** | `resolveChains()` |
@@ -498,17 +498,30 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 ## 10. Transitions et stages
 
-### 10.1 Overlay transition (`showTransitionOverlay`)
+### 10.1 Overlay transition (`showTransitionOverlay` / préparation PvP)
+
+#### Pop-in stage / Zen / PvP (`stageLevelText` non-nil, `blomixPvP_showConnectingOverlayIfNeeded`)
 
 | | |
 |---|---|
-| **Déclencheur** | Changement stage, intro tuto/Zen |
+| **Déclencheur** | Stage solo (démarrage + changement), intro Zen, handshake PvP |
+| **Son** | `transition` (stage/Zen uniquement) |
+| **Fond** | **Aucun** voile sombre — jeu visible derrière |
+| **Pop-in** | Scale **0 → ×1,14 → ×0,94 → ×1,0** en **0,45 s** ; stagger **0,07 s** entre blocs de texte |
+| **Contour** | Halo blanc **15 pt** (info) / **18 pt** (grands titres) + remplissage jaune + contour orange |
+| **Pause** | **1,0 s** (stage/Zen) ; rotation de phrases (PvP) |
+| **Fade out** | **0,35 s** (stage/Zen) ; fondu à la fin du handshake (PvP) |
+
+#### Slide tutoriel (`stageLevelText` nil)
+
+| | |
+|---|---|
+| **Déclencheur** | Intro / fin tutoriel |
 | **Son** | `transition` |
 | **Fond** | α 0→0,52 en **0,20 s** |
-| **Slide in** | **0,45 s** `easeOut` |
+| **Slide in** | **0,45 s** `easeOut` (gauche / droite) |
 | **Pause** | **1,0 s** |
 | **Fade out** | **0,35 s** |
-| **Particules** | Traînées jaunes dans le sillage des textes |
 
 ### 10.2 Timer stage
 

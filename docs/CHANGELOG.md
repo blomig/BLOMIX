@@ -7,7 +7,20 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [4.8] — 2026-07 (courant)
+## [4.9] — 2026-07 (courant)
+
+### Modifié
+- Transitions **stage solo**, **Zen** et **préparation PvP** : pop-in central avec rebond (0,45 s), sans voile noir ; textes entourés d’un **halo blanc** (15 pt / 18 pt sur les grands titres)
+- Overlay **tutoriel** inchangé (slide latéral + fond semi-transparent)
+- Version marketing **4.9** (build 57)
+
+### Corrigé
+- **SCRUMBLX** : les cases vidées (−1 Brix → 0, case d’atterrissage) restent en **gris fond de grille** et participent au décalage horizontal (plus de « trous noirs »)
+- **Sauvegarde solo** : prise en compte des poses, lignes injectées et chaînes en cours de dissolution avant écriture du fichier
+
+---
+
+## [4.8] — 2026-07
 
 ### Ajouté
 - Localisation in-app **Allemand**, **Espagnol**, **Italien** (`de` / `es` / `it` : `Localizable.strings`, tips, citations, `InfoPlist.strings`)

@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 4.8  
+> **Version de référence** : 4.9  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -217,6 +217,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
 - Auto-save en arrière-plan ; restauration au lancement
+- Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) pour éviter une grille incohérente après reprise
 
 ### PvP
 
@@ -340,4 +341,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v4.8 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v4.9 — à maintenir lors des évolutions majeures.*

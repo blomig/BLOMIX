@@ -63,6 +63,7 @@
 		10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* BlomixAvailablePlayersManager.swift */; };
 		100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* BlomixSKButtonNode.swift */; };
 		100000000000000000000223 /* BlomixMoveAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* BlomixMoveAnalyzer.swift */; };
+		100000000000000000000230 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000231 /* InfoPlist.strings */; };
 		E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */; };
 		E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */; };
 		E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */; };
@@ -149,6 +150,20 @@
 		10000000000000000000021F /* BlomixAvailablePlayersManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAvailablePlayersManager.swift; sourceTree = "<group>"; };
 		100000000000000000000220 /* BlomixSKButtonNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixSKButtonNode.swift; sourceTree = "<group>"; };
 		100000000000000000000222 /* BlomixMoveAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixMoveAnalyzer.swift; sourceTree = "<group>"; };
+		100000000000000000000232 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		100000000000000000000233 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		100000000000000000000234 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		100000000000000000000235 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		100000000000000000000236 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = de; path = de.lproj/tips_of_day.json; sourceTree = "<group>"; };
+		100000000000000000000237 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = de; path = de.lproj/gameover_quotes.json; sourceTree = "<group>"; };
+		100000000000000000000238 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		100000000000000000000239 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
+		10000000000000000000023A /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		10000000000000000000023B /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		10000000000000000000023C /* es */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = es; path = es.lproj/tips_of_day.json; sourceTree = "<group>"; };
+		10000000000000000000023D /* it */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = it; path = it.lproj/tips_of_day.json; sourceTree = "<group>"; };
+		10000000000000000000023E /* es */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = es; path = es.lproj/gameover_quotes.json; sourceTree = "<group>"; };
+		10000000000000000000023F /* it */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = it; path = it.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = victory.mp3; sourceTree = "<group>"; };
 		E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = wrong.wav; sourceTree = "<group>"; };
 		E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = calm.mp3; sourceTree = "<group>"; };
@@ -223,6 +238,7 @@
 				10000000000000000000021D /* tips_of_day.json */,
 				100000000000000000000195 /* credits.txt */,
 				10000000000000000000018A /* Localizable.strings */,
+				100000000000000000000231 /* InfoPlist.strings */,
 				10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */,
 				1000000000000000000001C2 /* GoogleSans-Regular.ttf */,
 				1000000000000000000001C4 /* DynaPuff-Regular.ttf */,
@@ -355,6 +371,9 @@
 			knownRegions = (
 				en,
 				fr,
+				de,
+				es,
+				it,
 				Base,
 			);
 			mainGroup = 100000000000000000000011;
@@ -411,6 +430,7 @@
 				E33D30D42FBF6F5F00153BE5 /* medal.jpg in Resources */,
 				100000000000000000000188 /* color_skins.json in Resources */,
 				100000000000000000000189 /* Localizable.strings in Resources */,
+				100000000000000000000230 /* InfoPlist.strings in Resources */,
 				10000000000000000000015E /* BitcountGridSingleInk-Variable.ttf in Resources */,
 				1000000000000000000001C3 /* GoogleSans-Regular.ttf in Resources */,
 				1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */,
@@ -482,6 +502,9 @@
 			children = (
 				10000000000000000000018B /* en */,
 				10000000000000000000018C /* fr */,
+				100000000000000000000234 /* de */,
+				100000000000000000000238 /* es */,
+				100000000000000000000239 /* it */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -509,6 +532,9 @@
 			children = (
 				100000000000000000000198 /* en */,
 				100000000000000000000199 /* fr */,
+				100000000000000000000237 /* de */,
+				10000000000000000000023E /* es */,
+				10000000000000000000023F /* it */,
 			);
 			name = gameover_quotes.json;
 			sourceTree = "<group>";
@@ -518,8 +544,23 @@
 			children = (
 				10000000000000000000021A /* en */,
 				10000000000000000000021B /* fr */,
+				100000000000000000000236 /* de */,
+				10000000000000000000023C /* es */,
+				10000000000000000000023D /* it */,
 			);
 			name = tips_of_day.json;
+			sourceTree = "<group>";
+		};
+		100000000000000000000231 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				100000000000000000000232 /* en */,
+				100000000000000000000233 /* fr */,
+				100000000000000000000235 /* de */,
+				10000000000000000000023A /* es */,
+				10000000000000000000023B /* it */,
+			);
+			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -652,7 +693,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 54;
+				CURRENT_PROJECT_VERSION = 56;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -662,7 +703,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.7;
+				MARKETING_VERSION = 4.8;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -683,7 +724,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 54;
+				CURRENT_PROJECT_VERSION = 56;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -693,7 +734,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 4.7;
+				MARKETING_VERSION = 4.8;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

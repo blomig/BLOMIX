@@ -8,6 +8,9 @@
 	<array>
 		<string>en</string>
 		<string>fr</string>
+		<string>de</string>
+		<string>es</string>
+		<string>it</string>
 	</array>
 	<key>CFBundleDisplayName</key>
 	<string>BLOMIX</string>
@@ -28,7 +31,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSGKFriendListUsageDescription</key>
-	<string>Blomix utilise votre liste d’amis Game Center pour vous permettre d’inviter un ami en mode P vs P.</string>
+	<string>Blomix uses your Game Center friends list so you can invite a friend to PvP.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

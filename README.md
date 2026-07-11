@@ -4,10 +4,10 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 4.7 (build 54) |
+| **Version** | 4.8 (build 56) |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
-| **Langues** | Français, Anglais |
+| **Langues** | Français, Anglais, Allemand, Espagnol, Italien |
 
 ---
 
@@ -33,7 +33,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/VFX_AND_ANIMATIONS.md](docs/VFX_AND_ANIMATIONS.md) | Juice Spec : sons, particules, timings |
 | [docs/EVAL.md](docs/EVAL.md) | Moteur d'évaluation des coups et hints |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terminologie canonique (code ↔ joueur) |
-| [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation FR/EN |
+| [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, debug, conventions de code |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Conventions de contribution et maintenance doc |

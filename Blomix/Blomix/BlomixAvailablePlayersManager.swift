@@ -317,7 +317,7 @@ final class BlomixAvailablePlayersManager {
             if isFirstPass {
                 NotificationCenter.default.post(
                     name: .blomixAvailabilityPublishResult, object: nil,
-                    userInfo: ["success": true, "message": "✓ \(displayName)"])
+                    userInfo: ["success": true, "message": BlomixL10n.pvpGcConnected(displayName)])
             }
         } catch {
             let msg = error.localizedDescription
@@ -325,7 +325,7 @@ final class BlomixAvailablePlayersManager {
             if isFirstPass {
                 NotificationCenter.default.post(
                     name: .blomixAvailabilityPublishResult, object: nil,
-                    userInfo: ["success": false, "message": "Erreur CloudKit : \(msg)"])
+                    userInfo: ["success": false, "message": BlomixL10n.pvpAvailabilityCloudKitError(msg)])
             }
         }
     }

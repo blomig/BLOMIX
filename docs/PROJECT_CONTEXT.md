@@ -1,8 +1,8 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 4.7  
+> **Version de référence** : 4.8  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
-> **Langues** : Français, Anglais
+> **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
 ---
 
@@ -298,12 +298,16 @@ Fond `#232323`, bord `#444444`, texte blanc, radius 10 pt (`BlomixSKButtonNode`)
 |---|---|
 | Français | `fr.lproj/` |
 | Anglais | `en.lproj/` |
+| Allemand | `de.lproj/` |
+| Espagnol | `es.lproj/` |
+| Italien | `it.lproj/` |
 
 | Fichier | Contenu |
 |---|---|
 | `Localizable.strings` | Clés UI (`BlomixL10n`) |
 | `tips_of_day.json` | Conseils du jour |
 | `gameover_quotes.json` | Citations fin de partie |
+| `InfoPlist.strings` | Chaînes système (`NSGKFriendListUsageDescription`, etc.) |
 | `rules.txt` | Anciennes règles statiques (legacy) |
 | `credits.txt` | Crédits |
 
@@ -330,10 +334,10 @@ Blomix/Blomix/
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)
 ├── BlomixMusicPlayer.swift       # Musique par stage
 ├── color_skins.json
-├── en.lproj/ / fr.lproj/
+├── en.lproj/ / fr.lproj/ / de.lproj/ / es.lproj/ / it.lproj/
 └── Assets.xcassets/WebImages/
 ```
 
 ---
 
-*Document aligné sur le code v4.7 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v4.8 — à maintenir lors des évolutions majeures.*

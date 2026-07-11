@@ -1,0 +1,279 @@
+/* Common */
+"common.close" = "Schließen";
+"common.cancel" = "Abbrechen";
+"common.loading" = "Laden…";
+
+/* Quit solo game confirmation */
+"quit_confirm.title" = "Partie beenden?";
+"quit_confirm.message" = "Dein aktueller Score zählt für deinen Durchschnitt.";
+"quit_confirm.quit" = "Beenden";
+
+/* Welcome & gameplay */
+"game.tagline" = "Ketten. Druck. Keine Werbung.";
+"start.button" = "Solo";
+"start.settings" = "Einstellungen";
+"start.credits" = "Credits";
+"start.zen" = "Zen";
+"start.pvp" = "P vs P";
+"start.player_unknown" = "Unbekannter Spieler";
+"start.player_name_format" = "Spieler: %@";
+"start.player_elo_format" = "Elo-Wertung: %lld";
+"start.player_elo_unavailable" = "Elo-Wertung: —";
+
+"pvp.lobby_title" = "Mehrspieler";
+"pvp.lobby_play_friend" = "Mit Freund spielen";
+"pvp.lobby_invite_players" = "Spieler einladen";
+"pvp.lobby_find_opponent" = "Gegner finden";
+"pvp.lobby_find_opponent_prompt_title" = "Wie sollen wir einen Gegner finden?";
+"pvp.lobby_random_opponent" = "Zufälliger Gegner";
+"pvp.lobby_choose_friend_from_find" = "Unter meinen Freunden";
+"pvp.lobby_pick_friend_title" = "Freund wählen";
+"pvp.lobby_no_friends" = "Keine Game-Center-Freunde.";
+"pvp.lobby_status_searching" = "Suche Gegner…";
+"pvp.lobby_status_connecting_friend" = "Verbinde mit Freund…";
+"pvp.lobby_preparing_boards" = "Bretter werden vorbereitet…";
+"pvp.lobby_match_failed" = "Kein Match gefunden.";
+"pvp.lobby_no_players_available" = "Kein Spieler verfügbar.";
+"pvp.lobby_preparation_timeout" = "Vorbereitung unterbrochen. Bitte erneut versuchen.";
+"pvp.auto_search_active_hint" = "Warte auf Gegner… Du kannst schließen und solo spielen oder einen Spieler direkt herausfordern.";
+"pvp.lobby_active_players_hint_format" = "%d aktive(r) Spieler gerade";
+"pvp.unknown_opponent" = "Unbekannter Gegner";
+"pvp.match_found_launching" = "Match gefunden!\nSpiel startet…";
+"pvp.waiting_phrase_1" = "Verbinde mit Gegner…";
+"pvp.waiting_phrase_2" = "Gittern vorbereiten…";
+"pvp.waiting_phrase_3" = "Blox platzieren…";
+"pvp.waiting_phrase_4" = "Auslosung…";
+"pvp.remote_fill_label_line1" = "Gegner";
+"pvp.remote_fill_label_line2" = "gitter";
+"pvp.lobby_opponent_found_format" = "Gegner gefunden: %@";
+"pvp.lobby_search_hint" = "Elo-Matchmaking";
+"pvp.lobby_matchmaking_error_format" = "Fehler: %@";
+
+"pvp.result_you_won" = "Du hast gewonnen!";
+"pvp.result_you_lost" = "Du hast verloren";
+"pvp.result_victory_against_format" = "Sieg gegen %@";
+"pvp.result_defeat_against_format" = "Niederlage gegen %@";
+"pvp.result_win_subtitle" = "Dein Gegner kann nicht mehr spielen.";
+"pvp.result_lose_subtitle" = "Du konntest keinen Block mehr setzen.";
+"pvp.result_elo_loading" = "Elo wird aktualisiert…";
+"pvp.result_elo_unavailable" = "Elo-Wertung nicht verfügbar.";
+"pvp.result_elo_current_format" = "Elo: %lld";
+"pvp.result_elo_delta_format" = "%+lld Pkt.";
+"pvp.result_elo_new_format" = "Neues Elo: %lld";
+"pvp.result_back_home" = "Zur Startseite";
+"pvp.result_rematch_ask" = "Revanche?";
+"pvp.result_rematch_waiting" = "Warte auf Gegner…";
+"pvp.result_rematch_opponent_ready" = "Gegner bereit!";
+"pvp.result_rematch_launching" = "Startet…";
+"pvp.hud_match_against_format" = "Match gegen: %@";
+
+"menu.new_game" = "Start";
+"menu.scores" = "Scores";
+"menu.rules" = "Regeln";
+"menu.settings" = "Einstellungen";
+"menu.multiplayer" = "Mehrspieler";
+
+"game_over.title" = "GAME OVER";
+"game_over.focus_title" = "GAME OVER";
+"game_over.score_format" = "SCORE %lld";
+"game_over.restart" = "START";
+"game_over.leaderboard" = "Bestenliste";
+"game_over.personal_best" = "Neuer persönlicher Rekord!";
+"hud.best_score_title" = "REKORD";
+"hud.bonus_title" = "BONUS";
+"hud.best_score_format" = "%lld";
+
+"hud.next_blox" = "nächste blox";
+"hud.next_line" = "Nächste Linie";
+"hud.next_bomb" = "Nächste Bombe";
+
+"gc.status.checking" = "GC: …";
+"gc.status.ok" = "GC: OK";
+"gc.status.off" = "GC: Aus";
+
+"skin.display.perso" = "Perso";
+"skin.display.perso2" = "Perso 2";
+"skin.display.alea" = "Alea";
+"skin.display.default" = "Standard";
+
+/* Rules / credits fallbacks */
+"rules.missing_file" = "Regeln erscheinen hier, sobald rules.txt dem App-Bundle hinzugefügt wurde.";
+"credits.missing_file" = "Credits-Inhalt in credits.txt im App-Bundle hinzufügen, um ihn hier anzuzeigen.";
+
+"modal.rules_title" = "Regeln";
+"modal.credits_title" = "Credits";
+
+/* Leaderboard */
+"leaderboard.title" = "Score";
+"leaderboard.subtitle" = "BlomixMainScore";
+"leaderboard.loading" = "Bestenliste wird geladen…";
+"leaderboard.gc_sign_in" = "Bei Game Center anmelden, um die Bestenliste zu sehen.";
+"leaderboard.gc_error_format" = "Game-Center-Fehler: %@";
+"leaderboard.not_found" = "Bestenliste nicht gefunden.";
+"leaderboard.load_error_format" = "Ladefehler: %@";
+"leaderboard.empty" = "Noch keine Scores.";
+"leaderboard.top_count_format" = "Top %lld";
+"leaderboard.points_format" = "%lld Pkt.";
+"leaderboard.elo_format" = "Elo %lld";
+"leaderboard.main_tab" = "Solo";
+"leaderboard.elo_tab" = "Elo";
+"leaderboard.avg_tab" = "Ø";
+"leaderboard.zen_tab" = "Zen";
+"leaderboard.avg_format" = "Ø %lld Pkt.";
+"leaderboard.avg_game_count" = "%lld Partien";
+
+/* Settings */
+"settings.title" = "Einstellungen";
+"settings.section_sound" = "Ton";
+"settings.section_font" = "Schrift";
+"settings.section_colors" = "Farben";
+"settings.adjust_sounds" = "Sounds anpassen";
+"settings.sounds_slider_label" = "Sounds";
+"settings.music_slider_label" = "Musik";
+"settings.sound_mix_title" = "Sound-Mix";
+"settings.font_preview" = "Blomix 123";
+"settings.font.bitcount" = "Bitcount";
+"settings.font.google_sans" = "Google Sans";
+"settings.font.dynapuff" = "DynaPuff";
+"settings.font.alfa_slab_one" = "Alfa Slab One";
+"settings.font.changa_one" = "Changa One";
+"settings.sound_percent_format" = "%lld%%";
+"settings.sound.music" = "Hintergrundmusik";
+"settings.sound.begin" = "Spielbeginn";
+"settings.sound.place" = "Block landet";
+"settings.sound.bomb" = "Bombe";
+"settings.sound.connect_e" = "2-Block-Verbindung";
+"settings.sound.connect_f" = "3-Block-Verbindung";
+"settings.sound.connect_gb" = "4-Block-Verbindung";
+"settings.sound.chain_basic" = "Kette 5+";
+"settings.sound.chain_cascade_1" = "Kette 6–8 / Kaskade 1";
+"settings.sound.chain_cascade_2" = "Kette 9+ / Kaskaden";
+"settings.sound.line" = "Linie kommt";
+"settings.sound.end" = "Game Over";
+"settings.sound.victory" = "PvP-Sieg";
+"settings.sound.wrong" = "Spalte voll";
+"settings.sound.empty_column" = "Spalte geleert";
+
+"start_screen.tip_header" = "— Tipp des Tages —";
+
+"settings.music_picker_label" = "Stück";
+"settings.music_track_puzzle_game2" = "Puzzle Game 2";
+"settings.music_track_calm" = "Calm";
+"settings.sound.pending_line" = "Warnung nächste Linie";
+"settings.sound.priks_vanish" = "Brix verschwindet";
+
+"tutorial.got_it" = "Verstanden";
+"tutorial.dont_show_again" = "Anleitung beim Start anzeigen";
+"tutorial.hint_score" = "Dein Score";
+"tutorial.hint_grid" = "Tippe eine Spalte, um einen Block zu setzen. Ziel: Ketten aus 5 Blöcken derselben Farbe.";
+"tutorial.hint_brix" = "Hin und wieder erscheint ein Spezialblock (ein Brix) mit Zahl. Er verschwindet anders: Bilde Ketten in der Nähe (5), um die Zahl Stück für Stück zu senken…";
+"tutorial.hint_queue" = "Hier die nächsten Blöcke. Alle 10 gesetzten Blöcke kommt eine Linie und stört deinen Aufbau.";
+"tutorial.hint_bomb" = "Du kannst eine Bombe einsetzen, wenn du noch eine hast. Sie räumt ein großes Feld frei!";
+"rules.show_guides_at_start" = "Anleitungen beim Spielstart anzeigen";
+"tutorial.page1_title" = "Spielziel";
+"tutorial.page1_body" = "Ziel ist der höchste Score. Setze Blox (farbige Steine) ins Gitter (von unten nach oben) und bilde „Ketten“ aus 5 gleichfarbigen Blox. Ketten geben Punkte und verschwinden — Platz für die nächsten Blox.";
+"tutorial.page1_chain_caption" = "= Kette → Punkte!";
+"tutorial.page2_title" = "Nicht so einfach!";
+"tutorial.page2_body" = "Das Spiel wäre zu leicht, wenn es nur um Farbketten ginge. Alle 10 Blox kommt eine Zufallszeile und stört deinen Aufbau. Und das Beste: Mit 1 zu 8 mutiert ein Blox vor dem Setzen zu einem Brix. Dieser nummerierte Stein lässt sich nicht wie andere räumen — bilde Ketten in der Nähe (5), um ihn zu entfernen. Zum Glück hast du Bomben (eine am Start, und alle 10 Ketten eine neue): Eine Bombe zerstört die 9 Felder um den Einschlag und räumt Brix auf einen Schlag weg!";
+"tutorial.page3_title" = "Du bist dran!";
+"tutorial.page3_body" = "Ein kleiner Bonus gibt es, wenn du mehr Brix als der statistische Durchschnitt hast. Nicht viel — aber du kannst das Schicksal nicht beschuldigen ;).
+
+Probier den PvP-Modus: gleiche Regeln, aber alle 50 Punkte „schickst“ du eine Blox-Linie zum Gegner. Wer zuletzt stehen bleibt, gewinnt.
+
+In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein bestes BLOMIX-Erlebnis.";
+
+"pvp.mode_choice_hint" = "Wie möchtest du spielen?";
+"pvp.mode_auto_desc" = "Bereit zum Spielen";
+"pvp.mode_recent_desc" = "Letzter Gegner";
+"pvp.mode_available_desc" = "Verfügbare Spieler";
+"pvp.available_toggle_label" = "OK für Herausforderung";
+"pvp.recent_title" = "Letzte Gegner";
+"pvp.recent_no_players" = "Keine letzten Gegner.\nSpiele dein erstes PvP-Match, um sie hier zu sehen.";
+"pvp.recent_challenge" = "Herausfordern";
+"pvp.recent_elo_loading" = "Elo…";
+"pvp.recent_elo_unavailable" = "Elo —";
+"pvp.recent_invite_sent_format" = "Einladung gesendet an %@";
+"pvp.recent_invite_hint" = "Warte auf Antwort…";
+"pvp.recent_invite_failed" = "Einladung abgelehnt oder abgelaufen.";
+"pvp.invite_challenge_format" = "%@ fordert dich heraus!";
+"pvp.invite_accept" = "Annehmen";
+"pvp.invite_decline" = "Ablehnen";
+
+"update.banner_available" = "Version %@ verfügbar — Update ↗";
+
+"pvp.leaderboard_invite_not_recent_player" = "Game Center erlaubt Herausforderungen nur zwischen Spielern, die kürzlich zusammen gespielt haben. Nutze PvP-Automatch, um diesen Spieler kennenzulernen.";
+
+"menu.tutorial" = "Tutorial";
+"tutorial.skip" = "Überspringen";
+"tutorial.intro_text" = "Tippe eine Spalte, um einen Block zu setzen";
+"tutorial.chain_prompt" = "Bilde eine Kette aus 5 gleichfarbigen Blöcken";
+"tutorial.chain_hint" = "Probiere es mit den blauen ↓";
+"tutorial.chain_success" = "Super! 5 Blöcke = weg!";
+"tutorial.brix_prompt" = "Brix sind hartnäckiger";
+"tutorial.brix_hint" = "Bilde Ketten daneben, um sie abzutragen";
+"tutorial.brix_success" = "Super! Der Brix schwindet!";
+"tutorial.bomb_prompt" = "Deine Bombe sprengt Blöcke und Brix!";
+"tutorial.bomb_hint" = "Zuerst Bomben-Symbol, dann ein Feld im Gitter";
+"tutorial.bomb_success" = "Super! Du weißt Bescheid — viel Spaß!";
+
+"tutorial.magix_intro" = "Es gibt noch ein paar Überraschungen — du entdeckst sie beim Spielen";
+"tutorial.line_arrival" = "Alle 10 Blöcke schiebt eine neue Linie das Gitter nach oben!";
+
+/* Transition overlays */
+"transition.level_prefix" = "Level";
+"transition.tutorial.title"        = "TUTORIAL";
+"transition.tutorial.subtitle"     = "1 Min. zum Lernen";
+"transition.tutorial_end.title"    = "TUTORIAL FERTIG";
+"transition.tutorial_end.subtitle" = "Du bist dran";
+
+/* Zen mode intro */
+"zen.overlay.level_prefix" = "Zen";
+"zen.overlay.stage_text" = "Modus";
+"zen.overlay.line1" = "entspannt";
+
+/* Stage transition overlay */
+"stage.overlay.timer_format" = "%lld s pro Zug";
+"stage.overlay.multiplier_format" = "Punkte × %lld";
+
+/* Rank discs (start screen) */
+"rank_disc.solo" = "SOLO";
+"rank_disc.avg" = "Ø";
+"rank_disc.zen" = "ZEN";
+
+/* HUD captions */
+"hud.time_caption" = "ZEIT";
+"hud.line_caption" = "LINIE";
+
+/* Game over — move analysis */
+"game_over.optimality_label" = "Optimalität";
+"game_over.move_stats_format" = "✦ %lld starke Züge  •  %lld Fehler";
+"game_over.view_worst_move" = "Schlechtesten Zug ansehen";
+"game_over.worst_move_title" = "Dein schlechtester Zug";
+"game_over.tap_to_close" = "Tippen zum Schließen";
+"game_over.best_move_legend" = "⭐ : bester Zug";
+"game_over.worst_move_legend" = "💀 : dein schlechtester Zug";
+"game_over.incoming_line_label" = "eingehende Linie";
+
+/* PvP — invite error */
+"pvp.invite_error.title"   = "Verbindungsfehler";
+"pvp.invite_error.message" = "Match von %@ konnte nicht beigetreten werden. Erneut versuchen.";
+
+/* PvP — disconnect overlay */
+"pvp.disconnect.title"   = "Gegner getrennt";
+"pvp.disconnect.message" = "Dein Gegner hat das Spiel verlassen — du gewinnst!";
+
+/* Generic */
+"pvp.available_title" = "Verfügbare Spieler";
+"pvp.available_empty" = "Gerade keine Spieler verfügbar.";
+"pvp.available_empty_hint" = "Aktiviere „OK für Herausforderung“ in der Lobby, um in dieser Liste zu erscheinen.";
+"pvp.available_you_visible" = "Du bist für andere Spieler sichtbar";
+"pvp.available_you_not_visible" = "Du bist nicht sichtbar (in der Lobby aktivieren)";
+"pvp.player_in_match"           = "Im Match";
+"pvp.available_error_format" = "Spieler konnten nicht geladen werden: %@";
+
+"pvp.gc_not_connected" = "⚠️ Game Center nicht verbunden";
+"pvp.gc_connected_format" = "✓ %@";
+"pvp.availability_sending" = "⏳ Wird gesendet…";
+"pvp.availability_cloudkit_error_format" = "CloudKit-Fehler: %@";
+
+"generic.ok" = "OK";

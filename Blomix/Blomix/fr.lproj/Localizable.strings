@@ -9,7 +9,7 @@
 "quit_confirm.quit" = "Quitter";
 
 /* Accueil & jeu */
-"game.tagline" = "Un jeu de Blox";
+"game.tagline" = "Des chaînes. De la pression. Zéro pub.";
 "start.button" = "Solo";
 "start.settings" = "Réglages";
 "start.credits" = "Crédits";
@@ -233,10 +233,39 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "tutorial.line_arrival" = "Tous les 10 blox, une ligne vient perturber le jeu !";
 
 /* Transition overlays */
+"transition.level_prefix" = "Niveau";
 "transition.tutorial.title"        = "TUTORIEL";
 "transition.tutorial.subtitle"     = "1 min pour apprendre le jeu";
 "transition.tutorial_end.title"    = "FIN DU TUTO";
 "transition.tutorial_end.subtitle" = "À vous de jouer";
+
+/* Intro mode Zen */
+"zen.overlay.level_prefix" = "Zen";
+"zen.overlay.stage_text" = "Mode";
+"zen.overlay.line1" = "tranquille";
+
+/* Overlay transition de stage */
+"stage.overlay.timer_format" = "%lld s par coup";
+"stage.overlay.multiplier_format" = "Points x %lld";
+
+/* Disques de classement (écran d'accueil) */
+"rank_disc.solo" = "SOLO";
+"rank_disc.avg" = "MOY.";
+"rank_disc.zen" = "ZEN";
+
+/* Légendes HUD */
+"hud.time_caption" = "TEMPS";
+"hud.line_caption" = "LIGNE";
+
+/* Game over — analyse des coups */
+"game_over.optimality_label" = "optimalité";
+"game_over.move_stats_format" = "✦ %lld coups excellents  •  %lld erreurs";
+"game_over.view_worst_move" = "Voir ton pire coup";
+"game_over.worst_move_title" = "Ton pire coup";
+"game_over.tap_to_close" = "Tape pour fermer";
+"game_over.best_move_legend" = "⭐ : le meilleur coup à jouer";
+"game_over.worst_move_legend" = "💀 : ton pire coup";
+"game_over.incoming_line_label" = "ligne entrante";
 
 /* PvP — invite error */
 "pvp.invite_error.title"   = "Erreur de connexion";
@@ -254,5 +283,10 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.available_you_not_visible" = "Tu n'es pas visible (activer dans le lobby)";
 "pvp.player_in_match"           = "En match";
 "pvp.available_error_format" = "Impossible de charger les joueurs : %@";
+
+"pvp.gc_not_connected" = "⚠️ Game Center non connecté";
+"pvp.gc_connected_format" = "✓ %@";
+"pvp.availability_sending" = "⏳ Envoi en cours...";
+"pvp.availability_cloudkit_error_format" = "Erreur CloudKit : %@";
 
 "generic.ok" = "OK";

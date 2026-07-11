@@ -7,7 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [4.7] — 2026-07 (courant)
+## [4.8] — 2026-07 (courant)
+
+### Ajouté
+- Localisation in-app **Allemand**, **Espagnol**, **Italien** (`de` / `es` / `it` : `Localizable.strings`, tips, citations, `InfoPlist.strings`)
+- ~28 clés `BlomixL10n` (HUD, game over, PvP Game Center, overlays stage/Zen, disques classement)
+
+### Modifié
+- Extraction des chaînes UI encore codées en dur (FR/EN) vers `BlomixL10n`
+- Taglines FR/EN alignées ASO ; bouton tutoriel « Skip » redimensionné dynamiquement
+- `CFBundleLocalizations` étendu à 5 langues ; version marketing **4.8** (build 56)
+- Documentation localisation et contexte projet mises à jour
+
+---
+
+## [4.7] — 2026-07
 
 ### Ajouté
 - Documentation complète dans `docs/` (règles, contexte technique, VFX, évaluation, glossaire, dev, localisation)

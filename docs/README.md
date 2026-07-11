@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 4.7  
+> **Version de référence** : 4.8  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais
 
@@ -22,7 +22,7 @@
 |---|---|
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Référence technique (architecture, HUD, sauvegarde, localisation) |
 | [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) et hints |
-| [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN (`BlomixL10n`) |
+| [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN/DE/ES/IT (`BlomixL10n`) |
 
 ### Projet et maintenance
 

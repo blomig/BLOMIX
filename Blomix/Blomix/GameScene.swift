@@ -1527,7 +1527,7 @@ final class GameScene: SKScene {
         let subtitle = SKLabelNode(text: BlomixL10n.gameTagline)
         subtitle.name = Self.startScreenSubtitleLabelName
         subtitle.fontName = Self.customUIFontPostScriptName
-        subtitle.fontSize = 15
+        subtitle.fontSize = 13
         subtitle.fontColor = .white
         subtitle.horizontalAlignmentMode = .center
         subtitle.verticalAlignmentMode = .center
@@ -1594,7 +1594,7 @@ final class GameScene: SKScene {
         // Les 3 offsets de phase (0.0 / 0.33 / 0.67) désynchronisent l'ondulation
         // de couleur entre les disques tout en couvrant le cycle complet de la palette.
         let soloDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscSoloName,
-                                             category: "SOLO",
+                                             category: BlomixL10n.rankDiscSolo,
                                              discDiameter: discDiameter,
                                              timeOffset: 0.0)
         soloDisc.position = CGPoint(x: -discStep, y: 0)
@@ -1602,7 +1602,7 @@ final class GameScene: SKScene {
         discsContainer.addChild(soloDisc)
 
         let avgDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscAvgName,
-                                            category: "MOY.",
+                                            category: BlomixL10n.rankDiscAvg,
                                             discDiameter: discDiameter,
                                             timeOffset: 0.33)
         avgDisc.position = CGPoint(x: 0, y: 0)
@@ -1610,7 +1610,7 @@ final class GameScene: SKScene {
         discsContainer.addChild(avgDisc)
 
         let zenDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscZenName,
-                                            category: "ZEN",
+                                            category: BlomixL10n.rankDiscZen,
                                             discDiameter: discDiameter,
                                             timeOffset: 0.67)
         zenDisc.position = CGPoint(x: discStep, y: 0)
@@ -2083,9 +2083,9 @@ final class GameScene: SKScene {
     private func startZenSession() {
         guard isZenMode else { return }
         showTransitionOverlay(
-            levelPrefix: "Zen",
-            stageLevelText: "Mode",
-            line1: "tranquille",
+            levelPrefix: BlomixL10n.zenOverlayLevelPrefix,
+            stageLevelText: BlomixL10n.zenOverlayStageText,
+            line1: BlomixL10n.zenOverlayLine1,
             line2: ""
         ) { [weak self] in
             guard let self else { return }
@@ -2667,7 +2667,7 @@ final class GameScene: SKScene {
             ]))
 
             // ── Sous-titre "optimalité" ──
-            let subLabel = SKLabelNode(text: "optimalité")
+            let subLabel = SKLabelNode(text: BlomixL10n.gameOverOptimalityLabel)
             subLabel.fontName               = Self.customUIFontPostScriptName
             subLabel.fontSize               = 11
             subLabel.fontColor              = SKColor(white: 0.60, alpha: 1)
@@ -2752,7 +2752,7 @@ final class GameScene: SKScene {
 
             // ── Compteurs coups excellents / erreurs ──
             let excellentLabel = SKLabelNode(
-                text: "✦ \(stats.excellentCount) coups excellents  •  \(stats.badCount) erreurs"
+                text: BlomixL10n.gameOverMoveStats(excellent: stats.excellentCount, mistakes: stats.badCount)
             )
             excellentLabel.fontName               = Self.customUIFontPostScriptName
             excellentLabel.fontSize               = 13
@@ -2904,7 +2904,7 @@ final class GameScene: SKScene {
         if BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil {
             let worstBtn = BlomixSKButtonNode(
                 name:     Self.gameOverWorstMoveButtonName,
-                text:     "Voir ton pire coup",
+                text:     BlomixL10n.gameOverViewWorstMove,
                 size:     goButtonSize,
                 fontSize: goButtonFontSize
             )
@@ -3117,7 +3117,7 @@ final class GameScene: SKScene {
                 }
                 overlay.addChild(lc)
             }
-            let lineLbl = SKLabelNode(text: "ligne entrante")
+            let lineLbl = SKLabelNode(text: BlomixL10n.gameOverIncomingLineLabel)
             lineLbl.fontName               = Self.customUIFontPostScriptName
             lineLbl.fontSize               = 9
             lineLbl.fontColor              = SKColor(white: 0.42, alpha: 1)
@@ -3211,7 +3211,7 @@ final class GameScene: SKScene {
         let legendFontSize: CGFloat = 14
         let legendBaseY = gridOriginY + gridH + 76
 
-        let legend1 = SKLabelNode(text: "⭐ : le meilleur coup à jouer")
+        let legend1 = SKLabelNode(text: BlomixL10n.gameOverBestMoveLegend)
         legend1.fontName               = Self.customUIFontPostScriptName
         legend1.fontSize               = legendFontSize
         legend1.fontColor              = legendColor
@@ -3221,7 +3221,7 @@ final class GameScene: SKScene {
         legend1.zPosition = 10
         overlay.addChild(legend1)
 
-        let legend2 = SKLabelNode(text: "💀 : ton pire coup")
+        let legend2 = SKLabelNode(text: BlomixL10n.gameOverWorstMoveLegend)
         legend2.fontName               = Self.customUIFontPostScriptName
         legend2.fontSize               = legendFontSize
         legend2.fontColor              = legendColor
@@ -3231,7 +3231,7 @@ final class GameScene: SKScene {
         legend2.zPosition = 10
         overlay.addChild(legend2)
 
-        let titleLbl = SKLabelNode(text: "Ton pire coup")
+        let titleLbl = SKLabelNode(text: BlomixL10n.gameOverWorstMoveTitle)
         titleLbl.fontName               = Self.customUIFontPostScriptName
         titleLbl.fontSize               = 15
         titleLbl.fontColor              = SKColor(white: 0.90, alpha: 1)
@@ -3241,7 +3241,7 @@ final class GameScene: SKScene {
         titleLbl.zPosition = 10
         overlay.addChild(titleLbl)
 
-        let hintLbl = SKLabelNode(text: "Tape pour fermer")
+        let hintLbl = SKLabelNode(text: BlomixL10n.gameOverTapToClose)
         hintLbl.fontName               = Self.customUIFontPostScriptName
         hintLbl.fontSize               = 11
         hintLbl.fontColor              = SKColor(white: 0.45, alpha: 1)
@@ -3338,11 +3338,21 @@ final class GameScene: SKScene {
         }
 
         // Fallback de securite si le fichier est absent/invalide.
-        let fallback: [GameOverQuote] = [
-            .init(text: "Ce n est qu un debut, recommence.", author: "Rainer Maria Rilke"),
-            .init(text: "La chute prepare souvent un nouvel elan.", author: "Victor Hugo"),
-            .init(text: "On apprend a force de recommencer.", author: "Seneca"),
-        ]
+        let preferredLang = Locale.preferredLanguages.first.map { String($0.prefix(2)).lowercased() } ?? "en"
+        let fallback: [GameOverQuote]
+        if preferredLang.hasPrefix("fr") {
+            fallback = [
+                .init(text: "Ce n est qu un debut, recommence.", author: "Rainer Maria Rilke"),
+                .init(text: "La chute prepare souvent un nouvel elan.", author: "Victor Hugo"),
+                .init(text: "On apprend a force de recommencer.", author: "Seneca"),
+            ]
+        } else {
+            fallback = [
+                .init(text: "Courage is starting over again.", author: "Romain Rolland"),
+                .init(text: "What matters is keeping the game alive.", author: "Albert Camus"),
+                .init(text: "Every mistake sketches the next progress.", author: "Confucius"),
+            ]
+        }
         return fallback.randomElement() ?? fallback[0]
     }
 
@@ -3372,8 +3382,8 @@ final class GameScene: SKScene {
            !tips.isEmpty {
             return tips
         }
-        // Dernier recours intégré — toutes les phrases disponibles.
-        let lang2 = preferredLangs.first ?? "en"
+        // Dernier recours integre — toutes les phrases disponibles.
+        let lang2 = preferredLangs.first.map { String($0.prefix(2)).lowercased() } ?? "en"
         if lang2.hasPrefix("fr") {
             return [
                 TipOfDay(text: "N’oubliez pas les diagonales."),
@@ -4827,7 +4837,7 @@ final class GameScene: SKScene {
 
         // Caption "TEMPS" — label de titre partagé par le stage timer (solo) et le PvP timer.
         // La valeur numérique est portée par hudStageTimer (solo) ou hudPvPTurnTimerName (PvP).
-        let timerCaptionLabel = SKLabelNode(text: "TEMPS")
+        let timerCaptionLabel = SKLabelNode(text: BlomixL10n.hudTimeCaption)
         timerCaptionLabel.name = Self.hudTimerCaptionName
         timerCaptionLabel.fontName = Self.customUIFontPostScriptName
         timerCaptionLabel.fontSize = 14
@@ -4841,7 +4851,7 @@ final class GameScene: SKScene {
         // Compteur LIGNE (gauche du score — symétrique du RECORD à droite)
         let grayColor = UIColor(red: CGFloat(0xA3) / 255, green: CGFloat(0xA3) / 255,
                                 blue: CGFloat(0xA3) / 255, alpha: 1)
-        let ligneCaptionLabel = SKLabelNode(text: "LIGNE")
+        let ligneCaptionLabel = SKLabelNode(text: BlomixL10n.hudLineCaption)
         ligneCaptionLabel.name = Self.ligneCaptionName
         ligneCaptionLabel.fontName = Self.customUIFontPostScriptName
         ligneCaptionLabel.fontSize = 14
@@ -9635,9 +9645,9 @@ final class GameScene: SKScene {
         /// Nom du fichier audio à jouer en boucle pendant ce stage.
         let musicFilename: String
         /// Ligne 1 de l'overlay de transition.
-        var overlayLine1: String { "\(timerSeconds) s par coup" }
+        var overlayLine1: String { BlomixL10n.stageOverlayTimerSeconds(timerSeconds) }
         /// Ligne 2 de l'overlay de transition.
-        var overlayLine2: String { "Points x \(multiplier)" }
+        var overlayLine2: String { BlomixL10n.stageOverlayPointsMultiplier(multiplier) }
     }
 
     private static let soloStages: [SoloStageConfig] = [
@@ -9910,7 +9920,7 @@ final class GameScene: SKScene {
     /// Overlay de transition cinématique.
     /// - `stageLevelText` non-nil → variante "stage" : "Level" + chiffre/texte + 2 lignes d'infos.
     /// - `stageLevelText` nil      → variante "texte seul" : line1 glisse de gauche, line2 de droite.
-    private func showTransitionOverlay(levelPrefix: String = "Level",
+    private func showTransitionOverlay(levelPrefix: String = BlomixL10n.transitionLevelPrefix,
                                        stageLevelText: String? = nil,
                                        line1: String, line2: String,
                                        completion: @escaping () -> Void) {
@@ -10507,13 +10517,20 @@ final class GameScene: SKScene {
     private func showTutorialSkipButton() {
         childNode(withName: Self.tutorialSkipBtnName)?.removeFromParent()
 
-        let chipSize = CGSize(width: 80, height: 34)
+        let skipFont: CGFloat = 13
+        let maxSkipOuter = size.width - 48
+        let fitted = BlomixSKButtonNode.fittingSize(
+            for: BlomixL10n.tutorialSkip,
+            fontSize: skipFont,
+            maxWidth: maxSkipOuter
+        )
+        let chipSize = CGSize(width: max(fitted.width, 80), height: max(fitted.height, 34))
         let chip = makeStartScreenButtonChip(
             chipName:  Self.tutorialSkipBtnName,
             labelName: Self.tutorialSkipBtnName + "_lbl",
             text:      BlomixL10n.tutorialSkip,
             chipSize:  chipSize,
-            fontSize:  13
+            fontSize:  skipFont
         )
 
         // Centre horizontal aligné sur la file de blocs (preview centré sur la largeur).

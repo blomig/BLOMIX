@@ -833,9 +833,9 @@ final class BlomixPvPLobbyViewController: UIViewController {
         if nowActive {
             let gcOK = GKLocalPlayer.local.isAuthenticated
             if !gcOK {
-                setAvailabilityStatus("⚠️ Game Center non connecté", color: .systemOrange)
+                setAvailabilityStatus(BlomixL10n.pvpGcNotConnected, color: .systemOrange)
             } else {
-                setAvailabilityStatus("⏳ Envoi en cours...", color: UIColor.white.withAlphaComponent(0.5))
+                setAvailabilityStatus(BlomixL10n.pvpAvailabilitySending, color: UIColor.white.withAlphaComponent(0.5))
             }
         } else {
             setAvailabilityStatus("", color: .clear)
@@ -882,9 +882,9 @@ final class BlomixPvPLobbyViewController: UIViewController {
             if availabilityStatusLabel.text?.isEmpty != false {
                 let player = GKLocalPlayer.local
                 if player.isAuthenticated {
-                    setAvailabilityStatus("✓ \(player.displayName)", color: green)
+                    setAvailabilityStatus(BlomixL10n.pvpGcConnected(player.displayName), color: green)
                 } else {
-                    setAvailabilityStatus("⚠️ Game Center non connecté", color: .systemOrange)
+                    setAvailabilityStatus(BlomixL10n.pvpGcNotConnected, color: .systemOrange)
                 }
             }
         } else {

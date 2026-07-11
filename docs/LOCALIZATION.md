@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
-> **Langues supportées** : Français (`fr`), Anglais (`en`)  
-> **Version de référence** : 4.7
+> **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
+> **Version de référence** : 4.8
 
 ---
 
@@ -12,12 +12,29 @@ Blomix/Blomix/
 ├── BlomixL10n.swift          # Pont typé (point d'entrée code)
 ├── en.lproj/
 │   ├── Localizable.strings   # Chaînes UI principales
-│   ├── tips_of_day.json        # Conseils écran d'accueil
-│   └── gameover_quotes.json    # Citations fin de partie
-└── fr.lproj/
+│   ├── tips_of_day.json
+│   ├── gameover_quotes.json
+│   └── InfoPlist.strings     # NSGKFriendListUsageDescription
+├── fr.lproj/
+│   ├── Localizable.strings
+│   ├── tips_of_day.json
+│   ├── gameover_quotes.json
+│   └── InfoPlist.strings
+├── de.lproj/
     ├── Localizable.strings
     ├── tips_of_day.json
-    └── gameover_quotes.json
+    ├── gameover_quotes.json
+    └── InfoPlist.strings
+├── es.lproj/
+│   ├── Localizable.strings
+│   ├── tips_of_day.json
+│   ├── gameover_quotes.json
+│   └── InfoPlist.strings
+└── it.lproj/
+    ├── Localizable.strings
+    ├── tips_of_day.json
+    ├── gameover_quotes.json
+    └── InfoPlist.strings
 ```
 
 Fichiers legacy (encore référencés en fallback) :
@@ -52,7 +69,7 @@ Conventions de clés : `section.sous_section` en snake_case (ex. `game_over.rest
 "ma_section.score_format" = "Score: %lld";
 ```
 
-**`fr.lproj/Localizable.strings`**
+**`fr.lproj/Localizable.strings`** (et `de` / `es` / `it` si la clé est visible dans ces langues)
 ```
 "ma_section.mon_bouton" = "Mon bouton";
 "ma_section.score_format" = "Score : %lld";
@@ -81,7 +98,7 @@ Tableau d'objets affichés en rotation sur l'écran d'accueil :
 ]
 ```
 
-Les deux langues doivent avoir le **même nombre d'entrées** (même index = même tip).
+Toutes les langues doivent avoir le **même nombre d'entrées** (même index = même tip).
 
 ### `gameover_quotes.json`
 
@@ -132,6 +149,9 @@ Noms Magix (**CHROMAX**, **BRIXED**, etc.) : **ne pas traduire** — identiques 
 <array>
     <string>en</string>
     <string>fr</string>
+    <string>de</string>
+    <string>es</string>
+    <string>it</string>
 </array>
 ```
 
@@ -142,19 +162,19 @@ La langue affichée suit les réglages iOS de l'appareil. Pas de sélecteur in-a
 ## Checklist traduction
 
 - [ ] Clé ajoutée dans `BlomixL10n.swift` avec commentaire traducteur
-- [ ] Entrée `en.lproj/Localizable.strings`
-- [ ] Entrée `fr.lproj/Localizable.strings`
-- [ ] Placeholders `%@`, `%lld`, `%d` identiques dans les deux langues
+- [ ] Entrées dans `en`, `fr`, `de`, `es`, `it` (`Localizable.strings`)
+- [ ] Placeholders `%@`, `%lld`, `%d` identiques dans toutes les langues
 - [ ] Termes gameplay conformes au glossaire
-- [ ] Test visuel FR et EN sur simulateur (Réglages → Général → Langue)
+- [ ] Test visuel sur simulateur (Réglages → Général → Langue) — au minimum FR et EN
 
 ---
 
 ## Ajouter une nouvelle langue
 
-1. Créer `xx.lproj/` avec `Localizable.strings`, `tips_of_day.json`, `gameover_quotes.json`.
-2. Ajouter la locale dans `CFBundleLocalizations` (`Info.plist`).
-3. Mettre à jour ce document et `PROJECT_CONTEXT.md` §15.
+1. Créer `xx.lproj/` avec `Localizable.strings`, `tips_of_day.json`, `gameover_quotes.json`, `InfoPlist.strings`.
+2. Ajouter la locale dans `CFBundleLocalizations` (`Info.plist`) et `knownRegions` (`project.pbxproj`).
+3. Enregistrer les fichiers dans les `PBXVariantGroup` Xcode (Localizable, tips, quotes, InfoPlist).
+4. Mettre à jour ce document et `PROJECT_CONTEXT.md` §15.
 
 ---
 

@@ -54,6 +54,16 @@ enum BlomixL10n {
     static var gameOverRestart: String { tr("game_over.restart", comment: "Game over button") }
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
+    static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under optimality % on game over") }
+    static func gameOverMoveStats(excellent: Int, mistakes: Int) -> String {
+        String(format: tr("game_over.move_stats_format", comment: "%lld excellent, %lld mistakes"), excellent, mistakes)
+    }
+    static var gameOverViewWorstMove: String { tr("game_over.view_worst_move", comment: "Game over button to open worst-move overlay") }
+    static var gameOverWorstMoveTitle: String { tr("game_over.worst_move_title", comment: "Worst-move overlay title") }
+    static var gameOverTapToClose: String { tr("game_over.tap_to_close", comment: "Worst-move overlay dismiss hint") }
+    static var gameOverBestMoveLegend: String { tr("game_over.best_move_legend", comment: "Worst-move overlay legend for star marker") }
+    static var gameOverWorstMoveLegend: String { tr("game_over.worst_move_legend", comment: "Worst-move overlay legend for skull marker") }
+    static var gameOverIncomingLineLabel: String { tr("game_over.incoming_line_label", comment: "Worst-move overlay pending line caption") }
     static var hudBestScoreTitle: String { tr("hud.best_score_title", comment: "HUD best score caption") }
     static var hudBonusTitle: String { tr("hud.bonus_title", comment: "HUD score multiplier caption (solo)") }
     static func hudBestScore(_ score: Int) -> String {
@@ -63,6 +73,8 @@ enum BlomixL10n {
     static var hudNextBlox: String { tr("hud.next_blox", comment: "Queue caption above upcoming pieces") }
     static var hudNextLine: String { tr("hud.next_line", comment: "Progress HUD label") }
     static var hudNextBomb: String { tr("hud.next_bomb", comment: "Bomb progress HUD label") }
+    static var hudTimeCaption: String { tr("hud.time_caption", comment: "HUD timer caption (solo stage / PvP)") }
+    static var hudLineCaption: String { tr("hud.line_caption", comment: "HUD incoming-line counter caption") }
 
     static var gcStatusChecking: String { tr("gc.status.checking", comment: "Game Center HUD before known state") }
     static var gcStatusOk: String { tr("gc.status.ok", comment: "Game Center authenticated") }
@@ -275,6 +287,10 @@ enum BlomixL10n {
     // MARK: - Start screen tip
     static var startScreenTipHeader: String { tr("start_screen.tip_header", comment: "Start screen — small header above the daily tip") }
 
+    static var rankDiscSolo: String { tr("rank_disc.solo", comment: "Start screen rank disc — solo leaderboard") }
+    static var rankDiscAvg: String { tr("rank_disc.avg", comment: "Start screen rank disc — average score") }
+    static var rankDiscZen: String { tr("rank_disc.zen", comment: "Start screen rank disc — zen mode") }
+
     // MARK: - Tutoriel interactif
     static var menuTutorial: String { tr("menu.tutorial", comment: "Tutorial button on home screen and overflow menu") }
     static var tutorialSkip: String { tr("tutorial.skip", comment: "Skip tutorial button (always visible)") }
@@ -312,10 +328,20 @@ enum BlomixL10n {
     }
 
     // MARK: - Transition overlays
-    static var transitionTutorialTitle:    String { NSLocalizedString("transition.tutorial.title",    comment: "") }
-    static var transitionTutorialSubtitle: String { NSLocalizedString("transition.tutorial.subtitle", comment: "") }
-    static var transitionTutorialEndTitle:    String { NSLocalizedString("transition.tutorial_end.title",    comment: "") }
-    static var transitionTutorialEndSubtitle: String { NSLocalizedString("transition.tutorial_end.subtitle", comment: "") }
+    static var transitionLevelPrefix: String { tr("transition.level_prefix", comment: "Stage transition overlay — Level / Niveau") }
+    static func stageOverlayTimerSeconds(_ seconds: Int) -> String {
+        String(format: tr("stage.overlay.timer_format", comment: "%lld s per move"), seconds)
+    }
+    static func stageOverlayPointsMultiplier(_ multiplier: Int) -> String {
+        String(format: tr("stage.overlay.multiplier_format", comment: "Points × multiplier"), multiplier)
+    }
+    static var zenOverlayLevelPrefix: String { tr("zen.overlay.level_prefix", comment: "Zen intro overlay small header") }
+    static var zenOverlayStageText: String { tr("zen.overlay.stage_text", comment: "Zen intro overlay large text") }
+    static var zenOverlayLine1: String { tr("zen.overlay.line1", comment: "Zen intro overlay tagline") }
+    static var transitionTutorialTitle:    String { tr("transition.tutorial.title",    comment: "Tutorial intro transition line 1") }
+    static var transitionTutorialSubtitle: String { tr("transition.tutorial.subtitle", comment: "Tutorial intro transition line 2") }
+    static var transitionTutorialEndTitle:    String { tr("transition.tutorial_end.title",    comment: "Tutorial end transition line 1") }
+    static var transitionTutorialEndSubtitle: String { tr("transition.tutorial_end.subtitle", comment: "Tutorial end transition line 2") }
 
     // MARK: - PvP invite error
     static var pvpInviteErrorTitle: String {
@@ -345,6 +371,14 @@ enum BlomixL10n {
     static var pvpPlayerInMatch: String             { tr("pvp.player_in_match",           comment: "Available players — player currently in a PvP match") }
     static func pvpAvailableError(_ message: String) -> String {
         String(format: tr("pvp.available_error_format", comment: "Available players — load error; %@ = message"), message)
+    }
+    static var pvpGcNotConnected: String { tr("pvp.gc_not_connected", comment: "PvP lobby — Game Center not signed in") }
+    static func pvpGcConnected(_ displayName: String) -> String {
+        String(format: tr("pvp.gc_connected_format", comment: "PvP lobby — GC OK; %@ = display name"), displayName)
+    }
+    static var pvpAvailabilitySending: String { tr("pvp.availability_sending", comment: "PvP lobby — publishing availability to CloudKit") }
+    static func pvpAvailabilityCloudKitError(_ message: String) -> String {
+        String(format: tr("pvp.availability_cloudkit_error_format", comment: "CloudKit publish error; %@ = message"), message)
     }
 
     // MARK: - Generic

@@ -1072,6 +1072,16 @@ final class GameScene: SKScene {
     /// Évite de mettre `isProcessing = false` pendant qu’on enchaîne insertion de ligne + `resolveChains()` (appels différés).
     private var isInjectingBottomRandomLine = false
 
+    /// Chaîne déjà scorée mais encore présente dans `grid` pendant l’animation de dissolution.
+    private var pendingScoredChainClearCells: Set<GridAddress>?
+
+    /// Pose ou injection de ligne en vol, pas encore écrite dans `grid`.
+    private enum PendingGridWrite {
+        case blockPlacement(block: BlockType, row: Int, column: Int)
+        case bottomLine(line: [BlockType], placements: [(column: Int, row: Int)])
+    }
+    private var pendingGridWrite: PendingGridWrite?
+
     /// Bombes restantes (`priks.html` : `bombCount = 1` au départ).
     private var bombCount: Int = 1
     /// Mode placement bombe (preview bombe ; `B` ou tap sur l’icône pour basculer).
@@ -1375,6 +1385,8 @@ final class GameScene: SKScene {
         moveCount = 0
         shouldRunPostPlacementHooks = false
         isInjectingBottomRandomLine = false
+        pendingScoredChainClearCells = nil
+        pendingGridWrite = nil
         nextBottomLine = nextBottomLineRowForSession()
         bombCount = pvpCoordinator == nil ? 5 : 3
         isBombMode = false
@@ -3908,6 +3920,8 @@ final class GameScene: SKScene {
 
         if isTutorialMode { tutorialChainDetected() }
 
+        pendingScoredChainClearCells = winningCells
+
         // Dissolution sur les **sprites** existants ; la grille logique reste inchangée jusqu’à `applyChainClearPhysicalWave`.
         animateWinningChainDisappearance(components: components) { [weak self] in
             guard let self else { return }
@@ -4069,6 +4083,8 @@ final class GameScene: SKScene {
 
     /// Après la dissolution : vide la chaîne, Priks, `drawGrid()`, animation de remontée si besoin, puis cascade.
     private func applyChainClearPhysicalWave(winningCells: Set<GridAddress>) {
+        pendingScoredChainClearCells = nil
+
         let columnHadBlockBefore: [Bool] = (0..<GridLayout.columnCount).map { col in
             (GridLayout.topRowIndex..<GridLayout.rowCount).contains { grid[$0][col] != .empty }
         }
@@ -5441,6 +5457,8 @@ final class GameScene: SKScene {
             ]))
         }
 
+        pendingGridWrite = .bottomLine(line: line, placements: placements)
+
         isInjectingBottomRandomLine = true
         // Pendant l’injection déclenchée au 10e coup, la barre « Next line » doit rester visuellement pleine.
         refreshProgressHUDBars()
@@ -5508,6 +5526,7 @@ final class GameScene: SKScene {
                       p.column >= 0, p.column < GridLayout.columnCount else { continue }
                 self.grid[p.row][p.column] = lineCopy[p.column]
             }
+            self.pendingGridWrite = nil
             // Comptabilise chaque cellule de la ligne injectée pour le multiplicateur (solo uniquement).
             if self.pvpCoordinator == nil {
                 for col in 0..<GridLayout.columnCount {
@@ -5579,6 +5598,7 @@ final class GameScene: SKScene {
         guard let row = highestEmptyRow(inColumn: columnIndex) else { return }
 
         let placedBlock = placedKind
+        pendingGridWrite = .blockPlacement(block: placedBlock, row: row, column: columnIndex)
         isProcessing = true
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
         childNode(withName: Self.hintGhostContainerName)?.removeFromParent()
@@ -5637,6 +5657,7 @@ final class GameScene: SKScene {
             guard let self else { return }
             falling.removeFromParent()
             self.grid[row][columnIndex] = placedBlock
+            self.pendingGridWrite = nil
             // Comptabilise le bloc posé pour le multiplicateur (solo uniquement).
             if self.pvpCoordinator == nil {
             }
@@ -7014,7 +7035,15 @@ final class GameScene: SKScene {
                 let addr = GridAddress(row: r, col: c)
                 let nodeName = "cell_\(r)_\(c)"
                 if vanishedBrixAddrs.contains(addr) {
-                    container.childNode(withName: nodeName)?.removeFromParent()
+                    if let sprite = container.childNode(withName: nodeName) {
+                        let pos = sprite.position
+                        sprite.removeFromParent()
+                        let slot = Self.makeBottomLinePreviewCellNode(block: .empty)
+                        slot.name = nodeName
+                        slot.position = pos
+                        slot.zPosition = 0
+                        container.addChild(slot)
+                    }
                 } else if case .priks(let newN) = grid[r][c],
                           let bg = container.childNode(withName: nodeName),
                           let lbl = bg.children.first(where: { $0 is SKLabelNode }) as? SKLabelNode {
@@ -7055,9 +7084,17 @@ final class GameScene: SKScene {
 
         let flashDur: TimeInterval = 0.18
         if let scrumblxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
+            let landingPos = scrumblxSprite.position
             // Renommer immédiatement pour que le loop de décalage de ligne ne le trouve pas
             // et ne tente pas de l'animer en même temps que le fondu de disparition.
             scrumblxSprite.name = "cell_scrumblx_vanishing"
+            scrumblxSprite.zPosition = 1
+            // Placeholder gris : le trou reste visible (couleur fond grille) et participe au décalage.
+            let landingSlot = Self.makeBottomLinePreviewCellNode(block: .empty)
+            landingSlot.name = "cell_\(cell.row)_\(cell.col)"
+            landingSlot.position = landingPos
+            landingSlot.zPosition = 0
+            container.addChild(landingSlot)
             scrumblxSprite.run(SKAction.sequence([
                 SKAction.colorize(with: .white, colorBlendFactor: 0.95, duration: flashDur * 0.35),
                 SKAction.fadeAlpha(to: 0, duration: flashDur * 0.65),
@@ -9244,6 +9281,172 @@ final class GameScene: SKScene {
 
     // MARK: - Sauvegarde automatique solo
 
+    /// Met à jour score / affichage sans animations (flush logique avant persistance).
+    private func addScoreSynchronously(points: Int, chainMultiplier: Int) {
+        guard points > 0 else { return }
+        let multipliedPoints = isInStagedSoloMode ? points * currentStageConfig.multiplier : points
+        score += multipliedPoints
+        displayedScore += multipliedPoints
+        displayedScore = min(displayedScore, score)
+        if score > hudBestScoreValue {
+            applyBestScoreHUDValue(score, isLiveBeat: false)
+        }
+        _ = chainMultiplier
+    }
+
+    private func awardFullyClearedColumnBonusesSynchronously(columnHadBlockBefore: [Bool]) {
+        let clearedCols = (0..<GridLayout.columnCount).filter { col in
+            columnHadBlockBefore[col] &&
+            (GridLayout.topRowIndex..<GridLayout.rowCount).allSatisfy { grid[$0][col] == .empty }
+        }
+        for _ in clearedCols {
+            addScoreSynchronously(points: 10, chainMultiplier: 0)
+        }
+    }
+
+    /// Efface une vague de chaîne dans `grid` sans animation (dissolution / compaction / cascade).
+    private func applyPhysicalChainWaveSynchronously(winningCells: Set<GridAddress>) {
+        let columnHadBlockBefore: [Bool] = (0..<GridLayout.columnCount).map { col in
+            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { grid[$0][col] != .empty }
+        }
+
+        for address in winningCells {
+            let row = address.row
+            let col = address.col
+            guard row >= GridLayout.topRowIndex, row < GridLayout.rowCount,
+                  col >= 0, col < GridLayout.columnCount else { continue }
+            grid[row][col] = .empty
+        }
+
+        let vanishedPriks = applyPriksAdjacentDecrement(touchingRemovedCells: winningCells)
+        if !vanishedPriks.isEmpty {
+            addScoreSynchronously(points: vanishedPriks.count * 20, chainMultiplier: 0)
+        }
+
+        compactGridTowardTop()
+        awardFullyClearedColumnBonusesSynchronously(columnHadBlockBefore: columnHadBlockBefore)
+        chainSeriesLevel += 1
+    }
+
+    /// Injecte la ligne des 10 coups dans `grid` sans animation. Retourne `true` si la partie est perdue.
+    private func commitBottomLineForSaveSynchronously() -> Bool {
+        if case .bottomLine(let line, let placements)? = pendingGridWrite {
+            pendingGridWrite = nil
+            for placement in placements {
+                guard placement.row >= GridLayout.topRowIndex, placement.row < GridLayout.rowCount,
+                      placement.column >= 0, placement.column < GridLayout.columnCount else { continue }
+                grid[placement.row][placement.column] = line[placement.column]
+            }
+            isInjectingBottomRandomLine = false
+            return false
+        }
+
+        guard nextBottomLine.count == GridLayout.columnCount else { return false }
+
+        let blockedColumns = (0..<GridLayout.columnCount).filter { highestEmptyRow(inColumn: $0) == nil }
+        if !blockedColumns.isEmpty {
+            isGameOver = true
+            return true
+        }
+
+        var placements: [(column: Int, row: Int)] = []
+        for col in 0..<GridLayout.columnCount {
+            guard let row = highestEmptyRow(inColumn: col) else {
+                isGameOver = true
+                return true
+            }
+            placements.append((column: col, row: row))
+        }
+
+        let line = nextBottomLine
+        nextBottomLine = nextBottomLineRowForSession()
+        for placement in placements {
+            grid[placement.row][placement.column] = line[placement.column]
+        }
+        isInjectingBottomRandomLine = false
+        return false
+    }
+
+    /// Résout toutes les chaînes / cascades / hooks post-pose sans animation jusqu’à un état stable.
+    private func resolveAllChainsSynchronouslyUntilIdle() {
+        var safety = 0
+        while safety < 32 {
+            safety += 1
+            let components = findWinningChainComponents()
+            let winningCells = components.reduce(into: Set<GridAddress>()) { $0.formUnion($1) }
+
+            if winningCells.isEmpty {
+                if shouldRunPostPlacementHooks {
+                    shouldRunPostPlacementHooks = false
+                    moveCount += 1
+                    if moveCount % 10 == 0, commitBottomLineForSaveSynchronously() {
+                        return
+                    }
+                }
+                return
+            }
+
+            chainClearWaveCount += 1
+            for component in components {
+                let pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
+                addScoreSynchronously(points: pts, chainMultiplier: chainSeriesLevel)
+            }
+            applyPhysicalChainWaveSynchronously(winningCells: winningCells)
+        }
+    }
+
+    /// Annule les animations en cours et aligne `grid` / score sur l’état canonique avant persistance.
+    private func stabilizeLogicalStateForSoloSave() {
+        guard isProcessing else { return }
+
+        removeAllActions()
+        childNode(withName: Self.fallingSpriteName)?.removeFromParent()
+        for col in 0..<GridLayout.columnCount {
+            childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()
+        }
+
+        if let pending = pendingGridWrite {
+            switch pending {
+            case .blockPlacement(let block, let row, let column):
+                grid[row][column] = block
+                shouldRunPostPlacementHooks = true
+            case .bottomLine(let line, let placements):
+                for placement in placements {
+                    guard placement.row >= GridLayout.topRowIndex, placement.row < GridLayout.rowCount,
+                          placement.column >= 0, placement.column < GridLayout.columnCount else { continue }
+                    grid[placement.row][placement.column] = line[placement.column]
+                }
+            }
+            pendingGridWrite = nil
+        }
+
+        if let pendingCells = pendingScoredChainClearCells {
+            pendingScoredChainClearCells = nil
+            applyPhysicalChainWaveSynchronously(winningCells: pendingCells)
+        }
+
+        resolveAllChainsSynchronouslyUntilIdle()
+
+        displayedScore = score
+        isProcessing = false
+        isInjectingBottomRandomLine = false
+        pendingScoredChainClearCells = nil
+        pendingGridWrite = nil
+    }
+
+    /// Resynchronise l’affichage après un flush logique (app toujours en mémoire, pas tuée).
+    private func refreshVisualStateAfterSoloSaveStabilization() {
+        drawGrid()
+        updatePreviewSprite()
+        refreshPendingBottomLinePreview()
+        refreshLigneCounterHUD()
+        refreshProgressHUDBars()
+        if let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
+            label.text = "\(displayedScore)"
+        }
+        updateBombHUD()
+    }
+
     private func registerSoloSaveObserverIfNeeded() {
         for notifName in [UIApplication.willResignActiveNotification,
                           UIApplication.didEnterBackgroundNotification] {
@@ -9259,6 +9462,12 @@ final class GameScene: SKScene {
 
     private func saveCurrentSoloGameState() {
         guard !isStartScreen, !isGameOver, pvpCoordinator == nil, !isTutorialMode, !isWindingDown else { return }
+        let wasProcessing = isProcessing
+        stabilizeLogicalStateForSoloSave()
+        guard !isGameOver else { return }
+        if wasProcessing {
+            refreshVisualStateAfterSoloSaveStabilization()
+        }
         let save = BlomixSoloGameSave(
             version: BlomixSoloGameSave.currentVersion,
             grid: grid,
@@ -9306,6 +9515,9 @@ final class GameScene: SKScene {
         stageTimerSecondsRemaining = save.stageTimerSecondsRemaining
         analyzerGameStats.restore(records: save.moveRecords)
         hintsRemaining = save.hintsRemaining
+
+        // Sécurité : score affiché = score logique (sauvegardes antérieures ou arrondi d’animation).
+        displayedScore = save.score
 
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
@@ -9848,6 +10060,113 @@ final class GameScene: SKScene {
 
     // MARK: - Transition overlay (réutilisable)
 
+    /// Pop-in depuis le centre : 0 → overshoot → undershoot → 1,0 sur `totalDuration` (rebond amorti).
+    private static func makeTransitionCenterPopInAction(totalDuration: TimeInterval) -> SKAction {
+        let overshoot: CGFloat = 1.14
+        let undershoot: CGFloat = 0.94
+        let phase1 = totalDuration * 0.58
+        let phase2 = totalDuration * 0.24
+        let phase3 = max(0.01, totalDuration - phase1 - phase2)
+
+        let scaleUp: SKAction = {
+            let a = SKAction.scale(to: overshoot, duration: phase1)
+            a.timingMode = .easeOut
+            return a
+        }()
+        let scaleDown: SKAction = {
+            let a = SKAction.scale(to: undershoot, duration: phase2)
+            a.timingMode = .easeInEaseOut
+            return a
+        }()
+        let scaleSettle: SKAction = {
+            let a = SKAction.scale(to: 1.0, duration: phase3)
+            a.timingMode = .easeOut
+            return a
+        }()
+
+        return SKAction.group([
+            SKAction.sequence([scaleUp, scaleDown, scaleSettle]),
+            SKAction.fadeAlpha(to: 1, duration: min(phase1, 0.14)),
+        ])
+    }
+
+    /// Label pop-in sans overlay sombre : halo blanc externe + remplissage + contour interne.
+    private static func makeTransitionPopInOutlinedLabel(
+        text: String,
+        fontSize: CGFloat,
+        maxWidth: CGFloat,
+        fillColor: UIColor,
+        innerStrokeColor: UIColor,
+        whiteHaloStrokeWidth: CGFloat = 15.0,
+        numberOfLines: Int = 1
+    ) -> SKNode {
+        guard !text.isEmpty else { return SKNode() }
+        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
+                  ?? UIFont.boldSystemFont(ofSize: fontSize)
+        var attrsBase: [NSAttributedString.Key: Any] = [.font: uiFont]
+        if numberOfLines == 0 {
+            let para = NSMutableParagraphStyle()
+            para.alignment     = .center
+            para.lineBreakMode = .byWordWrapping
+            attrsBase[.paragraphStyle] = para
+        }
+
+        func makeLayer(foreground: UIColor, stroke: UIColor, strokeWidth: CGFloat, z: CGFloat) -> SKLabelNode {
+            var attrs = attrsBase
+            attrs[.foregroundColor] = foreground
+            attrs[.strokeColor]     = stroke
+            attrs[.strokeWidth]     = strokeWidth
+            let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
+            lbl.horizontalAlignmentMode = .center
+            lbl.verticalAlignmentMode   = .center
+            lbl.numberOfLines           = numberOfLines
+            lbl.preferredMaxLayoutWidth = maxWidth
+            lbl.zPosition               = z
+            return lbl
+        }
+
+        let wrapper = SKNode()
+        wrapper.addChild(makeLayer(foreground: .white, stroke: .white,
+                                   strokeWidth: -whiteHaloStrokeWidth, z: 0))
+        wrapper.addChild(makeLayer(foreground: fillColor, stroke: innerStrokeColor,
+                                   strokeWidth: -4.5, z: 1))
+        return wrapper
+    }
+
+    /// Met à jour le texte d'un label créé par `makeTransitionPopInOutlinedLabel` (ex. rotation PvP).
+    private static func setTransitionPopInOutlinedLabelText(
+        on wrapper: SKNode,
+        text: String,
+        fontSize: CGFloat,
+        maxWidth: CGFloat,
+        fillColor: UIColor,
+        innerStrokeColor: UIColor,
+        whiteHaloStrokeWidth: CGFloat = 15.0,
+        numberOfLines: Int = 1
+    ) {
+        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
+                  ?? UIFont.boldSystemFont(ofSize: fontSize)
+        var attrsBase: [NSAttributedString.Key: Any] = [.font: uiFont]
+        if numberOfLines == 0 {
+            let para = NSMutableParagraphStyle()
+            para.alignment     = .center
+            para.lineBreakMode = .byWordWrapping
+            attrsBase[.paragraphStyle] = para
+        }
+        let layers: [(UIColor, UIColor, CGFloat)] = [
+            (.white, .white, -whiteHaloStrokeWidth),
+            (fillColor, innerStrokeColor, -4.5),
+        ]
+        for (child, layer) in zip(wrapper.children, layers) {
+            guard let lbl = child as? SKLabelNode else { continue }
+            var attrs = attrsBase
+            attrs[.foregroundColor] = layer.0
+            attrs[.strokeColor]     = layer.1
+            attrs[.strokeWidth]     = layer.2
+            lbl.attributedText = NSAttributedString(string: text, attributes: attrs)
+        }
+    }
+
     /// Retourne une `SKAction` qui, pendant `slideDuration`, lit la position scène de `trackedNode`
     /// toutes les 0.04 s et dépose des petits cercles de couleur qui restent sur place et se fondent.
     /// Identique à `makeTrailSpawnAction` pour les blox, adapté au déplacement horizontal.
@@ -9914,12 +10233,11 @@ final class GameScene: SKScene {
         return SKAction.sequence(steps)
     }
 
-    /// Affiche un overlay de transition cinématique :
-    /// `line1` arrive de la gauche, `line2` arrive de la droite, les deux convergent vers le centre.
-    /// Après 1 s de pause l'overlay disparaît en fondu, puis `completion` est appelé.
-    /// Overlay de transition cinématique.
-    /// - `stageLevelText` non-nil → variante "stage" : "Level" + chiffre/texte + 2 lignes d'infos.
+    /// Affiche un overlay de transition cinématique.
+    /// - `stageLevelText` non-nil → variante "stage" : "Level" + chiffre/texte + 2 lignes d'infos
+    ///   (pop-in depuis le centre avec rebond amorti).
     /// - `stageLevelText` nil      → variante "texte seul" : line1 glisse de gauche, line2 de droite.
+    /// Après 1 s de pause l'overlay disparaît en fondu, puis `completion` est appelé.
     private func showTransitionOverlay(levelPrefix: String = BlomixL10n.transitionLevelPrefix,
                                        stageLevelText: String? = nil,
                                        line1: String, line2: String,
@@ -9933,17 +10251,21 @@ final class GameScene: SKScene {
         overlayNode.zPosition = 300
         addChild(overlayNode)
 
-        // ── Fond semi-transparent ────────────────────────────────────
-        let dim = SKSpriteNode(color: .black, size: size)
-        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
-        dim.alpha       = 0
-        dim.zPosition   = 0
-        overlayNode.addChild(dim)
-        dim.run(SKAction.fadeAlpha(to: 0.52, duration: 0.20))
+        let isPopInStageVariant = stageLevelText != nil
+
+        // Fond semi-transparent — uniquement pour la variante tuto (slide latéral).
+        if !isPopInStageVariant {
+            let dim = SKSpriteNode(color: .black, size: size)
+            dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
+            dim.alpha       = 0
+            dim.zPosition   = 0
+            overlayNode.addChild(dim)
+            dim.run(SKAction.fadeAlpha(to: 0.52, duration: 0.20))
+        }
 
         let centerX    = size.width  / 2
-        let slideIn:  TimeInterval = 0.45
+        let popIn:    TimeInterval = 0.45
         let pause:    TimeInterval = 1.0
         let fadeOut:  TimeInterval = 0.35
         let maxW:      CGFloat = size.width - 48
@@ -9953,24 +10275,8 @@ final class GameScene: SKScene {
                        ?? SKColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1)
         let outlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
                         ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
-
-        func makeOutlinedLabel(_ text: String, fontSize: CGFloat) -> SKLabelNode {
-            let uiFont = UIFont(name: Self.customUIFontPostScriptName, size: fontSize)
-                      ?? UIFont.boldSystemFont(ofSize: fontSize)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font:            uiFont,
-                .foregroundColor: yellowColor,
-                .strokeColor:     outlineColor,
-                .strokeWidth:     -4.5,
-            ]
-            let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
-            lbl.horizontalAlignmentMode = .center
-            lbl.verticalAlignmentMode   = .center
-            lbl.numberOfLines           = 1
-            lbl.preferredMaxLayoutWidth = maxW
-            lbl.zPosition               = 1
-            return lbl
-        }
+        let fillUIColor = yellowColor as UIColor
+        let innerStrokeUIColor = outlineColor as UIColor
 
         if let levelText = stageLevelText {
             // ── Variante STAGE : "Level" + numéro/mot + 2 lignes d'infos ──────
@@ -9989,50 +10295,53 @@ final class GameScene: SKScene {
             let headerNode = SKNode()
             headerNode.zPosition = 1
 
-            let labelLevel = makeOutlinedLabel(levelPrefix, fontSize: levelFontSize)
+            let labelLevel = Self.makeTransitionPopInOutlinedLabel(
+                text: levelPrefix, fontSize: levelFontSize, maxWidth: maxW,
+                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
             labelLevel.position = CGPoint(x: 0, y: levelLabelY - blockCenterY)
             headerNode.addChild(labelLevel)
 
-            let labelNum = makeOutlinedLabel(levelText, fontSize: numFontSize)
+            let labelNum = Self.makeTransitionPopInOutlinedLabel(
+                text: levelText, fontSize: numFontSize, maxWidth: maxW,
+                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor,
+                whiteHaloStrokeWidth: 18.0)
             labelNum.position = CGPoint(x: 0, y: numberY - blockCenterY)
             headerNode.addChild(labelNum)
 
-            headerNode.position = CGPoint(x: -size.width - 20, y: blockCenterY)
+            headerNode.position = CGPoint(x: centerX, y: blockCenterY)
+            headerNode.setScale(0)
+            headerNode.alpha = 0
             overlayNode.addChild(headerNode)
 
-            let infoLabel1 = makeOutlinedLabel(line1, fontSize: infoFontSize)
-            infoLabel1.position = CGPoint(x: size.width * 2 + 20, y: line1Y)
+            let infoLabel1 = Self.makeTransitionPopInOutlinedLabel(
+                text: line1, fontSize: infoFontSize, maxWidth: maxW,
+                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
+            infoLabel1.position = CGPoint(x: centerX, y: line1Y)
+            infoLabel1.setScale(0)
+            infoLabel1.alpha = 0
             overlayNode.addChild(infoLabel1)
 
-            let infoLabel2 = makeOutlinedLabel(line2, fontSize: infoFontSize)
-            infoLabel2.position = CGPoint(x: -size.width - 20, y: line2Y)
+            let infoLabel2 = Self.makeTransitionPopInOutlinedLabel(
+                text: line2, fontSize: infoFontSize, maxWidth: maxW,
+                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
+            infoLabel2.position = CGPoint(x: centerX, y: line2Y)
+            infoLabel2.setScale(0)
+            infoLabel2.alpha = 0
             overlayNode.addChild(infoLabel2)
 
-            let slideHeader = SKAction.moveTo(x: centerX, duration: slideIn)
-            slideHeader.timingMode = .easeOut
-            headerNode.run(slideHeader)
-
-            let slide1 = SKAction.moveTo(x: centerX, duration: slideIn)
-            slide1.timingMode = .easeOut
-            infoLabel1.run(slide1)
-
-            let slide2 = SKAction.moveTo(x: centerX, duration: slideIn)
-            slide2.timingMode = .easeOut
-            infoLabel2.run(slide2)
-
-            // ── Traînées de particules dans le sillage du slide ──────────
-            // headerNode  : vient de la gauche → movingRight = true
-            headerNode.run(makeTextSlideTrailAction(
-                slideDuration: slideIn, color: yellowColor,
-                trackedNode: headerNode, movingRight: true))
-            // infoLabel1  : vient de la droite → movingRight = false
-            infoLabel1.run(makeTextSlideTrailAction(
-                slideDuration: slideIn, color: yellowColor,
-                trackedNode: infoLabel1, movingRight: false))
-            // infoLabel2  : vient de la gauche → movingRight = true
-            infoLabel2.run(makeTextSlideTrailAction(
-                slideDuration: slideIn, color: yellowColor,
-                trackedNode: infoLabel2, movingRight: true))
+            let popStagger: TimeInterval = 0.07
+            headerNode.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0),
+                Self.makeTransitionCenterPopInAction(totalDuration: popIn),
+            ]))
+            infoLabel1.run(SKAction.sequence([
+                SKAction.wait(forDuration: popStagger),
+                Self.makeTransitionCenterPopInAction(totalDuration: popIn - popStagger),
+            ]))
+            infoLabel2.run(SKAction.sequence([
+                SKAction.wait(forDuration: popStagger * 2),
+                Self.makeTransitionCenterPopInAction(totalDuration: popIn - popStagger * 2),
+            ]))
 
         } else {
             // ── Variante TEXTE (tuto) : deux lignes qui se croisent ──
@@ -10058,6 +10367,7 @@ final class GameScene: SKScene {
                 return lbl
             }
 
+            let slideIn: TimeInterval = popIn
             let label1 = makeLabel(line1)
             label1.position = CGPoint(x: -size.width - 20, y: centerY)
             overlayNode.addChild(label1)
@@ -10078,7 +10388,7 @@ final class GameScene: SKScene {
         // ── Séquence de sortie commune ────────────────────────────────
         overlayNode.run(
             SKAction.sequence([
-                SKAction.wait(forDuration: slideIn + pause),
+                SKAction.wait(forDuration: popIn + pause),
                 SKAction.fadeAlpha(to: 0, duration: fadeOut),
                 SKAction.run { [weak self] in
                     overlayNode.removeFromParent()
@@ -11065,17 +11375,9 @@ final class GameScene: SKScene {
         container.zPosition = 170
         addChild(container)
 
-        // Fond semi-transparent — même opacité que l'overlay de stage.
-        let dim = SKSpriteNode(color: .black, size: size)
-        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
-        dim.alpha       = 0
-        dim.zPosition   = 0
-        container.addChild(dim)
-        dim.run(SKAction.fadeAlpha(to: 0.52, duration: 0.20))
-
         let centerX:   CGFloat       = size.width / 2
-        let slideIn:   TimeInterval  = 0.45
+        let popIn:     TimeInterval  = 0.45
+        let popStagger: TimeInterval = 0.07
         let phraseFontSize: CGFloat  = 22
         let maxW:      CGFloat       = size.width - 80
 
@@ -11084,73 +11386,77 @@ final class GameScene: SKScene {
                            ?? SKColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1)
         let pvpOutlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
                            ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
+        let pvpFillUIColor = pvpYellowColor as UIColor
+        let pvpInnerStrokeUIColor = pvpOutlineColor as UIColor
 
-        // ── En-tête "P vs P" (remplace l'image) — glisse depuis la gauche ──────────
+        // ── En-tête "P vs P" — pop-in depuis le centre (aligné sur les transitions solo) ──
         let pvpFontSize: CGFloat = 72
         let blockCenterY = size.height / 2 + 40
         let labelY       = blockCenterY - pvpFontSize * 0.7 - phraseFontSize * 0.8
 
-        let pvpHeaderFont = UIFont(name: Self.customUIFontPostScriptName, size: pvpFontSize)
-                         ?? UIFont.boldSystemFont(ofSize: pvpFontSize)
-        let pvpHeaderAttrs: [NSAttributedString.Key: Any] = [
-            .font:            pvpHeaderFont,
-            .foregroundColor: pvpYellowColor,
-            .strokeColor:     pvpOutlineColor,
-            .strokeWidth:     -4.5,
-        ]
-        let pvpTitleNode = SKLabelNode(
-            attributedText: NSAttributedString(string: "P vs P", attributes: pvpHeaderAttrs))
-        pvpTitleNode.horizontalAlignmentMode = .center
-        pvpTitleNode.verticalAlignmentMode   = .center
-        pvpTitleNode.numberOfLines           = 1
-        pvpTitleNode.zPosition               = 1
-        pvpTitleNode.position = CGPoint(x: -size.width - 20, y: blockCenterY)
+        let pvpTitleNode = Self.makeTransitionPopInOutlinedLabel(
+            text: "P vs P",
+            fontSize: pvpFontSize,
+            maxWidth: maxW,
+            fillColor: pvpFillUIColor,
+            innerStrokeColor: pvpInnerStrokeUIColor,
+            whiteHaloStrokeWidth: 18.0)
+        pvpTitleNode.zPosition = 1
+        pvpTitleNode.position = CGPoint(x: centerX, y: blockCenterY)
+        pvpTitleNode.setScale(0)
+        pvpTitleNode.alpha = 0
         container.addChild(pvpTitleNode)
 
-        let slidePvP = SKAction.moveTo(x: centerX, duration: slideIn)
-        slidePvP.timingMode = .easeOut
-        pvpTitleNode.run(slidePvP)
+        pvpTitleNode.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0),
+            Self.makeTransitionCenterPopInAction(totalDuration: popIn),
+        ]))
 
-        // Traînée de particules dans le sillage de "P vs P" (vient de la gauche).
-        pvpTitleNode.run(makeTextSlideTrailAction(
-            slideDuration: slideIn, color: pvpYellowColor,
-            trackedNode: pvpTitleNode, movingRight: true))
-
-        // ── Texte tournant (phrases d'attente) — glisse depuis la droite ─────────
-        let label = SKLabelNode()
-        label.fontName                = Self.customUIFontPostScriptName
-        label.fontSize                = phraseFontSize
-        label.fontColor               = .white
-        label.horizontalAlignmentMode = .center
-        label.verticalAlignmentMode   = .center
-        label.numberOfLines           = 0
-        label.lineBreakMode           = .byWordWrapping
-        label.preferredMaxLayoutWidth = maxW
-        label.zPosition               = 1
-
-        let phrases = BlomixL10n.pvpWaitingPhrases.filter { !$0.isEmpty }
-        label.text     = phrases.first ?? BlomixL10n.pvpMatchFoundLaunching
-        label.position = CGPoint(x: size.width * 2 + 20, y: labelY)
+        // ── Texte tournant (phrases d'attente) — pop-in depuis le centre ─────────
+        let initialPhrase = BlomixL10n.pvpWaitingPhrases.filter { !$0.isEmpty }.first
+            ?? BlomixL10n.pvpMatchFoundLaunching
+        let label = Self.makeTransitionPopInOutlinedLabel(
+            text: initialPhrase,
+            fontSize: phraseFontSize,
+            maxWidth: maxW,
+            fillColor: .white,
+            innerStrokeColor: pvpInnerStrokeUIColor,
+            numberOfLines: 0)
+        label.zPosition = 1
+        label.position = CGPoint(x: centerX, y: labelY)
+        label.setScale(0)
+        label.alpha = 0
         container.addChild(label)
 
-        let slideLabel = SKAction.moveTo(x: centerX, duration: slideIn)
-        slideLabel.timingMode = .easeOut
-        label.run(slideLabel)
+        label.run(SKAction.sequence([
+            SKAction.wait(forDuration: popStagger),
+            Self.makeTransitionCenterPopInAction(totalDuration: popIn - popStagger),
+        ]))
 
-        // Rotation des phrases après le slide-in.
+        // Rotation des phrases après le pop-in.
+        let phrases = BlomixL10n.pvpWaitingPhrases.filter { !$0.isEmpty }
         guard phrases.count > 1 else { return }
         let phraseDur: TimeInterval = 1.8
         let fadeDur:   TimeInterval = 0.28
 
         var steps: [SKAction] = [
-            // Attente initiale : laisse la première phrase visible le temps du slide + une durée complète.
-            SKAction.wait(forDuration: slideIn + phraseDur - fadeDur),
+            // Attente initiale : laisse la première phrase visible le temps du pop-in + une durée complète.
+            SKAction.wait(forDuration: popIn + phraseDur - fadeDur),
         ]
         for i in 1...phrases.count {       // boucle infinie : index modulo
             let phrase = phrases[i % phrases.count]
             steps += [
                 SKAction.fadeOut(withDuration: fadeDur),
-                SKAction.run { label.text = phrase },
+                SKAction.run {
+                    Self.setTransitionPopInOutlinedLabelText(
+                        on: label,
+                        text: phrase,
+                        fontSize: phraseFontSize,
+                        maxWidth: maxW,
+                        fillColor: .white,
+                        innerStrokeColor: pvpInnerStrokeUIColor,
+                        numberOfLines: 0)
+                },
                 SKAction.fadeIn(withDuration: fadeDur),
                 SKAction.wait(forDuration: phraseDur - fadeDur * 2),
             ]

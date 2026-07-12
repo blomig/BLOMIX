@@ -250,6 +250,9 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 
 "pvp.disconnect.title"   = "Avversario disconnesso";
 "pvp.disconnect.message" = "Il tuo avversario ha lasciato la partita — hai vinto!";
+"pvp.disconnect.neutral_message" = "Il tuo avversario se n'è andato.";
+"pvp.connection_failed.title" = "Connessione persa";
+"pvp.connection_failed.message" = "Impossibile avviare la partita. Ritorno alla home…";
 
 "pvp.available_title" = "Giocatori disponibili";
 "pvp.available_empty" = "Nessun giocatore disponibile al momento.";

@@ -103,6 +103,7 @@ private enum BlomixPvPMessageKind: String, Codable {
     case boardFillDepth
     case iLost
     case rematchRequest
+    case rematchCancel
 }
 
 private struct BlomixPvPWireEnvelope: Codable {
@@ -219,6 +220,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private var didReportLocalLoss = false
     private var localRematchRequested = false
     private var remoteRematchRequested = false
+    private var rematchRetryTimer: Timer?
+    private var isPreparingNextRound = false
     /// N’envoyer `helloSeed` qu’une fois tous les joueurs connectés (`expectedPlayerCount == 0`), sinon l’adversaire ne reçoit rien et la partie reste bloquée.
     private var didEmitHelloSeed = false
 
@@ -283,6 +286,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         resolveHostRoleIfNeeded()
         guard isHost else { return }
         guard scene != nil else { return }
+        guard match.expectedPlayerCount == 0 else { return }
         guard !match.players.isEmpty else { return }
         let seed: UInt64
         if let handshakeSeed {
@@ -309,6 +313,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
         stopHandshakeMonitoring()
         stopHandshakeWatchdog()
         cancelDisconnectionGrace()
+        stopRematchRetryTimer()
+        resetRematchFlags()
         match.delegate = nil
         match.disconnect()
         rng = nil
@@ -447,6 +453,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
             }
             rng = BlomixPvPSeededBlockRNG(seed: seed)
             didFinishHandshake = true
+            isPreparingNextRound = false
             lastSentScoreAttackBracket = 0
             stopHandshakeWatchdog()
             cancelDisconnectionGrace()
@@ -456,6 +463,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
             guard isHost else { return }
             if !didFinishHandshake {
                 didFinishHandshake = true
+                isPreparingNextRound = false
                 stopHandshakeMonitoring()
                 stopHandshakeWatchdog()
                 cancelDisconnectionGrace()
@@ -482,6 +490,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
             remoteRematchRequested = true
             scene?.blomixPvP_remotePlayerRequestedRematch()
             evaluateRematchLaunchIfReady()
+        case .rematchCancel:
+            remoteRematchRequested = false
+            stopRematchRetryTimer()
+            scene?.blomixPvP_opponentCancelledRematch()
         }
     }
 
@@ -490,8 +502,52 @@ final class BlomixPvPMatchCoordinator: NSObject {
     func localPlayerRequestedRematch() {
         guard !localRematchRequested else { return }
         localRematchRequested = true
-        sendEnvelope(BlomixPvPWireEnvelope(k: .rematchRequest, seed: nil, line: nil, fillDepth: nil))
+        sendRematchRequest()
+        startRematchRetryTimer()
         evaluateRematchLaunchIfReady()
+    }
+
+    /// Abandon de l'écran résultat (Accueil) ou timeout revanche — informe l'adversaire.
+    func cancelRematchFlowAndNotifyPeer() {
+        guard localRematchRequested, !isPreparingNextRound else {
+            resetRematchFlags()
+            return
+        }
+        sendEnvelope(BlomixPvPWireEnvelope(k: .rematchCancel, seed: nil, line: nil, fillDepth: nil))
+        resetRematchFlags()
+    }
+
+    private func sendRematchRequest() {
+        sendEnvelope(BlomixPvPWireEnvelope(k: .rematchRequest, seed: nil, line: nil, fillDepth: nil))
+    }
+
+    private func startRematchRetryTimer() {
+        stopRematchRetryTimer()
+        rematchRetryTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard self.localRematchRequested, !self.remoteRematchRequested else {
+                    self.stopRematchRetryTimer()
+                    return
+                }
+                self.sendRematchRequest()
+            }
+        }
+        if let rematchRetryTimer {
+            RunLoop.main.add(rematchRetryTimer, forMode: .common)
+        }
+    }
+
+    private func stopRematchRetryTimer() {
+        rematchRetryTimer?.invalidate()
+        rematchRetryTimer = nil
+    }
+
+    private func resetRematchFlags() {
+        stopRematchRetryTimer()
+        localRematchRequested = false
+        remoteRematchRequested = false
+        isPreparingNextRound = false
     }
 
     private func evaluateRematchLaunchIfReady() {
@@ -500,6 +556,9 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private func prepareForNextRound() {
+        guard !isPreparingNextRound else { return }
+        isPreparingNextRound = true
+        stopRematchRetryTimer()
         // Informe GameScene de se preparer avant de relancer le handshake.
         scene?.blomixPvP_startRematch()
         // Remet a zero l'etat du coordinateur.
@@ -587,7 +646,6 @@ extension BlomixPvPMatchCoordinator: GKMatchDelegate {
                 self.cancelDisconnectionGrace()
                 self.resolveHostRoleIfNeeded()
                 self.beginHandshakeMonitoringIfNeeded()
-                // Persiste l'adversaire dans le cache local pour un affichage instantané la prochaine fois.
                 BlomixRecentOpponentsCache.shared.record(gamePlayerID: gamePlayerID, displayName: displayName)
                 // Notifie les couches UI avec les chaînes déjà extraites (Sendable).
                 NotificationCenter.default.post(

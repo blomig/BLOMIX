@@ -13,17 +13,22 @@
 //  Stratégie d'invitation : GKPlayer.loadPlayers(forIdentifiers:) ne résout pas
 //  des joueurs inconnus (jamais croisés en match). On utilise donc un "rendez-vous
 //  CloudKit + playerGroup GKMatchmaker" :
-//    • Le challenger écrit un record "chal_{challengedGamePlayerID}" dans CloudKit.
-//    • Le challengé détecte ce record à son prochain refresh (≤ 8 s).
+//    • Le challenger écrit un record "chfrom_{challengerGamePlayerID}" (record qu'il possède).
+//    • teamPlayerID porte le gamePlayerID du joueur cible (champ queryable existant).
+//    • Le challengé détecte ce record à son prochain poll (≤ 4 s).
 //    • Les deux lancent GKMatchmaker.findMatch avec le même playerGroup déterministe.
 //    • GKMatchmaker les associe sans avoir besoin de GKPlayer.recipients.
 //
-//  Record de défi (même Record Type "AvailablePlayer") :
-//    recordName    = "chal_{challengedGamePlayerID}"
-//    teamPlayerID  = challengerGamePlayerID
+//  Important CloudKit Public DB : un joueur ne peut écrire que les records dont il est
+//  créateur. L'ancien schéma "chal_{challengedGamePlayerID}" provoquait
+//  "WRITE operation not permitted" car le challenger écrivait le record d'un autre joueur.
+//
+//  Record de défi sortant (même Record Type "AvailablePlayer") :
+//    recordName    = "chfrom_{challengerGamePlayerID}"
+//    teamPlayerID  = challengedGamePlayerID   (cible du défi — queryable)
 //    displayName   = challengerDisplayName
 //    eloRating     = matchPlayerGroup (Int)
-//    lastHeartbeat = création (pour expiry 5 min)
+//    lastHeartbeat = création (TTL 90 s)
 //
 
 import CloudKit
@@ -173,12 +178,12 @@ final class BlomixAvailablePlayersManager {
         heartbeatTimer = nil
     }
 
-    // MARK: - Polling défi entrant (global, toutes les 8 s)
+    // MARK: - Polling défi entrant (global, toutes les 4 s)
 
     private func startChallengePolling() {
         stopChallengePolling()
         lastNotifiedChallengerID = nil
-        // Premier poll immédiat, puis toutes les 8 s.
+        // Premier poll immédiat, puis toutes les 4 s.
         Task { @MainActor [weak self] in self?.pollForIncomingChallenge() }
         let t = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.pollForIncomingChallenge() }
@@ -199,7 +204,13 @@ final class BlomixAvailablePlayersManager {
         guard !isInActiveMatch else { return }
         Task { [weak self] in
             guard let self else { return }
-            guard let (_, challenge) = try? await self.fetchAvailablePlayersAndChallenge() else { return }
+            let challenge: BlomixIncomingChallenge?
+            do {
+                (_, challenge) = try await self.fetchAvailablePlayersAndChallenge()
+            } catch {
+                print("[Available] poll error: \(error.localizedDescription)")
+                return
+            }
             // Vérification après await : la partie a peut-être démarré pendant le fetch.
             guard !self.isInActiveMatch else { return }
             if let challenge {
@@ -231,11 +242,11 @@ final class BlomixAvailablePlayersManager {
         lastNotifiedChallengerID = nil
     }
 
-    /// Supprime le record de défi puis remet lastNotifiedChallengerID à nil après un délai.
+    /// Supprime le record de défi sortant local puis remet lastNotifiedChallengerID à nil après un délai.
     /// Laisse passer au moins 2 cycles de poll le temps que CloudKit propage la suppression,
     /// évitant la boucle "déclin → poll → nouvelle bannière".
     func suppressChallengeWithDelay(challengedGamePlayerID: String) {
-        deleteChallenge(challengedGamePlayerID: challengedGamePlayerID)
+        _ = challengedGamePlayerID
         challengeSuppressTimer?.invalidate()
         let t = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -286,33 +297,8 @@ final class BlomixAvailablePlayersManager {
         record["eloRating"]     = elo                   as CKRecordValue
         record["inMatch"]       = (inMatch ? 1 : 0)    as CKRecordValue
 
-        let op = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
-        op.savePolicy       = .allKeys
-        op.qualityOfService = .userInitiated
-
         do {
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                // perRecordSaveBlock : seul moyen fiable de détecter un échec
-                // sur un enregistrement individuel dans une op non-atomique
-                // (isAtomic = true interdit en Public Database).
-                // modifyRecordsResultBlock retourne .success même si le record
-                // a échoué → on capture l'erreur individuelle ici.
-                var recordError: Error?
-                op.perRecordSaveBlock = { (_, result: Result<CKRecord, Error>) in
-                    if case .failure(let err) = result { recordError = err }
-                }
-                op.modifyRecordsResultBlock = { result in
-                    if let err = recordError {
-                        cont.resume(throwing: err)
-                    } else {
-                        switch result {
-                        case .success:           cont.resume()
-                        case .failure(let err):  cont.resume(throwing: err)
-                        }
-                    }
-                }
-                self.publicDB.add(op)
-            }
+            try await modifyRecords([record])
             print("[Available] upserted OK: \(displayName)")
             if isFirstPass {
                 NotificationCenter.default.post(
@@ -346,8 +332,10 @@ final class BlomixAvailablePlayersManager {
 
     // MARK: - Challenge rendez-vous
 
-    /// Préfixe des records de défi dans CloudKit (même Record Type "AvailablePlayer").
-    private static let challengePrefix = "chal_"
+    /// Préfixe des records de défi sortant — le challenger écrit **son propre** record.
+    private static let outgoingChallengePrefix = "chfrom_"
+    /// Ancien format (lecture seule pour compatibilité) — provoquait WRITE not permitted à la création.
+    private static let legacyChallengePrefix = "chal_"
 
     /// Hash déterministe partagé entre les deux joueurs : sert de playerGroup GKMatchmaker.
     /// Même valeur calculée côté challenger et côté challengé.
@@ -361,35 +349,57 @@ final class BlomixAvailablePlayersManager {
         return group
     }
 
-    /// Écrit un record de défi dans CloudKit à destination du joueur challengé.
+    /// Écrit le défi sortant dans le record CloudKit **du challenger** (permissions CK Public DB).
     func createChallenge(challengerGamePlayerID: String,
                          challengerDisplayName: String,
                          challengedGamePlayerID: String,
-                         matchPlayerGroup: Int) async {
-        let recName = Self.challengePrefix + challengedGamePlayerID
-        let recID   = CKRecord.ID(recordName: recName)
-        var record: CKRecord
-        do {
-            record = try await publicDB.record(for: recID)
-        } catch {
-            record = CKRecord(recordType: Self.recordType, recordID: recID)
-        }
-        record["teamPlayerID"]  = challengerGamePlayerID as CKRecordValue
+                         matchPlayerGroup: Int) async throws {
+        let recID  = CKRecord.ID(recordName: Self.outgoingChallengePrefix + challengerGamePlayerID)
+        let record = CKRecord(recordType: Self.recordType, recordID: recID)
+        // teamPlayerID = cible du défi (champ queryable) — pas le teamPlayerID Game Center ici.
+        record["teamPlayerID"]  = challengedGamePlayerID as CKRecordValue
         record["displayName"]   = challengerDisplayName  as CKRecordValue
         record["eloRating"]     = matchPlayerGroup       as CKRecordValue
         record["lastHeartbeat"] = Date()                  as CKRecordValue
-        do {
-            try await publicDB.save(record)
-            print("[Available] challenge created → \(challengedGamePlayerID)")
-        } catch {
-            print("[Available] challenge create error: \(error.localizedDescription)")
+        try await modifyRecords([record])
+        print("[Available] challenge created chfrom_\(challengerGamePlayerID) → \(challengedGamePlayerID)")
+    }
+
+    /// Supprime le record de défi sortant du joueur local (challenger uniquement).
+    func clearOutgoingChallenge() {
+        guard let challengerID = cachedGamePlayerID
+            ?? (GKLocalPlayer.local.isAuthenticated ? GKLocalPlayer.local.gamePlayerID : nil)
+        else { return }
+        let recID = CKRecord.ID(recordName: Self.outgoingChallengePrefix + challengerID)
+        publicDB.delete(withRecordID: recID) { _, error in
+            if let error { print("[Available] clearOutgoingChallenge error: \(error.localizedDescription)") }
         }
     }
 
-    /// Supprime le record de défi dirigé vers le joueur indiqué.
-    func deleteChallenge(challengedGamePlayerID: String) {
-        let recID = CKRecord.ID(recordName: Self.challengePrefix + challengedGamePlayerID)
-        publicDB.delete(withRecordID: recID) { _, _ in }
+    /// Sauvegarde un ou plusieurs records via CKModifyRecordsOperation + .allKeys
+    /// (évite serverRecordChanged sans fetch préalable ; requis en Public Database).
+    private func modifyRecords(_ records: [CKRecord]) async throws {
+        let op = CKModifyRecordsOperation(recordsToSave: records, recordIDsToDelete: nil)
+        op.savePolicy       = .allKeys
+        op.qualityOfService = .userInitiated
+
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var recordError: Error?
+            op.perRecordSaveBlock = { (_, result: Result<CKRecord, Error>) in
+                if case .failure(let err) = result { recordError = err }
+            }
+            op.modifyRecordsResultBlock = { result in
+                if let err = recordError {
+                    cont.resume(throwing: err)
+                } else {
+                    switch result {
+                    case .success:          cont.resume()
+                    case .failure(let err): cont.resume(throwing: err)
+                    }
+                }
+            }
+            self.publicDB.add(op)
+        }
     }
 
     // MARK: - Fetch
@@ -421,28 +431,55 @@ final class BlomixAvailablePlayersManager {
 
         var players:   [BlomixAvailablePlayer]  = []
         var challenge: BlomixIncomingChallenge? = nil
+        var challengeHeartbeat: Date? = nil
+        let challengeCutoff = Date().addingTimeInterval(-90)
 
         for (_, result) in results {
             guard case .success(let record) = result else { continue }
             let recName = record.recordID.recordName
 
-            if recName.hasPrefix(Self.challengePrefix) {
-                // Record de défi — l'intéresser seulement s'il m'est destiné.
-                let challengedID = String(recName.dropFirst(Self.challengePrefix.count))
+            if recName.hasPrefix(Self.outgoingChallengePrefix) {
+                // Défi sortant d'un autre joueur — m'intéresse si je suis la cible (teamPlayerID).
+                guard let localGameID else { continue }
+                let targetID = record["teamPlayerID"] as? String ?? ""
+                guard targetID == localGameID else { continue }
+                guard let hb = record["lastHeartbeat"] as? Date, hb >= challengeCutoff else { continue }
+                let challengerID   = String(recName.dropFirst(Self.outgoingChallengePrefix.count))
+                let challengerName = record["displayName"] as? String ?? "?"
+                var matchGroup = Self.intFromRecord(record, key: "eloRating") ?? 0
+                if matchGroup == 0, !challengerID.isEmpty {
+                    matchGroup = Self.matchPlayerGroup(id1: localGameID, id2: challengerID)
+                }
+                if challengeHeartbeat == nil || hb > challengeHeartbeat! {
+                    challengeHeartbeat = hb
+                    challenge = BlomixIncomingChallenge(
+                        challengerGamePlayerID: challengerID,
+                        challengerDisplayName:  challengerName,
+                        matchPlayerGroup:       matchGroup
+                    )
+                }
+
+            } else if recName.hasPrefix(Self.legacyChallengePrefix) {
+                // Ancien format chal_{challengedID} — lecture seule pour clients pas encore à jour.
+                let challengedID = String(recName.dropFirst(Self.legacyChallengePrefix.count))
                 guard challengedID == localGameID else { continue }
-                // Fenêtre de validité d'un défi : 90 s (vs 5 min pour les joueurs disponibles).
-                // Couvre le timeout de 60 s du challenger + une marge de 30 s pour la latence
-                // CloudKit, sans laisser traîner un défi périmé suite à une déconnexion du challenger.
-                let challengeCutoff = Date().addingTimeInterval(-90)
-                if let hb = record["lastHeartbeat"] as? Date, hb < challengeCutoff { continue }
+                guard let hb = record["lastHeartbeat"] as? Date, hb >= challengeCutoff else { continue }
                 let challengerID   = record["teamPlayerID"] as? String ?? ""
                 let challengerName = record["displayName"]  as? String ?? "?"
-                let matchGroup     = record["eloRating"]    as? Int    ?? 0
-                challenge = BlomixIncomingChallenge(
-                    challengerGamePlayerID: challengerID,
-                    challengerDisplayName:  challengerName,
-                    matchPlayerGroup:       matchGroup
-                )
+                var matchGroup = Self.intFromRecord(record, key: "eloRating") ?? 0
+                if matchGroup == 0,
+                   let localGameID,
+                   !challengerID.isEmpty {
+                    matchGroup = Self.matchPlayerGroup(id1: localGameID, id2: challengerID)
+                }
+                if challengeHeartbeat == nil || hb > challengeHeartbeat! {
+                    challengeHeartbeat = hb
+                    challenge = BlomixIncomingChallenge(
+                        challengerGamePlayerID: challengerID,
+                        challengerDisplayName:  challengerName,
+                        matchPlayerGroup:       matchGroup
+                    )
+                }
 
             } else {
                 // Record de joueur disponible.
@@ -452,7 +489,7 @@ final class BlomixAvailablePlayersManager {
                 if teamID == localTeamID { continue }
                 if let hb = record["lastHeartbeat"] as? Date, hb < cutoff { continue }
                 let name    = record["displayName"] as? String ?? "?"
-                let elo     = record["eloRating"]   as? Int
+                let elo     = Self.intFromRecord(record, key: "eloRating")
                 let inMatch = (record["inMatch"] as? Int ?? 0) != 0
                 players.append(BlomixAvailablePlayer(gamePlayerID: gameID,
                                                      displayName: name,
@@ -473,6 +510,14 @@ final class BlomixAvailablePlayersManager {
     }
 
     // MARK: - Helpers
+
+    /// Lit un entier depuis un champ CloudKit (Int, Int64 ou NSNumber).
+    private static func intFromRecord(_ record: CKRecord, key: String) -> Int? {
+        if let v = record[key] as? Int { return v }
+        if let v = record[key] as? Int64 { return Int(v) }
+        if let v = record[key] as? NSNumber { return v.intValue }
+        return nil
+    }
 
     private func fetchLocalElo() async -> Int? {
         let player = GKLocalPlayer.local

@@ -250,6 +250,9 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 
 "pvp.disconnect.title"   = "Oponente desconectado";
 "pvp.disconnect.message" = "Tu oponente abandonó la partida — ¡ganas!";
+"pvp.disconnect.neutral_message" = "Tu oponente se ha ido.";
+"pvp.connection_failed.title" = "Conexión perdida";
+"pvp.connection_failed.message" = "No se pudo iniciar la partida. Volviendo al inicio…";
 
 "pvp.available_title" = "Jugadores disponibles";
 "pvp.available_empty" = "Ningún jugador disponible ahora.";

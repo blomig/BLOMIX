@@ -261,6 +261,9 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 /* PvP — disconnect overlay */
 "pvp.disconnect.title"   = "Opponent disconnected";
 "pvp.disconnect.message" = "Your opponent left the game — you win!";
+"pvp.disconnect.neutral_message" = "Your opponent left.";
+"pvp.connection_failed.title" = "Connection lost";
+"pvp.connection_failed.message" = "Could not start the match. Returning home…";
 
 /* Generic */
 "pvp.available_title" = "Available players";

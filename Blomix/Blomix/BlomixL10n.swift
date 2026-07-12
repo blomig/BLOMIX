@@ -358,6 +358,15 @@ enum BlomixL10n {
     static var pvpDisconnectMessage: String {
         tr("pvp.disconnect.message", comment: "Overlay message when opponent disconnects — player wins")
     }
+    static var pvpDisconnectNeutralMessage: String {
+        tr("pvp.disconnect.neutral_message", comment: "Overlay when opponent leaves from result screen")
+    }
+    static var pvpConnectionFailedTitle: String {
+        tr("pvp.connection_failed.title", comment: "Overlay title when PvP connection/handshake fails")
+    }
+    static var pvpConnectionFailedMessage: String {
+        tr("pvp.connection_failed.message", comment: "Overlay message when PvP connection/handshake fails")
+    }
 
     // MARK: - Joueurs disponibles (CloudKit)
 

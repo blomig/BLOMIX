@@ -261,6 +261,9 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 /* PvP — disconnect overlay */
 "pvp.disconnect.title"   = "Gegner getrennt";
 "pvp.disconnect.message" = "Dein Gegner hat das Spiel verlassen — du gewinnst!";
+"pvp.disconnect.neutral_message" = "Dein Gegner ist gegangen.";
+"pvp.connection_failed.title" = "Verbindung verloren";
+"pvp.connection_failed.message" = "Partie konnte nicht gestartet werden. Zurück zum Start…";
 
 /* Generic */
 "pvp.available_title" = "Verfügbare Spieler";

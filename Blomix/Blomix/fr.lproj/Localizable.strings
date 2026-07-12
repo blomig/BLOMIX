@@ -274,6 +274,9 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 /* PvP — disconnect overlay */
 "pvp.disconnect.title"   = "Adversaire déconnecté";
 "pvp.disconnect.message" = "Ton adversaire a quitté la partie — tu gagnes !";
+"pvp.disconnect.neutral_message" = "Ton adversaire a quitté.";
+"pvp.connection_failed.title" = "Connexion perdue";
+"pvp.connection_failed.message" = "Impossible de relancer la partie. Retour à l'accueil…";
 
 /* Generic */
 "pvp.available_title" = "Joueurs disponibles";

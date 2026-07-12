@@ -234,8 +234,17 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         guard
             let challengerID   = notification.userInfo?["challengerGamePlayerID"] as? String,
             let challengerName = notification.userInfo?["challengerDisplayName"]  as? String,
-            let matchGroup     = notification.userInfo?["matchPlayerGroup"]        as? Int
+            var matchGroup     = notification.userInfo?["matchPlayerGroup"]        as? Int
         else { return }
+        // Secours si matchPlayerGroup invalide (ex. lecture CloudKit Int64 manquée).
+        if matchGroup == 0, GKLocalPlayer.local.isAuthenticated, !challengerID.isEmpty {
+            matchGroup = BlomixAvailablePlayersManager.matchPlayerGroup(
+                id1: GKLocalPlayer.local.gamePlayerID, id2: challengerID)
+        }
+        guard matchGroup != 0 else {
+            print("[PvP] Défi entrant ignoré — matchPlayerGroup invalide")
+            return
+        }
         // Pas de bannière pendant une partie PvP active.
         guard !BlomixAvailablePlayersManager.shared.isInActiveMatch else { return }
         // Ne pas afficher une deuxième bannière si l'une est déjà visible.
@@ -264,21 +273,31 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         guard GKLocalPlayer.local.isAuthenticated else { return }
         let localGameID = GKLocalPlayer.local.gamePlayerID
 
+        var playerGroup = challenge.matchPlayerGroup
+        if playerGroup == 0 {
+            playerGroup = BlomixAvailablePlayersManager.matchPlayerGroup(
+                id1: localGameID, id2: challenge.challengerGamePlayerID)
+        }
+        guard playerGroup != 0 else {
+            print("[PvP] Acceptation défi impossible — matchPlayerGroup invalide")
+            showChallengeTimeoutAlert()
+            return
+        }
+
         // Option B : annule proprement toute recherche automatique en cours
         // avant d'accepter un défi entrant, pour éviter le conflit GKMatchmaker.
         BlomixPvPAutoSearcher.shared.stopSearching()
         GKMatchmaker.shared().cancel()
 
-        // Supprime le record CloudKit. On ne remet PAS clearLastNotifiedChallenger() ici :
+        // On ne remet PAS clearLastNotifiedChallenger() ici :
         // le tracker doit rester positionné jusqu'à ce que le match soit lancé (ou échoue).
         // Il sera remis à nil par setActiveMatch(true) → stopChallengePolling (via GameScene)
         // ou par suppressChallengeWithDelay en cas d'échec.
-        BlomixAvailablePlayersManager.shared.deleteChallenge(challengedGamePlayerID: localGameID)
 
         let request      = GKMatchRequest()
         request.minPlayers  = 2
         request.maxPlayers  = 2
-        request.playerGroup = challenge.matchPlayerGroup
+        request.playerGroup = playerGroup
 
         // Affiche immédiatement l'overlay PvP (image + textes rotatifs) dès l'acceptation,
         // avant même que GKMatchmaker ait trouvé le match — évite les secondes de blanc.

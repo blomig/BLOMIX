@@ -10124,46 +10124,194 @@ final class GameScene: SKScene {
         ])
     }
 
-    /// Label pop-in sans overlay sombre : halo blanc externe + remplissage + contour interne.
+    /// Label pop-in sans overlay sombre : sticker blanc (silhouette dilatée du texte) + face jaune / contour noir.
+
+    /// Rayon « expand » du sticker : suit les courbes des glyphes sans large cadre rectangulaire.
+    private static func transitionStickerExpandRadius(forFontSize fontSize: CGFloat) -> CGFloat {
+        max(3.5, fontSize * 0.085)
+    }
+
+    /// Points entiers dans un disque — dilatation morphologique via empilement (sans Core Image).
+    private static func transitionStickerDiskOffsets(radius: CGFloat) -> [CGPoint] {
+        let r = Int(ceil(max(0, radius)))
+        guard r > 0 else { return [.zero] }
+        var points: [CGPoint] = []
+        for dx in -r...r {
+            for dy in -r...r where dx * dx + dy * dy <= r * r {
+                points.append(CGPoint(x: CGFloat(dx), y: CGFloat(dy)))
+            }
+        }
+        return points
+    }
+
+    private static func transitionStickerFillAttributes(
+        fontSize: CGFloat,
+        layoutWidth: CGFloat,
+        numberOfLines: Int,
+        fillColor: UIColor
+    ) -> [NSAttributedString.Key: Any] {
+        transitionLabelDrawingAttributes(
+            fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
+            foreground: fillColor)
+    }
+
+    private static func transitionLabelDrawingAttributes(
+        fontSize: CGFloat,
+        maxWidth: CGFloat,
+        numberOfLines: Int,
+        foreground: UIColor,
+        strokeColor: UIColor? = nil,
+        strokeWidth: CGFloat = 0
+    ) -> [NSAttributedString.Key: Any] {
+        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
+                  ?? UIFont.boldSystemFont(ofSize: fontSize)
+        let para = NSMutableParagraphStyle()
+        para.alignment = .center
+        if numberOfLines == 0 {
+            para.lineBreakMode = .byWordWrapping
+        }
+        var attrs: [NSAttributedString.Key: Any] = [
+            .font:            uiFont,
+            .foregroundColor: foreground,
+            .paragraphStyle:  para,
+        ]
+        if let strokeColor, strokeWidth != 0 {
+            attrs[.strokeColor] = strokeColor
+            attrs[.strokeWidth] = strokeWidth
+        }
+        return attrs
+    }
+
+    private static func measureTransitionLabelBounds(
+        text: String,
+        fontSize: CGFloat,
+        maxWidth: CGFloat,
+        numberOfLines: Int
+    ) -> CGRect {
+        let attrs = transitionLabelDrawingAttributes(
+            fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines, foreground: .white)
+        let constraint = CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude)
+        return (text as NSString).boundingRect(
+            with: constraint,
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attrs,
+            context: nil
+        ).integral
+    }
+
+    private static func transitionLayoutWidth(
+        text: String,
+        fontSize: CGFloat,
+        maxWidth: CGFloat,
+        numberOfLines: Int
+    ) -> CGFloat {
+        if numberOfLines == 0 { return maxWidth }
+        return max(1, measureTransitionLabelBounds(
+            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines).width)
+    }
+
+    /// Sticker : empilement de glyphes dilatés (disque) + liseré noir 2 px — forme = silhouette du texte.
+    private static func makeTransitionStickerExpandBacking(
+        text: String,
+        fontSize: CGFloat,
+        layoutWidth: CGFloat,
+        numberOfLines: Int
+    ) -> SKSpriteNode {
+        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
+                  ?? UIFont.boldSystemFont(ofSize: fontSize)
+        let expand = transitionStickerExpandRadius(forFontSize: fontSize)
+        let strokePx: CGFloat = 2
+        let outerRadius = expand + strokePx
+        let pad = outerRadius + 2
+
+        let bounds = measureTransitionLabelBounds(
+            text: text, fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines)
+        let contentH = numberOfLines == 0
+            ? max(1, ceil(bounds.height))
+            : max(1, uiFont.lineHeight)
+        let canvasW = layoutWidth + pad * 2
+        let canvasH = contentH + pad * 2
+
+        let drawRect = CGRect(
+            x: pad,
+            y: pad + (contentH - bounds.height) * 0.5 - bounds.origin.y,
+            width: layoutWidth,
+            height: bounds.height
+        )
+
+        let blackAttrs = transitionStickerFillAttributes(
+            fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines, fillColor: .black)
+        let whiteAttrs = transitionStickerFillAttributes(
+            fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines, fillColor: .white)
+        let drawOptions: NSStringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let fallbackSize = CGSize(width: canvasW, height: canvasH)
+
+        let stickerImage = UIGraphicsImageRenderer(size: fallbackSize, format: format).image { _ in
+            for offset in transitionStickerDiskOffsets(radius: outerRadius) {
+                let rect = drawRect.offsetBy(dx: offset.x, dy: offset.y)
+                (text as NSString).draw(with: rect, options: drawOptions, attributes: blackAttrs, context: nil)
+            }
+            for offset in transitionStickerDiskOffsets(radius: expand) {
+                let rect = drawRect.offsetBy(dx: offset.x, dy: offset.y)
+                (text as NSString).draw(with: rect, options: drawOptions, attributes: whiteAttrs, context: nil)
+            }
+        }
+
+        guard let stickerCG = stickerImage.cgImage else {
+            let node = SKSpriteNode(color: .clear, size: .zero)
+            node.name = "transitionStickerBg"
+            return node
+        }
+
+        let sprite = SKSpriteNode(texture: SKTexture(cgImage: stickerCG), size: fallbackSize)
+        sprite.name = "transitionStickerBg"
+        sprite.zPosition = 0
+        return sprite
+    }
+
+    private static func makeTransitionPopInFaceLabel(
+        text: String,
+        fontSize: CGFloat,
+        layoutWidth: CGFloat,
+        fillColor: UIColor,
+        innerStrokeColor: UIColor,
+        numberOfLines: Int
+    ) -> SKLabelNode {
+        let attrs = transitionLabelDrawingAttributes(
+            fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
+            foreground: fillColor, strokeColor: innerStrokeColor, strokeWidth: -4.5)
+        let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
+        lbl.horizontalAlignmentMode = .center
+        lbl.verticalAlignmentMode   = .center
+        lbl.numberOfLines           = numberOfLines
+        lbl.preferredMaxLayoutWidth = layoutWidth
+        lbl.zPosition               = 1
+        lbl.name                    = "transitionStickerFace"
+        return lbl
+    }
+
     private static func makeTransitionPopInOutlinedLabel(
         text: String,
         fontSize: CGFloat,
         maxWidth: CGFloat,
         fillColor: UIColor,
         innerStrokeColor: UIColor,
-        whiteHaloStrokeWidth: CGFloat = 15.0,
         numberOfLines: Int = 1
     ) -> SKNode {
         guard !text.isEmpty else { return SKNode() }
-        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
-                  ?? UIFont.boldSystemFont(ofSize: fontSize)
-        var attrsBase: [NSAttributedString.Key: Any] = [.font: uiFont]
-        if numberOfLines == 0 {
-            let para = NSMutableParagraphStyle()
-            para.alignment     = .center
-            para.lineBreakMode = .byWordWrapping
-            attrsBase[.paragraphStyle] = para
-        }
-
-        func makeLayer(foreground: UIColor, stroke: UIColor, strokeWidth: CGFloat, z: CGFloat) -> SKLabelNode {
-            var attrs = attrsBase
-            attrs[.foregroundColor] = foreground
-            attrs[.strokeColor]     = stroke
-            attrs[.strokeWidth]     = strokeWidth
-            let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
-            lbl.horizontalAlignmentMode = .center
-            lbl.verticalAlignmentMode   = .center
-            lbl.numberOfLines           = numberOfLines
-            lbl.preferredMaxLayoutWidth = maxWidth
-            lbl.zPosition               = z
-            return lbl
-        }
-
+        let layoutWidth = transitionLayoutWidth(
+            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines)
         let wrapper = SKNode()
-        wrapper.addChild(makeLayer(foreground: .white, stroke: .white,
-                                   strokeWidth: -whiteHaloStrokeWidth, z: 0))
-        wrapper.addChild(makeLayer(foreground: fillColor, stroke: innerStrokeColor,
-                                   strokeWidth: -4.5, z: 1))
+        wrapper.addChild(makeTransitionStickerExpandBacking(
+            text: text, fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines))
+        wrapper.addChild(makeTransitionPopInFaceLabel(
+            text: text, fontSize: fontSize, layoutWidth: layoutWidth,
+            fillColor: fillColor, innerStrokeColor: innerStrokeColor,
+            numberOfLines: numberOfLines))
         return wrapper
     }
 
@@ -10175,30 +10323,20 @@ final class GameScene: SKScene {
         maxWidth: CGFloat,
         fillColor: UIColor,
         innerStrokeColor: UIColor,
-        whiteHaloStrokeWidth: CGFloat = 15.0,
         numberOfLines: Int = 1
     ) {
-        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
-                  ?? UIFont.boldSystemFont(ofSize: fontSize)
-        var attrsBase: [NSAttributedString.Key: Any] = [.font: uiFont]
-        if numberOfLines == 0 {
-            let para = NSMutableParagraphStyle()
-            para.alignment     = .center
-            para.lineBreakMode = .byWordWrapping
-            attrsBase[.paragraphStyle] = para
-        }
-        let layers: [(UIColor, UIColor, CGFloat)] = [
-            (.white, .white, -whiteHaloStrokeWidth),
-            (fillColor, innerStrokeColor, -4.5),
-        ]
-        for (child, layer) in zip(wrapper.children, layers) {
-            guard let lbl = child as? SKLabelNode else { continue }
-            var attrs = attrsBase
-            attrs[.foregroundColor] = layer.0
-            attrs[.strokeColor]     = layer.1
-            attrs[.strokeWidth]     = layer.2
-            lbl.attributedText = NSAttributedString(string: text, attributes: attrs)
-        }
+        guard let face = wrapper.childNode(withName: "transitionStickerFace") as? SKLabelNode else { return }
+        let layoutWidth = transitionLayoutWidth(
+            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines)
+        face.attributedText = makeTransitionPopInFaceLabel(
+            text: text, fontSize: fontSize, layoutWidth: layoutWidth,
+            fillColor: fillColor, innerStrokeColor: innerStrokeColor,
+            numberOfLines: numberOfLines
+        ).attributedText
+
+        wrapper.childNode(withName: "transitionStickerBg")?.removeFromParent()
+        wrapper.insertChild(makeTransitionStickerExpandBacking(
+            text: text, fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines), at: 0)
     }
 
     /// Retourne une `SKAction` qui, pendant `slideDuration`, lit la position scène de `trackedNode`
@@ -10310,7 +10448,7 @@ final class GameScene: SKScene {
         let outlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
                         ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
         let fillUIColor = yellowColor as UIColor
-        let innerStrokeUIColor = outlineColor as UIColor
+        let innerStrokeUIColor = UIColor.black
 
         if let levelText = stageLevelText {
             // ── Variante STAGE : "Level" + numéro/mot + 2 lignes d'infos ──────
@@ -10337,8 +10475,7 @@ final class GameScene: SKScene {
 
             let labelNum = Self.makeTransitionPopInOutlinedLabel(
                 text: levelText, fontSize: numFontSize, maxWidth: maxW,
-                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor,
-                whiteHaloStrokeWidth: 18.0)
+                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
             labelNum.position = CGPoint(x: 0, y: numberY - blockCenterY)
             headerNode.addChild(labelNum)
 
@@ -11421,7 +11558,7 @@ final class GameScene: SKScene {
         let pvpOutlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
                            ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
         let pvpFillUIColor = pvpYellowColor as UIColor
-        let pvpInnerStrokeUIColor = pvpOutlineColor as UIColor
+        let pvpInnerStrokeUIColor = UIColor.black
 
         // ── En-tête "P vs P" — pop-in depuis le centre (aligné sur les transitions solo) ──
         let pvpFontSize: CGFloat = 72
@@ -11433,8 +11570,7 @@ final class GameScene: SKScene {
             fontSize: pvpFontSize,
             maxWidth: maxW,
             fillColor: pvpFillUIColor,
-            innerStrokeColor: pvpInnerStrokeUIColor,
-            whiteHaloStrokeWidth: 18.0)
+            innerStrokeColor: pvpInnerStrokeUIColor)
         pvpTitleNode.zPosition = 1
         pvpTitleNode.position = CGPoint(x: centerX, y: blockCenterY)
         pvpTitleNode.setScale(0)
@@ -11453,7 +11589,7 @@ final class GameScene: SKScene {
             text: initialPhrase,
             fontSize: phraseFontSize,
             maxWidth: maxW,
-            fillColor: .white,
+            fillColor: pvpFillUIColor,
             innerStrokeColor: pvpInnerStrokeUIColor,
             numberOfLines: 0)
         label.zPosition = 1
@@ -11487,7 +11623,7 @@ final class GameScene: SKScene {
                         text: phrase,
                         fontSize: phraseFontSize,
                         maxWidth: maxW,
-                        fillColor: .white,
+                        fillColor: pvpFillUIColor,
                         innerStrokeColor: pvpInnerStrokeUIColor,
                         numberOfLines: 0)
                 },
@@ -11824,6 +11960,12 @@ final class GameScene: SKScene {
         result.onRematch = { [weak self] in
             self?.pvpCoordinator?.localPlayerRequestedRematch()
         }
+        result.onRematchAbandoned = { [weak self] in
+            self?.pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
+        }
+        result.onRematchTimeout = { [weak self] in
+            self?.pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
+        }
         result.modalPresentationStyle = .overFullScreen
         result.modalTransitionStyle = .crossDissolve
         pvpPresentedResultViewController = result
@@ -11834,6 +11976,10 @@ final class GameScene: SKScene {
         pvpPresentedResultViewController?.markRemotePlayerRequestedRematch()
     }
 
+    func blomixPvP_opponentCancelledRematch() {
+        pvpPresentedResultViewController?.handleOpponentCancelledRematch()
+    }
+
     func blomixPvP_startRematch() {
         // Remet à zéro les données Elo et ferme l'écran de résultat.
         // Le nouveau handshake appellera blomixPvP_onHandshakeCompleteRestartBoard.
@@ -11842,6 +11988,7 @@ final class GameScene: SKScene {
         pvpPresentedResultViewController?.markLaunchingRematch()
         pvpPresentedResultViewController?.dismiss(animated: true)
         pvpPresentedResultViewController = nil
+        blomixPvP_showConnectingOverlayIfNeeded()
     }
 
     private func blomixPvP_finalizeEloIfNeeded(outcome: BlomixPvPMatchOutcome) {
@@ -11870,6 +12017,7 @@ final class GameScene: SKScene {
     }
 
     private func blomixPvP_returnToHomeAfterMatch() {
+        pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
         // isWindingDown bloque saveCurrentSoloGameState() dans la micro-fenêtre entre
         // blomixPvP_teardown() (qui met pvpCoordinator = nil) et unwindToStartScreen()
         // (qui pose lui-même isWindingDown = true). Sans cette protection, un
@@ -11882,34 +12030,44 @@ final class GameScene: SKScene {
 
     func blomixPvP_peerDisconnected() {
         guard pvpCoordinator != nil else { return }
-        // Signal la préparation échouée pour fermer l'éventuel lobby encore visible.
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
-        // Si la partie était en cours, l'adversaire a abandonné : le joueur local gagne.
+        let hadResultScreen = pvpPresentedResultViewController != nil
         let wasInGame = pvpCoordinator?.isGameActive == true && !isGameOver
         if wasInGame {
             blomixPvP_finalizeEloIfNeeded(outcome: .win)
         }
-        // Protège la sauvegarde solo pendant l'overlay de déconnexion (≈2,5 s) :
-        // blomixPvP_teardown() met pvpCoordinator = nil, ce qui lèverait sinon le guard
-        // de saveCurrentSoloGameState() alors que la grille contient encore l'état PvP.
+        dismissPvPResultModalIfNeeded()
         isWindingDown = true
         blomixPvP_teardown()
-        // Overlay de notification avant le retour à l'écran d'accueil.
-        showPvPDisconnectOverlay(wasInGame: wasInGame) { [weak self] in
-            // unwindToStartScreen gère lui-même isWindingDown (true→reset→false→restore).
+        let showWinMessage = wasInGame && !hadResultScreen
+        showPvPDisconnectOverlay(wasInGame: showWinMessage, neutralLeave: hadResultScreen) { [weak self] in
             self?.unwindToStartScreen(restoreSave: true)
         }
     }
 
     func blomixPvP_matchFailed(_ error: Error?) {
         guard pvpCoordinator != nil else { return }
+        _ = error
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
+        dismissPvPResultModalIfNeeded()
+        isWindingDown = true
         blomixPvP_teardown()
-        unwindToStartScreen(restoreSave: true)
+        showPvPDisconnectOverlay(wasInGame: false, connectionFailed: true) { [weak self] in
+            self?.unwindToStartScreen(restoreSave: true)
+        }
     }
 
-    /// Affiche brièvement un message de déconnexion (2,5 s) puis appelle `completion`.
-    private func showPvPDisconnectOverlay(wasInGame: Bool, completion: @escaping () -> Void) {
+    private func dismissPvPResultModalIfNeeded() {
+        guard let result = pvpPresentedResultViewController else { return }
+        pvpPresentedResultViewController = nil
+        result.dismiss(animated: false)
+    }
+
+    /// Affiche brièvement un message de déconnexion (2,7 s) puis appelle `completion`.
+    private func showPvPDisconnectOverlay(wasInGame: Bool,
+                                         neutralLeave: Bool = false,
+                                         connectionFailed: Bool = false,
+                                         completion: @escaping () -> Void) {
         let overlayName = "pvpDisconnectOverlay"
         childNode(withName: overlayName)?.removeFromParent()
 
@@ -11927,7 +12085,9 @@ final class GameScene: SKScene {
         bg.zPosition   = 0
         overlay.addChild(bg)
 
-        let titleText = BlomixL10n.pvpDisconnectTitle.uppercased()
+        let titleText = connectionFailed
+            ? BlomixL10n.pvpConnectionFailedTitle.uppercased()
+            : BlomixL10n.pvpDisconnectTitle.uppercased()
         let title = SKLabelNode(text: titleText)
         title.fontName                = Self.customUIFontPostScriptName
         title.fontSize                = 26
@@ -11937,15 +12097,23 @@ final class GameScene: SKScene {
         title.numberOfLines           = 0
         title.lineBreakMode           = .byWordWrapping
         title.preferredMaxLayoutWidth = size.width - 80
-        title.position                = CGPoint(x: 0, y: wasInGame ? 36 : 0)
+        let subtitle: String? = {
+            if wasInGame { return BlomixL10n.pvpDisconnectMessage }
+            if connectionFailed { return BlomixL10n.pvpConnectionFailedMessage }
+            if neutralLeave { return BlomixL10n.pvpDisconnectNeutralMessage }
+            return nil
+        }()
+        title.position                = CGPoint(x: 0, y: subtitle != nil ? 36 : 0)
         title.zPosition               = 1
         overlay.addChild(title)
 
-        if wasInGame {
-            let sub = SKLabelNode(text: BlomixL10n.pvpDisconnectMessage)
+        if let subtitle {
+            let sub = SKLabelNode(text: subtitle)
             sub.fontName                = Self.customUIFontPostScriptName
             sub.fontSize                = 18
-            sub.fontColor               = SKColor(red: 0.4, green: 1.0, blue: 0.4, alpha: 1)
+            sub.fontColor               = wasInGame
+                ? SKColor(red: 0.4, green: 1.0, blue: 0.4, alpha: 1)
+                : SKColor(white: 0.82, alpha: 1)
             sub.horizontalAlignmentMode = .center
             sub.verticalAlignmentMode   = .center
             sub.numberOfLines           = 0

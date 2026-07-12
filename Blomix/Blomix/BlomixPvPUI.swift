@@ -936,6 +936,8 @@ final class BlomixPvPResultViewController: UIViewController {
     }
 
     private var rematchPhase: RematchButtonPhase = .idle
+    private var rematchTimeoutTimer: Timer?
+    private let rematchTimeoutSeconds: TimeInterval = 45
 
     // MARK: - Sous-vues
 
@@ -951,6 +953,10 @@ final class BlomixPvPResultViewController: UIViewController {
 
     var onHome: (() -> Void)?
     var onRematch: (() -> Void)?
+    /// Appelé quand le joueur quitte pendant une attente de revanche (Accueil).
+    var onRematchAbandoned: (() -> Void)?
+    /// Appelé si l'adversaire ne confirme pas la revanche à temps.
+    var onRematchTimeout: (() -> Void)?
 
     init(didWin: Bool, opponentName: String) {
         self.didWin = didWin
@@ -961,6 +967,11 @@ final class BlomixPvPResultViewController: UIViewController {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        stopRematchTimeout()
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -1076,9 +1087,10 @@ final class BlomixPvPResultViewController: UIViewController {
         switch rematchPhase {
         case .idle:
             rematchPhase = .remoteReady
+            startRematchTimeoutIfNeeded()
         case .localWaiting:
-            // Les deux ont demandé — le coordinateur va déclencher prepareForNextRound.
-            rematchPhase = .launching
+            // Les deux ont demandé — le coordinateur lancera prepareForNextRound.
+            break
         default:
             break
         }
@@ -1087,7 +1099,36 @@ final class BlomixPvPResultViewController: UIViewController {
 
     /// Appelé par GameScene juste avant de fermer la VC (les deux joueurs ont confirmé).
     func markLaunchingRematch() {
+        stopRematchTimeout()
         rematchPhase = .launching
+        applyRematchButtonStyle()
+    }
+
+    /// L'adversaire a quitté ou annulé la revanche.
+    func handleOpponentCancelledRematch() {
+        guard rematchPhase == .localWaiting || rematchPhase == .launching || rematchPhase == .remoteReady else { return }
+        stopRematchTimeout()
+        rematchPhase = .idle
+        applyRematchButtonStyle()
+    }
+
+    private func startRematchTimeoutIfNeeded() {
+        guard rematchPhase == .localWaiting || rematchPhase == .remoteReady else { return }
+        stopRematchTimeout()
+        rematchTimeoutTimer = Timer.scheduledTimer(withTimeInterval: rematchTimeoutSeconds, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.handleRematchTimeout() }
+        }
+    }
+
+    private func stopRematchTimeout() {
+        rematchTimeoutTimer?.invalidate()
+        rematchTimeoutTimer = nil
+    }
+
+    private func handleRematchTimeout() {
+        guard rematchPhase == .localWaiting || rematchPhase == .remoteReady else { return }
+        onRematchTimeout?()
+        rematchPhase = .idle
         applyRematchButtonStyle()
     }
 
@@ -1120,12 +1161,17 @@ final class BlomixPvPResultViewController: UIViewController {
 
     @objc private func rematchTapped() {
         guard rematchPhase == .idle || rematchPhase == .remoteReady else { return }
-        rematchPhase = rematchPhase == .remoteReady ? .launching : .localWaiting
+        rematchPhase = .localWaiting
         applyRematchButtonStyle()
+        startRematchTimeoutIfNeeded()
         onRematch?()
     }
 
     @objc private func homeTapped() {
+        if rematchPhase == .localWaiting || rematchPhase == .remoteReady {
+            onRematchAbandoned?()
+        }
+        stopRematchTimeout()
         dismiss(animated: true) { self.onHome?() }
     }
 }
@@ -1836,6 +1882,7 @@ final class BlomixPvPInviteBannerView: UIView {
         transform = CGAffineTransform(translationX: 0, y: -40)
         translatesAutoresizingMaskIntoConstraints = false
         parentView.addSubview(self)
+        parentView.bringSubviewToFront(self)
         NSLayoutConstraint.activate([
             topAnchor.constraint(equalTo: parentView.topAnchor, constant: safeAreaTop + 12),
             leadingAnchor.constraint(equalTo: parentView.leadingAnchor, constant: 16),
@@ -1973,6 +2020,7 @@ final class BlomixChallengeBannerView: UIView {
         transform = CGAffineTransform(translationX: 0, y: -40)
         translatesAutoresizingMaskIntoConstraints = false
         parentView.addSubview(self)
+        parentView.bringSubviewToFront(self)
         NSLayoutConstraint.activate([
             topAnchor.constraint(equalTo: parentView.topAnchor, constant: safeAreaTop + 12),
             leadingAnchor.constraint(equalTo: parentView.leadingAnchor, constant: 16),
@@ -2016,6 +2064,8 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     private var inviteTimer:         Timer?
     private var countdownTick:       Timer?
     private var countdownSecondsLeft = 0
+    /// Empêche les taps multiples pendant l'écriture CloudKit du défi.
+    private var isSendingChallenge   = false
     // MARK: - Vues
 
     private let titleLabel       = UILabel()
@@ -2372,6 +2422,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     // MARK: - Défi sortant (CloudKit rendez-vous + GKMatchmaker playerGroup)
 
     @objc private func challengeTapped(_ sender: UIButton) {
+        guard !isSendingChallenge else { return }
         guard case .loaded(let items) = phase, sender.tag < items.count else { return }
         let item = items[sender.tag]
         guard GKLocalPlayer.local.isAuthenticated else { return }
@@ -2381,17 +2432,26 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         let targetGameID = item.gamePlayerID
         let matchGroup   = BlomixAvailablePlayersManager.matchPlayerGroup(id1: localGameID, id2: targetGameID)
 
-        applyPhase(.inviting(playerName: item.displayName))
+        isSendingChallenge = true
+        statusLabel.text = BlomixL10n.pvpAvailabilitySending
 
         Task { [weak self] in
+            defer { self?.isSendingChallenge = false }
             guard let self else { return }
-            await BlomixAvailablePlayersManager.shared.createChallenge(
-                challengerGamePlayerID: localGameID,
-                challengerDisplayName:  localName,
-                challengedGamePlayerID: targetGameID,
-                matchPlayerGroup:       matchGroup
-            )
-            self.startChallengeMatchmaking(targetGameID: targetGameID, playerGroup: matchGroup)
+            do {
+                try await BlomixAvailablePlayersManager.shared.createChallenge(
+                    challengerGamePlayerID: localGameID,
+                    challengerDisplayName:  localName,
+                    challengedGamePlayerID: targetGameID,
+                    matchPlayerGroup:       matchGroup
+                )
+                self.applyPhase(.inviting(playerName: item.displayName))
+                self.startChallengeMatchmaking(targetGameID: targetGameID, playerGroup: matchGroup)
+            } catch {
+                print("[Available] challenge create error: \(error.localizedDescription)")
+                self.applyPhase(.failed(
+                    message: BlomixL10n.pvpAvailabilityCloudKitError(error.localizedDescription)))
+            }
         }
     }
 
@@ -2424,7 +2484,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
                 self.notifyOutgoingInviteEnded()
                 // Supprimer le record de défi (timeout — le challengé n'a pas répondu)
                 if let gid = localGameID {
-                    BlomixAvailablePlayersManager.shared.deleteChallenge(challengedGamePlayerID: targetGameID)
+                    BlomixAvailablePlayersManager.shared.clearOutgoingChallenge()
                     _ = gid
                 }
                 self.applyPhase(.failed(message: BlomixL10n.pvpRecentInviteFailed))
@@ -2436,9 +2496,8 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let box {
-                    // Défi accepté : supprimer le record CloudKit
-                    BlomixAvailablePlayersManager.shared.deleteChallenge(
-                        challengedGamePlayerID: targetGameID)
+                    // Défi accepté : supprimer le record CloudKit sortant local
+                    BlomixAvailablePlayersManager.shared.clearOutgoingChallenge()
                     self.pendingInviteMatch = box.match
                     box.match.delegate = self
                 } else {
@@ -2491,6 +2550,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         pendingInviteMatch?.disconnect()
         pendingInviteMatch = nil
         notifyOutgoingInviteEnded()
+        BlomixAvailablePlayersManager.shared.clearOutgoingChallenge()
         switch phase {
         case .failed, .inviting:
             presentingViewController?.dismiss(animated: true)

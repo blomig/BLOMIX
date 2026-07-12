@@ -31,7 +31,7 @@ open Blomix/Blomix.xcodeproj
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
 | `MARKETING_VERSION` | 4.9 |
-| `CURRENT_PROJECT_VERSION` | 57 |
+| `CURRENT_PROJECT_VERSION` | 60 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
@@ -53,6 +53,7 @@ Fichier : `Blomix/Blomix/Blomix.entitlements`
 - Deux appareils ou simulateurs avec des comptes Game Center **distincts**.
 - Connexion Game Center active dans Réglages iOS.
 - Le RNG partagé et la synchronisation sont gérés par `BlomixPvPNetworking.swift`.
+- Logique d’appariement et check-list de debug : [PVP_MATCHING.md](PVP_MATCHING.md).
 
 ### Tester les classements
 

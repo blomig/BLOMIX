@@ -9,14 +9,26 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [4.9] — 2026-07 (courant)
 
+Build **60** — en revue App Store Connect.
+
+### Ajouté
+- Documentation **[PVP_MATCHING.md](PVP_MATCHING.md)** : appariement, défis CloudKit, invites GameKit, déconnexion et revanche
+- Chaînes i18n déconnexion neutre et échec de connexion PvP (`pvp.disconnect.neutral_message`, `pvp.connection_failed.*`)
+
 ### Modifié
 - Transitions **stage solo**, **Zen** et **préparation PvP** : pop-in central avec rebond (0,45 s), sans voile noir ; textes entourés d’un **halo blanc** (15 pt / 18 pt sur les grands titres)
 - Overlay **tutoriel** inchangé (slide latéral + fond semi-transparent)
-- Version marketing **4.9** (build 57)
+- **Défis joueurs disponibles** : record CloudKit `chfrom_{challenger}` (permissions Public DB) à la place de `chal_{défié}` qui provoquait `WRITE operation not permitted`
+- **Revanche PvP** : overlay de connexion, retry réseau (2 s), timeout 45 s, `helloSeed` après `expectedPlayerCount == 0`, annulation explicite (`rematchCancel`)
+- **Déconnexion PvP** : fermeture de l’écran résultat avant l’overlay, messages adaptés (partie en cours / écran résultat / échec handshake)
+- Version marketing **4.9** (build 60)
 
 ### Corrigé
 - **SCRUMBLX** : les cases vidées (−1 Brix → 0, case d’atterrissage) restent en **gris fond de grille** et participent au décalage horizontal (plus de « trous noirs »)
 - **Sauvegarde solo** : prise en compte des poses, lignes injectées et chaînes en cours de dissolution avant écriture du fichier
+- **Lobby PvP — défis** : échec CloudKit remonté à l’UI (plus de faux « Invitation envoyée »), upsert robuste, lecture `Int64` pour `matchPlayerGroup`
+- **Revanche** : UI « Lancement… » synchronisée avec le coordinateur (plus de blocage asymétrique entre joueurs)
+- **Handshake PvP** : échec silencieux remplacé par overlay « Connexion perdue »
 
 ---
 

@@ -11,6 +11,8 @@
 //    • TWISTX   — flip court par case (stagger 0.04 s)
 //    • COLORX   — clic roulette (× 5 étapes) + pop dissolution par bloc
 //    • BRIXED   — impact grave sur le flash initial
+//    • SAINTX   — nappe procédurale sur toute l'animation + blop final à l'atterrissage du Brix
+//    • SCRUMBLX — cliquets sourds synchronisés sur les crans de décalage par ligne
 //
 
 import AVFoundation
@@ -167,6 +169,106 @@ final class BlomixProceduralSFX: @unchecked Sendable {
         let node = nextNode()
         if !node.isPlaying { node.play() }
         node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
+    }
+
+    // MARK: - SAINTX : nappe + blop final
+
+    /// Son procédural "SAINTX" : nappe continue sur toute l'animation.
+    /// Doit être appelée au début de `applyMagixEffect_cleanx`.
+    func playSaintxWash(duration: Float) {
+        guard masterVol > 0 else { return }
+        let dur = max(0.2, duration)
+        guard let buf = makeBuffer(
+            duration: dur,
+            attack:   0.012,
+            release:  0.140,
+            gain:     0.48,
+            waveform: { t in
+                // Nappe : 2 sinusoïdes légèrement désaccordées + vibrato lent + bruit très discret.
+                let base: Float = 165.0   // E3-ish
+                let drift = 0.25 + 0.75 * (t / dur)                // 0.25 → 1.0 (timbre qui s'ouvre)
+                let vib = sin(2 * .pi * 2.2 * t) * 2.5             // ±2.5 Hz
+                let f1 = base + vib
+                let f2 = base * 1.503 + vib * 0.6                  // ~quinte
+                let f3 = base * 2.01                               // octave légère
+                let tone =
+                    sin(2 * .pi * f1 * t) * (0.55 * drift) +
+                    sin(2 * .pi * f2 * t) * (0.28 * drift) +
+                    sin(2 * .pi * f3 * t) * (0.12 * drift)
+
+                // "Air" : bruit blanc filtré par enveloppe douce (approx).
+                let airEnv = max(0, min(1, (t / 0.20))) * max(0, min(1, (dur - t) / 0.25))
+                let air = Float.random(in: -1...1) * 0.06 * airEnv
+
+                // Léger tremolo pour éviter un ton statique.
+                let trem = 0.92 + 0.08 * sin(2 * .pi * 3.1 * t + 0.4)
+                return (tone + air) * trem
+            }
+        ) else { return }
+        play(buf)
+    }
+
+    /// "Blop" final à jouer au moment où le Brix restant atterrit à sa position finale.
+    func playSaintxBlop() {
+        guard masterVol > 0 else { return }
+
+        // Sweep descendant très court + petit click bruité en attaque.
+        guard let swp = makeSweepBuffer(
+            f0: 620, f1: 190,
+            duration: 0.090,
+            attack: 0.002,
+            release: 0.060,
+            gain: 0.70
+        ) else { return }
+
+        if let data = swp.floatChannelData?[0] {
+            let noiseF = Int(min(swp.frameLength, AVAudioFrameCount(0.020 * Float(sr))))
+            let fsr = Float(sr)
+            for i in 0..<noiseF {
+                let fi = Float(i)
+                let att = 0.0018 * fsr
+                let decay = 0.015 * fsr
+                let env: Float = fi < att ? fi / att
+                    : fi < att + decay ? 1.0 - (fi - att) / decay
+                    : 0
+                data[i] += Float.random(in: -0.22...0.22) * env * masterVol
+            }
+        }
+
+        play(swp)
+    }
+
+    // MARK: - SCRUMBLX : cliquets sourds
+
+    /// Petit "cliquet sourd" type Rubik's cube / crémaillère.
+    /// À jouer à chaque cran de déplacement horizontal (0.08 s/cran).
+    func playScrumblxClack(intensity: Float = 1.0) {
+        guard masterVol > 0 else { return }
+        let k = max(0.25, min(1.0, intensity))
+        let f0 = Float.random(in: 120...185)
+        let f1 = f0 * Float.random(in: 1.45...1.75)
+        let dur: Float = 0.040
+
+        guard let buf = makeBuffer(
+            duration: dur,
+            attack:   0.0015,
+            release:  0.020,
+            gain:     0.55 * k,
+            waveform: { t in
+                // Corps : deux partiels + composante "bois" très courte.
+                let tone = sin(2 * .pi * f0 * t) * 0.72
+                         + sin(2 * .pi * f1 * t) * 0.18
+                // Transient bruité (très bref) : sensation de mécano.
+                let clickEnv = max(0, 1.0 - (t / 0.010))
+                let click = Float.random(in: -1...1) * 0.22 * clickEnv
+                // Petit "choc" en fin (mini-rebond) : évite le son trop sec.
+                let tailEnv = max(0, (t - 0.016) / 0.020)
+                let tail = sin(2 * .pi * (f0 * 0.85) * t) * 0.10 * tailEnv
+                return tone + click + tail
+            }
+        ) else { return }
+
+        play(buf)
     }
 
     // MARK: - CHROMAX : tick montant par case

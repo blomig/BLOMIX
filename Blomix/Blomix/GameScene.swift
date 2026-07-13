@@ -6579,8 +6579,10 @@ final class GameScene: SKScene {
         let cycleInterval:   TimeInterval = 0.40   // ≈ 5 changements sur 2 s
         let palette = Self.colorPalette
 
-        // Son atmosphérique CLEANX — démarre avec l'animation.
-        playMatchSound(.cleanx)
+        // Son procédural SAINTX — nappe sur toute l'animation + blop final à l'atterrissage du Brix.
+        // Durée totale visée : overlay (2.0) + fade (0.20) + latence dissolution (0.30) + compaction (0.25).
+        let saintxTotalDuration = Float(overlayDuration + 0.20 + 0.30 + CompactRiseAnimation.duration)
+        BlomixProceduralSFX.shared.playSaintxWash(duration: saintxTotalDuration)
 
         // Container d'overlays (préfixe "cell_" → supprimé automatiquement par drawGrid).
         let overlayContainer = SKNode()
@@ -6691,7 +6693,9 @@ final class GameScene: SKScene {
                     SKAction.run { [weak self] in
                         guard let self else { return }
                         self.drawGrid()
-                        self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
+                        self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock) {
+                            BlomixProceduralSFX.shared.playSaintxBlop()
+                        }
                     },
                 ]))
             },
@@ -7256,9 +7260,6 @@ final class GameScene: SKScene {
         cropWrapper.addChild(container)
         addChild(cropWrapper)
 
-        // Son atmosphérique SCRUMBLX — démarre avec le flash.
-        playMatchSound(.scrumblx)
-
         let flashDur: TimeInterval = 0.18
         if let scrumblxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
             let landingPos = scrumblxSprite.position
@@ -7313,6 +7314,10 @@ final class GameScene: SKScene {
                     SKAction.wait(forDuration: stepDelay),
                     SKAction.run { [weak self] in
                         guard let self else { return }
+                        // Son procédural SCRUMBLX : un cliquet par cran (durée globale = timeline visuelle).
+                        // Intensité légèrement corrélée au nombre de crans de la ligne (plus long = un peu plus présent).
+                        let intensity = 0.65 + 0.35 * Float(shift.steps) / 7.0
+                        BlomixProceduralSFX.shared.playScrumblxClack(intensity: intensity)
                         let dx = CGFloat(shift.direction) * cellPts
 
                         for c in 0..<cols {
@@ -7422,7 +7427,7 @@ final class GameScene: SKScene {
 
     /// Compacte la grille (gravité vers le haut), anime les blocs, puis appelle `finishChainWaveAfterPhysicalPhase()`.
     /// Utilisé après les effets BRIXED (les Brix disparaissent mais ne forment pas une chaîne ordinaire).
-    private func applyMagixCompactionAndContinue(columnHadBlockBefore: [Bool]) {
+    private func applyMagixCompactionAndContinue(columnHadBlockBefore: [Bool], onLanded: (() -> Void)? = nil) {
         let riseMoves = computeCompactRiseMovesReadingCurrentGrid()
         compactGridTowardTop()
 
@@ -7430,6 +7435,7 @@ final class GameScene: SKScene {
             drawGrid()
             awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
             finishChainWaveAfterPhysicalPhase()
+            onLanded?()
             return
         }
 
@@ -7437,6 +7443,7 @@ final class GameScene: SKScene {
             drawGrid()
             awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
             finishChainWaveAfterPhysicalPhase()
+            onLanded?()
             return
         }
 
@@ -7459,6 +7466,7 @@ final class GameScene: SKScene {
                 self.drawGrid()
                 self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                 self.finishChainWaveAfterPhysicalPhase()
+                onLanded?()
             },
         ]))
     }

@@ -7,7 +7,18 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [4.9] — 2026-07 (courant)
+## [5.0] — 2026-07 (courant)
+
+Build **61**.
+
+### Modifié
+- **Animations Brix** : profil de mouvement distinct des blox couleur — stretch en vol plus discret (`BrixFlightStretch`), bounce à l'atterrissage moins marqué (`BrixLandingBounce`), vitesse et traîne inchangées
+- **Disparition Brix** : pop blanc + implosion (remplace le spin 360°) ; paillettes **carrées** colorées (11–15 + 15 micro-carrés, même timing que dissolution blox)
+- Version marketing **5.0** (build 61)
+
+---
+
+## [4.9] — 2026-07
 
 Build **60** — en revue App Store Connect.
 

@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 4.9  
+> **Version de référence** : 5.0  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 
@@ -106,29 +106,39 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | | |
 |---|---|
 | **Déclencheur** | Tap colonne valide, bloc normal |
-| **Réf. code** | `dropBlock`, `LandingBounce`, `FlightStretch` |
+| **Réf. code** | `dropBlock`, `LandingBounce`, `FlightStretch`, `BrixLandingBounce`, `BrixFlightStretch` |
 
-**Vol :**
+**Vol (commun Blox / Brix / Magix) :**
 - Départ : position preview → snap instantané bas de colonne (`duration: 0`)
-- Vitesse : `cellPoints × 8 / 0,25` ≈ **1280 pts/s**
+- Vitesse : `cellPoints × 8 / 0,25` ≈ **1280 pts/s** (identique pour tous les types)
 - Durée montée : `max(0,07, distance / vitesse)` — `easeOut`
-- Stretch en vol : `xScale 0,82`, `yScale 1,25` → retour `(1,1)` en `easeIn`
+- De-stretch en vol : retour `(1,1)` en `easeIn`
 
-**Traînée de particules** (`makeTrailSpawnAction`) :
+**Stretch en vol** (`flightStretchScales(for:)`) :
+
+| Type | xScale | yScale | Enum |
+|---|---|---|---|
+| Blox / Magix | 0,82 | 1,25 | `FlightStretch` |
+| Brix | 0,88 | 1,16 | `BrixFlightStretch` |
+
+**Traînée de particules** (`makeTrailSpawnAction`) — identique Blox et Brix :
 - Intervalle spawn : **0,04 s** (~25/s)
 - 3 traînées (centre + ±9 pt) + 4 micro-dots aléatoires
 - Rayon dots : 1,8–3,0 pt (centre), 1,0–2,0 pt (latérales)
 - Fade-out : **0,38 s**
+- Couleur : blox = couleur skin ; brix = `priksSolidFillColor()`
 
-**Atterrissage** (`playLandingBounce`) — total **0,15 s** :
+**Atterrissage** (`playLandingBounce`) — profil selon le type posé :
 
-| Phase | Durée | Mouvement | Scale |
-|---|---|---|---|
-| A — squash | 0,09 s | y + h×0,055 | x 1,32, y 0,78 |
-| B — rebond | 0,03 s | y − h×0,13 | x 0,94, y 1,15 |
-| C — settle | 0,03 s | retour p0 | x/y 1,0 |
+| | Blox / Magix | Brix |
+|---|---|---|
+| **Enum** | `LandingBounce` | `BrixLandingBounce` |
+| **Total** | **0,15 s** | **0,12 s** |
+| A — squash | 0,09 s · y + h×0,055 · x 1,32 / y 0,78 | 0,07 s · y + h×0,035 · x 1,18 / y 0,86 |
+| B — rebond | 0,03 s · y − h×0,13 · x 0,94 / y 1,15 | 0,025 s · y − h×0,07 · x 0,97 / y 1,08 |
+| C — settle | 0,03 s · retour p0 · x/y 1,0 | 0,025 s · idem |
 
-**Particules impact** (`spawnLandingImpactSparkles`) :
+**Particules impact** (`spawnLandingImpactSparkles`) — communes, couleur du bloc :
 - Couche éjection : 12 dots, **0,22 s**, rayon 0,8–1,8 pt, drift 12–26 pt
 - Couche poudre : 38 dots, **0,80 s**, rayon 0,5–1,2 pt, drift 1–5 pt
 
@@ -144,7 +154,9 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Magix | `magix` |
 | Brix | `place` |
 
-**Délai post-bounce** : `LandingBounce.totalDuration` (0,15 s) avant `resolveChains()` ou effet Magix.
+**Délai post-bounce** : `landingBounceTotalDuration(for:)` (0,15 s blox / 0,12 s brix) avant `resolveChains()` ou effet Magix.
+
+**Ligne entrante** : stretch proportionnel par colonne via `flightStretchScales(for:)` ; bounce et délai post-ligne adaptés au type de chaque case.
 
 ### 1.2 Preview bloc courant
 
@@ -275,11 +287,27 @@ Animation texte (identique au `+N`) :
 
 | | |
 |---|---|
-| **Déclencheur** | Compteur → 0 (chaîne adjacente ou SCRUMBLX/BRIXED) |
-| **Durée** | `priksVanishDuration` = **0,18 s** |
-| **Visuel** | Spin 360° `easeIn` + fade + shrink ×0,65 |
-| **Son** | `priksVanish` ; stagger **0,07 s** si plusieurs |
-| **Score** | `+20` pts, popup flottant après animation |
+| **Déclencheur** | Compteur → 0 (chaîne adjacente, SCRUMBLX, BRIXED…) |
+| **Durée totale** | `BrixVanishFeedback.totalDuration` = **0,20 s** |
+| **Réf. code** | `BrixVanishFeedback`, `spawnBrixVanishSquareDots` |
+
+**Séquence par Brix :**
+
+| Phase | Durée | Détail |
+|---|---|---|
+| Pop | 0,07 s | scale → 1,10, flash blanc 35 %, `easeOut` |
+| Paillettes carrées | instant | `spawnBrixVanishSquareDots` (voir ci-dessous) |
+| Implosion | 0,13 s | scale → 0,55, fade α→0, wobble ±54° (`π×0,3`), `easeIn` |
+| Chiffre | 0,10 s | fade du label en parallèle de l'implosion |
+
+**Paillettes carrées** (même timing que dissolution blox, forme différente) :
+- 11–15 carrés principaux (côté 4–7 pt) + 15 micro-carrés (3 pt)
+- Chute 10–22 pt, fade **0,45 s**, `easeIn`
+- Couleur = teinte brix du skin (`priksSolidFillColor()`)
+
+**Son** : `priksVanish` ; stagger **0,07 s** si plusieurs Brix disparaissent ensemble.
+
+**Score** : `+20` pts, popup flottant après animation.
 
 ---
 
@@ -409,8 +437,8 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 | **Vitesse** | ≈ 1280 pts/s (identique chute blox) |
 | **Strip fade** | **0,15 s** au départ |
 | **Son** | `line` + `hapticHeavy()` |
-| **Bounce** | `playLandingBounce` par case, stagger **0,018 s**/colonne |
-| **Suite** | `resolveChains()` après `LandingBounce.totalDuration` + stagger |
+| **Bounce** | `playLandingBounce(for:)` par case, stagger **0,018 s**/colonne ; délai post-ligne = max bounce selon types présents |
+| **Suite** | `resolveChains()` après durée bounce max + stagger |
 
 ---
 
@@ -596,8 +624,11 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 ```
 LandingBounce          squash 0,09 | stretch 0,03 | settle 0,03
 FlightStretch          x 0,82 | y 1,25
+BrixLandingBounce      squash 0,07 | stretch 0,025 | settle 0,025
+BrixFlightStretch      x 0,88 | y 1,16
+BrixVanishFeedback     pop 0,07 + implode 0,13 | sparkles 11–15 + 15 micro-carrés
 CompactRiseAnimation   duration 0,25
-ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | cascade 0,07 | priks 0,18
+ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | cascade 0,07
 PendingLinePreview     jitter X 1,0 Y 0,5 | cycle 1,1
 ScorePopupFeedback     transfer 0,20 | fadeIn 0,06 | burst 0,08 | dots 9–52
 GameOverFocus          total 1,38 | rings 4 | stagger 0,12

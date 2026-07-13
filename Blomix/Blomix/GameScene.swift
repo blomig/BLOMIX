@@ -856,6 +856,27 @@ final class GameScene: SKScene {
         static let yScale: CGFloat = 1.25
     }
 
+    /// Stretch en vol — profil plus discret que les blox couleur.
+    private enum BrixFlightStretch {
+        static let xScale: CGFloat = 0.88
+        static let yScale: CGFloat = 1.16
+    }
+
+    /// Bounce à l'atterrissage — profil plus sec et moins élastique que les blox.
+    private enum BrixLandingBounce {
+        static let squashDuration:  TimeInterval = 0.07
+        static let stretchDuration: TimeInterval = 0.025
+        static let settleDuration:  TimeInterval = 0.025
+        static var totalDuration: TimeInterval { squashDuration + stretchDuration + settleDuration }
+
+        static let squashScaleX: CGFloat = 1.18
+        static let squashScaleY: CGFloat = 0.86
+        static let squashMoveYFactor: CGFloat = 0.035
+        static let reboundScaleX: CGFloat = 0.97
+        static let reboundScaleY: CGFloat = 1.08
+        static let reboundMoveYFactor: CGFloat = 0.07
+    }
+
     private enum CompactRiseAnimation {
         static let duration: TimeInterval = 0.25
     }
@@ -878,8 +899,26 @@ final class GameScene: SKScene {
         static let popDotFadeDuration: TimeInterval         = 0.45
         /// Courte pause après la phase physique avant de re-scanner la grille (cascades plus lisibles).
         static let cascadeBeatDuration: TimeInterval = 0.07
-        /// Disparition d’un Priks à 0 : petit spin rapide + fade.
-        static let priksVanishDuration: TimeInterval = 0.18
+    }
+
+    /// Disparition d'un Brix (compteur → 0) : pop blanc puis implosion + paillettes carrées.
+    private enum BrixVanishFeedback {
+        static let popDuration: TimeInterval = 0.07
+        static let implodeDuration: TimeInterval = 0.13
+        static var totalDuration: TimeInterval { popDuration + implodeDuration }
+        static let popScale: CGFloat = 1.10
+        static let implodeScale: CGFloat = 0.55
+        static let popWhiteBlend: CGFloat = 0.35
+        static let wobbleAngle: CGFloat = .pi * 0.3
+        static let digitFadeDuration: TimeInterval = 0.10
+        static let soundStagger: TimeInterval = 0.07
+        /// Même timing que les paillettes rondes de dissolution des blox.
+        static let sparkleFadeDuration: TimeInterval = ChainClearFeedback.popDotFadeDuration
+        static let sparkleSizeRange: ClosedRange<CGFloat> = 4.0...7.0
+        static let sparkleFallDistance: ClosedRange<CGFloat> = ChainClearFeedback.popDotFallDistance
+        static let sparkleMainCountRange: ClosedRange<Int> = 11...15
+        static let sparkleMicroCount: Int = 15
+        static let sparkleMicroSide: CGFloat = 3.0
     }
 
     /// Animation discrète de la ligne des 10 en attente (léger tremblement).
@@ -3760,7 +3799,7 @@ final class GameScene: SKScene {
         return count
     }
 
-    /// Anime la disparition des Priks arrivés à 0 (tournoiement rapide + fade), puis appelle `completion`.
+    /// Anime la disparition des Priks arrivés à 0 (pop blanc → implosion + paillettes carrées), puis appelle `completion`.
     private func animateVanishingPriks(cells: Set<GridAddress>, completion: @escaping () -> Void) {
         guard !cells.isEmpty else {
             completion()
@@ -3772,13 +3811,12 @@ final class GameScene: SKScene {
         }
 
         // Sons staggerés synchronisés avec le début de la disparition visuelle.
-        // Stagger 0.07 s entre chaque Brix si plusieurs disparaissent simultanément.
         for i in 0..<cells.count {
             if i == 0 {
                 playMatchSound(.priksVanish)
             } else {
                 run(SKAction.sequence([
-                    SKAction.wait(forDuration: TimeInterval(i) * 0.07),
+                    SKAction.wait(forDuration: TimeInterval(i) * BrixVanishFeedback.soundStagger),
                     SKAction.run { [weak self] in self?.playMatchSound(.priksVanish) },
                 ]))
             }
@@ -3789,18 +3827,51 @@ final class GameScene: SKScene {
             guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
             sprite.zPosition = 26
 
-            let spin = SKAction.rotate(byAngle: .pi * 2, duration: ChainClearFeedback.priksVanishDuration)
-            spin.timingMode = .easeIn
-            let fade = SKAction.fadeAlpha(to: 0, duration: ChainClearFeedback.priksVanishDuration)
+            let blockColor = Self.priksSolidFillColor()
+            let wobbleSign: CGFloat = Bool.random() ? 1 : -1
+
+            let popScale = SKAction.scale(to: BrixVanishFeedback.popScale,
+                                          duration: BrixVanishFeedback.popDuration)
+            popScale.timingMode = .easeOut
+            let popWhite = SKAction.colorize(with: .white,
+                                             colorBlendFactor: BrixVanishFeedback.popWhiteBlend,
+                                             duration: BrixVanishFeedback.popDuration)
+            popWhite.timingMode = .easeOut
+            let popPhase = SKAction.group([popScale, popWhite])
+
+            let spawnSquares = SKAction.run { [weak self, weak sprite] in
+                guard let self, let sprite else { return }
+                let scenePoint = self.convert(sprite.position, from: container)
+                self.spawnBrixVanishSquareDots(at: scenePoint, color: blockColor)
+            }
+
+            let implodeScale = SKAction.scale(to: BrixVanishFeedback.implodeScale,
+                                              duration: BrixVanishFeedback.implodeDuration)
+            implodeScale.timingMode = .easeIn
+            let fade = SKAction.fadeAlpha(to: 0, duration: BrixVanishFeedback.implodeDuration)
             fade.timingMode = .easeIn
-            let shrink = SKAction.scale(to: max(0.6, sprite.xScale * 0.65), duration: ChainClearFeedback.priksVanishDuration)
-            shrink.timingMode = .easeIn
-            sprite.run(SKAction.group([spin, fade, shrink]))
+            let wobble = SKAction.rotate(byAngle: BrixVanishFeedback.wobbleAngle * wobbleSign,
+                                         duration: BrixVanishFeedback.implodeDuration)
+            wobble.timingMode = .easeIn
+            let uncolorize = SKAction.colorize(with: .white, colorBlendFactor: 0,
+                                               duration: BrixVanishFeedback.implodeDuration)
+
+            let fadeDigits = SKAction.run { [weak sprite] in
+                guard let sprite else { return }
+                for child in sprite.children {
+                    guard let label = child as? SKLabelNode else { continue }
+                    label.run(SKAction.fadeOut(withDuration: BrixVanishFeedback.digitFadeDuration))
+                }
+            }
+
+            let implodePhase = SKAction.group([implodeScale, fade, wobble, uncolorize, fadeDigits])
+
+            sprite.run(SKAction.sequence([popPhase, spawnSquares, implodePhase]))
         }
 
         run(
             SKAction.sequence([
-                SKAction.wait(forDuration: ChainClearFeedback.priksVanishDuration),
+                SKAction.wait(forDuration: BrixVanishFeedback.totalDuration),
                 SKAction.run(completion),
             ])
         )
@@ -4081,6 +4152,62 @@ final class GameScene: SKScene {
                 SKAction.removeFromParent(),
             ]))
         }
+    }
+
+    /// Paillettes carrées à la disparition d'un Brix : même timing que `spawnChainPopDots`,
+    /// mais forme carrée (écho visuel du bloc numéroté).
+    private func spawnBrixVanishSquareDots(at scenePoint: CGPoint, color: SKColor) {
+        let cellHalf = GridLayout.cellPoints * 0.42
+        let duration = BrixVanishFeedback.sparkleFadeDuration
+
+        let mainCount = Int.random(in: BrixVanishFeedback.sparkleMainCountRange)
+        for _ in 0..<mainCount {
+            let side = CGFloat.random(in: BrixVanishFeedback.sparkleSizeRange)
+            let dot = Self.makeSquareSparkleNode(side: side, color: color)
+            dot.alpha = 1.0
+            dot.zPosition = 36
+            dot.position = CGPoint(
+                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
+                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
+            )
+            addChild(dot)
+            let move = SKAction.moveBy(x: 0,
+                                       y: -CGFloat.random(in: BrixVanishFeedback.sparkleFallDistance),
+                                       duration: duration)
+            move.timingMode = .easeIn
+            dot.run(SKAction.sequence([
+                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+
+        for _ in 0..<BrixVanishFeedback.sparkleMicroCount {
+            let dot = Self.makeSquareSparkleNode(side: BrixVanishFeedback.sparkleMicroSide, color: color)
+            dot.alpha = 1.0
+            dot.zPosition = 36
+            dot.position = CGPoint(
+                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
+                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
+            )
+            addChild(dot)
+            let move = SKAction.moveBy(x: 0,
+                                       y: -CGFloat.random(in: BrixVanishFeedback.sparkleFallDistance),
+                                       duration: duration)
+            move.timingMode = .easeIn
+            dot.run(SKAction.sequence([
+                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+    }
+
+    private static func makeSquareSparkleNode(side: CGFloat, color: SKColor) -> SKShapeNode {
+        let half = side / 2
+        let path = CGPath(rect: CGRect(x: -half, y: -half, width: side, height: side), transform: nil)
+        let node = SKShapeNode(path: path)
+        node.fillColor = color
+        node.strokeColor = .clear
+        return node
     }
 
     /// Après la dissolution : vide la chaîne, Priks, `drawGrid()`, animation de remontée si besoin, puis cascade.
@@ -5491,8 +5618,9 @@ final class GameScene: SKScene {
             // Stretch proportionnel à la vitesse relative de la colonne (plus loin = plus étiré).
             let colDistance = abs(scenePointCellCenter(row: placement.row, column: col).y - startY)
             let stretchFactor = maxColumnDistance > 0 ? colDistance / maxColumnDistance : 0
-            sprite.xScale = 1.0 - (1.0 - FlightStretch.xScale) * stretchFactor
-            sprite.yScale = 1.0 + (FlightStretch.yScale - 1.0) * stretchFactor
+            let flightStretch = Self.flightStretchScales(for: block)
+            sprite.xScale = 1.0 - (1.0 - flightStretch.xScale) * stretchFactor
+            sprite.yScale = 1.0 + (flightStretch.yScale - 1.0) * stretchFactor
 
             addChild(sprite)
 
@@ -5546,14 +5674,20 @@ final class GameScene: SKScene {
                         let blockColor = Self.bloxTrailColor(for: lineCopy[p.column])
                         cell.run(SKAction.sequence([
                             SKAction.wait(forDuration: delay),
-                            SKAction.run { [weak self] in self?.playLandingBounce(on: cell, blockColor: blockColor) },
+                            SKAction.run { [weak self] in
+                                self?.playLandingBounce(on: cell,
+                                                          blockColor: blockColor,
+                                                          block: lineCopy[p.column])
+                            },
                         ]))
                     }
                 }
             }
             let lineStaggerTotal = Double(GridLayout.columnCount - 1) * 0.018
+            let maxBounceDuration = lineCopy.map { Self.landingBounceTotalDuration(for: $0) }.max()
+                ?? LandingBounce.totalDuration
             self.run(SKAction.sequence([
-                SKAction.wait(forDuration: LandingBounce.totalDuration + lineStaggerTotal),
+                SKAction.wait(forDuration: maxBounceDuration + lineStaggerTotal),
                 SKAction.run { self.resolveChains() },
             ]))
         }
@@ -5618,8 +5752,9 @@ final class GameScene: SKScene {
         falling.name = Self.fallingSpriteName
         falling.position = start
         falling.size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
-        falling.xScale = FlightStretch.xScale
-        falling.yScale = FlightStretch.yScale
+        let flightStretch = Self.flightStretchScales(for: placedBlock)
+        falling.xScale = flightStretch.xScale
+        falling.yScale = flightStretch.yScale
         falling.zPosition = 20
         addChild(falling)
 
@@ -5676,7 +5811,9 @@ final class GameScene: SKScene {
             // Bounce sur le sprite fraîchement créé par drawGrid.
             if let container = self.childNode(withName: Self.gridContainerName),
                let cell = container.childNode(withName: "cell_\(row)_\(columnIndex)") as? SKSpriteNode {
-                self.playLandingBounce(on: cell, blockColor: Self.bloxTrailColor(for: placedBlock))
+                self.playLandingBounce(on: cell,
+                                       blockColor: Self.bloxTrailColor(for: placedBlock),
+                                       block: placedBlock)
             }
             // Feedback qualité du coup (si disponible, mode solo uniquement).
             if let quality = self.analyzerPendingQuality {
@@ -5688,7 +5825,7 @@ final class GameScene: SKScene {
             // Délai = durée du bounce pour éviter conflit avec la dissolution si chaîne immédiate.
             let magixAddress = GridAddress(row: row, col: columnIndex)
             self.run(SKAction.sequence([
-                SKAction.wait(forDuration: LandingBounce.totalDuration),
+                SKAction.wait(forDuration: Self.landingBounceTotalDuration(for: placedBlock)),
                 SKAction.run { [weak self] in
                     guard let self else { return }
                     if case .magix(let kind) = placedBlock {
@@ -8566,51 +8703,56 @@ final class GameScene: SKScene {
 
     // MARK: - Bounce d'atterrissage
 
-    /// Bounce à l'atterrissage en trois phases (squash-and-stretch physique) :
-    ///   A – squash à l'impact : centre légèrement au-dessus (p0+h×0.055), aplatissement + étalement latéral
-    ///   B – rebond élastique : centre redescend sous p0 (p0−h×0.13), allongement vertical, rétrécissement latéral
-    ///   C – stabilisation : retour exact à p0, scales 1.0
-    /// Pas de changement d'anchorPoint : les positions cibles sont calculées analytiquement.
-    private func playLandingBounce(on sprite: SKSpriteNode, blockColor: SKColor = SKColor(white: 0.8, alpha: 1)) {
+    /// Bounce à l'atterrissage en trois phases (squash-and-stretch physique).
+    /// Les Brix utilisent un profil plus discret (`BrixLandingBounce`).
+    private func playLandingBounce(on sprite: SKSpriteNode,
+                                   blockColor: SKColor,
+                                   block: BlockType) {
+        let isBrix: Bool
+        if case .priks = block { isBrix = true } else { isBrix = false }
+
+        let squashDur  = isBrix ? BrixLandingBounce.squashDuration  : LandingBounce.squashDuration
+        let stretchDur = isBrix ? BrixLandingBounce.stretchDuration : LandingBounce.stretchDuration
+        let settleDur  = isBrix ? BrixLandingBounce.settleDuration  : LandingBounce.settleDuration
+
+        let squashScaleX = isBrix ? BrixLandingBounce.squashScaleX : 1.32
+        let squashScaleY = isBrix ? BrixLandingBounce.squashScaleY : 0.78
+        let squashMoveY  = isBrix ? BrixLandingBounce.squashMoveYFactor : 0.055
+        let reboundScaleX = isBrix ? BrixLandingBounce.reboundScaleX : 0.94
+        let reboundScaleY = isBrix ? BrixLandingBounce.reboundScaleY : 1.15
+        let reboundMoveY  = isBrix ? BrixLandingBounce.reboundMoveYFactor : 0.13
+
         let p0 = sprite.position
         let h  = sprite.size.height
-        // Coordonnées scène pour les paillettes (sprite est enfant du gridContainer, pas de la scène).
         let sceneCenter = sprite.parent.map { convert(sprite.position, from: $0) } ?? sprite.position
 
-        // Phase A : squash à l'impact — centre légèrement au-dessus, bloc aplati et étalé
-        let moveA   = SKAction.move(to: CGPoint(x: p0.x, y: p0.y + h * 0.055),
-                                    duration: LandingBounce.squashDuration)
+        let moveA   = SKAction.move(to: CGPoint(x: p0.x, y: p0.y + h * squashMoveY),
+                                    duration: squashDur)
         moveA.timingMode   = .easeOut
-        let scaleXA = SKAction.scaleX(to: 1.32, duration: LandingBounce.squashDuration)
+        let scaleXA = SKAction.scaleX(to: squashScaleX, duration: squashDur)
         scaleXA.timingMode = .easeOut
-        let scaleYA = SKAction.scaleY(to: 0.78, duration: LandingBounce.squashDuration)
+        let scaleYA = SKAction.scaleY(to: squashScaleY, duration: squashDur)
         scaleYA.timingMode = .easeOut
         let phaseA  = SKAction.group([moveA, scaleXA, scaleYA])
 
-        // Phase B : rebond élastique — centre redescend sous p0, allongement + rétrécissement latéral
-        let moveB   = SKAction.move(to: CGPoint(x: p0.x, y: p0.y - h * 0.13),
-                                    duration: LandingBounce.stretchDuration)
+        let moveB   = SKAction.move(to: CGPoint(x: p0.x, y: p0.y - h * reboundMoveY),
+                                    duration: stretchDur)
         moveB.timingMode   = .easeOut
-        let scaleXB = SKAction.scaleX(to: 0.94, duration: LandingBounce.stretchDuration)
+        let scaleXB = SKAction.scaleX(to: reboundScaleX, duration: stretchDur)
         scaleXB.timingMode = .easeOut
-        let scaleYB = SKAction.scaleY(to: 1.15, duration: LandingBounce.stretchDuration)
+        let scaleYB = SKAction.scaleY(to: reboundScaleY, duration: stretchDur)
         scaleYB.timingMode = .easeOut
         let phaseB  = SKAction.group([moveB, scaleXB, scaleYB])
 
-        // Phase C : stabilisation — retour à la position et taille d'origine
-        let moveC   = SKAction.move(to: p0, duration: LandingBounce.settleDuration)
+        let moveC   = SKAction.move(to: p0, duration: settleDur)
         moveC.timingMode   = .easeInEaseOut
-        let scaleXC = SKAction.scaleX(to: 1.0, duration: LandingBounce.settleDuration)
+        let scaleXC = SKAction.scaleX(to: 1.0, duration: settleDur)
         scaleXC.timingMode = .easeInEaseOut
-        let scaleYC = SKAction.scaleY(to: 1.0, duration: LandingBounce.settleDuration)
+        let scaleYC = SKAction.scaleY(to: 1.0, duration: settleDur)
         scaleYC.timingMode = .easeInEaseOut
         let phaseC  = SKAction.group([moveC, scaleXC, scaleYC])
 
         sprite.run(SKAction.sequence([phaseA, phaseB, phaseC]))
-
-        // Burst centrifuge synchrone avec l'impact : les paillettes partent du bord du bloc,
-        // se dispersent radialement (easeOut) et disparaissent quand le bloc a retrouvé
-        // sa taille définitive (durée totale = LandingBounce.totalDuration).
         spawnLandingImpactSparkles(at: sceneCenter, color: blockColor)
     }
 
@@ -8695,6 +8837,18 @@ final class GameScene: SKScene {
     }
 
     // MARK: - Effet traîne (paillettes lors du lancement d'un blox/brix/bombe)
+
+    private static func flightStretchScales(for block: BlockType) -> (xScale: CGFloat, yScale: CGFloat) {
+        if case .priks = block {
+            return (BrixFlightStretch.xScale, BrixFlightStretch.yScale)
+        }
+        return (FlightStretch.xScale, FlightStretch.yScale)
+    }
+
+    private static func landingBounceTotalDuration(for block: BlockType) -> TimeInterval {
+        if case .priks = block { return BrixLandingBounce.totalDuration }
+        return LandingBounce.totalDuration
+    }
 
     /// Couleur de paillettes pour un type de bloc (lit le skin actif du joueur).
     private static func bloxTrailColor(for block: BlockType) -> SKColor {

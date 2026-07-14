@@ -11,6 +11,15 @@ import UIKit
 /// Présenté depuis `GameScene.showLeaderboard()` : écran in-app (fond noir) listant les meilleurs scores.
 @MainActor
 final class LeaderboardViewController: UIViewController, UITableViewDataSource {
+    /// Onglet affiché à l'ouverture (disques de rang sur l'accueil, etc.).
+    enum InitialTab {
+        case mainScore
+        case averageScore
+        case zenScore
+    }
+
+    var initialTab: InitialTab = .mainScore
+
     @MainActor
     private enum FontTheme {
         static func gameFont(size: CGFloat, fallbackWeight: UIFont.Weight = .regular) -> UIFont {
@@ -114,8 +123,17 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         view.backgroundColor = .black
         addAmbientBlocksBackground()
 
+        selectedLeaderboardKind = leaderboardKind(for: initialTab)
         setupUI()
         loadLeaderboard()
+    }
+
+    private func leaderboardKind(for tab: InitialTab) -> LeaderboardKind {
+        switch tab {
+        case .mainScore:    return .mainScore
+        case .averageScore: return .averageScore
+        case .zenScore:     return .zenScore
+        }
     }
 
     private func setupUI() {

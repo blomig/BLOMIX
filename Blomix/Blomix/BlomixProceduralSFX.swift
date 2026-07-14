@@ -182,27 +182,30 @@ final class BlomixProceduralSFX: @unchecked Sendable {
             duration: dur,
             attack:   0.012,
             release:  0.140,
-            gain:     0.48,
+            gain:     0.60,
             waveform: { t in
-                // Nappe : 2 sinusoïdes légèrement désaccordées + vibrato lent + bruit très discret.
-                let base: Float = 165.0   // E3-ish
-                let drift = 0.25 + 0.75 * (t / dur)                // 0.25 → 1.0 (timbre qui s'ouvre)
-                let vib = sin(2 * .pi * 2.2 * t) * 2.5             // ±2.5 Hz
-                let f1 = base + vib
-                let f2 = base * 1.503 + vib * 0.6                  // ~quinte
-                let f3 = base * 2.01                               // octave légère
+                let progress = t / dur
+                // Fréquence qui monte progressivement pendant l'absorption (E3 → ~G4).
+                let pitchMult = pow(1.42, progress)
+                let baseAtTime: Float = 165.0 * pitchMult
+                let drift = 0.25 + 0.75 * progress
+                let vib = sin(2 * .pi * 2.2 * t) * 2.5
+                let f1 = baseAtTime + vib
+                let f2 = baseAtTime * 1.503 + vib * 0.6
+                let f3 = baseAtTime * 2.01
                 let tone =
                     sin(2 * .pi * f1 * t) * (0.55 * drift) +
                     sin(2 * .pi * f2 * t) * (0.28 * drift) +
                     sin(2 * .pi * f3 * t) * (0.12 * drift)
 
-                // "Air" : bruit blanc filtré par enveloppe douce (approx).
                 let airEnv = max(0, min(1, (t / 0.20))) * max(0, min(1, (dur - t) / 0.25))
                 let air = Float.random(in: -1...1) * 0.06 * airEnv
 
-                // Léger tremolo pour éviter un ton statique.
-                let trem = 0.92 + 0.08 * sin(2 * .pi * 3.1 * t + 0.4)
-                return (tone + air) * trem
+                // Pulsation qui accélère et s'intensifie (effet d'accumulation).
+                let pulsePhase = 2 * .pi * (4.0 * t + 7.0 * t * t / dur)
+                let pulseDepth = 0.10 + 0.20 * progress
+                let pulse = 1.0 - pulseDepth * (0.5 + 0.5 * sin(pulsePhase))
+                return (tone + air) * pulse
             }
         ) else { return }
         play(buf)
@@ -253,7 +256,7 @@ final class BlomixProceduralSFX: @unchecked Sendable {
             duration: dur,
             attack:   0.0015,
             release:  0.020,
-            gain:     0.55 * k,
+            gain:     0.55 * k * 1.25,
             waveform: { t in
                 // Corps : deux partiels + composante "bois" très courte.
                 let tone = sin(2 * .pi * f0 * t) * 0.72

@@ -2258,6 +2258,13 @@ final class GameScene: SKScene {
         sceneHitRectForStartScreenChip(named: Self.startScreenRulesChipName).contains(scenePoint)
     }
 
+    private func touchHitsStartScreenRankDisc(_ scenePoint: CGPoint, discName: String) -> Bool {
+        guard let overlay = childNode(withName: Self.startScreenOverlayName),
+              let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName),
+              let disc = container.childNode(withName: discName) else { return false }
+        return sceneHitRectForGameOverButton(disc, minW: 54, minH: 80).contains(scenePoint)
+    }
+
     private func touchHitsGameOverRestartButton(_ scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.gameOverOverlayName),
               let node = overlay.childNode(withName: Self.gameOverRestartLabelName) else { return false }
@@ -2529,13 +2536,14 @@ final class GameScene: SKScene {
     }
 
     /// Bouton « Voir le classement » (Game Over) : présente `LeaderboardViewController` depuis le `rootViewController` UIKit.
-    private func showLeaderboard() {
+    private func showLeaderboard(initialTab: LeaderboardViewController.InitialTab = .mainScore) {
         let vc = LeaderboardViewController()
+        vc.initialTab = initialTab
         vc.onMatch = { [weak self] match in
             self?.beginPvPWithMatch(match)
         }
         presentFullScreenModal(vc)
-        print("[GameScene] LeaderboardViewController présenté")
+        print("[GameScene] LeaderboardViewController présenté (onglet \(initialTab))")
     }
 
     /// Écran réglages (volume SFX + skins), comme le classement : modal UIKit plein écran.
@@ -11401,6 +11409,18 @@ final class GameScene: SKScene {
 
             if touchHitsStartScreenZenButton(location) {
                 pendingButtonAction = { [weak self] in self?.beginZenModeFromStartScreen() }
+                return
+            }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscSoloName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .mainScore) }
+                return
+            }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscAvgName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .averageScore) }
+                return
+            }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscZenName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .zenScore) }
                 return
             }
             if touchHitsStartScreenScoresButton(location) {

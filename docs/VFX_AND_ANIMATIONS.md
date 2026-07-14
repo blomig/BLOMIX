@@ -572,21 +572,48 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 ### 11.1 Écran d'accueil
 
+**Layout (haut → bas)**
+
+| Zone | Contenu |
+|---|---|
+| Branding | `BLOMIX` + tagline (`titleY = 86 %` hauteur) |
+| Carte joueur | Nom GC, ligne Elo + chevron `›` (→ onglet Elo), 3 disques SOLO / MOY. / ZEN |
+| Liens utilitaires | « Réglages · Tutoriel » (séparateur en police système) |
+| Zone de jeu | Bouton hero **Solo** pleine largeur, puis **PvP** et **Zen** côte à côte |
+| Tip | Ancré en bas (`10 %` hauteur) |
+
+**Interactions**
+
+- Disque → `LeaderboardViewController` (onglet Solo / Moy. / Zen)
+- Ligne Elo → classement onglet Elo
+- Liens → Réglages / Tutoriel
+
 | Effet | Paramètres |
 |---|---|
 | Tips rotation | toutes les **5 s**, fade swap texte |
 | Titre slot machine | cycle **2,0 s**, ease custom |
-| Chips entrée | stagger bas→haut, slide **16 pt**, scale 1,15→1,0, fade **0,12 s** |
+| Boutons jeu | stagger PvP+Zen **0,22 s**, Solo **0,35 s** (dernier) ; slide **16 pt**, scale 1,15→1,0, fade **0,12 s** |
+| Disques rang | visibles immédiatement ; `#rang` rempli async après fetch GC |
 | Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
+
+**Bouton Solo hero** (`applyHeroAccent`)
+
+| Propriété | Valeur |
+|---|---|
+| Bordure | 1re couleur blox du skin actif (secours bleu `#5999F2`) |
+| Épaisseur bordure | **2 pt** (vs hairline `#444444` sur PvP/Zen) |
+| Fond | `#232323` + **22 %** de la couleur accent |
+| Texte | blanc, police jeu, ~12 % plus grand que les chips PvP/Zen |
 
 ### 11.2 Boutons (`BlomixSKButtonNode`)
 
 | Phase | Durée | Détail |
 |---|---|---|
-| Press | `pressAnimDuration` | scale down + move Y |
+| Press | `pressAnimDuration` | scale down + move Y ; fond `#2D2D2D` |
 | Release phase 1 | `releasePhase1Duration` | scale 1,07 + retour position |
 | Under-shoot | 0,06 s | scale 0,98 |
 | Settle | 0,04 s | scale 1,0 |
+| Hero release | — | restaure bordure/fond accent (`restingFillColor` / `restingBorderColor`) |
 
 ### 11.3 Blocs ambiants (`BlomixAmbientBlocksView`)
 

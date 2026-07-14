@@ -12,6 +12,10 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 Build **61**.
 
 ### Modifié
+- **Écran d'accueil** : refonte layout — carte joueur (nom, Elo cliquable, 3 disques SOLO/MOY./ZEN), liens « Réglages · Tutoriel », zone de jeu hero **Solo** + **PvP / Zen** côte à côte ; boutons Scores et Crédits retirés (accès classement via disques et ligne Elo)
+- **Bouton Solo hero** : accent dynamique skin (1re couleur blox, bordure 2 pt) + fond `#232323` teinté à 22 % (`applyHeroAccent`)
+- **Disques de rang** : libellé `#rang` rendu au-dessus du crop shader (sibling dans `discsContainer`) ; fetch GC avec repli `loadEntries(for: [localPlayer])`
+- **LeaderboardViewController** : onglet initial `.elo` pour la ligne Elo de l'accueil
 - **Animations Brix** : profil de mouvement distinct des blox couleur — stretch en vol plus discret (`BrixFlightStretch`), bounce à l'atterrissage moins marqué (`BrixLandingBounce`), vitesse et traîne inchangées
 - **Disparition Brix** : pop blanc + implosion (remplace le spin 360°) ; paillettes **carrées** colorées (11–15 + 15 micro-carrés, même timing que dissolution blox)
 - Version marketing **5.0** (build 61)

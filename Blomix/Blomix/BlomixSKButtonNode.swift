@@ -46,6 +46,11 @@ final class BlomixSKButtonNode: SKNode {
     /// Nœud d'ombre portée — même chemin que `backgroundNode`, légèrement décalé vers le bas.
     private(set) weak var shadowNode: SKShapeNode?
 
+    /// Couleurs de repos pour un bouton hero (accent skin) — restaurées après press/release.
+    private var restingFillColor = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
+    private var restingBorderColor = BlomixUIDestinationButtonStyle.borderColor
+    private var restingBorderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
+
     // MARK: - Init
 
     /// Crée un bouton avec fond arrondi et libellé centré.
@@ -101,6 +106,9 @@ final class BlomixSKButtonNode: SKNode {
         bg.zPosition   = 0
         addChild(bg)
         backgroundNode = bg
+        restingFillColor   = bg.fillColor
+        restingBorderColor = bg.strokeColor
+        restingBorderWidth = bg.lineWidth
 
         // ── Libellé centré ────────────────────────────────────────────────────
         let label = SKLabelNode(text: text)
@@ -177,13 +185,27 @@ final class BlomixSKButtonNode: SKNode {
         run(.sequence([phase1, underShoot, settle]), withKey: Self.pressActionKey)
 
         // Restaure le fond et l'ombre.
-        backgroundNode?.fillColor = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
+        backgroundNode?.fillColor   = restingFillColor
+        backgroundNode?.strokeColor = restingBorderColor
+        backgroundNode?.lineWidth   = restingBorderWidth
         let restoreAlpha = SKAction.fadeAlpha(to: 1, duration: dur1)
         restoreAlpha.timingMode = .easeOut
         shadowNode?.run(restoreAlpha)
     }
 
     // MARK: - Helpers
+
+    /// Accentue un bouton hero (bordure teintée skin + fond légèrement teinté).
+    func applyHeroAccent(borderColor: SKColor, fillTint: SKColor? = nil) {
+        restingBorderColor = borderColor
+        restingBorderWidth = 2.0
+        backgroundNode?.strokeColor = borderColor
+        backgroundNode?.lineWidth   = restingBorderWidth
+        if let fillTint {
+            restingFillColor = fillTint
+            backgroundNode?.fillColor = fillTint
+        }
+    }
 
     /// Met à jour le texte affiché sans reconstruire le nœud.
     func setText(_ text: String) {

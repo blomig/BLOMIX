@@ -16,6 +16,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case mainScore
         case averageScore
         case zenScore
+        case elo
     }
 
     var initialTab: InitialTab = .mainScore
@@ -133,6 +134,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case .mainScore:    return .mainScore
         case .averageScore: return .averageScore
         case .zenScore:     return .zenScore
+        case .elo:          return .elo
         }
     }
 

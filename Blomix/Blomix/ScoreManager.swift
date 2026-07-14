@@ -429,8 +429,8 @@ final class ScoreManager {
     /// or if the player has no entry yet. Rank is not capped — the player's actual position
     /// in the full global leaderboard is returned regardless of their standing.
     func fetchLocalPlayerRank(leaderboardID: String, completion: @escaping (Int?) -> Void) {
-        guard isAuthenticated else {
-            completion(nil)
+        guard GKLocalPlayer.local.isAuthenticated else {
+            Task { @MainActor in completion(nil) }
             return
         }
 
@@ -439,9 +439,16 @@ final class ScoreManager {
                 Task { @MainActor in completion(nil) }
                 return
             }
-            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 1)) { localEntry, _, _, error in
-                let rank: Int? = (error == nil) ? localEntry?.rank : nil
-                Task { @MainActor in completion(rank) }
+            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 1)) { localEntry, _, _, err in
+                if err == nil, let rank = localEntry?.rank {
+                    Task { @MainActor in completion(rank) }
+                    return
+                }
+                // Secours : entrée explicite du joueur local (comme LeaderboardViewController).
+                leaderboard.loadEntries(for: [GKLocalPlayer.local], timeScope: .allTime) { _, entries, err2 in
+                    let rank: Int? = (err2 == nil) ? entries?.first?.rank : nil
+                    Task { @MainActor in completion(rank) }
+                }
             }
         }
     }

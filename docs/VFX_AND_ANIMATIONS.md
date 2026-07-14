@@ -536,9 +536,14 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 | **Son** | `transition` (stage/Zen uniquement) |
 | **Fond** | **Aucun** voile sombre — jeu visible derrière |
 | **Pop-in** | Scale **0 → ×1,14 → ×0,94 → ×1,0** en **0,45 s** ; stagger **0,07 s** entre blocs de texte |
-| **Contour** | Halo blanc **15 pt** (info) / **18 pt** (grands titres) + remplissage jaune + contour orange |
+| **Typo** | Police joueur (`BlomixTypography`) ; tailles : préfixe **34 pt**, numéro **76 pt**, infos **26 pt** ; PvP titre **72 pt**, phrases **22 pt** |
+| **Rendu texte** | **Orange skin** + contour **blanc** (`strokeWidth` négatif) + **halo sombre** (label fantôme noir dilaté derrière) — un seul pipeline `SKLabelNode`, sans rasterisation |
+| **Contour blanc** | ≥ 60 pt : **5 px** ; 30–59 pt : **3,5 px** ; &lt; 30 pt : **2,5 px** |
+| **Halo sombre** | Label noir dupliqué derrière : scale **×1,04–1,06**, α **0,4–0,5** selon la taille |
 | **Pause** | **1,0 s** (stage/Zen) ; rotation de phrases (PvP) |
 | **Fade out** | **0,35 s** (stage/Zen) ; fondu à la fin du handshake (PvP) |
+
+Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlinedLabelText` dans `GameScene.swift`.
 
 #### Slide tutoriel (`stageLevelText` nil)
 

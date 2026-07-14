@@ -10424,35 +10424,22 @@ final class GameScene: SKScene {
         ])
     }
 
-    /// Label pop-in sans overlay sombre : sticker blanc (silhouette dilatée du texte) + face jaune / contour noir.
+    /// Label pop-in sans overlay sombre : orange skin + contour blanc + halo sombre (label fantôme).
 
-    /// Rayon « expand » du sticker : suit les courbes des glyphes sans large cadre rectangulaire.
-    private static func transitionStickerExpandRadius(forFontSize fontSize: CGFloat) -> CGFloat {
-        max(3.5, fontSize * 0.085)
+    private struct TransitionPopInStyle {
+        let outlineWidth: CGFloat
+        let haloScale: CGFloat
+        let haloAlpha: CGFloat
     }
 
-    /// Points entiers dans un disque — dilatation morphologique via empilement (sans Core Image).
-    private static func transitionStickerDiskOffsets(radius: CGFloat) -> [CGPoint] {
-        let r = Int(ceil(max(0, radius)))
-        guard r > 0 else { return [.zero] }
-        var points: [CGPoint] = []
-        for dx in -r...r {
-            for dy in -r...r where dx * dx + dy * dy <= r * r {
-                points.append(CGPoint(x: CGFloat(dx), y: CGFloat(dy)))
-            }
+    private static func transitionPopInStyle(forFontSize fontSize: CGFloat) -> TransitionPopInStyle {
+        if fontSize >= 60 {
+            return TransitionPopInStyle(outlineWidth: 5, haloScale: 1.06, haloAlpha: 0.5)
         }
-        return points
-    }
-
-    private static func transitionStickerFillAttributes(
-        fontSize: CGFloat,
-        layoutWidth: CGFloat,
-        numberOfLines: Int,
-        fillColor: UIColor
-    ) -> [NSAttributedString.Key: Any] {
-        transitionLabelDrawingAttributes(
-            fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-            foreground: fillColor)
+        if fontSize >= 30 {
+            return TransitionPopInStyle(outlineWidth: 3.5, haloScale: 1.05, haloAlpha: 0.5)
+        }
+        return TransitionPopInStyle(outlineWidth: 2.5, haloScale: 1.04, haloAlpha: 0.4)
     }
 
     private static func transitionLabelDrawingAttributes(
@@ -10460,8 +10447,7 @@ final class GameScene: SKScene {
         maxWidth: CGFloat,
         numberOfLines: Int,
         foreground: UIColor,
-        strokeColor: UIColor? = nil,
-        strokeWidth: CGFloat = 0
+        outlineWidth: CGFloat = 0
     ) -> [NSAttributedString.Key: Any] {
         let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
                   ?? UIFont.boldSystemFont(ofSize: fontSize)
@@ -10475,9 +10461,9 @@ final class GameScene: SKScene {
             .foregroundColor: foreground,
             .paragraphStyle:  para,
         ]
-        if let strokeColor, strokeWidth != 0 {
-            attrs[.strokeColor] = strokeColor
-            attrs[.strokeWidth] = strokeWidth
+        if outlineWidth > 0 {
+            attrs[.strokeColor] = UIColor.white
+            attrs[.strokeWidth] = -outlineWidth
         }
         return attrs
     }
@@ -10486,10 +10472,12 @@ final class GameScene: SKScene {
         text: String,
         fontSize: CGFloat,
         maxWidth: CGFloat,
-        numberOfLines: Int
+        numberOfLines: Int,
+        style: TransitionPopInStyle
     ) -> CGRect {
         let attrs = transitionLabelDrawingAttributes(
-            fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines, foreground: .white)
+            fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
+            foreground: .white, outlineWidth: style.outlineWidth)
         let constraint = CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude)
         return (text as NSString).boundingRect(
             with: constraint,
@@ -10503,94 +10491,33 @@ final class GameScene: SKScene {
         text: String,
         fontSize: CGFloat,
         maxWidth: CGFloat,
-        numberOfLines: Int
+        numberOfLines: Int,
+        style: TransitionPopInStyle
     ) -> CGFloat {
         if numberOfLines == 0 { return maxWidth }
         return max(1, measureTransitionLabelBounds(
-            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines).width)
+            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
+            style: style).width)
     }
 
-    /// Sticker : empilement de glyphes dilatés (disque) + liseré noir 2 px — forme = silhouette du texte.
-    private static func makeTransitionStickerExpandBacking(
-        text: String,
-        fontSize: CGFloat,
-        layoutWidth: CGFloat,
-        numberOfLines: Int
-    ) -> SKSpriteNode {
-        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
-                  ?? UIFont.boldSystemFont(ofSize: fontSize)
-        let expand = transitionStickerExpandRadius(forFontSize: fontSize)
-        let strokePx: CGFloat = 2
-        let outerRadius = expand + strokePx
-        let pad = outerRadius + 2
-
-        let bounds = measureTransitionLabelBounds(
-            text: text, fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines)
-        let contentH = numberOfLines == 0
-            ? max(1, ceil(bounds.height))
-            : max(1, uiFont.lineHeight)
-        let canvasW = layoutWidth + pad * 2
-        let canvasH = contentH + pad * 2
-
-        let drawRect = CGRect(
-            x: pad,
-            y: pad + (contentH - bounds.height) * 0.5 - bounds.origin.y,
-            width: layoutWidth,
-            height: bounds.height
-        )
-
-        let blackAttrs = transitionStickerFillAttributes(
-            fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines, fillColor: .black)
-        let whiteAttrs = transitionStickerFillAttributes(
-            fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines, fillColor: .white)
-        let drawOptions: NSStringDrawingOptions = [.usesLineFragmentOrigin, .usesFontLeading]
-
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
-        format.opaque = false
-        let fallbackSize = CGSize(width: canvasW, height: canvasH)
-
-        let stickerImage = UIGraphicsImageRenderer(size: fallbackSize, format: format).image { _ in
-            for offset in transitionStickerDiskOffsets(radius: outerRadius) {
-                let rect = drawRect.offsetBy(dx: offset.x, dy: offset.y)
-                (text as NSString).draw(with: rect, options: drawOptions, attributes: blackAttrs, context: nil)
-            }
-            for offset in transitionStickerDiskOffsets(radius: expand) {
-                let rect = drawRect.offsetBy(dx: offset.x, dy: offset.y)
-                (text as NSString).draw(with: rect, options: drawOptions, attributes: whiteAttrs, context: nil)
-            }
-        }
-
-        guard let stickerCG = stickerImage.cgImage else {
-            let node = SKSpriteNode(color: .clear, size: .zero)
-            node.name = "transitionStickerBg"
-            return node
-        }
-
-        let sprite = SKSpriteNode(texture: SKTexture(cgImage: stickerCG), size: fallbackSize)
-        sprite.name = "transitionStickerBg"
-        sprite.zPosition = 0
-        return sprite
-    }
-
-    private static func makeTransitionPopInFaceLabel(
+    private static func makeTransitionPopInLabelNode(
         text: String,
         fontSize: CGFloat,
         layoutWidth: CGFloat,
         fillColor: UIColor,
-        innerStrokeColor: UIColor,
-        numberOfLines: Int
+        style: TransitionPopInStyle,
+        numberOfLines: Int,
+        name: String
     ) -> SKLabelNode {
         let attrs = transitionLabelDrawingAttributes(
             fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-            foreground: fillColor, strokeColor: innerStrokeColor, strokeWidth: -4.5)
+            foreground: fillColor, outlineWidth: style.outlineWidth)
         let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
         lbl.horizontalAlignmentMode = .center
         lbl.verticalAlignmentMode   = .center
         lbl.numberOfLines           = numberOfLines
         lbl.preferredMaxLayoutWidth = layoutWidth
-        lbl.zPosition               = 1
-        lbl.name                    = "transitionStickerFace"
+        lbl.name                    = name
         return lbl
     }
 
@@ -10599,19 +10526,36 @@ final class GameScene: SKScene {
         fontSize: CGFloat,
         maxWidth: CGFloat,
         fillColor: UIColor,
-        innerStrokeColor: UIColor,
         numberOfLines: Int = 1
     ) -> SKNode {
         guard !text.isEmpty else { return SKNode() }
+        let style = transitionPopInStyle(forFontSize: fontSize)
         let layoutWidth = transitionLayoutWidth(
-            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines)
-        let wrapper = SKNode()
-        wrapper.addChild(makeTransitionStickerExpandBacking(
-            text: text, fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines))
-        wrapper.addChild(makeTransitionPopInFaceLabel(
+            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
+            style: style)
+
+        let haloAttrs = transitionLabelDrawingAttributes(
+            fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
+            foreground: .black)
+        let halo = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: haloAttrs))
+        halo.horizontalAlignmentMode = .center
+        halo.verticalAlignmentMode   = .center
+        halo.numberOfLines           = numberOfLines
+        halo.preferredMaxLayoutWidth = layoutWidth
+        halo.alpha                   = style.haloAlpha
+        halo.setScale(style.haloScale)
+        halo.zPosition               = 0
+        halo.name                    = "transitionPopInHalo"
+
+        let face = makeTransitionPopInLabelNode(
             text: text, fontSize: fontSize, layoutWidth: layoutWidth,
-            fillColor: fillColor, innerStrokeColor: innerStrokeColor,
-            numberOfLines: numberOfLines))
+            fillColor: fillColor, style: style, numberOfLines: numberOfLines,
+            name: "transitionPopInLabel")
+        face.zPosition = 1
+
+        let wrapper = SKNode()
+        wrapper.addChild(halo)
+        wrapper.addChild(face)
         return wrapper
     }
 
@@ -10622,21 +10566,31 @@ final class GameScene: SKScene {
         fontSize: CGFloat,
         maxWidth: CGFloat,
         fillColor: UIColor,
-        innerStrokeColor: UIColor,
         numberOfLines: Int = 1
     ) {
-        guard let face = wrapper.childNode(withName: "transitionStickerFace") as? SKLabelNode else { return }
+        let style = transitionPopInStyle(forFontSize: fontSize)
         let layoutWidth = transitionLayoutWidth(
-            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines)
-        face.attributedText = makeTransitionPopInFaceLabel(
-            text: text, fontSize: fontSize, layoutWidth: layoutWidth,
-            fillColor: fillColor, innerStrokeColor: innerStrokeColor,
-            numberOfLines: numberOfLines
-        ).attributedText
+            text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
+            style: style)
 
-        wrapper.childNode(withName: "transitionStickerBg")?.removeFromParent()
-        wrapper.insertChild(makeTransitionStickerExpandBacking(
-            text: text, fontSize: fontSize, layoutWidth: layoutWidth, numberOfLines: numberOfLines), at: 0)
+        if let halo = wrapper.childNode(withName: "transitionPopInHalo") as? SKLabelNode {
+            let haloAttrs = transitionLabelDrawingAttributes(
+                fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
+                foreground: .black)
+            halo.attributedText = NSAttributedString(string: text, attributes: haloAttrs)
+            halo.preferredMaxLayoutWidth = layoutWidth
+            halo.alpha = style.haloAlpha
+            halo.setScale(style.haloScale)
+        }
+
+        if let face = wrapper.childNode(withName: "transitionPopInLabel") as? SKLabelNode {
+            face.attributedText = makeTransitionPopInLabelNode(
+                text: text, fontSize: fontSize, layoutWidth: layoutWidth,
+                fillColor: fillColor, style: style, numberOfLines: numberOfLines,
+                name: "transitionPopInLabel"
+            ).attributedText
+            face.preferredMaxLayoutWidth = layoutWidth
+        }
     }
 
     /// Retourne une `SKAction` qui, pendant `slideDuration`, lit la position scène de `trackedNode`
@@ -10743,12 +10697,9 @@ final class GameScene: SKScene {
         let maxW:      CGFloat = size.width - 48
 
         // Couleurs du skin joueur (fallback si skin non chargé).
-        let yellowColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "yellow")
-                       ?? SKColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1)
-        let outlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
-                        ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
-        let fillUIColor = yellowColor as UIColor
-        let innerStrokeUIColor = UIColor.black
+        let orangeColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
+                       ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
+        let fillUIColor = orangeColor as UIColor
 
         if let levelText = stageLevelText {
             // ── Variante STAGE : "Level" + numéro/mot + 2 lignes d'infos ──────
@@ -10769,13 +10720,13 @@ final class GameScene: SKScene {
 
             let labelLevel = Self.makeTransitionPopInOutlinedLabel(
                 text: levelPrefix, fontSize: levelFontSize, maxWidth: maxW,
-                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
+                fillColor: fillUIColor)
             labelLevel.position = CGPoint(x: 0, y: levelLabelY - blockCenterY)
             headerNode.addChild(labelLevel)
 
             let labelNum = Self.makeTransitionPopInOutlinedLabel(
                 text: levelText, fontSize: numFontSize, maxWidth: maxW,
-                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
+                fillColor: fillUIColor)
             labelNum.position = CGPoint(x: 0, y: numberY - blockCenterY)
             headerNode.addChild(labelNum)
 
@@ -10786,7 +10737,7 @@ final class GameScene: SKScene {
 
             let infoLabel1 = Self.makeTransitionPopInOutlinedLabel(
                 text: line1, fontSize: infoFontSize, maxWidth: maxW,
-                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
+                fillColor: fillUIColor)
             infoLabel1.position = CGPoint(x: centerX, y: line1Y)
             infoLabel1.setScale(0)
             infoLabel1.alpha = 0
@@ -10794,7 +10745,7 @@ final class GameScene: SKScene {
 
             let infoLabel2 = Self.makeTransitionPopInOutlinedLabel(
                 text: line2, fontSize: infoFontSize, maxWidth: maxW,
-                fillColor: fillUIColor, innerStrokeColor: innerStrokeUIColor)
+                fillColor: fillUIColor)
             infoLabel2.position = CGPoint(x: centerX, y: line2Y)
             infoLabel2.setScale(0)
             infoLabel2.alpha = 0
@@ -11865,12 +11816,9 @@ final class GameScene: SKScene {
         let maxW:      CGFloat       = size.width - 80
 
         // Couleurs du skin joueur.
-        let pvpYellowColor  = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "yellow")
-                           ?? SKColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1)
-        let pvpOutlineColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
-                           ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
-        let pvpFillUIColor = pvpYellowColor as UIColor
-        let pvpInnerStrokeUIColor = UIColor.black
+        let pvpOrangeColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
+                          ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
+        let pvpFillUIColor = pvpOrangeColor as UIColor
 
         // ── En-tête "P vs P" — pop-in depuis le centre (aligné sur les transitions solo) ──
         let pvpFontSize: CGFloat = 72
@@ -11881,8 +11829,7 @@ final class GameScene: SKScene {
             text: "P vs P",
             fontSize: pvpFontSize,
             maxWidth: maxW,
-            fillColor: pvpFillUIColor,
-            innerStrokeColor: pvpInnerStrokeUIColor)
+            fillColor: pvpFillUIColor)
         pvpTitleNode.zPosition = 1
         pvpTitleNode.position = CGPoint(x: centerX, y: blockCenterY)
         pvpTitleNode.setScale(0)
@@ -11902,7 +11849,6 @@ final class GameScene: SKScene {
             fontSize: phraseFontSize,
             maxWidth: maxW,
             fillColor: pvpFillUIColor,
-            innerStrokeColor: pvpInnerStrokeUIColor,
             numberOfLines: 0)
         label.zPosition = 1
         label.position = CGPoint(x: centerX, y: labelY)
@@ -11936,7 +11882,6 @@ final class GameScene: SKScene {
                         fontSize: phraseFontSize,
                         maxWidth: maxW,
                         fillColor: pvpFillUIColor,
-                        innerStrokeColor: pvpInnerStrokeUIColor,
                         numberOfLines: 0)
                 },
                 SKAction.fadeIn(withDuration: fadeDur),

@@ -18,6 +18,7 @@ Build **61**.
 - **LeaderboardViewController** : onglet initial `.elo` pour la ligne Elo de l'accueil
 - **Animations Brix** : profil de mouvement distinct des blox couleur — stretch en vol plus discret (`BrixFlightStretch`), bounce à l'atterrissage moins marqué (`BrixLandingBounce`), vitesse et traîne inchangées
 - **Disparition Brix** : pop blanc + implosion (remplace le spin 360°) ; paillettes **carrées** colorées (11–15 + 15 micro-carrés, même timing que dissolution blox)
+- **Transitions stage / Zen / PvP** : texte **orange skin** + contour blanc + halo sombre (label fantôme) — remplace le sticker rasterisé (meilleur alignement, moins de code)
 - Version marketing **5.0** (build 61)
 
 ---

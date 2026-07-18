@@ -268,3 +268,9 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "pvp.availability_cloudkit_error_format" = "Error de CloudKit: %@";
 
 "generic.ok" = "OK";
+
+/* Apariencia */
+"appearance.toggle_a11y" = "Cambiar entre modo oscuro y claro";
+"appearance.dark" = "Oscuro";
+"appearance.light" = "Claro";
+

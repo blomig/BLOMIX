@@ -121,7 +121,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
 
         selectedLeaderboardKind = leaderboardKind(for: initialTab)
@@ -140,13 +140,13 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     private func setupUI() {
         titleLabel.text = BlomixL10n.leaderboardTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 28, fallbackWeight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
         subtitleLabel.text = BlomixL10n.leaderboardSubtitle
-        subtitleLabel.textColor = UIColor(white: 0.75, alpha: 1)
+        subtitleLabel.textColor = BlomixAppearance.secondaryText
         subtitleLabel.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(subtitleLabel)
@@ -181,7 +181,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         view.addSubview(closeButton)
 
-        statusLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        statusLabel.textColor = BlomixAppearance.secondaryText
         statusLabel.font = FontTheme.gameFont(size: 14, fallbackWeight: .regular)
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
@@ -211,21 +211,21 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         inviteSpinner.translatesAutoresizingMaskIntoConstraints = false
         inviteOverlay.addSubview(inviteSpinner)
 
-        inviteStatusLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        inviteStatusLabel.textColor = BlomixAppearance.secondaryText
         inviteStatusLabel.font = FontTheme.gameFont(size: 18, fallbackWeight: .regular)
         inviteStatusLabel.textAlignment = .center
         inviteStatusLabel.numberOfLines = 0
         inviteStatusLabel.translatesAutoresizingMaskIntoConstraints = false
         inviteOverlay.addSubview(inviteStatusLabel)
 
-        inviteHintLabel.textColor = UIColor(white: 0.55, alpha: 1)
+        inviteHintLabel.textColor = BlomixAppearance.tertiaryText
         inviteHintLabel.font = FontTheme.gameFont(size: 13, fallbackWeight: .regular)
         inviteHintLabel.textAlignment = .center
         inviteHintLabel.numberOfLines = 0
         inviteHintLabel.translatesAutoresizingMaskIntoConstraints = false
         inviteOverlay.addSubview(inviteHintLabel)
 
-        inviteCountdownLabel.textColor = UIColor(white: 0.9, alpha: 1)
+        inviteCountdownLabel.textColor = BlomixAppearance.primaryText
         inviteCountdownLabel.font = FontTheme.gameFont(size: 52, fallbackWeight: .regular)
         inviteCountdownLabel.textAlignment = .center
         inviteCountdownLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -341,7 +341,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private func applyTabSelectionStyle(button: UIButton, selected: Bool) {
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: button)
         button.alpha = selected ? 1.0 : 0.7
-        button.layer.borderColor = (selected ? UIColor.white : BlomixUIDestinationButtonStyle.borderColor).cgColor
+        button.layer.borderColor = (selected ? BlomixAppearance.primaryText : BlomixUIDestinationButtonStyle.borderColor).cgColor
         button.layer.borderWidth = selected ? 1.0 : BlomixUIDestinationButtonStyle.hairlineBorderWidth
     }
 
@@ -519,14 +519,16 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let row = rows[indexPath.row]
         let cell = tableView.dequeueReusableCell(withIdentifier: "LeaderboardCell", for: indexPath)
-        cell.backgroundColor = row.isLocalPlayer ? UIColor(white: 0.16, alpha: 1) : UIColor.clear
+        cell.backgroundColor = row.isLocalPlayer ? BlomixAppearance.tableRowHighlight : UIColor.clear
         cell.selectionStyle = .none
 
         var content = UIListContentConfiguration.subtitleCell()
         content.text = "#\(row.rank)  \(row.playerName)"
         content.secondaryText = selectedLeaderboardKind.secondaryText(for: row.score)
-        content.textProperties.color = .white
-        content.secondaryTextProperties.color = row.isLocalPlayer ? .white : UIColor(white: 0.78, alpha: 1)
+        content.textProperties.color = BlomixAppearance.primaryText
+        content.secondaryTextProperties.color = row.isLocalPlayer
+            ? BlomixAppearance.primaryText
+            : BlomixAppearance.secondaryText
         content.textProperties.font = FontTheme.gameFont(size: 16, fallbackWeight: row.isLocalPlayer ? .bold : .regular)
         content.secondaryTextProperties.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
         cell.contentConfiguration = content
@@ -536,7 +538,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             let countLabel = UILabel()
             countLabel.text = BlomixL10n.leaderboardAvgGameCount(row.gameCount)
             countLabel.font = FontTheme.gameFont(size: 12, fallbackWeight: .regular)
-            countLabel.textColor = row.isLocalPlayer ? UIColor(white: 0.9, alpha: 1) : UIColor(white: 0.55, alpha: 1)
+            countLabel.textColor = row.isLocalPlayer ? BlomixAppearance.primaryText : BlomixAppearance.tertiaryText
             countLabel.textAlignment = .right
             countLabel.sizeToFit()
             cell.accessoryView = countLabel
@@ -761,11 +763,11 @@ final class BlomixPlainTextModalViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
 
         titleLabel.text = screenTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
@@ -778,7 +780,7 @@ final class BlomixPlainTextModalViewController: UIViewController {
         view.addSubview(closeButton)
 
         textView.text = body
-        textView.textColor = UIColor(white: 0.92, alpha: 1)
+        textView.textColor = BlomixAppearance.primaryText
         textView.font = FontTheme.gameFont(size: 14, weight: .regular)
         textView.backgroundColor = .clear
         textView.isEditable = false
@@ -811,7 +813,7 @@ final class BlomixPlainTextModalViewController: UIViewController {
             guideSwitch.addTarget(self, action: #selector(guideSwitchChanged(_:)), for: .valueChanged)
 
             guideLabel.text = BlomixL10n.rulesShowGuidesAtStart
-            guideLabel.textColor = UIColor(white: 0.88, alpha: 1)
+            guideLabel.textColor = BlomixAppearance.secondaryText
             guideLabel.font = FontTheme.gameFont(size: 14, weight: .regular)
             guideLabel.numberOfLines = 0
 
@@ -998,18 +1000,18 @@ private final class RelativeSoundMixRowView: UIView {
         super.init(frame: .zero)
 
         translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        backgroundColor = BlomixAppearance.panelFill
         layer.cornerRadius = 8
         layer.borderWidth = 0.5
         layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
         directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
 
         titleLabel.text = BlomixL10n.settingsSoundName(forSoundNamed: soundName)
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
         titleLabel.numberOfLines = 2
 
-        percentLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        percentLabel.textColor = BlomixAppearance.secondaryText
         percentLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
         percentLabel.textAlignment = .right
 
@@ -1070,11 +1072,11 @@ final class SoundMixSettingsViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
 
         titleLabel.text = BlomixL10n.settingsSoundMixTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
@@ -1141,16 +1143,16 @@ private final class BlomixMasterVolumeRowView: UIView {
     override init(frame: CGRect) {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        backgroundColor = BlomixAppearance.panelFill
         layer.cornerRadius = 8
         layer.borderWidth = 0.5
         layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
         directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
 
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
 
-        percentLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        percentLabel.textColor = BlomixAppearance.secondaryText
         percentLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
         percentLabel.textAlignment = .right
 
@@ -1223,11 +1225,11 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
 
         titleLabel.text = BlomixL10n.settingsTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
@@ -1308,7 +1310,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
 
     private func configureSectionHeading(_ label: UILabel, text: String) {
         label.text = text
-        label.textColor = UIColor(white: 0.88, alpha: 1)
+        label.textColor = BlomixAppearance.secondaryText
         label.font = FontTheme.gameFont(size: 16, weight: .semibold)
     }
 
@@ -1433,18 +1435,18 @@ private final class SkinChoiceRowView: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         layer.cornerRadius = 8
         layer.borderWidth = isSelected ? 1.5 : 0.5
-        layer.borderColor = (isSelected ? UIColor.white : UIColor(white: 0.35, alpha: 1)).cgColor
-        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        layer.borderColor = (isSelected ? BlomixAppearance.primaryText : BlomixAppearance.chipBorder).cgColor
+        backgroundColor = BlomixAppearance.panelFill
 
         let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         let img = UIImage(systemName: isSelected ? "largecircle.fill.circle" : "circle", withConfiguration: config)
         radio.image = img
-        radio.tintColor = .white
+        radio.tintColor = BlomixAppearance.tertiaryText
         radio.translatesAutoresizingMaskIntoConstraints = false
         addSubview(radio)
 
         nameLabel.text = skin.displayName
-        nameLabel.textColor = .white
+        nameLabel.textColor = BlomixAppearance.primaryText
         nameLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel)
@@ -1529,7 +1531,7 @@ private final class SkinChoiceRowView: UIView {
             btn.setTitle("↺", for: .normal)
             btn.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
             btn.setTitleColor(UIColor(white: 0.72, alpha: 1), for: .normal)
-            btn.setTitleColor(UIColor.white, for: .highlighted)
+            btn.setTitleColor(BlomixAppearance.primaryText, for: .highlighted)
             btn.translatesAutoresizingMaskIntoConstraints = false
             addSubview(btn)
             btn.addAction(UIAction { _ in handler() }, for: .touchUpInside)
@@ -1602,23 +1604,23 @@ private final class FontChoiceRowView: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         layer.cornerRadius = 8
         layer.borderWidth = isSelected ? 1.5 : 0.5
-        layer.borderColor = (isSelected ? UIColor.white : UIColor(white: 0.35, alpha: 1)).cgColor
-        backgroundColor = UIColor(white: 0.1, alpha: 1)
+        layer.borderColor = (isSelected ? BlomixAppearance.primaryText : BlomixAppearance.chipBorder).cgColor
+        backgroundColor = BlomixAppearance.panelFill
 
         let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         radio.image = UIImage(systemName: isSelected ? "largecircle.fill.circle" : "circle", withConfiguration: config)
-        radio.tintColor = .white
+        radio.tintColor = BlomixAppearance.tertiaryText
         radio.translatesAutoresizingMaskIntoConstraints = false
         addSubview(radio)
 
         nameLabel.text = BlomixTypography.shared.fontDisplayName(for: choice)
-        nameLabel.textColor = .white
+        nameLabel.textColor = BlomixAppearance.primaryText
         nameLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(nameLabel)
 
         previewLabel.text = BlomixL10n.settingsFontPreview
-        previewLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        previewLabel.textColor = BlomixAppearance.secondaryText
         previewLabel.font = UIFont(name: choice.postScriptName, size: 15) ?? .systemFont(ofSize: 15, weight: .regular)
         previewLabel.textAlignment = .right
         previewLabel.translatesAutoresizingMaskIntoConstraints = false

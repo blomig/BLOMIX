@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 5.0  
+> **Version de référence** : 5.1  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 

@@ -180,13 +180,19 @@ final class BlomixSkinCatalog: @unchecked Sendable {
     /// Écrit un set de couleurs aléatoires en UserDefaults pour le skin Alea (sans notifier).
     private static func writeRandomAleaColorsToDefaults() {
         // 6 couleurs de blox : cercle chromatique en 6 secteurs de 60° + jitter ±20°.
+        // Sat/L couplés : en HSL le chroma perçu est max vers L≈0.5 ; une sat élevée
+        // dans cette zone donne des teintes « criardes ». On tire une sat douce
+        // (0.32…0.65), puis on resserre L vers le bas quand la sat monte.
         let baseHue = Double.random(in: 0..<360)
         for (i, key) in bloxDisplayOrder.enumerated() {
             var rawHue = baseHue + Double(i) * 60.0 + Double.random(in: -20...20)
             rawHue = (rawHue.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
             let hue = rawHue / 360.0
-            let sat   = Double.random(in: 0.55...0.90)
-            let light = Double.random(in: 0.42...0.62)
+            let sat = Double.random(in: 0.32...0.65)
+            let t = (sat - 0.32) / (0.65 - 0.32) // 0 = peu saturé, 1 = plus saturé
+            let lightMin = 0.38
+            let lightMax = 0.66 - t * 0.16        // sat haute → L max ≈ 0.50 (évite le néon)
+            let light = Double.random(in: lightMin...lightMax)
             UserDefaults.standard.set(hslToHex(h: hue, s: sat, l: light),
                                       forKey: udPersoHexKey(key, skinId: aleaSkinId))
         }
@@ -795,6 +801,7 @@ final class GameScene: SKScene {
     private static let startScreenUtilityLinksContainerName = "startScreenUtilityLinksContainer"
     private static let startScreenSettingsLinkName = "startScreenSettingsLink"
     private static let startScreenTutorialLinkName = "startScreenTutorialLink"
+    private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
     private static let studioSplashOverlayName = "studioSplashOverlay"
     private static let hudPvPTurnTimerName = "hudPvPCountdown"
     private static let hudPvPOpponentName = "hudPvPOpponentName"
@@ -1028,18 +1035,12 @@ final class GameScene: SKScene {
         static let bombBarMinWidth: CGFloat = 52
         /// Écart entre le **bas** de l’icône bombe et le **haut** de la barre « Next bomb ».
         static let bombStackBelowIcon: CGFloat = 6
-        /// Cases **vides** des barres (comme avant).
-        static let dimTrack = SKColor(white: 0.2, alpha: 1)
-        /// Cases **remplies** — Next line & Next bomb (#ADADAD). Pas d’appel à `GameScene.skColor` ici (init statique non isolé du MainActor).
-        static let segmentFilled: SKColor = {
-            let h: UInt32 = 0xADADAD
-            let r = CGFloat((h >> 16) & 0xff) / 255
-            let g = CGFloat((h >> 8) & 0xff) / 255
-            let b = CGFloat(h & 0xff) / 255
-            return SKColor(red: r, green: g, blue: b, alpha: 1)
-        }()
-        static let lineFill = segmentFilled
-        static let bombFill = segmentFilled
+        /// Cases **vides** des barres — thème chrome.
+        static var dimTrack: SKColor { BlomixAppearance.progressTrackSK }
+        /// Cases **remplies** — Next line & Next bomb — thème chrome.
+        static var segmentFilled: SKColor { BlomixAppearance.progressFillSK }
+        static var lineFill: SKColor { segmentFilled }
+        static var bombFill: SKColor { segmentFilled }
 
         static let remoteFillSegmentWidth: CGFloat = 4
         static let remoteFillGap: CGFloat = 4
@@ -1371,7 +1372,7 @@ final class GameScene: SKScene {
             Task { @MainActor in
                 guard let self, self.isStartScreen else { return }
                 // Masque immédiatement l'overlay statique : la transition modale (crossDissolve)
-                // révèle ainsi le fond noir plutôt que l'accueil figé.
+                // révèle ainsi le fond scène plutôt que l'accueil figé.
                 self.childNode(withName: Self.startScreenOverlayName)?.alpha = 0
             }
         }
@@ -1397,6 +1398,8 @@ final class GameScene: SKScene {
             presentStartScreenOrRestoreSoloSave()
         } else {
             didShowStudioSplash = true
+            // Splash studio toujours noir (indépendant du thème Clair/Sombre).
+            forceStudioSplashBlackChrome()
             presentStudioSplashThenStartScreen()
         }
 
@@ -1556,13 +1559,34 @@ final class GameScene: SKScene {
         chevron.position = CGPoint(x: eloLabel.position.x + eloW / 2 + gap + chevW / 2, y: 0)
     }
 
+    /// Icône soleil / lune pour basculer Sombre ↔ Clair (uniquement sur l'accueil).
+    private func makeStartScreenAppearanceToggleNode() -> SKNode {
+        let hitSide: CGFloat = 48
+        let iconSide: CGFloat = 30
+        let container = SKNode()
+        container.name = Self.startScreenAppearanceToggleName
+
+        // Zone de hit invisible, confortable au doigt.
+        let hit = SKSpriteNode(color: .clear, size: CGSize(width: hitSide, height: hitSide))
+        hit.zPosition = 0
+        container.addChild(hit)
+
+        let icon = SKSpriteNode(
+            texture: BlomixAppearance.appearanceToggleTexture(pointSize: 22, canvasSide: iconSide)
+        )
+        icon.size = CGSize(width: iconSide, height: iconSide)
+        icon.zPosition = 1
+        container.addChild(icon)
+        return container
+    }
+
     /// Liens texte « Réglages · Tutoriel » sous la carte joueur.
     private func makeStartScreenUtilityLinks(fontSize: CGFloat) -> SKNode {
         let container = SKNode()
         container.name = Self.startScreenUtilityLinksContainerName
 
-        let linkColor = UIColor(white: 0.55, alpha: 1)
-        let sepColor  = UIColor(white: 0.38, alpha: 1)
+        let linkColor = BlomixAppearance.linkText
+        let sepColor  = BlomixAppearance.separatorText
         let gameFontName = Self.customUIFontPostScriptName
         let gameFont = UIFont(name: gameFontName, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
         // Police système pour le séparateur : la police du jeu ne dessine souvent pas « · ».
@@ -1630,7 +1654,7 @@ final class GameScene: SKScene {
         label.name = discName + rankDiscRankLabelSuffix
         label.fontName = fontName
         label.fontSize = fontSize
-        label.fontColor = .white
+        label.fontColor = BlomixAppearance.primaryTextSK
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .center
         label.position = position
@@ -1709,7 +1733,7 @@ final class GameScene: SKScene {
         overlay.zPosition = 120
         addChild(overlay)
 
-        let backdrop = SKSpriteNode(color: .black, size: size)
+        let backdrop = SKSpriteNode(color: BlomixAppearance.sceneBackgroundSK, size: size)
         backdrop.name = Self.startScreenBackdropName
         backdrop.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         backdrop.position = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -1730,7 +1754,7 @@ final class GameScene: SKScene {
         title.name = Self.startScreenTitleLabelName
         title.fontName = Self.customUIFontPostScriptName
         title.fontSize = 40
-        title.fontColor = .white
+        title.fontColor = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode = .center
         title.position = CGPoint(x: cx, y: titleY)
@@ -1741,7 +1765,7 @@ final class GameScene: SKScene {
         subtitle.name = Self.startScreenSubtitleLabelName
         subtitle.fontName = Self.customUIFontPostScriptName
         subtitle.fontSize = 13
-        subtitle.fontColor = .white
+        subtitle.fontColor = BlomixAppearance.primaryTextSK
         subtitle.horizontalAlignmentMode = .center
         subtitle.verticalAlignmentMode = .center
         subtitle.position = CGPoint(x: cx, y: titleY - 42)
@@ -1754,7 +1778,7 @@ final class GameScene: SKScene {
         playerNameLabel.name = Self.startScreenPlayerNameLabelName
         playerNameLabel.fontName = Self.customUIFontPostScriptName
         playerNameLabel.fontSize = 12
-        playerNameLabel.fontColor = UIColor(white: 0.9, alpha: 1)
+        playerNameLabel.fontColor = BlomixAppearance.secondaryText
         playerNameLabel.horizontalAlignmentMode = .center
         playerNameLabel.verticalAlignmentMode = .center
         playerNameLabel.position = CGPoint(x: cx, y: playerNameY)
@@ -1772,7 +1796,7 @@ final class GameScene: SKScene {
         playerEloLabel.name = Self.startScreenPlayerEloLabelName
         playerEloLabel.fontName = Self.customUIFontPostScriptName
         playerEloLabel.fontSize = 12
-        playerEloLabel.fontColor = UIColor(white: 0.82, alpha: 1)
+        playerEloLabel.fontColor = BlomixAppearance.secondaryText
         playerEloLabel.horizontalAlignmentMode = .center
         playerEloLabel.verticalAlignmentMode = .center
         eloRow.addChild(playerEloLabel)
@@ -1781,7 +1805,7 @@ final class GameScene: SKScene {
         eloChevron.name = Self.startScreenPlayerEloChevronName
         eloChevron.fontName = UIFont.systemFont(ofSize: 13, weight: .regular).fontName
         eloChevron.fontSize = 14
-        eloChevron.fontColor = UIColor(white: 0.55, alpha: 1)
+        eloChevron.fontColor = BlomixAppearance.tertiaryText
         eloChevron.horizontalAlignmentMode = .center
         eloChevron.verticalAlignmentMode = .center
         eloRow.addChild(eloChevron)
@@ -1842,6 +1866,13 @@ final class GameScene: SKScene {
         utilityLinks.zPosition = 2
         overlay.addChild(utilityLinks)
 
+        // ── Toggle apparence Sombre / Clair (icône) ─────────────────────────────
+        let appearanceToggleY = utilityLinksY - 36
+        let appearanceToggle = makeStartScreenAppearanceToggleNode()
+        appearanceToggle.position = CGPoint(x: cx, y: appearanceToggleY)
+        appearanceToggle.zPosition = 2
+        overlay.addChild(appearanceToggle)
+
         // ── Bande 3 : boutons de jeu (hero Solo + PvP/Zen côte à côte) ───────────
         let maxChipOuter = size.width - 32
         let playBandW = maxChipOuter / 2
@@ -1854,7 +1885,7 @@ final class GameScene: SKScene {
         let heroSize = CGSize(width: playBandW, height: heroH)
 
         let playBandDrop: CGFloat = 100
-        let heroY = utilityLinksY - 40 - heroH / 2 - playBandDrop
+        let heroY = appearanceToggleY - 40 - heroH / 2 - playBandDrop
         let pairGap: CGFloat = 12
         let pairChipW = (playBandW - pairGap) / 2
         let pairChipSize = CGSize(width: pairChipW, height: hChip)
@@ -1915,7 +1946,7 @@ final class GameScene: SKScene {
         let tipHeader = SKLabelNode(text: BlomixL10n.startScreenTipHeader)
         tipHeader.fontName = Self.customUIFontPostScriptName
         tipHeader.fontSize = 9
-        tipHeader.fontColor = UIColor(white: 0.45, alpha: 1)
+        tipHeader.fontColor = BlomixAppearance.tertiaryText
         tipHeader.horizontalAlignmentMode = .center
         tipHeader.verticalAlignmentMode = .center
         tipHeader.position = .zero
@@ -2016,6 +2047,9 @@ final class GameScene: SKScene {
         utilityLinks.alpha = 0
         utilityLinks.run(.sequence([.wait(forDuration: 0.32), .fadeIn(withDuration: 0.22)]))
 
+        appearanceToggle.alpha = 0
+        appearanceToggle.run(.sequence([.wait(forDuration: 0.36), .fadeIn(withDuration: 0.22)]))
+
         // Boutons de jeu : stagger PvP+Zen puis Solo en conclusion.
         runStartScreenGameChipEntrance(on: pvpChip, delay: 0.22)
         runStartScreenGameChipEntrance(on: zenChip, delay: 0.22)
@@ -2091,7 +2125,29 @@ final class GameScene: SKScene {
         block.run(SKAction.sequence([move, cleanup]))
     }
 
-    /// Splash court du studio (fond noir + logo), puis ecran titre habituel.
+    /// Force fond noir (scène + UIView) pendant le splash studio — inchangé en Clair.
+    private func forceStudioSplashBlackChrome() {
+        (childNode(withName: Self.backgroundNodeName) as? SKSpriteNode)?.color = .black
+        if let vc = view?.window?.rootViewController as? GameViewController {
+            vc.applyForcedBlackChromeForStudioSplash()
+        } else {
+            view?.backgroundColor = .black
+            view?.superview?.backgroundColor = .black
+        }
+    }
+
+    /// Restaure le chrome selon le thème sauvegardé (après le splash studio).
+    private func restoreAppearanceChromeAfterStudioSplash() {
+        refreshFullscreenBackgroundColor()
+        if let vc = view?.window?.rootViewController as? GameViewController {
+            vc.applyBlomixAppearanceChrome()
+        } else {
+            view?.backgroundColor = BlomixAppearance.sceneBackground
+            view?.superview?.backgroundColor = BlomixAppearance.sceneBackground
+        }
+    }
+
+    /// Splash court du studio (fond noir + logo — toujours identique, hors thème Clair/Sombre), puis écran titre.
     private func presentStudioSplashThenStartScreen() {
         childNode(withName: Self.studioSplashOverlayName)?.removeFromParent()
 
@@ -2100,6 +2156,7 @@ final class GameScene: SKScene {
         overlay.zPosition = 180
         addChild(overlay)
 
+        // Toujours noir — le splash studio ne suit pas BlomixAppearance.
         let backdrop = SKSpriteNode(color: .black, size: size)
         backdrop.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         backdrop.position = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -2125,6 +2182,7 @@ final class GameScene: SKScene {
         let logo = SKSpriteNode(imageNamed: Self.studioLogoAssetName)
         guard logo.texture != nil else {
             overlay.removeFromParent()
+            restoreAppearanceChromeAfterStudioSplash()
             presentStartScreenOrRestoreSoloSave()
             return
         }
@@ -2181,6 +2239,8 @@ final class GameScene: SKScene {
             SKAction.fadeOut(withDuration: 0.28),
             SKAction.run { [weak self, weak overlay] in
                 overlay?.removeFromParent()
+                // Réappliquer le thème (Clair/Sombre) juste avant l'accueil.
+                self?.restoreAppearanceChromeAfterStudioSplash()
                 self?.presentStartScreenOrRestoreSoloSave()
             },
         ])
@@ -2212,8 +2272,7 @@ final class GameScene: SKScene {
         setupScoreHUD()
         drawGrid()
         updatePreviewSprite()
-        ensureGameOverflowMenuIfNeeded()
-        layoutGameOverflowMenuIfNeeded()
+        rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
 
         soundBank.play(.begin)
@@ -2246,8 +2305,7 @@ final class GameScene: SKScene {
         setupScoreHUD()
         drawGrid()
         updatePreviewSprite()
-        ensureGameOverflowMenuIfNeeded()
-        layoutGameOverflowMenuIfNeeded()
+        rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
 
         soundBank.play(.begin)
@@ -2368,6 +2426,28 @@ final class GameScene: SKScene {
         touchHitsStartScreenUtilityLink(named: Self.startScreenTutorialLinkName, scenePoint: scenePoint)
     }
 
+    private func touchHitsStartScreenAppearanceToggle(_ scenePoint: CGPoint) -> Bool {
+        guard let overlay = childNode(withName: Self.startScreenOverlayName),
+              let toggle = overlay.childNode(withName: Self.startScreenAppearanceToggleName) else { return false }
+        let local = overlay.convert(scenePoint, to: toggle)
+        return abs(local.x) <= 22 && abs(local.y) <= 22
+    }
+
+    private func toggleAppearanceFromStartScreen() {
+        BlomixAppearance.toggle()
+        // L'icône hamburger est une texture rasterisée : invalider pour la prochaine partie.
+        childNode(withName: Self.bottomMenuContainerName)?.removeFromParent()
+        refreshFullscreenBackgroundColor()
+        presentStartScreen()
+        if let vc = view?.window?.rootViewController as? GameViewController {
+            vc.applyBlomixAppearanceChrome()
+        } else {
+            view?.window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
+            view?.superview?.backgroundColor = BlomixAppearance.sceneBackground
+            view?.backgroundColor = BlomixAppearance.sceneBackground
+        }
+    }
+
     private func touchHitsStartScreenUtilityLink(named linkName: String, scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
               let container = overlay.childNode(withName: Self.startScreenUtilityLinksContainerName),
@@ -2436,7 +2516,7 @@ final class GameScene: SKScene {
         label.name = Self.gameCenterStatusLabelName
         label.fontName = Self.customUIFontPostScriptName
         label.fontSize = 11
-        label.fontColor = .white
+        label.fontColor = BlomixAppearance.primaryTextSK
         label.horizontalAlignmentMode = .right
         label.verticalAlignmentMode = .center
         label.zPosition = 130
@@ -2466,7 +2546,7 @@ final class GameScene: SKScene {
         guard let n = childNode(withName: Self.bestScoreAboveName) as? SKLabelNode else { return }
         n.text = "\(hudBestScoreValue)"
         let green = SKColor(red: 0.20, green: 0.85, blue: 0.35, alpha: 1)
-        let gray  = SKColor(red: 0xA3/255.0, green: 0xA3/255.0, blue: 0xA3/255.0, alpha: 1)
+        let gray  = BlomixAppearance.tertiaryTextSK
         n.fontColor = isLiveBeat ? green : gray
     }
 
@@ -2814,11 +2894,12 @@ final class GameScene: SKScene {
         overlay.zPosition = 200
         addChild(overlay)
 
-        let dim = SKSpriteNode(color: .black, size: size)
+        // Voile thématisé : noir (Sombre) / beige scène (Clair) + textes adaptés.
+        let dim = SKSpriteNode(color: BlomixAppearance.gameOverDimColorSK, size: size)
         dim.name = Self.gameOverDimBackgroundName
         dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         dim.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        dim.alpha = 0.72
+        dim.alpha = BlomixAppearance.gameOverDimAlpha
         dim.zPosition = 0
         overlay.addChild(dim)
 
@@ -2880,7 +2961,7 @@ final class GameScene: SKScene {
             let subLabel = SKLabelNode(text: BlomixL10n.gameOverOptimalityLabel)
             subLabel.fontName               = Self.customUIFontPostScriptName
             subLabel.fontSize               = 11
-            subLabel.fontColor              = SKColor(white: 0.60, alpha: 1)
+            subLabel.fontColor              = BlomixAppearance.gameOverTertiaryTextSK
             subLabel.horizontalAlignmentMode = .center
             subLabel.verticalAlignmentMode   = .center
             subLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 36)
@@ -2901,7 +2982,7 @@ final class GameScene: SKScene {
             // Fond de la barre (remplissage semi-transparent)
             let barBg = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight),
                                     cornerRadius: cornerR)
-            barBg.fillColor   = SKColor(white: 1, alpha: 0.10)
+            barBg.fillColor   = BlomixAppearance.gameOverBarTrackSK
             barBg.strokeColor = .clear
             barBg.position    = CGPoint(x: size.width / 2, y: barY)
             barBg.zPosition   = 10
@@ -2945,11 +3026,11 @@ final class GameScene: SKScene {
                 },
             ]))
 
-            // Contour fin E0E0E0 au-dessus du remplissage
+            // Contour fin au-dessus du remplissage
             let barBorder = SKShapeNode(rectOf: CGSize(width: barWidth, height: barHeight),
                                         cornerRadius: cornerR)
             barBorder.fillColor   = .clear
-            barBorder.strokeColor = SKColor(red: 0.878, green: 0.878, blue: 0.878, alpha: 0.65)
+            barBorder.strokeColor = BlomixAppearance.gameOverBarBorderSK
             barBorder.lineWidth   = 1
             barBorder.position    = CGPoint(x: size.width / 2, y: barY)
             barBorder.zPosition   = 12
@@ -2966,7 +3047,7 @@ final class GameScene: SKScene {
             )
             excellentLabel.fontName               = Self.customUIFontPostScriptName
             excellentLabel.fontSize               = 13
-            excellentLabel.fontColor              = SKColor(white: 0.76, alpha: 1)
+            excellentLabel.fontColor              = BlomixAppearance.gameOverSecondaryTextSK
             excellentLabel.horizontalAlignmentMode = .center
             excellentLabel.verticalAlignmentMode   = .center
             excellentLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 84)
@@ -2982,7 +3063,7 @@ final class GameScene: SKScene {
             let sep = SKShapeNode(rect: CGRect(
                 x: size.width / 2 - 80, y: recapBaseY - 100, width: 160, height: 1
             ))
-            sep.fillColor   = SKColor(white: 1, alpha: 0.22)
+            sep.fillColor   = BlomixAppearance.gameOverSeparatorSK
             sep.strokeColor = .clear
             sep.zPosition   = 10
             sep.alpha       = 0
@@ -2997,7 +3078,7 @@ final class GameScene: SKScene {
         title.name = Self.gameOverTitleLabelName
         title.fontName = Self.customUIFontPostScriptName
         title.fontSize = 32
-        title.fontColor = .white
+        title.fontColor = BlomixAppearance.gameOverPrimaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode = .center
         title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 36 - analysisPanelShift)
@@ -3013,7 +3094,7 @@ final class GameScene: SKScene {
         scoreLine.name = Self.gameOverScoreLabelName
         scoreLine.fontName = Self.customUIFontPostScriptName
         scoreLine.fontSize = 36
-        scoreLine.fontColor = .white
+        scoreLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
         scoreLine.horizontalAlignmentMode = .center
         scoreLine.verticalAlignmentMode = .center
         scoreLine.position = CGPoint(x: size.width / 2, y: size.height / 2 - 8 - analysisPanelShift)
@@ -3078,7 +3159,7 @@ final class GameScene: SKScene {
                 quoteLine.name = index == 0 ? Self.gameOverQuoteLine1LabelName : Self.gameOverQuoteLine2LabelName
                 quoteLine.fontName = Self.customUIFontPostScriptName
                 quoteLine.fontSize = 20
-                quoteLine.fontColor = .white
+                quoteLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
                 quoteLine.horizontalAlignmentMode = .center
                 quoteLine.verticalAlignmentMode = .center
                 quoteLine.position = CGPoint(x: size.width / 2, y: firstLineY - CGFloat(index) * lineHeight)
@@ -3096,7 +3177,7 @@ final class GameScene: SKScene {
         author.name = Self.gameOverQuoteAuthorLabelName
         author.fontName = Self.customUIFontPostScriptName
         author.fontSize = 18
-        author.fontColor = SKColor(white: 0.86, alpha: 1)
+        author.fontColor = BlomixAppearance.gameOverSecondaryTextSK
         author.horizontalAlignmentMode = .center
         author.verticalAlignmentMode = .center
         let authorY = size.height / 2 - 162 - CGFloat(max(1, wrapped.count)) * 24 - 10 - analysisPanelShift - worstMoveBtnShift
@@ -3151,7 +3232,7 @@ final class GameScene: SKScene {
             personalBest.name = Self.gameOverPersonalBestLabelName
             personalBest.fontName = Self.customUIFontPostScriptName
             personalBest.fontSize = 14
-            personalBest.fontColor = .white
+            personalBest.fontColor = BlomixAppearance.gameOverPrimaryTextSK
             personalBest.horizontalAlignmentMode = .center
             personalBest.verticalAlignmentMode = .center
             personalBest.position = CGPoint(x: self.size.width / 2, y: self.size.height / 2 - 30)
@@ -3177,9 +3258,11 @@ final class GameScene: SKScene {
         overlay.zPosition = 300
         addChild(overlay)
 
-        let dim = SKSpriteNode(color: UIColor(white: 0, alpha: 0.88), size: size)
+        // Même traitement que le game over : voile thématisé + textes adaptés.
+        let dim = SKSpriteNode(color: BlomixAppearance.gameOverDimColorSK, size: size)
         dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.alpha       = BlomixAppearance.worstMoveDimAlpha
         dim.zPosition   = 0
         overlay.addChild(dim)
 
@@ -3262,8 +3345,8 @@ final class GameScene: SKScene {
                     mLbl.zPosition = 1
                     bg.addChild(mLbl)
                 case .empty:
-                    bg.fillColor   = SKColor(white: 0.10, alpha: 1)
-                    bg.strokeColor = SKColor(white: 0.22, alpha: 1)
+                    bg.fillColor   = BlomixAppearance.emptyCellSK
+                    bg.strokeColor = BlomixAppearance.emptyCellStrokeSK
                     bg.lineWidth   = 0.5
                 }
                 gridContainer.addChild(bg)
@@ -3321,8 +3404,8 @@ final class GameScene: SKScene {
                     lc.fillColor   = SKColor(white: 0.78, alpha: 1)
                     lc.strokeColor = .clear
                 case .empty:
-                    lc.fillColor   = SKColor(white: 0.10, alpha: 1)
-                    lc.strokeColor = SKColor(white: 0.20, alpha: 1)
+                    lc.fillColor   = BlomixAppearance.emptyCellSK
+                    lc.strokeColor = BlomixAppearance.emptyCellStrokeSK
                     lc.lineWidth   = 0.5
                 }
                 overlay.addChild(lc)
@@ -3330,7 +3413,7 @@ final class GameScene: SKScene {
             let lineLbl = SKLabelNode(text: BlomixL10n.gameOverIncomingLineLabel)
             lineLbl.fontName               = Self.customUIFontPostScriptName
             lineLbl.fontSize               = 9
-            lineLbl.fontColor              = SKColor(white: 0.42, alpha: 1)
+            lineLbl.fontColor              = BlomixAppearance.gameOverTertiaryTextSK
             lineLbl.horizontalAlignmentMode = .left
             lineLbl.verticalAlignmentMode   = .center
             lineLbl.position  = CGPoint(x: gridOriginX, y: lineCenterY - pendingLineH / 2 - 8)
@@ -3389,7 +3472,7 @@ final class GameScene: SKScene {
                 ml.zPosition = 1
                 cell.addChild(ml)
             case .empty:
-                cell.fillColor   = SKColor(white: 0.22, alpha: 1)
+                cell.fillColor   = BlomixAppearance.emptyCellSK
                 cell.strokeColor = .clear
             }
             return cell
@@ -3407,7 +3490,7 @@ final class GameScene: SKScene {
             let badgeLabel = SKLabelNode()
             badgeLabel.fontName               = Self.customUIFontPostScriptName
             badgeLabel.fontSize               = 18
-            badgeLabel.fontColor              = .white
+            badgeLabel.fontColor              = BlomixAppearance.gameOverPrimaryTextSK
             badgeLabel.horizontalAlignmentMode = .center
             badgeLabel.verticalAlignmentMode   = .center
             badgeLabel.text      = lv == "Ultimate" ? "L★" : "L\(lv)"
@@ -3416,8 +3499,8 @@ final class GameScene: SKScene {
             overlay.addChild(badgeLabel)
         }
 
-        // ── Légende (en haut, même style que le sous-titre) ─────────────────────
-        let legendColor = SKColor(white: 0.50, alpha: 1)
+        // ── Légende / titre / hint — thématisés comme le game over ─────────────
+        let legendColor = BlomixAppearance.gameOverTertiaryTextSK
         let legendFontSize: CGFloat = 14
         let legendBaseY = gridOriginY + gridH + 76
 
@@ -3444,7 +3527,7 @@ final class GameScene: SKScene {
         let titleLbl = SKLabelNode(text: BlomixL10n.gameOverWorstMoveTitle)
         titleLbl.fontName               = Self.customUIFontPostScriptName
         titleLbl.fontSize               = 15
-        titleLbl.fontColor              = SKColor(white: 0.90, alpha: 1)
+        titleLbl.fontColor              = BlomixAppearance.gameOverPrimaryTextSK
         titleLbl.horizontalAlignmentMode = .center
         titleLbl.verticalAlignmentMode   = .center
         titleLbl.position  = CGPoint(x: size.width / 2, y: legendBaseY - 40)
@@ -3454,7 +3537,7 @@ final class GameScene: SKScene {
         let hintLbl = SKLabelNode(text: BlomixL10n.gameOverTapToClose)
         hintLbl.fontName               = Self.customUIFontPostScriptName
         hintLbl.fontSize               = 11
-        hintLbl.fontColor              = SKColor(white: 0.45, alpha: 1)
+        hintLbl.fontColor              = BlomixAppearance.gameOverTertiaryTextSK
         hintLbl.horizontalAlignmentMode = .center
         hintLbl.verticalAlignmentMode   = .center
         hintLbl.position  = CGPoint(x: size.width / 2, y: 20)
@@ -3499,7 +3582,7 @@ final class GameScene: SKScene {
         let title = SKLabelNode(text: BlomixL10n.gameOverFocusTitle)
         title.fontName = Self.customUIFontPostScriptName
         title.fontSize = GameOverFocusFeedback.titleStartFontSize
-        title.fontColor = .white
+        title.fontColor = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode = .center
         title.position = focusPoint
@@ -3639,7 +3722,7 @@ final class GameScene: SKScene {
         para.alignment = .center
         let attrs: [NSAttributedString.Key: Any] = [
             .font: UIFont(name: customUIFontPostScriptName, size: 13) ?? UIFont.systemFont(ofSize: 13),
-            .foregroundColor: UIColor(white: 0.7, alpha: 1),
+            .foregroundColor: BlomixAppearance.secondaryText,
             .paragraphStyle: para,
         ]
         return NSAttributedString(string: text, attributes: attrs)
@@ -3773,10 +3856,10 @@ final class GameScene: SKScene {
         addChild(overlay)
 
         // Fond assombri plein écran.
-        let dim = SKSpriteNode(color: .black, size: size)
+        let dim = SKSpriteNode(color: BlomixAppearance.dimOverlaySK, size: size)
         dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
-        dim.alpha       = 0.78
+        dim.alpha       = BlomixAppearance.isDark ? 0.78 : 0.45
         dim.zPosition   = 0
         overlay.addChild(dim)
 
@@ -3785,8 +3868,8 @@ final class GameScene: SKScene {
         let panelH: CGFloat = 185
         let panelRect = CGRect(x: -panelW / 2, y: -panelH / 2, width: panelW, height: panelH)
         let panel = SKShapeNode(rect: panelRect, cornerRadius: 14)
-        panel.fillColor   = SKColor(white: 0.10, alpha: 1)
-        panel.strokeColor = SKColor(white: 0.28, alpha: 1)
+        panel.fillColor   = BlomixAppearance.panelFillSK
+        panel.strokeColor = BlomixAppearance.chipBorderSK
         panel.lineWidth   = 0.75
         panel.position    = CGPoint(x: size.width / 2, y: size.height / 2)
         panel.zPosition   = 1
@@ -3796,7 +3879,7 @@ final class GameScene: SKScene {
         let title = SKLabelNode(text: BlomixL10n.quitConfirmTitle)
         title.fontName                = Self.customUIFontPostScriptName
         title.fontSize                = 18
-        title.fontColor               = .white
+        title.fontColor               = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode   = .center
         title.position                = CGPoint(x: 0, y: 66)
@@ -3807,7 +3890,7 @@ final class GameScene: SKScene {
         let msg = SKLabelNode(text: BlomixL10n.quitConfirmMessage)
         msg.fontName                = Self.customUIFontPostScriptName
         msg.fontSize                = 13
-        msg.fontColor               = SKColor(white: 0.75, alpha: 1)
+        msg.fontColor               = BlomixAppearance.secondaryTextSK
         msg.horizontalAlignmentMode = .center
         msg.verticalAlignmentMode   = .center
         msg.numberOfLines           = 0
@@ -4214,7 +4297,7 @@ final class GameScene: SKScene {
                 // pendant le fondu du blox (alpha 1→0), ce placeholder gris empêche
                 // le fond noir de la scène de transparaître. drawGrid() le supprimera
                 // automatiquement (préfixe "cell_").
-                let bg = SKSpriteNode(color: SKColor(white: 0.12, alpha: 1), size: slotSize)
+                let bg = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: slotSize)
                 bg.anchorPoint = CGPoint(x: 0.5, y: 0.5)
                 bg.position    = sprite.position
                 bg.zPosition   = 0
@@ -4455,14 +4538,31 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Points du bonus « grille entièrement vide » (solo + Zen) — hors multiplicateur de stage.
+    private static let fullyClearedBoardBonusPoints = 500
+
+    /// `true` si aucune case jouable n’est occupée.
+    private func isPlayableGridCompletelyEmpty() -> Bool {
+        (GridLayout.topRowIndex..<GridLayout.rowCount).allSatisfy { row in
+            (0..<GridLayout.columnCount).allSatisfy { col in grid[row][col] == .empty }
+        }
+    }
+
+    /// Solo stagé ou Zen (hors PvP / tutoriel).
+    private var isSoloOrZenScoringContext: Bool {
+        pvpCoordinator == nil && !isTutorialMode
+    }
+
     /// +10 par colonne passée entièrement vide alors qu’elle contenait au moins un bloc avant cette vague.
+    /// Si la grille entière est vide après coup (solo/Zen), +500 plats en plus des bonus colonnes.
     private func awardFullyClearedColumnBonuses(columnHadBlockBefore: [Bool]) {
+        let hadAnyBlockBefore = columnHadBlockBefore.contains(true)
+
         // Collecte les colonnes vidées de gauche à droite.
         let clearedCols = (0..<GridLayout.columnCount).filter { col in
             columnHadBlockBefore[col] &&
             (GridLayout.topRowIndex..<GridLayout.rowCount).allSatisfy { grid[$0][col] == .empty }
         }
-        guard !clearedCols.isEmpty else { return }
 
         // Stagger gauche → droite : chaque colonne se décale de 90 ms par rapport à la précédente.
         let stagger: TimeInterval = 0.09
@@ -4477,6 +4577,27 @@ final class GameScene: SKScene {
                 },
             ]))
         }
+
+        // Bonus grille vide : uniquement si cette vague partait d’une grille non vide
+        // et qu’elle est maintenant entièrement claire (chaîne, bombe, Magix, etc.).
+        guard hadAnyBlockBefore,
+              isSoloOrZenScoringContext,
+              isPlayableGridCompletelyEmpty() else { return }
+
+        let boardDelay = Double(clearedCols.count) * stagger
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: boardDelay),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.playMatchSound(.emptyColumnClear)
+                self.addScore(
+                    points: Self.fullyClearedBoardBonusPoints,
+                    chainMultiplier: 0,
+                    floatAt: self.gridAreaCenter,
+                    applyStageMultiplier: false
+                )
+            },
+        ]))
     }
 
     /// Barycentre des centres cases (affichage +points sur la chaîne).
@@ -4508,9 +4629,10 @@ final class GameScene: SKScene {
 
     /// Ajoute les points au total, met à jour le label ; `chainMultiplier` = `chainSeriesLevel` **utilisé** pour ce gain (animation un peu plus forte en combo).
     /// `floatAt` : affiche « +N » à cet endroit (fade légèrement plus lent pour une meilleure lisibilité).
-    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil) {
+    /// `applyStageMultiplier` : si `false`, les points sont ajoutés tels quels même en solo stagé (ex. bonus grille vide = 500 plats).
+    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true) {
         guard points > 0 else { return }
-        let multipliedPoints = isInStagedSoloMode ? points * currentStageConfig.multiplier : points
+        let multipliedPoints = (applyStageMultiplier && isInStagedSoloMode) ? points * currentStageConfig.multiplier : points
         let scoreBefore = score
         score += multipliedPoints
         let thousandAfter  = (score      / 1000) * 1000
@@ -4589,7 +4711,7 @@ final class GameScene: SKScene {
             label.run(SKAction.sequence([
                 SKAction.wait(forDuration: rollDuration),
                 fadeBack,
-                SKAction.run { label.fontColor = .white },
+                SKAction.run { label.fontColor = BlomixAppearance.primaryTextSK },
             ]), withKey: "scoreColorFlash")
         }
 
@@ -4606,10 +4728,11 @@ final class GameScene: SKScene {
     }
 
     private func spawnFloatingScorePopup(points: Int, at scenePoint: CGPoint, dotColor: SKColor? = nil, onTransferArrival: @escaping () -> Void) {
+        let accent = dotColor ?? BlomixAppearance.floatingScoreAccentSK
         let text = SKLabelNode(text: "+\(points)")
         text.fontName = Self.customUIFontPostScriptName
         text.fontSize = 62
-        text.fontColor = dotColor ?? .white
+        text.fontColor = accent
         text.horizontalAlignmentMode = .center
         text.verticalAlignmentMode = .center
         text.position = scenePoint
@@ -4630,7 +4753,7 @@ final class GameScene: SKScene {
             SKAction.removeFromParent(),
         ]))
 
-        spawnScoreTransferDots(points: points, from: scenePoint, color: dotColor ?? .white)
+        spawnScoreTransferDots(points: points, from: scenePoint, color: accent)
 
         run(
             SKAction.sequence([
@@ -4662,7 +4785,7 @@ final class GameScene: SKScene {
             let lbl = SKLabelNode(text: text)
             lbl.fontName = font
             lbl.fontSize = fSize
-            lbl.fontColor = color   // couleur de la composante (différence intentionnelle vs "+N" blanc)
+            lbl.fontColor = color   // couleur de la composante (différence intentionnelle vs "+N" chrome)
             lbl.horizontalAlignmentMode = .center
             lbl.verticalAlignmentMode   = .center
             lbl.position = CGPoint(x: 0, y: yOffset)
@@ -4694,8 +4817,8 @@ final class GameScene: SKScene {
         ]))
     }
 
-    /// Points de score : blancs par défaut, ou de la couleur de la chaîne si `color` est fourni.
-    private func spawnScoreTransferDots(points: Int, from sourceCenter: CGPoint, color: SKColor = .white) {
+    /// Points de score : accent chrome par défaut, ou couleur de la chaîne si `color` est fourni.
+    private func spawnScoreTransferDots(points: Int, from sourceCenter: CGPoint, color: SKColor = BlomixAppearance.floatingScoreAccentSK) {
         guard points > 0 else { return }
         guard let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
         let targetFrame = scoreLabel.calculateAccumulatedFrame()
@@ -4707,7 +4830,7 @@ final class GameScene: SKScene {
 
     /// Moteur générique de transfert de dots entre deux nœuds.
     /// `onArrival` est appelé une seule fois quand le dernier dot arrive.
-    private func spawnTransferDots(count: Int, from sourceCenter: CGPoint, to targetCenter: CGPoint, flightDuration: TimeInterval = ScorePopupFeedback.transferDuration, color: SKColor = .white, onArrival: (() -> Void)?) {
+    private func spawnTransferDots(count: Int, from sourceCenter: CGPoint, to targetCenter: CGPoint, flightDuration: TimeInterval = ScorePopupFeedback.transferDuration, color: SKColor = BlomixAppearance.floatingScoreAccentSK, onArrival: (() -> Void)?) {
         guard count > 0 else { return }
         let totalFlight = ScorePopupFeedback.transferStartFadeDuration
                         + ScorePopupFeedback.radialBurstDuration
@@ -4766,14 +4889,15 @@ final class GameScene: SKScene {
     }
 
 
-    /// ~50 points blancs qui partent radialement depuis la cellule de pose de la bombe,
+    /// ~50 points (accent chrome) qui partent radialement depuis la cellule de pose de la bombe,
     /// vitesse et direction aléatoires, fondu pendant le vol — même aspect que les dots de score.
     private func spawnBombExplosionParticles(at center: CGPoint) {
+        let accent = BlomixAppearance.floatingScoreAccentSK
         let dotCount = 50
         for _ in 0..<dotCount {
             let radius = CGFloat.random(in: 1.5...3.0)
             let dot = SKShapeNode(circleOfRadius: radius)
-            dot.fillColor = .white
+            dot.fillColor = accent
             dot.strokeColor = .clear
             dot.alpha = 1
             dot.zPosition = 37
@@ -4802,16 +4926,17 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Explosion radiale de ~20 points blancs depuis le label score HUD au passage d'une centaine (100, 200, …).
+    /// Explosion radiale de ~20 points (accent chrome) depuis le label score HUD au passage d'une centaine (100, 200, …).
     /// Les dots partent en burst radial sur ~40 pt puis s'estompent lentement.
     private func spawnScoreMilestoneExplosion() {
         guard let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
         let center = scoreLabel.position
+        let accent = BlomixAppearance.floatingScoreAccentSK
         let dotCount = 22
         for _ in 0..<dotCount {
             let radius = CGFloat.random(in: 2.5...4.5)
             let dot = SKShapeNode(circleOfRadius: radius)
-            dot.fillColor   = .white
+            dot.fillColor   = accent
             dot.strokeColor = .clear
             dot.alpha       = 1.0
             dot.zPosition   = 38
@@ -4861,7 +4986,9 @@ final class GameScene: SKScene {
         for _ in 0..<dotCount {
             let radius = CGFloat.random(in: 2.0...4.0)
             let dot = SKShapeNode(circleOfRadius: radius)
-            dot.fillColor   = palette.isEmpty ? .white : palette[Int.random(in: 0..<palette.count)]
+            dot.fillColor   = palette.isEmpty
+                ? BlomixAppearance.floatingScoreAccentSK
+                : palette[Int.random(in: 0..<palette.count)]
             dot.strokeColor = .clear
             dot.alpha       = 1.0
             dot.zPosition   = 38
@@ -5101,7 +5228,7 @@ final class GameScene: SKScene {
             ])
         )
 
-        // — Dots blancs qui volent vers la même cible —
+        // — Dots (accent chrome) qui volent vers la même cible —
         spawnTransferDots(count: 12, from: sourceCenter, to: targetCenter, flightDuration: flightDuration, onArrival: nil)
     }
 
@@ -5117,15 +5244,14 @@ final class GameScene: SKScene {
         label.name = Self.scoreHudLabelName
         label.fontName = Self.customUIFontPostScriptName
         label.fontSize = 52
-        label.fontColor = .white
+        label.fontColor = BlomixAppearance.primaryTextSK
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .center
         label.zPosition = 12
         addChild(label)
 
         // Best score — chiffre seul, centré, au-dessus du score (solo uniquement)
-        let grayColor14 = UIColor(red: CGFloat(0xA3) / 255, green: CGFloat(0xA3) / 255,
-                                  blue: CGFloat(0xA3) / 255, alpha: 1)
+        let grayColor14 = BlomixAppearance.tertiaryText
         let bestAboveLabel = SKLabelNode(text: "\(max(ScoreManager.shared.getLocalHighScore(), hudBestScoreValue))")
         bestAboveLabel.name = Self.bestScoreAboveName
         bestAboveLabel.fontName = Self.customUIFontPostScriptName
@@ -5151,8 +5277,7 @@ final class GameScene: SKScene {
         addChild(timerCaptionLabel)
 
         // Compteur LIGNE (gauche du score — symétrique du RECORD à droite)
-        let grayColor = UIColor(red: CGFloat(0xA3) / 255, green: CGFloat(0xA3) / 255,
-                                blue: CGFloat(0xA3) / 255, alpha: 1)
+        let grayColor = BlomixAppearance.tertiaryText
         let ligneCaptionLabel = SKLabelNode(text: BlomixL10n.hudLineCaption)
         ligneCaptionLabel.name = Self.ligneCaptionName
         ligneCaptionLabel.fontName = Self.customUIFontPostScriptName
@@ -5264,28 +5389,29 @@ final class GameScene: SKScene {
         )
     }
 
-    /// Icône hamburger lisible dans SpriteKit : glyphe blanc aplati sur fond noir (les SF Symbols seuls peuvent apparaître noirs selon le chemin de rendu).
+    /// Icône hamburger lisible dans SpriteKit : glyphe thème sur fond scène (les SF Symbols seuls peuvent apparaître noirs selon le chemin de rendu).
     private static func makeGameOverflowMenuIconNode() -> SKNode {
         let chipW: CGFloat = 44
         let chipH: CGFloat = 34
         let imgSize = CGSize(width: chipW, height: chipH)
+        let glyph = BlomixAppearance.primaryText
         let weightCfg = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
         let sym = UIImage(systemName: "line.3.horizontal", withConfiguration: weightCfg.applying(
-            UIImage.SymbolConfiguration(paletteColors: [.white])
-        ))?.withTintColor(.white, renderingMode: .alwaysOriginal)
+            UIImage.SymbolConfiguration(paletteColors: [glyph])
+        ))?.withTintColor(glyph, renderingMode: .alwaysOriginal)
             ?? UIImage(systemName: "line.3.horizontal", withConfiguration: weightCfg)?
-                .withTintColor(.white, renderingMode: .alwaysOriginal)
+                .withTintColor(glyph, renderingMode: .alwaysOriginal)
 
         let format = UIGraphicsImageRendererFormat()
         format.opaque = true
         format.scale = UIScreen.main.scale
         let flat = UIGraphicsImageRenderer(size: imgSize, format: format).image { _ in
-            UIColor.black.setFill()
+            BlomixAppearance.sceneBackground.setFill()
             UIBezierPath(rect: CGRect(origin: .zero, size: imgSize)).fill()
             guard let s = sym else {
                 let attrs: [NSAttributedString.Key: Any] = [
                     .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-                    .foregroundColor: UIColor.white,
+                    .foregroundColor: glyph,
                 ]
                 let t = "≡" as NSString
                 let sz = t.size(withAttributes: attrs)
@@ -5323,6 +5449,14 @@ final class GameScene: SKScene {
         return titleY + 15
     }
 
+    /// Recrée le menu overflow (icône + dropdown) selon le thème chrome courant.
+    /// Nécessaire car l'icône est une texture aplatie — elle ne suit pas un flip d'apparence.
+    private func rebuildGameOverflowMenu() {
+        childNode(withName: Self.bottomMenuContainerName)?.removeFromParent()
+        ensureGameOverflowMenuIfNeeded()
+        layoutGameOverflowMenuIfNeeded()
+    }
+
     private func ensureGameOverflowMenuIfNeeded() {
         guard childNode(withName: Self.bottomMenuContainerName) == nil else { return }
         let container = SKNode()
@@ -5348,7 +5482,7 @@ final class GameScene: SKScene {
             (BlomixL10n.menuMultiplayer, Self.bottomMenuMultiplayerName),
         ]
         let panelH = CGFloat(entries.count) * rowH + 20
-        let panel = SKSpriteNode(color: UIColor(white: 0.08, alpha: 0.94), size: CGSize(width: panelW, height: panelH))
+        let panel = SKSpriteNode(color: BlomixAppearance.panelFillTranslucent, size: CGSize(width: panelW, height: panelH))
         panel.name = Self.hudGameMenuPanelName
         panel.anchorPoint = CGPoint(x: 1, y: 1)
         panel.position = .zero
@@ -5361,7 +5495,7 @@ final class GameScene: SKScene {
             label.name = entry.name
             label.fontName = Self.customUIFontPostScriptName
             label.fontSize = fontSize
-            label.fontColor = .white
+            label.fontColor = BlomixAppearance.primaryTextSK
             label.horizontalAlignmentMode = .right
             label.verticalAlignmentMode = .center
             label.position = CGPoint(x: -14, y: -18 - CGFloat(i) * rowH - rowH / 2)
@@ -5602,7 +5736,7 @@ final class GameScene: SKScene {
         case .priks, .magix:
             return makeSolidGameplayBlockSprite(block: block, pixelSize: size)
         case .empty:
-            let slot = SKSpriteNode(color: SKColor(white: 0.12, alpha: 1), size: size)
+            let slot = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: size)
             slot.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             return slot
         }
@@ -6064,9 +6198,16 @@ final class GameScene: SKScene {
         return SKShader(source: src)
     }
 
-    /// Texture halo pré-générée pour les disques de ranking (paramètres fixes : rayon 30, spread 12).
-    /// Mise en cache pour éviter un rendu Core Graphics synchrone à chaque `makeRankDiscNode`.
-    private static let rankDiscHaloTextureCached: SKTexture = makeRankDiscHaloTexture(discRadius: 30, spread: 12)
+    /// Cache halo disques de ranking (rayon 30, spread 12), une entrée par mode d'apparence.
+    private static var rankDiscHaloTextureCache: [BlomixAppearanceMode: SKTexture] = [:]
+
+    private static func rankDiscHaloTextureCached() -> SKTexture {
+        let mode = BlomixAppearance.mode
+        if let cached = rankDiscHaloTextureCache[mode] { return cached }
+        let tex = makeRankDiscHaloTexture(discRadius: 30, spread: 12)
+        rankDiscHaloTextureCache[mode] = tex
+        return tex
+    }
 
     /// Texture pixel blanc 2×2 : base obligatoire pour que SpriteKit initialise
     /// correctement `v_tex_coord` dans le fragment shader (sans texture, les UV
@@ -6083,9 +6224,11 @@ final class GameScene: SKScene {
     }()
 
     /// Applique le shader dégradé Magix sur `sprite` (réutilisé ou neuf).
-    /// Texture blanche avec dégradé radial : opaque au bord du bloc, transparent au bord du halo.
+    /// Texture halo dégradé radial : opaque au bord du bloc, transparent au bord du halo.
+    /// Couleur selon le thème (blanc en sombre, noir en clair).
     /// `blockSize` = taille du sprite Magix, `spread` = extension en pts au-delà de chaque bord.
     private static func makeMagixHaloTexture(blockSize: CGSize, spread: CGFloat) -> SKTexture {
+        let haloColor = BlomixAppearance.specialHalo
         let total = CGSize(width: blockSize.width + spread * 2, height: blockSize.height + spread * 2)
         let renderer = UIGraphicsImageRenderer(size: total)
         let image = renderer.image { ctx in
@@ -6093,7 +6236,7 @@ final class GameScene: SKScene {
             let innerR   = min(blockSize.width, blockSize.height) * 0.5   // bord du bloc
             let outerR   = innerR + spread                                  // bord du halo
             let cs       = CGColorSpaceCreateDeviceRGB()
-            let colors   = [UIColor.white.cgColor, UIColor.white.withAlphaComponent(0).cgColor] as CFArray
+            let colors   = [haloColor.cgColor, haloColor.withAlphaComponent(0).cgColor] as CFArray
             let locs: [CGFloat] = [0, 1]
             guard let grad = CGGradient(colorsSpace: cs, colors: colors, locations: locs) else { return }
             // .drawsBeforeStartLocation remplit le centre (zone couverte par le bloc) avec la couleur de départ.
@@ -6108,16 +6251,17 @@ final class GameScene: SKScene {
     // MARK: - Disques de rang (écran d'accueil)
 
     /// Texture halo radial pour un disque (cercle), analogue à `makeMagixHaloTexture`.
-    /// Le dégradé va de blanc opaque (bord du disque) à blanc transparent (bord du halo).
+    /// Couleur selon le thème (blanc en sombre, noir en clair).
     private static func makeRankDiscHaloTexture(discRadius: CGFloat, spread: CGFloat) -> SKTexture {
+        let haloColor = BlomixAppearance.specialHalo
         let total = (discRadius + spread) * 2
         let sz = CGSize(width: total, height: total)
         let renderer = UIGraphicsImageRenderer(size: sz)
         let image = renderer.image { ctx in
             let center = CGPoint(x: total * 0.5, y: total * 0.5)
             let cs = CGColorSpaceCreateDeviceRGB()
-            let colors = [UIColor.white.cgColor,
-                          UIColor.white.withAlphaComponent(0).cgColor] as CFArray
+            let colors = [haloColor.cgColor,
+                          haloColor.withAlphaComponent(0).cgColor] as CFArray
             let locs: [CGFloat] = [0, 1]
             guard let grad = CGGradient(colorsSpace: cs, colors: colors, locations: locs) else { return }
             ctx.cgContext.drawRadialGradient(grad,
@@ -6146,15 +6290,15 @@ final class GameScene: SKScene {
         // ── Halo radial ───────────────────────────────────────────────────────
         // Texture pré-générée (paramètres fixes) : évite un rendu Core Graphics à chaque appel.
         let haloTex = (radius == 30 && haloSpread == 12)
-            ? rankDiscHaloTextureCached
+            ? rankDiscHaloTextureCached()
             : makeRankDiscHaloTexture(discRadius: radius, spread: haloSpread)
         let haloSide = (radius + haloSpread) * 2
         let halo     = SKSpriteNode(texture: haloTex, size: CGSize(width: haloSide, height: haloSide))
-        halo.alpha     = 0.40
+        halo.alpha     = BlomixAppearance.rankDiscHaloBaseAlpha
         halo.zPosition = -2
         halo.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.55, duration: 1.2),
-            SKAction.fadeAlpha(to: 0.22, duration: 1.2),
+            SKAction.fadeAlpha(to: BlomixAppearance.rankDiscHaloPulseHigh, duration: 1.2),
+            SKAction.fadeAlpha(to: BlomixAppearance.rankDiscHaloPulseLow, duration: 1.2),
         ])))
         container.addChild(halo)
 
@@ -6193,7 +6337,7 @@ final class GameScene: SKScene {
         let catLabel = SKLabelNode(text: category)
         catLabel.fontName                = customUIFontPostScriptName
         catLabel.fontSize                = discDiameter * 0.21
-        catLabel.fontColor               = SKColor(white: 0.60, alpha: 1)
+        catLabel.fontColor               = BlomixAppearance.tertiaryTextSK
         catLabel.horizontalAlignmentMode = .center
         catLabel.verticalAlignmentMode   = .top
         catLabel.position                = CGPoint(x: 0, y: -(radius + 6))
@@ -6212,7 +6356,7 @@ final class GameScene: SKScene {
         sprite.size             = size
         sprite.shader           = makeMagixPaletteShader()
 
-        // ── Halo blanc dégradé radial (glow) ───────────────────────────────────
+        // ── Halo dégradé radial (glow) — blanc en sombre, noir en clair ────────
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
         let haloSpread: CGFloat = 16   // pts au-delà du bord du bloc jusqu'au transparent total
@@ -6221,13 +6365,13 @@ final class GameScene: SKScene {
                                 size: CGSize(width:  size.width  + haloSpread * 2,
                                              height: size.height + haloSpread * 2))
         glow.name        = MagixRules.glowNodeName
-        glow.alpha       = 0.45
+        glow.alpha       = BlomixAppearance.specialHaloBaseAlpha
         glow.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         glow.zPosition   = -2   // derrière le sprite principal et les biseaux
         // Pulsing doux indépendant du breathing général.
         glow.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.55, duration: 1.2),
-            SKAction.fadeAlpha(to: 0.28, duration: 1.2),
+            SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseHigh, duration: 1.2),
+            SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseLow, duration: 1.2),
         ])))
         sprite.addChild(glow)
 
@@ -6358,7 +6502,7 @@ final class GameScene: SKScene {
         // Nettoyer le symbole MAGIX éventuel (preview réutilisée).
         sprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
 
-        // ── Halo dégradé radial ────────────────────────────────────────────────
+        // ── Halo dégradé radial — blanc en sombre, noir en clair ───────────────
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
         let haloSpread: CGFloat = 16
@@ -6367,12 +6511,12 @@ final class GameScene: SKScene {
                                 size: CGSize(width:  size.width  + haloSpread * 2,
                                              height: size.height + haloSpread * 2))
         glow.name        = MagixRules.glowNodeName
-        glow.alpha       = 0.45
+        glow.alpha       = BlomixAppearance.specialHaloBaseAlpha
         glow.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         glow.zPosition   = -2
         glow.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.55, duration: 1.2),
-            SKAction.fadeAlpha(to: 0.28, duration: 1.2),
+            SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseHigh, duration: 1.2),
+            SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseLow, duration: 1.2),
         ])))
         sprite.addChild(glow)
 
@@ -6432,7 +6576,7 @@ final class GameScene: SKScene {
         let lbl = SKLabelNode(text: name)
         lbl.fontName   = Self.customUIFontPostScriptName
         lbl.fontSize   = 22
-        lbl.fontColor  = .white
+        lbl.fontColor  = BlomixAppearance.floatingScoreAccentSK
         lbl.horizontalAlignmentMode = .center
         lbl.verticalAlignmentMode   = .center
         lbl.position   = position
@@ -7630,7 +7774,7 @@ final class GameScene: SKScene {
         label.name = Self.bombHudCountLabelName
         label.fontName = Self.customUIFontPostScriptName
         label.fontSize = 21
-        label.fontColor = .white
+        label.fontColor = BlomixAppearance.primaryTextSK
         label.horizontalAlignmentMode = .right
         label.verticalAlignmentMode = .center
         label.zPosition = 12
@@ -7658,7 +7802,7 @@ final class GameScene: SKScene {
         caption.name = Self.upcomingQueueCaptionLabelName
         caption.fontName = Self.customUIFontPostScriptName
         caption.fontSize = 11
-        caption.fontColor = .white
+        caption.fontColor = BlomixAppearance.primaryTextSK
         caption.horizontalAlignmentMode = .center
         caption.verticalAlignmentMode = .center
         caption.zPosition = 12
@@ -7733,7 +7877,7 @@ final class GameScene: SKScene {
                              symbolLabelName: Self.queueSlotPriksDigitName)
         case .empty:
             sprite.texture = nil
-            sprite.color = SKColor(white: 0.12, alpha: 1)
+            sprite.color = BlomixAppearance.emptyCellSK
             sprite.colorBlendFactor = 1
             sprite.size = CGSize(width: slotCellPoints, height: slotCellPoints)
         }
@@ -8138,7 +8282,7 @@ final class GameScene: SKScene {
             let prep = SKAction.run {
                 sprite.zPosition = zBoost
                 // Placeholder gris derrière le blox animé : évite le fond noir pendant le fondu.
-                let bg = SKSpriteNode(color: SKColor(white: 0.12, alpha: 1), size: slotSize)
+                let bg = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: slotSize)
                 bg.anchorPoint = CGPoint(x: 0.5, y: 0.5)
                 bg.position    = sprite.position
                 bg.zPosition   = 0
@@ -8726,14 +8870,19 @@ final class GameScene: SKScene {
         )
     }
 
-    /// Fond plein écran sombre (repère scène : origine en bas à gauche, centre en `width/2`, `height/2`).
+    /// Fond plein écran (thème chrome ; repère scène : origine en bas à gauche, centre en `width/2`, `height/2`).
     private func addFullscreenBackground() {
-        let background = SKSpriteNode(color: .black, size: size)
+        let background = SKSpriteNode(color: BlomixAppearance.sceneBackgroundSK, size: size)
         background.name = Self.backgroundNodeName
         background.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         background.position = CGPoint(x: size.width / 2, y: size.height / 2)
         background.zPosition = -10
         addChild(background)
+    }
+
+    /// Met à jour la couleur du fond racine sans le reconstruire (ex. après toggle d'apparence).
+    private func refreshFullscreenBackgroundColor() {
+        (childNode(withName: Self.backgroundNodeName) as? SKSpriteNode)?.color = BlomixAppearance.sceneBackgroundSK
     }
 
     /// Titre + sous-titre en haut (hors décalage « jeu » : le reste suit `gridAreaCenter`).
@@ -8747,7 +8896,7 @@ final class GameScene: SKScene {
         title.name = Self.titleNodeName
         title.fontName = Self.customUIFontPostScriptName
         title.fontSize = 36
-        title.fontColor = .white
+        title.fontColor = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode = .center
         title.position = CGPoint(x: size.width / 2, y: titleY)
@@ -8762,7 +8911,7 @@ final class GameScene: SKScene {
         subtitle.name = Self.gameplaySubtitleUnderTitleName
         subtitle.fontName = Self.customUIFontPostScriptName
         subtitle.fontSize = 12
-        subtitle.fontColor = .white
+        subtitle.fontColor = BlomixAppearance.primaryTextSK
         subtitle.horizontalAlignmentMode = .center
         subtitle.verticalAlignmentMode = .center
         let titleHalfApprox: CGFloat = 18
@@ -9386,7 +9535,7 @@ final class GameScene: SKScene {
                 switch block {
                 case .empty:
                     let slot = SKSpriteNode(
-                        color: SKColor(white: 0.12, alpha: 1),
+                        color: BlomixAppearance.emptyCellSK,
                         size: CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
                     )
                     slot.name = "cell_\(row)_\(col)"
@@ -9616,9 +9765,9 @@ final class GameScene: SKScene {
     // MARK: - Sauvegarde automatique solo
 
     /// Met à jour score / affichage sans animations (flush logique avant persistance).
-    private func addScoreSynchronously(points: Int, chainMultiplier: Int) {
+    private func addScoreSynchronously(points: Int, chainMultiplier: Int, applyStageMultiplier: Bool = true) {
         guard points > 0 else { return }
-        let multipliedPoints = isInStagedSoloMode ? points * currentStageConfig.multiplier : points
+        let multipliedPoints = (applyStageMultiplier && isInStagedSoloMode) ? points * currentStageConfig.multiplier : points
         score += multipliedPoints
         displayedScore += multipliedPoints
         displayedScore = min(displayedScore, score)
@@ -9629,6 +9778,7 @@ final class GameScene: SKScene {
     }
 
     private func awardFullyClearedColumnBonusesSynchronously(columnHadBlockBefore: [Bool]) {
+        let hadAnyBlockBefore = columnHadBlockBefore.contains(true)
         let clearedCols = (0..<GridLayout.columnCount).filter { col in
             columnHadBlockBefore[col] &&
             (GridLayout.topRowIndex..<GridLayout.rowCount).allSatisfy { grid[$0][col] == .empty }
@@ -9636,6 +9786,14 @@ final class GameScene: SKScene {
         for _ in clearedCols {
             addScoreSynchronously(points: 10, chainMultiplier: 0)
         }
+        guard hadAnyBlockBefore,
+              isSoloOrZenScoringContext,
+              isPlayableGridCompletelyEmpty() else { return }
+        addScoreSynchronously(
+            points: Self.fullyClearedBoardBonusPoints,
+            chainMultiplier: 0,
+            applyStageMultiplier: false
+        )
     }
 
     /// Efface une vague de chaîne dans `grid` sans animation (dissolution / compaction / cascade).
@@ -9862,8 +10020,7 @@ final class GameScene: SKScene {
         setupScoreHUD()
         drawGrid()
         updatePreviewSprite()
-        ensureGameOverflowMenuIfNeeded()
-        layoutGameOverflowMenuIfNeeded()
+        rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
 
         // Synchronisation des labels HUD avec les valeurs restaurées
@@ -10100,7 +10257,7 @@ final class GameScene: SKScene {
         return false
     }
     /// Construit (ou reconstruit) le nœud ghost pour la colonne donnée :
-    /// cases vides en gris #444 + sprite semi-transparent du bloc courant à l'emplacement d'atterrissage.
+    /// cases vides en surbrillance thème + sprite semi-transparent du bloc courant à l'atterrissage.
     private func showGhostPreview(column: Int) {
         childNode(withName: Self.ghostContainerName)?.removeFromParent()
         guard !isProcessing, !isGameOver, !isStartScreen else { return }
@@ -10113,13 +10270,14 @@ final class GameScene: SKScene {
         addChild(container)
 
         let cp = GridLayout.cellPoints
+        let highlight = BlomixAppearance.ghostColumnHighlightSK
 
         // ── Surbrillance des cases vides de la colonne ───────────────────────
         for row in GridLayout.topRowIndex..<GridLayout.rowCount {
             guard grid[row][column] == .empty else { continue }
             let pos = scenePointCellCenter(row: row, column: column)
             let cell = SKShapeNode(rectOf: CGSize(width: cp - 2, height: cp - 2), cornerRadius: 3)
-            cell.fillColor   = SKColor(white: 0.267, alpha: 0.9)   // ~#444
+            cell.fillColor   = highlight
             cell.strokeColor = .clear
             cell.position    = pos
             container.addChild(cell)
@@ -10230,7 +10388,7 @@ final class GameScene: SKScene {
         lbl.name                    = Self.stageTimerHudName
         lbl.fontName                = Self.customUIFontPostScriptName
         lbl.fontSize                = 14
-        lbl.fontColor               = .white
+        lbl.fontColor               = BlomixAppearance.primaryTextSK
         lbl.horizontalAlignmentMode = .right
         lbl.verticalAlignmentMode   = .center
         lbl.zPosition               = 12
@@ -10255,7 +10413,7 @@ final class GameScene: SKScene {
         switch stageTimerSecondsRemaining {
         case 0...2: lbl.fontColor = SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
         case 3...5: lbl.fontColor = SKColor(red: 244/255, green: 162/255, blue: 97/255, alpha: 1)
-        default:    lbl.fontColor = .white
+        default:    lbl.fontColor = BlomixAppearance.primaryTextSK
         }
         // Synchronise la visibilité de la caption "TEMPS"
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = lbl.isHidden
@@ -10271,7 +10429,7 @@ final class GameScene: SKScene {
         badge.name                   = Self.stageBadgeNodeName
         badge.fontName               = Self.customUIFontPostScriptName
         badge.fontSize               = 18
-        badge.fontColor              = .white
+        badge.fontColor              = BlomixAppearance.primaryTextSK
         badge.horizontalAlignmentMode = .center
         badge.verticalAlignmentMode   = .center
         badge.zPosition              = 12
@@ -10681,13 +10839,13 @@ final class GameScene: SKScene {
 
         // Fond semi-transparent — uniquement pour la variante tuto (slide latéral).
         if !isPopInStageVariant {
-            let dim = SKSpriteNode(color: .black, size: size)
+            let dim = SKSpriteNode(color: BlomixAppearance.dimOverlaySK, size: size)
             dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
             dim.alpha       = 0
             dim.zPosition   = 0
             overlayNode.addChild(dim)
-            dim.run(SKAction.fadeAlpha(to: 0.52, duration: 0.20))
+            dim.run(SKAction.fadeAlpha(to: BlomixAppearance.dimOverlaySoftAlpha, duration: 0.20))
         }
 
         let centerX    = size.width  / 2
@@ -11056,8 +11214,8 @@ final class GameScene: SKScene {
         if showBombImage   { contentHeight += bombImageSize + 8 }
 
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: contentHeight), cornerRadius: 10)
-        bg.fillColor   = UIColor(white: 0.08, alpha: 0.93)
-        bg.strokeColor = UIColor(white: 1, alpha: 0.18)
+        bg.fillColor   = BlomixAppearance.panelFillTranslucent
+        bg.strokeColor = BlomixAppearance.panelStroke
         bg.lineWidth   = 0.5
         bg.zPosition   = 0
         node.addChild(bg)
@@ -11129,8 +11287,8 @@ final class GameScene: SKScene {
     private func buildCelebrationOverlay(node: SKNode, width: CGFloat, text: String) {
         let h: CGFloat = 64
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: h), cornerRadius: 10)
-        bg.fillColor   = UIColor(white: 0.08, alpha: 0.93)
-        bg.strokeColor = UIColor(white: 1, alpha: 0.28)
+        bg.fillColor   = BlomixAppearance.panelFillTranslucent
+        bg.strokeColor = BlomixAppearance.panelStrokeStrong
         bg.lineWidth   = 0.5
         bg.zPosition   = 0
         node.addChild(bg)
@@ -11172,8 +11330,8 @@ final class GameScene: SKScene {
 
         // Fond.
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: contentH), cornerRadius: 10)
-        bg.fillColor   = UIColor(white: 0.08, alpha: 0.93)
-        bg.strokeColor = UIColor(white: 1, alpha: 0.18)
+        bg.fillColor   = BlomixAppearance.panelFillTranslucent
+        bg.strokeColor = BlomixAppearance.panelStroke
         bg.lineWidth   = 0.5
         bg.zPosition   = 0
         node.addChild(bg)
@@ -11237,9 +11395,10 @@ final class GameScene: SKScene {
                    ?? UIFont.systemFont(ofSize: size, weight: weight)
         let para = NSMutableParagraphStyle()
         para.alignment = .center
+        let color: UIColor = bold ? BlomixAppearance.primaryText : BlomixAppearance.secondaryText
         return NSAttributedString(string: text, attributes: [
             .font:            font,
-            .foregroundColor: UIColor.white,
+            .foregroundColor: color,
             .paragraphStyle:  para,
         ])
     }
@@ -11381,7 +11540,7 @@ final class GameScene: SKScene {
         let textLabel = SKLabelNode(text: BlomixL10n.updateBannerAvailable(version))
         textLabel.fontName              = Self.customUIFontPostScriptName
         textLabel.fontSize              = 15
-        textLabel.fontColor             = .white
+        textLabel.fontColor             = BlomixAppearance.primaryTextSK
         textLabel.horizontalAlignmentMode = .left
         textLabel.verticalAlignmentMode   = .center
         textLabel.position  = CGPoint(x: -bannerW / 2 + 16, y: 0)
@@ -11392,7 +11551,7 @@ final class GameScene: SKScene {
         closeLabel.name                 = Self.updateBannerCloseName
         closeLabel.fontName             = Self.customUIFontPostScriptName
         closeLabel.fontSize             = 16
-        closeLabel.fontColor            = UIColor(white: 1, alpha: 0.55)
+        closeLabel.fontColor            = BlomixAppearance.tertiaryTextSK
         closeLabel.horizontalAlignmentMode = .center
         closeLabel.verticalAlignmentMode   = .center
         closeLabel.position  = CGPoint(x: bannerW / 2 - 20, y: 0)
@@ -11510,6 +11669,10 @@ final class GameScene: SKScene {
             }
             if touchHitsStartScreenSettingsButton(location) {
                 pendingButtonAction = { [weak self] in self?.showSettings() }
+                return
+            }
+            if touchHitsStartScreenAppearanceToggle(location) {
+                pendingButtonAction = { [weak self] in self?.toggleAppearanceFromStartScreen() }
                 return
             }
             if touchHitsStartScreenPvPButton(location) {
@@ -11938,7 +12101,7 @@ final class GameScene: SKScene {
                 SKAction.run { label.fontColor = accentColor },
                 SKAction.scale(to: 1.3, duration: 0.12),
                 SKAction.scale(to: 1.0, duration: 0.22),
-                SKAction.run { label.fontColor = .white },
+                SKAction.run { label.fontColor = BlomixAppearance.primaryTextSK },
             ])
             label.run(flash, withKey: Self.pvpMilestoneScoreFlashKey)
         }
@@ -12043,8 +12206,7 @@ final class GameScene: SKScene {
         refreshUpcomingQueueSlots()
         updateBombHUD()
         refreshProgressHUDBars()
-        ensureGameOverflowMenuIfNeeded()
-        layoutGameOverflowMenuIfNeeded()
+        rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
         layoutPvPTurnCountdownIfNeeded()
         refreshRemoteBoardFillIndicator()
@@ -12073,7 +12235,7 @@ final class GameScene: SKScene {
         label.name                    = Self.hudPvPTurnTimerName
         label.fontName                = Self.customUIFontPostScriptName
         label.fontSize                = 14
-        label.fontColor               = .white
+        label.fontColor               = BlomixAppearance.primaryTextSK
         label.horizontalAlignmentMode = .right
         label.verticalAlignmentMode   = .center
         label.zPosition               = 125
@@ -12141,7 +12303,7 @@ final class GameScene: SKScene {
         switch seconds {
         case 0...2: lbl.fontColor = SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
         case 3...5: lbl.fontColor = SKColor(red: 244/255, green: 162/255, blue: 97/255, alpha: 1)
-        default:    lbl.fontColor = .white
+        default:    lbl.fontColor = BlomixAppearance.primaryTextSK
         }
     }
 
@@ -12348,7 +12510,7 @@ final class GameScene: SKScene {
         let title = SKLabelNode(text: titleText)
         title.fontName                = Self.customUIFontPostScriptName
         title.fontSize                = 26
-        title.fontColor               = .white
+        title.fontColor               = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode   = .center
         title.numberOfLines           = 0

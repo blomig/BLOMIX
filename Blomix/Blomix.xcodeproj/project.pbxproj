@@ -53,6 +53,7 @@
 		1000000000000000000001BA /* connect_Gb.wav in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001BD /* connect_Gb.wav */; };
 		1000000000000000000001BE /* BlomixAudioMixSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001BF /* BlomixAudioMixSettings.swift */; };
 		1000000000000000000001C1 /* BlomixTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C0 /* BlomixTypography.swift */; };
+		100000000000000000000240 /* BlomixAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000241 /* BlomixAppearance.swift */; };
 		1000000000000000000001C3 /* GoogleSans-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C2 /* GoogleSans-Regular.ttf */; };
 		1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C4 /* DynaPuff-Regular.ttf */; };
 		1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */; };
@@ -139,6 +140,7 @@
 		1000000000000000000001BD /* connect_Gb.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = connect_Gb.wav; sourceTree = "<group>"; };
 		1000000000000000000001BF /* BlomixAudioMixSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAudioMixSettings.swift; sourceTree = "<group>"; };
 		1000000000000000000001C0 /* BlomixTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixTypography.swift; sourceTree = "<group>"; };
+		100000000000000000000241 /* BlomixAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAppearance.swift; sourceTree = "<group>"; };
 		1000000000000000000001C2 /* GoogleSans-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "GoogleSans-Regular.ttf"; sourceTree = "<group>"; };
 		1000000000000000000001C4 /* DynaPuff-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DynaPuff-Regular.ttf"; sourceTree = "<group>"; };
 		1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AlfaSlabOne-Regular.ttf"; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 				1000000000000000000001C8 /* BlomixMusicPlayer.swift */,
 				1000000000000000000001CC /* BlomixAmbientBlocksView.swift */,
 				1000000000000000000001C0 /* BlomixTypography.swift */,
+				100000000000000000000241 /* BlomixAppearance.swift */,
 				100000000000000000000003 /* GameScene.swift */,
 				10000000000000000000018D /* BlomixL10n.swift */,
 				100000000000000000000192 /* rules.txt */,
@@ -475,6 +478,7 @@
 				1000000000000000000001C9 /* BlomixMusicPlayer.swift in Sources */,
 				1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */,
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
+				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -693,7 +697,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 61;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -703,7 +707,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 5.1;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -724,7 +728,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 61;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -734,7 +738,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.0;
+				MARKETING_VERSION = 5.1;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

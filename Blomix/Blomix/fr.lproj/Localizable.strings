@@ -293,3 +293,9 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.availability_cloudkit_error_format" = "Erreur CloudKit : %@";
 
 "generic.ok" = "OK";
+
+/* Apparence */
+"appearance.toggle_a11y" = "Basculer entre mode sombre et clair";
+"appearance.dark" = "Sombre";
+"appearance.light" = "Clair";
+

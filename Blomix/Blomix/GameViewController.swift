@@ -50,6 +50,8 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     private var pendingChallengeMatch: GKMatch?
     /// Délégué retenu pour le match en attente.
     private var challengeMatchDelegate: ChallengeMatchDelegate?
+    /// Vrai pendant le splash studio (fond noir forcé, hors thème Clair/Sombre).
+    private var isStudioSplashChromeActive = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,11 +65,14 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
             CTFontManagerRegisterGraphicsFont(cgFont, nil)
         }
 
-        view.backgroundColor = .black
+        // Démarrage noir : le splash logo est toujours sur fond noir ; le thème
+        // Clair/Sombre est appliqué ensuite par GameScene après le splash.
+        applyForcedBlackChromeForStudioSplash()
 
         let skView = BlomixSKView()
         skView.translatesAutoresizingMaskIntoConstraints = false
         skView.ignoresSiblingOrder = true
+        skView.allowsTransparency = false
         view.addSubview(skView)
         NSLayoutConstraint.activate([
             skView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -106,6 +111,28 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+
+    /// Fond + status bar selon le thème chrome (Sombre / Clair).
+    func applyBlomixAppearanceChrome() {
+        isStudioSplashChromeActive = false
+        let bg = BlomixAppearance.sceneBackground
+        view.backgroundColor = bg
+        spriteKitView?.backgroundColor = bg
+        setNeedsStatusBarAppearanceUpdate()
+    }
+
+    /// Splash studio : forcer le noir (indépendant du thème Clair).
+    func applyForcedBlackChromeForStudioSplash() {
+        isStudioSplashChromeActive = true
+        view.backgroundColor = .black
+        spriteKitView?.backgroundColor = .black
+        setNeedsStatusBarAppearanceUpdate()
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        if isStudioSplashChromeActive { return .lightContent }
+        return BlomixAppearance.statusBarStyle
     }
 
     @objc private func handleMatchStartedForTutorial(_ notification: Notification) {

@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 5.0  
+> **Version de référence** : 5.1  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -265,6 +265,22 @@ Voir [EVAL.md](EVAL.md).
 
 ## 14. Graphisme et police
 
+### Thème chrome Sombre / Clair (`BlomixAppearance`)
+
+Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAppearanceMode`) ; notification `.blomixAppearanceDidChange`.
+
+| | Sombre *(défaut)* | Clair |
+|---|---|---|
+| Fond scène | Noir | `#F5EEDF` |
+| Textes | Blanc / gris clairs | Gris foncé / moyens |
+| Cases vides | `#1F1F1F` approx. | `#EBE3D0` |
+| Halos Magix / bombes / disques | Blanc | Noir |
+| Game over / pire coup | Voile noir + textes clairs | Voile `#F5EEDF` @ 0,94 + textes foncés |
+
+- Toggle **uniquement sur l’accueil** (icône soleil / lune) ; pas de suivi du mode système iOS
+- Splash studio : toujours noir ; thème appliqué après
+- Boutons : chips inversés selon le thème (`BlomixSKButtonNode`, `BlomixUIDestinationButtonStyle`)
+
 ### Police (`BlomixTypography`)
 
 | Nom | PostScript |
@@ -276,7 +292,7 @@ Voir [EVAL.md](EVAL.md).
 
 ### Skins couleur
 
-`color_skins.json` — skin Default + Perso (couleurs custom).
+`color_skins.json` — skin Default + Perso (couleurs custom). Indépendant du thème chrome.
 
 ### HUD en jeu
 
@@ -289,7 +305,7 @@ Voir [EVAL.md](EVAL.md).
 
 ### Chips boutons
 
-Fond `#232323`, bord `#444444`, texte blanc, radius 10 pt (`BlomixSKButtonNode`).
+Tokens `BlomixAppearance` (fill / bordure / titre inversés Sombre ↔ Clair), radius 10 pt (`BlomixSKButtonNode`).
 
 ---
 
@@ -326,6 +342,7 @@ Blomix/Blomix/
 ├── BlomixMoveAnalyzer.swift      # Évaluation des coups, hints
 ├── BlomixL10n.swift              # Pont typé localisation
 ├── BlomixTypography.swift        # Police joueur
+├── BlomixAppearance.swift        # Thème chrome Sombre / Clair
 ├── BlomixPvPNetworking.swift     # GKMatch, RNG, attaques
 ├── BlomixPvPUI.swift             # Lobby, résultats, adversaires récents
 ├── BlomixEloManager.swift        # Elo PvP
@@ -341,4 +358,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v5.0 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v5.1 — à maintenir lors des évolutions majeures.*

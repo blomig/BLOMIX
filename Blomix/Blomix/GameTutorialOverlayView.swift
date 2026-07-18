@@ -91,7 +91,7 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
     private func setupSubviews() {
         // Fond semi-transparent
         dimBackground.translatesAutoresizingMaskIntoConstraints = false
-        dimBackground.backgroundColor = UIColor(white: 0, alpha: 0.55)
+        dimBackground.backgroundColor = UIColor.black.withAlphaComponent(BlomixAppearance.isDark ? 0.55 : 0.35)
         dimBackground.isUserInteractionEnabled = true
         addSubview(dimBackground)
 
@@ -120,7 +120,7 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
         pageControl.numberOfPages = pageCount
         pageControl.currentPage = 0
         pageControl.pageIndicatorTintColor = UIColor(white: 1, alpha: 0.3)
-        pageControl.currentPageIndicatorTintColor = .white
+        pageControl.currentPageIndicatorTintColor = BlomixAppearance.primaryText
         pageControl.translatesAutoresizingMaskIntoConstraints = false
         addSubview(pageControl)
 
@@ -146,12 +146,12 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
         let radioCfg = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         let initialRadioName = showOnStartup ? "largecircle.fill.circle" : "circle"
         showOnStartupRadio.image = UIImage(systemName: initialRadioName, withConfiguration: radioCfg)
-        showOnStartupRadio.tintColor = .white
+        showOnStartupRadio.tintColor = BlomixAppearance.primaryText
         showOnStartupRadio.contentMode = .scaleAspectFit
         showOnStartupRadio.setContentHuggingPriority(.required, for: .horizontal)
 
         showOnStartupLabel.text = BlomixL10n.tutorialDontShowAgain
-        showOnStartupLabel.textColor = UIColor(white: 0.92, alpha: 1)
+        showOnStartupLabel.textColor = BlomixAppearance.primaryText
         showOnStartupLabel.font = TutorialOverlayFont.uiFont(size: 14)
         showOnStartupLabel.numberOfLines = 0
 
@@ -299,14 +299,14 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
 
         let titleLabel = UILabel()
         titleLabel.text = title
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = TutorialOverlayFont.uiFont(size: 20, weight: .semibold)
         titleLabel.numberOfLines = 0
         titleLabel.textAlignment = .center
 
         let bodyLabel = UILabel()
         bodyLabel.text = body
-        bodyLabel.textColor = UIColor(white: 0.90, alpha: 1)
+        bodyLabel.textColor = BlomixAppearance.secondaryText
         bodyLabel.font = TutorialOverlayFont.uiFont(size: 13)
         bodyLabel.numberOfLines = 0
         bodyLabel.textAlignment = .center
@@ -453,7 +453,7 @@ private final class TutorialChainExampleView: UIView {
         }
 
         caption.text = BlomixL10n.tutorialPage1ChainCaption
-        caption.textColor = UIColor(white: 0.80, alpha: 1)
+        caption.textColor = BlomixAppearance.secondaryText
         caption.font = TutorialOverlayFont.uiFont(size: 11)
         caption.textAlignment = .center
         caption.translatesAutoresizingMaskIntoConstraints = false
@@ -508,7 +508,7 @@ private final class TutorialHalfBandCalloutView: UIView {
         backgroundColor = .clear
 
         label.text = text
-        label.textColor = .white
+        label.textColor = BlomixAppearance.primaryText
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.font = TutorialOverlayFont.uiFont(size: bodyFontSize, weight: .medium)
@@ -595,7 +595,7 @@ private final class TutorialCalloutView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
-        label.textColor = .white
+        label.textColor = BlomixAppearance.primaryText
         label.numberOfLines = 0
         label.textAlignment = .natural
         label.lineBreakMode = .byWordWrapping
@@ -704,14 +704,14 @@ private final class TutorialBrixInfoView: UIView {
 
         iconDigit.translatesAutoresizingMaskIntoConstraints = false
         iconDigit.text = "5"
-        iconDigit.textColor = .white
+        iconDigit.textColor = BlomixAppearance.primaryText
         iconDigit.font = TutorialOverlayFont.uiFont(size: hasText ? 14 : 18, weight: .semibold)
         iconDigit.textAlignment = .center
         iconBox.addSubview(iconDigit)
 
         if hasText {
             label.text = text
-            label.textColor = .white
+            label.textColor = BlomixAppearance.primaryText
             label.numberOfLines = 0
             label.lineBreakMode = .byWordWrapping
             label.font = TutorialOverlayFont.uiFont(size: 12, weight: .medium)

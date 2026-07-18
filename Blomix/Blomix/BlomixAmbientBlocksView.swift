@@ -63,7 +63,9 @@ final class BlomixAmbientBlocksView: UIView {
         block.backgroundColor = color
         block.layer.cornerRadius = 3
         block.layer.borderWidth = 0.5
-        block.layer.borderColor = UIColor(white: 1, alpha: 0.25).cgColor
+        block.layer.borderColor = (BlomixAppearance.isDark
+            ? UIColor(white: 1, alpha: 0.25)
+            : UIColor(white: 0, alpha: 0.12)).cgColor
         block.alpha = 0.85
 
         let xInset = blockSize / 2 + 8

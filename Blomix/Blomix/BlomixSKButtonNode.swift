@@ -47,8 +47,8 @@ final class BlomixSKButtonNode: SKNode {
     private(set) weak var shadowNode: SKShapeNode?
 
     /// Couleurs de repos pour un bouton hero (accent skin) — restaurées après press/release.
-    private var restingFillColor = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
-    private var restingBorderColor = BlomixUIDestinationButtonStyle.borderColor
+    private var restingFillColor = BlomixAppearance.chipFillSK
+    private var restingBorderColor = BlomixAppearance.chipBorderSK
     private var restingBorderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
 
     // MARK: - Init
@@ -91,7 +91,7 @@ final class BlomixSKButtonNode: SKNode {
         )
         // ── Ombre portée ──────────────────────────────────────────────────────
         let shadow = SKShapeNode(path: path)
-        shadow.fillColor   = SKColor(white: 0, alpha: 0.28)
+        shadow.fillColor   = SKColor(white: 0, alpha: BlomixAppearance.skChipShadowAlpha)
         shadow.strokeColor = .clear
         shadow.position    = CGPoint(x: 1, y: -4)
         shadow.zPosition   = -1
@@ -100,8 +100,8 @@ final class BlomixSKButtonNode: SKNode {
 
         // ── Fond arrondi ──────────────────────────────────────────────────────
         let bg = SKShapeNode(path: path)
-        bg.fillColor   = BlomixUIDestinationButtonStyle.startScreenChipFillSKColor
-        bg.strokeColor = BlomixUIDestinationButtonStyle.borderColor
+        bg.fillColor   = BlomixAppearance.chipFillSK
+        bg.strokeColor = BlomixAppearance.chipBorderSK
         bg.lineWidth   = BlomixUIDestinationButtonStyle.hairlineBorderWidth
         bg.zPosition   = 0
         addChild(bg)
@@ -115,7 +115,7 @@ final class BlomixSKButtonNode: SKNode {
         label.name                    = labelName
         label.fontName                = BlomixTypography.shared.spriteKitFontName
         label.fontSize                = resolvedFontSize
-        label.fontColor               = .white
+        label.fontColor               = BlomixAppearance.chipTitleSK
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode   = .center
         label.position                = .zero

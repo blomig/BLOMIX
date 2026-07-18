@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 5.0
+> **Version de référence** : 5.1
 
 ---
 
@@ -104,7 +104,8 @@
 | **SimGrid** | `BlomixMoveAnalyzer` | Copie de grille pour simulation |
 | **Lookahead** | `BlomixMoveAnalyzer` | Exploration 3 niveaux (P0→P1→P2) |
 | **Solo save v7** | `BlomixSoloSaveManager` | Sauvegarde UserDefaults, reprise partie |
-| **Skin** | `BlomixSkinCatalog` / `color_skins.json` | Palette de couleurs joueur |
+| **Skin** | `BlomixSkinCatalog` / `color_skins.json` | Palette de couleurs des blox (indépendant du thème chrome) |
+| **Thème chrome** | `BlomixAppearance` | Mode **Sombre** / **Clair** de l’UI (fonds, textes, chips) |
 | **Juice / VFX** | `GameScene.swift` | Particules, animations, sons de feedback |
 | **SFX procédural** | `BlomixProceduralSFX` | Sons générés en code (Magix, UI) |
 | **L10n** | `BlomixL10n.swift` | Pont typé vers `Localizable.strings` |

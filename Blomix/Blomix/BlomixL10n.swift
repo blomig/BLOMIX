@@ -287,6 +287,13 @@ enum BlomixL10n {
     // MARK: - Start screen tip
     static var startScreenTipHeader: String { tr("start_screen.tip_header", comment: "Start screen — small header above the daily tip") }
 
+    // MARK: - Apparence (Sombre / Clair)
+    static var appearanceToggleAccessibility: String {
+        tr("appearance.toggle_a11y", comment: "VoiceOver — appearance toggle on home screen")
+    }
+    static var appearanceDark: String { tr("appearance.dark", comment: "Dark appearance mode label") }
+    static var appearanceLight: String { tr("appearance.light", comment: "Light appearance mode label") }
+
     static var rankDiscSolo: String { tr("rank_disc.solo", comment: "Start screen rank disc — solo leaderboard") }
     static var rankDiscAvg: String { tr("rank_disc.avg", comment: "Start screen rank disc — average score") }
     static var rankDiscZen: String { tr("rank_disc.zen", comment: "Start screen rank disc — zen mode") }

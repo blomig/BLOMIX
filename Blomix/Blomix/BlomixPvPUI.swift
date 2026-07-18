@@ -268,7 +268,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
         registerPreparationObserversIfNeeded()
         buildLayout()
@@ -704,7 +704,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
     private func buildLayout() {
         titleLabel.text = BlomixL10n.pvpLobbyTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 26, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
@@ -755,7 +755,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
         // Message d'attente / compteur joueurs actifs (sous les boutons)
         modeActivityLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
         modeActivityLabel.textAlignment = .center
-        modeActivityLabel.textColor = UIColor.white.withAlphaComponent(0.45)
+        modeActivityLabel.textColor = BlomixAppearance.tertiaryText.withAlphaComponent(0.85)
         modeActivityLabel.numberOfLines = 0
         modeActivityLabel.text = ""
 
@@ -772,7 +772,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
         availabilityStatusLabel.font = FontTheme.gameFont(size: 12, weight: .regular)
         availabilityStatusLabel.textAlignment = .center
         availabilityStatusLabel.numberOfLines = 0
-        availabilityStatusLabel.textColor = UIColor.white.withAlphaComponent(0.5)
+        availabilityStatusLabel.textColor = BlomixAppearance.tertiaryText
         availabilityStatusLabel.text = ""
         modeStackView.addArrangedSubview(availabilityStatusLabel)
         modeStackView.setCustomSpacing(20, after: availabilityStatusLabel)
@@ -835,7 +835,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
             if !gcOK {
                 setAvailabilityStatus(BlomixL10n.pvpGcNotConnected, color: .systemOrange)
             } else {
-                setAvailabilityStatus(BlomixL10n.pvpAvailabilitySending, color: UIColor.white.withAlphaComponent(0.5))
+                setAvailabilityStatus(BlomixL10n.pvpAvailabilitySending, color: BlomixAppearance.tertiaryText)
             }
         } else {
             setAvailabilityStatus("", color: .clear)
@@ -890,7 +890,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
         } else {
             modeAvailableToggle.layer.borderColor = BlomixUIDestinationButtonStyle.borderColor.cgColor
             modeAvailableToggle.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
-            modeAvailableToggle.setTitleColor(.white, for: .normal)
+            modeAvailableToggle.setTitleColor(BlomixAppearance.primaryText, for: .normal)
             setAvailabilityStatus("", color: .clear)
         }
     }
@@ -975,28 +975,28 @@ final class BlomixPvPResultViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(white: 0, alpha: 0.92)
+        view.backgroundColor = BlomixAppearance.sceneBackground.withAlphaComponent(BlomixAppearance.isDark ? 0.92 : 0.96)
         addAmbientBlocksBackground()
 
         titleLabel.text = didWin
             ? BlomixL10n.pvpResultVictoryAgainst(opponentName)
             : BlomixL10n.pvpResultDefeatAgainst(opponentName)
         subtitleLabel.text = didWin ? BlomixL10n.pvpResultWinSubtitle : BlomixL10n.pvpResultLoseSubtitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 28, weight: .semibold)
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 0
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
-        subtitleLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        subtitleLabel.textColor = BlomixAppearance.secondaryText
         subtitleLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
         subtitleLabel.textAlignment = .center
         subtitleLabel.numberOfLines = 0
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(subtitleLabel)
 
-        eloCurrentLabel.textColor = UIColor(white: 0.88, alpha: 1)
+        eloCurrentLabel.textColor = BlomixAppearance.secondaryText
         eloCurrentLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
         eloCurrentLabel.textAlignment = .center
         eloCurrentLabel.numberOfLines = 0
@@ -1004,14 +1004,14 @@ final class BlomixPvPResultViewController: UIViewController {
         view.addSubview(eloCurrentLabel)
 
         eloDeltaLabel.text = BlomixL10n.pvpResultEloLoading
-        eloDeltaLabel.textColor = UIColor(white: 0.82, alpha: 1)
+        eloDeltaLabel.textColor = BlomixAppearance.secondaryText
         eloDeltaLabel.font = FontTheme.gameFont(size: 18, weight: .semibold)
         eloDeltaLabel.textAlignment = .center
         eloDeltaLabel.numberOfLines = 0
         eloDeltaLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(eloDeltaLabel)
 
-        eloNewLabel.textColor = UIColor(white: 0.88, alpha: 1)
+        eloNewLabel.textColor = BlomixAppearance.secondaryText
         eloNewLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
         eloNewLabel.textAlignment = .center
         eloNewLabel.numberOfLines = 0
@@ -1313,7 +1313,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
         buildLayout()
         loadRecentPlayers()
@@ -1325,7 +1325,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
 
     private func buildLayout() {
         titleLabel.text = BlomixL10n.pvpRecentTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 26, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
@@ -1353,7 +1353,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hintLabel)
 
-        countdownLabel.textColor = UIColor(white: 0.9, alpha: 1)
+        countdownLabel.textColor = BlomixAppearance.primaryText
         countdownLabel.font = FontTheme.gameFont(size: 52, weight: .regular)
         countdownLabel.textAlignment = .center
         countdownLabel.isHidden = true
@@ -1486,7 +1486,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
 
         let nameLabel = UILabel()
         nameLabel.text = item.displayName
-        nameLabel.textColor = .white
+        nameLabel.textColor = BlomixAppearance.primaryText
         nameLabel.font = FontTheme.gameFont(size: 16, weight: .semibold)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -1498,7 +1498,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
         } else {
             eloLabel.text = BlomixL10n.pvpRecentEloUnavailable
         }
-        eloLabel.textColor = UIColor(white: 0.55, alpha: 1)
+        eloLabel.textColor = BlomixAppearance.tertiaryText
         eloLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
         eloLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -1800,13 +1800,13 @@ final class BlomixPvPInviteBannerView: UIView {
     }
 
     private func setupView() {
-        backgroundColor = UIColor(white: 0.08, alpha: 0.96)
+        backgroundColor = BlomixAppearance.panelFillTranslucent
         layer.cornerRadius = 16
         layer.masksToBounds = true
         layer.borderColor = UIColor(white: 0.3, alpha: 0.6).cgColor
         layer.borderWidth = 1
 
-        challengeLabel.textColor = .white
+        challengeLabel.textColor = BlomixAppearance.primaryText
         challengeLabel.font = FontTheme.gameFont(size: 17, weight: .semibold)
         challengeLabel.textAlignment = .center
         challengeLabel.numberOfLines = 0
@@ -1923,13 +1923,13 @@ final class BlomixChallengeBannerView: UIView {
     required init?(coder: NSCoder) { super.init(coder: coder); setupView() }
 
     private func setupView() {
-        backgroundColor = UIColor(white: 0.08, alpha: 0.96)
+        backgroundColor = BlomixAppearance.panelFillTranslucent
         layer.cornerRadius = 16
         layer.masksToBounds = true
         layer.borderColor = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 0.5).cgColor
         layer.borderWidth = 1
 
-        challengeLabel.textColor = .white
+        challengeLabel.textColor = BlomixAppearance.primaryText
         challengeLabel.font = FontTheme.gameFont(size: 17, weight: .semibold)
         challengeLabel.textAlignment = .center
         challengeLabel.numberOfLines = 0
@@ -2083,7 +2083,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground()
         buildLayout()
         loadAvailablePlayers()
@@ -2131,7 +2131,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
     private func buildLayout() {
         titleLabel.text = BlomixL10n.pvpAvailableTitle
-        titleLabel.textColor = .white
+        titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = FontTheme.gameFont(size: 26, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
@@ -2159,7 +2159,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hintLabel)
 
-        countdownLabel.textColor = UIColor(white: 0.9, alpha: 1)
+        countdownLabel.textColor = BlomixAppearance.primaryText
         countdownLabel.font = FontTheme.gameFont(size: 52, weight: .regular)
         countdownLabel.textAlignment = .center
         countdownLabel.isHidden = true
@@ -2335,7 +2335,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         let nameLabel = UILabel()
         nameLabel.text = item.displayName
-        nameLabel.textColor = item.inMatch ? UIColor(white: 0.45, alpha: 1) : .white
+        nameLabel.textColor = item.inMatch ? BlomixAppearance.tertiaryText : BlomixAppearance.primaryText
         nameLabel.font = FontTheme.gameFont(size: 16, weight: .semibold)
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 

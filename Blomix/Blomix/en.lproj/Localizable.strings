@@ -280,3 +280,9 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.availability_cloudkit_error_format" = "CloudKit error: %@";
 
 "generic.ok" = "OK";
+
+/* Appearance */
+"appearance.toggle_a11y" = "Toggle dark and light appearance";
+"appearance.dark" = "Dark";
+"appearance.light" = "Light";
+

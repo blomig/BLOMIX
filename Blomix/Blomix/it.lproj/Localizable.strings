@@ -268,3 +268,9 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "pvp.availability_cloudkit_error_format" = "Errore CloudKit: %@";
 
 "generic.ok" = "OK";
+
+/* Aspetto */
+"appearance.toggle_a11y" = "Passa tra modalità scura e chiara";
+"appearance.dark" = "Scuro";
+"appearance.light" = "Chiaro";
+

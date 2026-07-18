@@ -280,3 +280,9 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "pvp.availability_cloudkit_error_format" = "CloudKit-Fehler: %@";
 
 "generic.ok" = "OK";
+
+/* Erscheinungsbild */
+"appearance.toggle_a11y" = "Zwischen dunklem und hellem Modus wechseln";
+"appearance.dark" = "Dunkel";
+"appearance.light" = "Hell";
+

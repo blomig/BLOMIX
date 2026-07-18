@@ -18,21 +18,11 @@ import UIKit
 @MainActor
 enum BlomixUIDestinationButtonStyle {
 
-    // MARK: - Couleurs
+    // MARK: - Couleurs (délèguent vers BlomixAppearance)
 
-    static let backgroundColor = UIColor(
-        red: CGFloat(0x23) / 255,
-        green: CGFloat(0x23) / 255,
-        blue: CGFloat(0x23) / 255,
-        alpha: 1
-    )
-
-    static let borderColor = UIColor(
-        red: CGFloat(0x44) / 255,
-        green: CGFloat(0x44) / 255,
-        blue: CGFloat(0x44) / 255,
-        alpha: 1
-    )
+    static var backgroundColor: UIColor { BlomixAppearance.chipFill }
+    static var borderColor: UIColor { BlomixAppearance.chipBorder }
+    static var titleColor: UIColor { BlomixAppearance.chipTitle }
 
     // MARK: - Géométrie (UIKit ET SpriteKit)
 
@@ -65,18 +55,13 @@ enum BlomixUIDestinationButtonStyle {
 
     // MARK: - "Vie" des boutons : couleur réactive, ombre portée, ressort
 
-    /// Fond légèrement plus clair à l'état appuyé (#2D2D2D vs #232323 au repos).
-    static let pressedBackgroundColor = UIColor(
-        red: CGFloat(0x2D) / 255,
-        green: CGFloat(0x2D) / 255,
-        blue: CGFloat(0x2D) / 255,
-        alpha: 1
-    )
+    /// Fond légèrement décalé à l'état appuyé.
+    static var pressedBackgroundColor: UIColor { BlomixAppearance.chipPressedFill }
     /// Même valeur en SKColor pour les boutons SpriteKit.
-    static var pressedBackgroundSKColor: SKColor { SKColor(cgColor: pressedBackgroundColor.cgColor) }
+    static var pressedBackgroundSKColor: SKColor { BlomixAppearance.chipPressedFillSK }
 
     /// Opacité de l'ombre portée au repos (UIKit ; nécessite clipsToBounds = false).
-    static let shadowOpacity: Float  = 0.40
+    static var shadowOpacity: Float { BlomixAppearance.chipShadowOpacity }
     /// Décalage de l'ombre vers le bas — donne un effet « surface surélevée ».
     static let shadowOffset          = CGSize(width: 0, height: 3)
     /// Rayon du flou de l'ombre.
@@ -112,14 +97,14 @@ enum BlomixUIDestinationButtonStyle {
         apply(to: button, fontSize: navigationTitleFontSize, weight: weight)
     }
 
-    /// Texte blanc, police du projet, fond #232323, bordure 1 px #444444.
+    /// Texte / fond / bordure selon le thème chrome courant.
     static func apply(to button: UIButton, fontSize: CGFloat, weight: UIFont.Weight = .medium, cornerRadius: CGFloat = -1) {
         let cr = cornerRadius >= 0 ? cornerRadius : Self.cornerRadius
         if #available(iOS 15.0, *) {
             button.configuration = nil
         }
-        button.setTitleColor(.white, for: .normal)
-        button.tintColor = .white
+        button.setTitleColor(titleColor, for: .normal)
+        button.tintColor = titleColor
         button.backgroundColor = backgroundColor
         button.titleLabel?.font = titleFont(size: fontSize, weight: weight)
         button.layer.cornerRadius = cr
@@ -133,8 +118,8 @@ enum BlomixUIDestinationButtonStyle {
         button.layer.shadowRadius  = shadowRadius
     }
 
-    /// Fond #232323 pour `SKShapeNode` / pastilles d'accueil (aligné sur UIKit).
-    static let startScreenChipFillSKColor = SKColor(cgColor: backgroundColor.cgColor)
+    /// Fond pastille pour `SKShapeNode` / pastilles d'accueil (aligné sur UIKit).
+    static var startScreenChipFillSKColor: SKColor { BlomixAppearance.chipFillSK }
 }
 
 // MARK: - Notification
@@ -143,7 +128,7 @@ extension Notification.Name {
     /// Postée par `BlomixUIButton` sur `.touchUpInside` — GameScene joue le son de tap.
     static let blomixButtonTap = Notification.Name("blomixButtonTap")
     /// Postée juste AVANT dismiss(animated:) — GameScene masque l'overlay statique pour
-    /// que la transition modale révèle le fond noir plutôt que l'accueil figé.
+    /// que la transition modale révèle le fond scène plutôt que l'accueil figé.
     static let blomixModalWillDismiss = Notification.Name("blomixModalWillDismiss")
     /// Postée dans la completion de dismiss — GameScene reconstruit l'accueil avec animations.
     static let blomixModalDidDismiss = Notification.Name("blomixModalDidDismiss")

@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 5.0  
+> **Version de référence** : 5.1  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 

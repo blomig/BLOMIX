@@ -112,7 +112,7 @@ enum BlomixUIDestinationButtonStyle {
         button.layer.borderColor  = borderColor.cgColor
         // clipsToBounds = false pour laisser l'ombre portée se dessiner hors des limites du bouton.
         button.clipsToBounds      = false
-        button.layer.shadowColor   = UIColor.black.cgColor
+        button.layer.shadowColor   = BlomixAppearance.chipShadowColor.cgColor
         button.layer.shadowOpacity = shadowOpacity
         button.layer.shadowOffset  = shadowOffset
         button.layer.shadowRadius  = shadowRadius

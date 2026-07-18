@@ -91,7 +91,7 @@ final class BlomixSKButtonNode: SKNode {
         )
         // ── Ombre portée ──────────────────────────────────────────────────────
         let shadow = SKShapeNode(path: path)
-        shadow.fillColor   = SKColor(white: 0, alpha: BlomixAppearance.skChipShadowAlpha)
+        shadow.fillColor   = BlomixAppearance.skChipShadowFillSK
         shadow.strokeColor = .clear
         shadow.position    = CGPoint(x: 1, y: -4)
         shadow.zPosition   = -1

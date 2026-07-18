@@ -10582,7 +10582,7 @@ final class GameScene: SKScene {
         ])
     }
 
-    /// Label pop-in sans overlay sombre : orange skin + contour blanc + halo sombre (label fantôme).
+    /// Label pop-in sans voile : orange skin + contour / halo thématisés (`BlomixAppearance`).
 
     private struct TransitionPopInStyle {
         let outlineWidth: CGFloat
@@ -10620,7 +10620,7 @@ final class GameScene: SKScene {
             .paragraphStyle:  para,
         ]
         if outlineWidth > 0 {
-            attrs[.strokeColor] = UIColor.white
+            attrs[.strokeColor] = BlomixAppearance.transitionOutlineColor
             attrs[.strokeWidth] = -outlineWidth
         }
         return attrs
@@ -10694,7 +10694,7 @@ final class GameScene: SKScene {
 
         let haloAttrs = transitionLabelDrawingAttributes(
             fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-            foreground: .black)
+            foreground: BlomixAppearance.transitionHaloColor)
         let halo = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: haloAttrs))
         halo.horizontalAlignmentMode = .center
         halo.verticalAlignmentMode   = .center
@@ -10734,7 +10734,7 @@ final class GameScene: SKScene {
         if let halo = wrapper.childNode(withName: "transitionPopInHalo") as? SKLabelNode {
             let haloAttrs = transitionLabelDrawingAttributes(
                 fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-                foreground: .black)
+                foreground: BlomixAppearance.transitionHaloColor)
             halo.attributedText = NSAttributedString(string: text, attributes: haloAttrs)
             halo.preferredMaxLayoutWidth = layoutWidth
             halo.alpha = style.haloAlpha

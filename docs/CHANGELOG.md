@@ -9,19 +9,22 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.1] — 2026-07 (courant)
 
-Build **62**.
+Build **63**.
 
 ### Ajouté
 - **Thème chrome Sombre / Clair** (`BlomixAppearance`) — orthogonal aux skins de couleurs des blox (`color_skins.json`)
 - Toggle soleil / lune sur l’écran d’accueil uniquement (manuel in-app ; ne suit pas le mode système) ; défaut = **Sombre** (look historique)
 - Tokens UI pour fonds, textes, chips inversés, cases vides, voiles, panneaux, halos Magix/bombes/disques, colonnes ghost, popups de score
+- Tokens **ombre chips** (`chipShadowColor`) et **transitions** (`transitionOutlineColor` / `transitionHaloColor`)
 
 ### Modifié
 - Chrome gameplay, modales UIKit (réglages, PvP, classement, tutoriel) et boutons SK/UIKit branchés sur les tokens
 - **Game over** et **pire coup** : voile beige `#F5EEDF` @ 0,94 + textes foncés en Clair ; Sombre inchangé (voile noir, textes clairs) ; accents d’optimalité inchangés
 - Splash studio : fond toujours noir (logo néon) ; thème appliqué après le splash
 - Pastilles radio réglages (police / set de couleurs) : gris moyen (`tertiaryText`) pour la lisibilité en Clair
-- Version marketing **5.1** (build 62)
+- **Ombre des chips** en Sombre : gris clair (lisible sur noir) ; Clair inchangé (ombre noire)
+- **Transitions stage / Zen / PvP** : fill orange skin inchangé ; contour et halo thématisés (Sombre : blanc + halo gris clair ; Clair : contour foncé + halo noir)
+- Version marketing **5.1** (build 63)
 
 ---
 

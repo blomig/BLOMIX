@@ -275,11 +275,14 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 | Textes | Blanc / gris clairs | Gris foncé / moyens |
 | Cases vides | `#1F1F1F` approx. | `#EBE3D0` |
 | Halos Magix / bombes / disques | Blanc | Noir |
+| Ombre chips | Gris clair | Noir |
+| Transitions (contour / halo) | Blanc / gris clair | Gris foncé / noir |
 | Game over / pire coup | Voile noir + textes clairs | Voile `#F5EEDF` @ 0,94 + textes foncés |
 
 - Toggle **uniquement sur l’accueil** (icône soleil / lune) ; pas de suivi du mode système iOS
 - Splash studio : toujours noir ; thème appliqué après
 - Boutons : chips inversés selon le thème (`BlomixSKButtonNode`, `BlomixUIDestinationButtonStyle`)
+- Transitions stage / Zen / PvP : fill **orange skin** inchangé ; contour + halo via `transitionOutlineColor` / `transitionHaloColor`
 
 ### Police (`BlomixTypography`)
 

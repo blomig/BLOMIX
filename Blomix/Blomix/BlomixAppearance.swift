@@ -128,6 +128,17 @@ enum BlomixAppearance {
         isDark ? 0.28 : 0.14
     }
 
+    /// Couleur de l’ombre portée des chips.
+    /// Sombre : gris clair (le noir est invisible sur fond noir) ; Clair : noir inchangé.
+    static var chipShadowColor: UIColor {
+        isDark ? UIColor(white: 0.65, alpha: 1) : .black
+    }
+
+    /// Remplissage ombre SpriteKit (couleur + alpha déjà combinés).
+    static var skChipShadowFill: UIColor {
+        chipShadowColor.withAlphaComponent(skChipShadowAlpha)
+    }
+
     /// Cases vides de la grille / file upcoming.
     /// Clair : un cran sous le fond `#F5EEDF` (sans y coller) pour garder le relief des cases.
     static var emptyCell: UIColor {
@@ -152,6 +163,18 @@ enum BlomixAppearance {
     }
 
     static var ghostColumnHighlightSK: SKColor { SKColor(cgColor: ghostColumnHighlight.cgColor) }
+
+    /// Contour des labels de transition (stage / Zen / PvP) — fill orange skin inchangé.
+    /// Sombre : blanc ; Clair : gris très foncé (lisible sur `#F5EEDF`).
+    static var transitionOutlineColor: UIColor {
+        isDark ? .white : UIColor(white: 0.12, alpha: 1)
+    }
+
+    /// Halo fantôme derrière ces labels (scale + alpha gérés par le style pop-in).
+    /// Sombre : gris clair (visible sur fond noir) ; Clair : noir (visible sur beige).
+    static var transitionHaloColor: UIColor {
+        isDark ? UIColor(white: 0.65, alpha: 1) : .black
+    }
 
     /// Couleur du voile dim (alpha appliqué sur le nœud via `dimOverlayNodeAlpha`).
     static var dimOverlay: UIColor { .black }
@@ -299,6 +322,8 @@ enum BlomixAppearance {
     static var chipFillSK: SKColor { SKColor(cgColor: chipFill.cgColor) }
     static var chipBorderSK: SKColor { SKColor(cgColor: chipBorder.cgColor) }
     static var chipTitleSK: SKColor { SKColor(cgColor: chipTitle.cgColor) }
+    static var chipShadowColorSK: SKColor { SKColor(cgColor: chipShadowColor.cgColor) }
+    static var skChipShadowFillSK: SKColor { SKColor(cgColor: skChipShadowFill.cgColor) }
     static var chipPressedFillSK: SKColor { SKColor(cgColor: chipPressedFill.cgColor) }
     static var emptyCellSK: SKColor { SKColor(cgColor: emptyCell.cgColor) }
     static var emptyCellStrokeSK: SKColor { SKColor(cgColor: emptyCellStroke.cgColor) }

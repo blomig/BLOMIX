@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 5.1  
+> **Version de référence** : 5.2  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 
@@ -528,33 +528,31 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 ### 10.1 Overlay transition (`showTransitionOverlay` / préparation PvP)
 
-#### Pop-in stage / Zen / PvP (`stageLevelText` non-nil, `blomixPvP_showConnectingOverlayIfNeeded`)
+Pipeline unique pour **stage solo**, **intro Zen**, **tutoriel** (intro / fin) et **préparation PvP** : sticker orange + contour thématisé, **sans halo**, **sans voile**.
+
+#### Pop-in unifié (`makeTransitionPopInOutlinedLabel`)
 
 | | |
 |---|---|
-| **Déclencheur** | Stage solo (démarrage + changement), intro Zen, handshake PvP |
-| **Son** | `transition` (stage/Zen uniquement) |
-| **Fond** | **Aucun** voile sombre — jeu visible derrière |
+| **Déclencheur** | Stage solo (démarrage + changement), intro Zen, intro/fin tutoriel, handshake PvP |
+| **Son** | `transition` (stage / Zen / tuto via `showTransitionOverlay` ; pas dans le path connecting PvP) |
+| **Fond** | **Aucun** voile — jeu visible derrière |
 | **Pop-in** | Scale **0 → ×1,14 → ×0,94 → ×1,0** en **0,45 s** ; stagger **0,07 s** entre blocs de texte |
-| **Typo** | Police joueur (`BlomixTypography`) ; tailles : préfixe **34 pt**, numéro **76 pt**, infos **26 pt** ; PvP titre **72 pt**, phrases **22 pt** |
-| **Rendu texte** | **Orange skin** (identique Sombre/Clair) + contour / halo thématisés (`BlomixAppearance`) — un seul pipeline `SKLabelNode`, sans rasterisation |
+| **Typo** | Police joueur (`BlomixTypography`) |
+| **Rendu texte** | **Orange skin** (identique Sombre/Clair) + **contour** thématisé (`transitionOutlineColor`) — un seul `SKLabelNode` par ligne, sans rasterisation, **sans halo** |
 | **Contour** | Épaisseur : ≥ 60 pt → **5 px** ; 30–59 pt → **3,5 px** ; &lt; 30 pt → **2,5 px**. Couleur : **blanc** (Sombre) / **gris foncé** (Clair) |
-| **Halo** | Label fantôme dilaté derrière : scale **×1,04–1,06**, α **0,4–0,5**. Couleur : **gris clair** (Sombre) / **noir** (Clair) |
-| **Pause** | **1,0 s** (stage/Zen) ; rotation de phrases (PvP) |
-| **Fade out** | **0,35 s** (stage/Zen) ; fondu à la fin du handshake (PvP) |
+| **Pause** | **1,0 s** (stage / Zen / tuto) ; rotation de phrases (PvP) |
+| **Fade out** | **0,35 s** (stage / Zen / tuto) ; fondu à la fin du handshake (PvP) |
+
+#### Layouts
+
+| Variante | Tailles | Structure |
+|---|---|---|
+| Stage / Zen | préfixe **34 pt**, titre **76 pt**, infos **26 pt** | Header groupé + 0–2 lignes |
+| Tutoriel | titre **48 pt**, sous-titre **26 pt** | 2 lignes pop-in (stagger) |
+| PvP prep | titre **72 pt**, phrases **22 pt** | « P vs P » + rotation l10n |
 
 Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlinedLabelText` dans `GameScene.swift`.
-
-#### Slide tutoriel (`stageLevelText` nil)
-
-| | |
-|---|---|
-| **Déclencheur** | Intro / fin tutoriel |
-| **Son** | `transition` |
-| **Fond** | α 0→0,52 en **0,20 s** |
-| **Slide in** | **0,45 s** `easeOut` (gauche / droite) |
-| **Pause** | **1,0 s** |
-| **Fade out** | **0,35 s** |
 
 ### 10.2 Timer stage
 

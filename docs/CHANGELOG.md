@@ -7,7 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.1] — 2026-07 (courant)
+## [5.2] — 2026-07 (courant)
+
+Build **64**.
+
+### Ajouté
+- **`AGENTS.md`** à la racine — brief opérationnel pour agents / contributeurs (architecture, conventions, boucle de clôture l10n / doc / git)
+
+### Modifié
+- **Transitions** (stage / Zen / PvP / **tutoriel**) : fill orange skin + contour thématisé **sans halo** (lisibilité par le contour seul)
+- **Tutoriel** : même pipeline sticker + pop-in central (plus de slide latéral ni voile) ; lancement **sur la grille** (accueil masqué avant l’overlay)
+- Version marketing **5.2** (build 64)
+
+---
+
+## [5.1] — 2026-07
 
 Build **63**.
 

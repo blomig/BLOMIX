@@ -164,16 +164,11 @@ enum BlomixAppearance {
 
     static var ghostColumnHighlightSK: SKColor { SKColor(cgColor: ghostColumnHighlight.cgColor) }
 
-    /// Contour des labels de transition (stage / Zen / PvP) — fill orange skin inchangé.
+    /// Contour des labels de transition (stage / Zen / PvP / tutoriel) — fill orange skin inchangé.
     /// Sombre : blanc ; Clair : gris très foncé (lisible sur `#F5EEDF`).
+    /// Pas de halo : la lisibilité repose uniquement sur ce contour.
     static var transitionOutlineColor: UIColor {
         isDark ? .white : UIColor(white: 0.12, alpha: 1)
-    }
-
-    /// Halo fantôme derrière ces labels (scale + alpha gérés par le style pop-in).
-    /// Sombre : gris clair (visible sur fond noir) ; Clair : noir (visible sur beige).
-    static var transitionHaloColor: UIColor {
-        isDark ? UIColor(white: 0.65, alpha: 1) : .black
     }
 
     /// Couleur du voile dim (alpha appliqué sur le nœud via `dimOverlayNodeAlpha`).

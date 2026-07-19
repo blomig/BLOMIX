@@ -10325,14 +10325,18 @@ final class GameScene: SKScene {
     // ── Démarrage ────────────────────────────────────────────────────────────────
 
     /// Point d'entrée unique pour lancer une partie tutoriel (premier lancement ou bouton "Tutoriel").
+    /// Ordre aligné sur Solo/Zen : d'abord la grille (et masquage de l'accueil), puis l'overlay de lancement.
     private func startTutorialGameWithIntro() {
         // Évite un double-déclenchement si le tutoriel est déjà en cours.
         guard !isTutorialMode else { return }
+        startTutorialGame()
         showTransitionOverlay(
             line1: BlomixL10n.transitionTutorialTitle,
-            line2:  BlomixL10n.transitionTutorialSubtitle
+            line2: BlomixL10n.transitionTutorialSubtitle
         ) { [weak self] in
-            self?.startTutorialGame()
+            guard let self else { return }
+            self.showTutorialSkipButton()
+            self.showTutorialStepOverlay(for: .intro)
         }
     }
 
@@ -10582,22 +10586,13 @@ final class GameScene: SKScene {
         ])
     }
 
-    /// Label pop-in sans voile : orange skin + contour / halo thématisés (`BlomixAppearance`).
+    /// Label pop-in sans voile : orange skin + contour thématisé (`BlomixAppearance.transitionOutlineColor`).
+    /// Pas de halo (ghost scale) : lisibilité portée par le contour seul.
 
-    private struct TransitionPopInStyle {
-        let outlineWidth: CGFloat
-        let haloScale: CGFloat
-        let haloAlpha: CGFloat
-    }
-
-    private static func transitionPopInStyle(forFontSize fontSize: CGFloat) -> TransitionPopInStyle {
-        if fontSize >= 60 {
-            return TransitionPopInStyle(outlineWidth: 5, haloScale: 1.06, haloAlpha: 0.5)
-        }
-        if fontSize >= 30 {
-            return TransitionPopInStyle(outlineWidth: 3.5, haloScale: 1.05, haloAlpha: 0.5)
-        }
-        return TransitionPopInStyle(outlineWidth: 2.5, haloScale: 1.04, haloAlpha: 0.4)
+    private static func transitionOutlineWidth(forFontSize fontSize: CGFloat) -> CGFloat {
+        if fontSize >= 60 { return 5 }
+        if fontSize >= 30 { return 3.5 }
+        return 2.5
     }
 
     private static func transitionLabelDrawingAttributes(
@@ -10631,11 +10626,11 @@ final class GameScene: SKScene {
         fontSize: CGFloat,
         maxWidth: CGFloat,
         numberOfLines: Int,
-        style: TransitionPopInStyle
+        outlineWidth: CGFloat
     ) -> CGRect {
         let attrs = transitionLabelDrawingAttributes(
             fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
-            foreground: .white, outlineWidth: style.outlineWidth)
+            foreground: .white, outlineWidth: outlineWidth)
         let constraint = CGSize(width: maxWidth, height: CGFloat.greatestFiniteMagnitude)
         return (text as NSString).boundingRect(
             with: constraint,
@@ -10650,35 +10645,15 @@ final class GameScene: SKScene {
         fontSize: CGFloat,
         maxWidth: CGFloat,
         numberOfLines: Int,
-        style: TransitionPopInStyle
+        outlineWidth: CGFloat
     ) -> CGFloat {
         if numberOfLines == 0 { return maxWidth }
         return max(1, measureTransitionLabelBounds(
             text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
-            style: style).width)
+            outlineWidth: outlineWidth).width)
     }
 
-    private static func makeTransitionPopInLabelNode(
-        text: String,
-        fontSize: CGFloat,
-        layoutWidth: CGFloat,
-        fillColor: UIColor,
-        style: TransitionPopInStyle,
-        numberOfLines: Int,
-        name: String
-    ) -> SKLabelNode {
-        let attrs = transitionLabelDrawingAttributes(
-            fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-            foreground: fillColor, outlineWidth: style.outlineWidth)
-        let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
-        lbl.horizontalAlignmentMode = .center
-        lbl.verticalAlignmentMode   = .center
-        lbl.numberOfLines           = numberOfLines
-        lbl.preferredMaxLayoutWidth = layoutWidth
-        lbl.name                    = name
-        return lbl
-    }
-
+    /// Label sticker : fill orange + contour thématisé (un seul `SKLabelNode`, sans halo).
     private static func makeTransitionPopInOutlinedLabel(
         text: String,
         fontSize: CGFloat,
@@ -10687,140 +10662,51 @@ final class GameScene: SKScene {
         numberOfLines: Int = 1
     ) -> SKNode {
         guard !text.isEmpty else { return SKNode() }
-        let style = transitionPopInStyle(forFontSize: fontSize)
+        let outlineWidth = transitionOutlineWidth(forFontSize: fontSize)
         let layoutWidth = transitionLayoutWidth(
             text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
-            style: style)
-
-        let haloAttrs = transitionLabelDrawingAttributes(
+            outlineWidth: outlineWidth)
+        let attrs = transitionLabelDrawingAttributes(
             fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-            foreground: BlomixAppearance.transitionHaloColor)
-        let halo = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: haloAttrs))
-        halo.horizontalAlignmentMode = .center
-        halo.verticalAlignmentMode   = .center
-        halo.numberOfLines           = numberOfLines
-        halo.preferredMaxLayoutWidth = layoutWidth
-        halo.alpha                   = style.haloAlpha
-        halo.setScale(style.haloScale)
-        halo.zPosition               = 0
-        halo.name                    = "transitionPopInHalo"
-
-        let face = makeTransitionPopInLabelNode(
-            text: text, fontSize: fontSize, layoutWidth: layoutWidth,
-            fillColor: fillColor, style: style, numberOfLines: numberOfLines,
-            name: "transitionPopInLabel")
-        face.zPosition = 1
-
-        let wrapper = SKNode()
-        wrapper.addChild(halo)
-        wrapper.addChild(face)
-        return wrapper
+            foreground: fillColor, outlineWidth: outlineWidth)
+        let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
+        lbl.horizontalAlignmentMode = .center
+        lbl.verticalAlignmentMode   = .center
+        lbl.numberOfLines           = numberOfLines
+        lbl.preferredMaxLayoutWidth = layoutWidth
+        lbl.name                    = "transitionPopInLabel"
+        return lbl
     }
 
     /// Met à jour le texte d'un label créé par `makeTransitionPopInOutlinedLabel` (ex. rotation PvP).
     private static func setTransitionPopInOutlinedLabelText(
-        on wrapper: SKNode,
+        on node: SKNode,
         text: String,
         fontSize: CGFloat,
         maxWidth: CGFloat,
         fillColor: UIColor,
         numberOfLines: Int = 1
     ) {
-        let style = transitionPopInStyle(forFontSize: fontSize)
+        let outlineWidth = transitionOutlineWidth(forFontSize: fontSize)
         let layoutWidth = transitionLayoutWidth(
             text: text, fontSize: fontSize, maxWidth: maxWidth, numberOfLines: numberOfLines,
-            style: style)
+            outlineWidth: outlineWidth)
+        let attrs = transitionLabelDrawingAttributes(
+            fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
+            foreground: fillColor, outlineWidth: outlineWidth)
+        let attributed = NSAttributedString(string: text, attributes: attrs)
 
-        if let halo = wrapper.childNode(withName: "transitionPopInHalo") as? SKLabelNode {
-            let haloAttrs = transitionLabelDrawingAttributes(
-                fontSize: fontSize, maxWidth: layoutWidth, numberOfLines: numberOfLines,
-                foreground: BlomixAppearance.transitionHaloColor)
-            halo.attributedText = NSAttributedString(string: text, attributes: haloAttrs)
-            halo.preferredMaxLayoutWidth = layoutWidth
-            halo.alpha = style.haloAlpha
-            halo.setScale(style.haloScale)
-        }
-
-        if let face = wrapper.childNode(withName: "transitionPopInLabel") as? SKLabelNode {
-            face.attributedText = makeTransitionPopInLabelNode(
-                text: text, fontSize: fontSize, layoutWidth: layoutWidth,
-                fillColor: fillColor, style: style, numberOfLines: numberOfLines,
-                name: "transitionPopInLabel"
-            ).attributedText
-            face.preferredMaxLayoutWidth = layoutWidth
-        }
+        let face: SKLabelNode? = (node as? SKLabelNode)
+            ?? (node.childNode(withName: "transitionPopInLabel") as? SKLabelNode)
+        guard let face else { return }
+        face.attributedText = attributed
+        face.numberOfLines = numberOfLines
+        face.preferredMaxLayoutWidth = layoutWidth
     }
 
-    /// Retourne une `SKAction` qui, pendant `slideDuration`, lit la position scène de `trackedNode`
-    /// toutes les 0.04 s et dépose des petits cercles de couleur qui restent sur place et se fondent.
-    /// Identique à `makeTrailSpawnAction` pour les blox, adapté au déplacement horizontal.
-    /// - `movingRight` : true = nœud vient de la gauche, false = vient de la droite.
-    private func makeTextSlideTrailAction(
-        slideDuration: TimeInterval,
-        color: SKColor,
-        trackedNode: SKNode,
-        movingRight: Bool
-    ) -> SKAction {
-        let interval: TimeInterval = 0.04
-        let count = max(1, Int((slideDuration / interval).rounded()))
-        // Trois lignes de traîne verticales (centrale + haut + bas), comme pour les blox.
-        let vertOffsets: [CGFloat] = [0, -9, 9]
-        // Décalage horizontal derrière le déplacement pour "peupler" le sillage.
-        let behindSign: CGFloat = movingRight ? -1 : 1
-
-        var steps: [SKAction] = []
-        for _ in 0..<count {
-            steps.append(SKAction.wait(forDuration: interval))
-            steps.append(SKAction.run { [weak self, weak trackedNode] in
-                guard let self, let node = trackedNode else { return }
-                // Position du nœud en coordonnées scène (overlayNode est à l'origine).
-                let pos = node.position
-
-                for (idx, yOff) in vertOffsets.enumerated() {
-                    let radius: CGFloat = idx == 0
-                        ? CGFloat.random(in: 1.8...3.0)   // ligne centrale, plus épaisse
-                        : CGFloat.random(in: 1.0...2.0)   // lignes latérales, plus fines
-                    let dot = SKShapeNode(circleOfRadius: radius)
-                    dot.fillColor   = color
-                    dot.strokeColor = .clear
-                    dot.alpha       = 0.9
-                    dot.zPosition   = 301
-                    dot.position    = CGPoint(
-                        x: pos.x + behindSign * CGFloat.random(in: 0...8) + CGFloat.random(in: -3...3),
-                        y: pos.y + yOff + CGFloat.random(in: -4...4)
-                    )
-                    self.addChild(dot)
-                    dot.run(SKAction.sequence([
-                        SKAction.fadeOut(withDuration: 0.38),
-                        SKAction.removeFromParent(),
-                    ]))
-                }
-                // 4 micro-paillettes dispersées autour du sillage.
-                for _ in 0..<4 {
-                    let micro = SKShapeNode(circleOfRadius: 1.0)
-                    micro.fillColor   = color
-                    micro.strokeColor = .clear
-                    micro.alpha       = 0.9
-                    micro.zPosition   = 301
-                    micro.position    = CGPoint(
-                        x: pos.x + behindSign * CGFloat.random(in: 0...20) + CGFloat.random(in: -8...8),
-                        y: pos.y + CGFloat.random(in: -15...15)
-                    )
-                    self.addChild(micro)
-                    micro.run(SKAction.sequence([
-                        SKAction.fadeOut(withDuration: 0.38),
-                        SKAction.removeFromParent(),
-                    ]))
-                }
-            })
-        }
-        return SKAction.sequence(steps)
-    }
-
-    /// Affiche un overlay de transition cinématique.
-    /// - `stageLevelText` non-nil → variante "stage" : "Level" + chiffre/texte + 2 lignes d'infos
-    ///   (pop-in depuis le centre avec rebond amorti).
-    /// - `stageLevelText` nil      → variante "texte seul" : line1 glisse de gauche, line2 de droite.
+    /// Affiche un overlay de transition cinématique (pop-in central, sans voile).
+    /// - `stageLevelText` non-nil → variante stage/Zen : préfixe + gros titre + 0–2 lignes d'infos.
+    /// - `stageLevelText` nil → variante titre + sous-titre (tutoriel intro / fin).
     /// Après 1 s de pause l'overlay disparaît en fondu, puis `completion` est appelé.
     private func showTransitionOverlay(levelPrefix: String = BlomixL10n.transitionLevelPrefix,
                                        stageLevelText: String? = nil,
@@ -10835,24 +10721,12 @@ final class GameScene: SKScene {
         overlayNode.zPosition = 300
         addChild(overlayNode)
 
-        let isPopInStageVariant = stageLevelText != nil
-
-        // Fond semi-transparent — uniquement pour la variante tuto (slide latéral).
-        if !isPopInStageVariant {
-            let dim = SKSpriteNode(color: BlomixAppearance.dimOverlaySK, size: size)
-            dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            dim.position    = CGPoint(x: size.width / 2, y: size.height / 2)
-            dim.alpha       = 0
-            dim.zPosition   = 0
-            overlayNode.addChild(dim)
-            dim.run(SKAction.fadeAlpha(to: BlomixAppearance.dimOverlaySoftAlpha, duration: 0.20))
-        }
-
-        let centerX    = size.width  / 2
+        let centerX   = size.width  / 2
         let popIn:    TimeInterval = 0.45
         let pause:    TimeInterval = 1.0
         let fadeOut:  TimeInterval = 0.35
-        let maxW:      CGFloat = size.width - 48
+        let maxW:     CGFloat = size.width - 48
+        let popStagger: TimeInterval = 0.07
 
         // Couleurs du skin joueur (fallback si skin non chargé).
         let orangeColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
@@ -10860,7 +10734,7 @@ final class GameScene: SKScene {
         let fillUIColor = orangeColor as UIColor
 
         if let levelText = stageLevelText {
-            // ── Variante STAGE : "Level" + numéro/mot + 2 lignes d'infos ──────
+            // ── Variante STAGE / ZEN : "Level" + numéro/mot + 2 lignes d'infos ──────
             let levelFontSize: CGFloat = 34
             let numFontSize:   CGFloat = 76
             let infoFontSize:  CGFloat = 26
@@ -10909,7 +10783,6 @@ final class GameScene: SKScene {
             infoLabel2.alpha = 0
             overlayNode.addChild(infoLabel2)
 
-            let popStagger: TimeInterval = 0.07
             headerNode.run(SKAction.sequence([
                 SKAction.wait(forDuration: 0),
                 Self.makeTransitionCenterPopInAction(totalDuration: popIn),
@@ -10924,45 +10797,39 @@ final class GameScene: SKScene {
             ]))
 
         } else {
-            // ── Variante TEXTE (tuto) : deux lignes qui se croisent ──
-            let fontSize:  CGFloat = 36
-            let lineGap: CGFloat = fontSize * 2.8
-            let centerY = size.height / 2 + lineGap / 2
+            // ── Variante TUTORIEL : titre + sous-titre, même pipeline sticker + pop-in ──
+            let titleFontSize: CGFloat = 48
+            let subFontSize:   CGFloat = 26
+            let blockCenterY = size.height / 2 + 12
+            let titleY = blockCenterY + subFontSize * 0.9
+            let subY   = blockCenterY - titleFontSize * 0.45 - subFontSize * 0.35
 
-            func makeLabel(_ text: String) -> SKLabelNode {
-                let para = NSMutableParagraphStyle()
-                para.alignment     = .center
-                para.lineBreakMode = .byWordWrapping
-                let uiFont = UIFont(name: Self.customUIFontPostScriptName, size: fontSize)
-                          ?? UIFont.systemFont(ofSize: fontSize, weight: .bold)
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: uiFont, .foregroundColor: UIColor.white, .paragraphStyle: para,
-                ]
-                let lbl = SKLabelNode(attributedText: NSAttributedString(string: text, attributes: attrs))
-                lbl.horizontalAlignmentMode = .center
-                lbl.verticalAlignmentMode   = .center
-                lbl.numberOfLines           = 0
-                lbl.preferredMaxLayoutWidth = maxW
-                lbl.zPosition               = 1
-                return lbl
-            }
+            let titleLabel = Self.makeTransitionPopInOutlinedLabel(
+                text: line1, fontSize: titleFontSize, maxWidth: maxW,
+                fillColor: fillUIColor, numberOfLines: 0)
+            titleLabel.position = CGPoint(x: centerX, y: titleY)
+            titleLabel.setScale(0)
+            titleLabel.alpha = 0
+            titleLabel.zPosition = 1
+            overlayNode.addChild(titleLabel)
 
-            let slideIn: TimeInterval = popIn
-            let label1 = makeLabel(line1)
-            label1.position = CGPoint(x: -size.width - 20, y: centerY)
-            overlayNode.addChild(label1)
+            let subLabel = Self.makeTransitionPopInOutlinedLabel(
+                text: line2, fontSize: subFontSize, maxWidth: maxW,
+                fillColor: fillUIColor, numberOfLines: 0)
+            subLabel.position = CGPoint(x: centerX, y: subY)
+            subLabel.setScale(0)
+            subLabel.alpha = 0
+            subLabel.zPosition = 1
+            overlayNode.addChild(subLabel)
 
-            let label2 = makeLabel(line2)
-            label2.position = CGPoint(x: size.width * 2 + 20, y: centerY - lineGap)
-            overlayNode.addChild(label2)
-
-            let slide1 = SKAction.moveTo(x: centerX, duration: slideIn)
-            slide1.timingMode = .easeOut
-            label1.run(slide1)
-
-            let slide2 = SKAction.moveTo(x: centerX, duration: slideIn)
-            slide2.timingMode = .easeOut
-            label2.run(slide2)
+            titleLabel.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0),
+                Self.makeTransitionCenterPopInAction(totalDuration: popIn),
+            ]))
+            subLabel.run(SKAction.sequence([
+                SKAction.wait(forDuration: popStagger),
+                Self.makeTransitionCenterPopInAction(totalDuration: popIn - popStagger),
+            ]))
         }
 
         // ── Séquence de sortie commune ────────────────────────────────
@@ -10983,6 +10850,7 @@ final class GameScene: SKScene {
         )
     }
 
+    /// Prépare le mode tutoriel et présente la grille (sans overlay d'intro — géré par `startTutorialGameWithIntro`).
     private func startTutorialGame() {
         // Marquer le tutoriel comme vu dès son démarrage.
         // Même si le joueur quitte l'app en cours de route, il ne sera plus re-déclenché
@@ -10990,7 +10858,8 @@ final class GameScene: SKScene {
         UserDefaults.standard.hasSeenGameTutorial        = true
         UserDefaults.standard.hasSeenInteractiveTutorial = true
 
-        // Préparer les flags avant tout appel à nextPlayableBlockForSession().
+        // Préparer les flags avant tout appel à nextPlayableBlockForSession()
+        // et avant beginNewMatchFromStartScreen (évite la re-détection « premier lancement »).
         isTutorialMode       = true
         tutorialStep         = .intro
         tutorialStepDrops    = 0
@@ -11011,11 +10880,8 @@ final class GameScene: SKScene {
             isGameOver    = false
             beginNewMatchFromStartScreen()
         }
-        // Afficher le skip + l'overlay 1 après le fondu d'apparition du jeu.
-        run(SKAction.wait(forDuration: 0.9)) { [weak self] in
-            self?.showTutorialSkipButton()
-            self?.showTutorialStepOverlay(for: .intro)
-        }
+        // Skip + overlay d'étape « intro » : affichés après l'overlay de lancement
+        // (voir completion de `startTutorialGameWithIntro`).
     }
 
     // ── Machine à états ──────────────────────────────────────────────────────────

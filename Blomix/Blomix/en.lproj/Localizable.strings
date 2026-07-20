@@ -245,7 +245,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "hud.line_caption" = "LINE";
 
 /* Game over — move analysis */
-"game_over.optimality_label" = "optimality";
+"game_over.optimality_label" = "placement";
 "game_over.move_stats_format" = "✦ %lld excellent moves  •  %lld mistakes";
 "game_over.view_worst_move" = "See your worst move";
 "game_over.worst_move_title" = "Your worst move";
@@ -286,3 +286,9 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "appearance.dark" = "Dark";
 "appearance.light" = "Light";
 
+
+/* PvP robustness */
+"pvp.mode_quick_desc" = "Quick match";
+"pvp.protocol_mismatch.message" = "Incompatible versions. Update BLOMIX on both devices.";
+"pvp.reconnecting.message" = "Reconnecting…";
+"pvp.available_invite_app_open_hint" = "In-app invite only — opponent must have BLOMIX open.";

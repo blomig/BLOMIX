@@ -31,7 +31,7 @@ open Blomix/Blomix.xcodeproj
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
 | `MARKETING_VERSION` | 5.2 |
-| `CURRENT_PROJECT_VERSION` | 64 |
+| `CURRENT_PROJECT_VERSION` | 67 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |

@@ -1474,7 +1474,13 @@ final class GameScene: SKScene {
 
     private func nextPlayableBlockForSession() -> BlockType {
         if isTutorialMode { return nextTutorialBlock() }
-        return pvpCoordinator?.nextPlayableBlockForSharedMatch() ?? Self.randomNextPlayableBlock()
+        if let coord = pvpCoordinator {
+            // P0.1 : jamais de RNG local en PvP (désync). Si le RNG partagé manque, on fige.
+            if let b = coord.nextPlayableBlockForSharedMatch() { return b }
+            blomixPvP_matchFailed(nil, userMessage: BlomixL10n.pvpConnectionFailedMessage)
+            return .color("blue")
+        }
+        return Self.randomNextPlayableBlock()
     }
 
     private func nextTutorialBlock() -> BlockType {
@@ -1483,7 +1489,18 @@ final class GameScene: SKScene {
     }
 
     private func nextBottomLineRowForSession() -> [BlockType] {
-        var row = pvpCoordinator?.nextRandomBottomLineForSharedMatch() ?? Self.generateNextRandomLineRowIndependentCells()
+        let baseRow: [BlockType]
+        if let coord = pvpCoordinator {
+            if let line = coord.nextRandomBottomLineForSharedMatch() {
+                baseRow = line
+            } else {
+                blomixPvP_matchFailed(nil, userMessage: BlomixL10n.pvpConnectionFailedMessage)
+                baseRow = (0..<GridLayout.columnCount).map { _ in BlockType.color("blue") }
+            }
+        } else {
+            baseRow = Self.generateNextRandomLineRowIndependentCells()
+        }
+        var row = baseRow
         // Pas de blocs Magix ni Priks dans les lignes qui montent en tutoriel.
         // Les blocs Magix ne doivent jamais apparaître dans les lignes du bas (effet trop brutal).
         row = row.map { block in
@@ -2325,7 +2342,7 @@ final class GameScene: SKScene {
             line1: BlomixL10n.zenOverlayLine1,
             line2: ""
         ) { [weak self] in
-            guard let self else { return }
+            guard self != nil else { return }
             BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)
         }
     }
@@ -2668,7 +2685,10 @@ final class GameScene: SKScene {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refreshGameCenterStatusLabelText()
+            // Closure NotificationCenter = @Sendable nonisolée ; redispatch MainActor.
+            Task { @MainActor [weak self] in
+                self?.refreshGameCenterStatusLabelText()
+            }
         }
     }
 
@@ -2679,12 +2699,14 @@ final class GameScene: SKScene {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            guard !self.isStartScreen else { return }
-            self.drawGrid()
-            self.updatePreviewSprite()
-            self.refreshUpcomingQueueSlots()
-            self.refreshBombHudIcon()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                guard !self.isStartScreen else { return }
+                self.drawGrid()
+                self.updatePreviewSprite()
+                self.refreshUpcomingQueueSlots()
+                self.refreshBombHudIcon()
+            }
         }
     }
 
@@ -2695,7 +2717,9 @@ final class GameScene: SKScene {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.applyTypographyChangeToVisibleScene()
+            Task { @MainActor [weak self] in
+                self?.applyTypographyChangeToVisibleScene()
+            }
         }
     }
 
@@ -2755,7 +2779,7 @@ final class GameScene: SKScene {
     // MARK: - Game Center Integration
 
     private func modalRootViewController() -> UIViewController? {
-        guard let skView = self.view as? SKView,
+        guard let skView = self.view,
               let rootVC = skView.window?.rootViewController else { return nil }
         return rootVC
     }
@@ -3273,9 +3297,8 @@ final class GameScene: SKScene {
         let gridH     = cellSize * CGFloat(rows)
 
         // Tailles décroissantes : p0 (joué) > p1 (suivant) > p2 (d'après).
+        // sizeP0 pilote aussi la hauteur de file (p1/p2 historiquement plus petits, non dessinés ici).
         let sizeP0: CGFloat = cellSize * 1.15
-        let sizeP1: CGFloat = cellSize * 0.85
-        let sizeP2: CGFloat = cellSize * 0.70
         let pendingLineH: CGFloat = cellSize * 0.55
 
         // Hauteur totale sous la grille : ligne entrante (si présente) + file de 3 blocs (2 rangées) + badge stage.
@@ -3333,7 +3356,7 @@ final class GameScene: SKScene {
                     nLbl.horizontalAlignmentMode = .center
                     nLbl.zPosition = 1
                     bg.addChild(nLbl)
-                case .magix(let kind):
+                case .magix:
                     bg.fillColor   = SKColor(white: 0.78, alpha: 1)
                     bg.strokeColor = .clear
                     let mLbl = SKLabelNode(text: "M")
@@ -4263,7 +4286,7 @@ final class GameScene: SKScene {
             completion()
             return
         }
-        guard let container = childNode(withName: Self.gridContainerName) as? SKNode else {
+        guard let container = childNode(withName: Self.gridContainerName) else {
             completion()
             return
         }
@@ -6953,7 +6976,6 @@ final class GameScene: SKScene {
                     digitNode.position                = .zero
                     digitNode.zPosition               = 2
                     cleanxSprite.addChild(digitNode)
-                    let cellSize = Self.solidGameplayBloxPixelSize()
                     cleanxSprite.run(SKAction.sequence([
                         SKAction.scale(to: 1.25, duration: 0.10),
                         SKAction.scale(to: 1.00, duration: 0.15),
@@ -8218,7 +8240,7 @@ final class GameScene: SKScene {
         shakeScreen(intensity: 2.5)
         hapticHeavy()
 
-        guard let container = childNode(withName: Self.gridContainerName) as? SKNode else {
+        guard let container = childNode(withName: Self.gridContainerName) else {
             completion()
             return
         }
@@ -9321,7 +9343,7 @@ final class GameScene: SKScene {
     /// Pose les connexions visuelles pour le blox **déjà** présent en `position` (même couleur que `textureName` / grille).
     /// - Parameter container: `nil` → utilise `gridContainer` s’il existe.
     private func settleBlock(at position: GridPosition, textureName: String, in container: SKNode? = nil) {
-        guard let container = container ?? childNode(withName: Self.gridContainerName) as? SKNode else { return }
+        guard let container = container ?? childNode(withName: Self.gridContainerName) else { return }
         guard let junctionColor = Self.colorFromTextureName(textureName),
               let texKey = Self.normalizedTextureColorKey(textureName),
               let myName = colorBlockNameAt(row: position.row, col: position.col),
@@ -9506,7 +9528,7 @@ final class GameScene: SKScene {
 
     /// Dessine toute la grille : supprime les anciens nœuds du conteneur puis recrée les cases.
     private func drawGrid(junctionFocus: GridPosition? = nil) {
-        let container = childNode(withName: Self.gridContainerName) as? SKNode ?? {
+        let container = childNode(withName: Self.gridContainerName) ?? {
             let node = SKNode()
             node.name = Self.gridContainerName
             node.zPosition = 1
@@ -9887,37 +9909,48 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Annule les animations en cours et aligne `grid` / score sur l’état canonique avant persistance.
-    private func stabilizeLogicalStateForSoloSave() {
-        guard isProcessing else { return }
-
-        removeAllActions()
-        childNode(withName: Self.fallingSpriteName)?.removeFromParent()
-        for col in 0..<GridLayout.columnCount {
-            childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()
-        }
-
-        if let pending = pendingGridWrite {
-            switch pending {
-            case .blockPlacement(let block, let row, let column):
-                grid[row][column] = block
-                shouldRunPostPlacementHooks = true
-            case .bottomLine(let line, let placements):
-                for placement in placements {
-                    guard placement.row >= GridLayout.topRowIndex, placement.row < GridLayout.rowCount,
-                          placement.column >= 0, placement.column < GridLayout.columnCount else { continue }
-                    grid[placement.row][placement.column] = line[placement.column]
-                }
-            }
-            pendingGridWrite = nil
-        }
-
-        if let pendingCells = pendingScoredChainClearCells {
-            pendingScoredChainClearCells = nil
-            applyPhysicalChainWaveSynchronously(winningCells: pendingCells)
-        }
-
+    /// Invariant gravité : blocs empilés vers le haut, vides en bas, puis chaînes / cascades résolues.
+    /// À appeler avant toute persistance et après tout chargement de grille.
+    private func legalizeGridGravityAndResolveChains() {
+        compactGridTowardTop()
         resolveAllChainsSynchronouslyUntilIdle()
+    }
+
+    /// Annule les animations en cours et aligne `grid` / score sur l’état canonique avant persistance.
+    /// Toujours termine par un compactage (évite de sauver des trous mid-vague clear / Magix).
+    private func stabilizeLogicalStateForSoloSave() {
+        if isProcessing {
+            removeAllActions()
+            childNode(withName: Self.fallingSpriteName)?.removeFromParent()
+            for col in 0..<GridLayout.columnCount {
+                childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()
+            }
+            // Placeholders SCRUMBLX / previews bombes : redessinés plus bas si besoin.
+            childNode(withName: Self.bombBlastPreviewContainerName)?.removeFromParent()
+
+            if let pending = pendingGridWrite {
+                switch pending {
+                case .blockPlacement(let block, let row, let column):
+                    grid[row][column] = block
+                    shouldRunPostPlacementHooks = true
+                case .bottomLine(let line, let placements):
+                    for placement in placements {
+                        guard placement.row >= GridLayout.topRowIndex, placement.row < GridLayout.rowCount,
+                              placement.column >= 0, placement.column < GridLayout.columnCount else { continue }
+                        grid[placement.row][placement.column] = line[placement.column]
+                    }
+                }
+                pendingGridWrite = nil
+            }
+
+            if let pendingCells = pendingScoredChainClearCells {
+                pendingScoredChainClearCells = nil
+                applyPhysicalChainWaveSynchronously(winningCells: pendingCells)
+            }
+        }
+
+        // Toujours : répare les trous (post-clear pré-compact, Magix, vieille save) puis cascades.
+        legalizeGridGravityAndResolveChains()
 
         displayedScore = score
         isProcessing = false
@@ -9947,7 +9980,24 @@ final class GameScene: SKScene {
                 object: nil,
                 queue: .main
             ) { [weak self] _ in
-                self?.saveCurrentSoloGameState()
+                Task { @MainActor [weak self] in
+                    self?.saveCurrentSoloGameState()
+                }
+            }
+        }
+        // P0.4 : si l'app revient au premier plan sans coordinateur PvP vivant,
+        // lever le verrou isInActiveMatch (crash / kill / teardown manqué).
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if self.pvpCoordinator == nil,
+                   BlomixAvailablePlayersManager.shared.isInActiveMatch {
+                    BlomixAvailablePlayersManager.shared.setActiveMatch(false)
+                }
             }
         }
     }
@@ -9957,6 +10007,7 @@ final class GameScene: SKScene {
         let wasProcessing = isProcessing
         stabilizeLogicalStateForSoloSave()
         guard !isGameOver else { return }
+        // Si on était en pleine anim, ou si le compact a réparé une grille illégale, resync visuel.
         if wasProcessing {
             refreshVisualStateAfterSoloSaveStabilization()
         }
@@ -10008,8 +10059,18 @@ final class GameScene: SKScene {
         analyzerGameStats.restore(records: save.moveRecords)
         hintsRemaining = save.hintsRemaining
 
-        // Sécurité : score affiché = score logique (sauvegardes antérieures ou arrondi d’animation).
-        displayedScore = save.score
+        // Pas d'état transitoire d'anim à la reprise.
+        pendingGridWrite = nil
+        pendingScoredChainClearCells = nil
+        shouldRunPostPlacementHooks = false
+        isProcessing = false
+        isInjectingBottomRandomLine = false
+
+        // Répare les grilles illégales (saves prises mid-clear / mid-Magix) avant affichage.
+        legalizeGridGravityAndResolveChains()
+
+        // Score affiché = score logique après éventuelle résolution de cascades à la reprise.
+        displayedScore = score
 
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
@@ -11787,15 +11848,15 @@ final class GameScene: SKScene {
         // Si une partie est déjà en cours (handshake terminé), on ignore le nouveau match
         // et on le raccroche proprement pour éviter un double-coordinator / FastSyncTransportError.
         if let active = pvpCoordinator, active.isGameActive {
-            print("[PvP] beginPvPWithMatch ignoré : partie active en cours.")
+            BlomixPvPLog.event("begin_pvp_ignored", ["reason": "game_active"])
             match.disconnect()
             return
         }
-        // Protège contre la double-entrée (AutoSearcher.onMatch + lobby.onMatch déclenchés
-        // simultanément pour le même match → second appel ignoré, overlay non orphelin).
-        if pvpMatchSetupInProgress {
-            print("[PvP] beginPvPWithMatch ignoré : setup déjà en cours.")
-            return
+        // Setup incomplet (handshake qui mouline) : on abandonne l'ancien match et on prend le nouveau
+        // plutôt que d'ignorer silencieusement le 2ᵉ défi (cause fréquente de « ça tourne dans le vide »).
+        if pvpMatchSetupInProgress || (pvpCoordinator != nil && pvpCoordinator?.isGameActive != true) {
+            BlomixPvPLog.event("begin_pvp_replace_incomplete_setup")
+            blomixPvP_teardown()
         }
         // Arrête toute recherche automatique encore en cours sur tous les appareils
         // (cas : AutoSearcher + invite simultanés → deux GKMatch créés).
@@ -11805,8 +11866,6 @@ final class GameScene: SKScene {
         // permet à saveCurrentSoloGameState() de passer son guard `pvpCoordinator == nil`.
         // Cas traité : un coordinateur précédent (handshake incomplet, isGameActive == false) existait
         // encore et bloquait silencieusement la sauvegarde dans l'ancien ordre.
-        // La grille en mémoire n'est pas encore réinitialisée ici (c'est blomixPvP_onHandshakeCompleteRestartBoard
-        // qui le fait) : on capture donc bien l'état solo courant.
         blomixPvP_teardown()
         pvpMatchSetupInProgress = true
         saveCurrentSoloGameState()
@@ -11820,6 +11879,9 @@ final class GameScene: SKScene {
         }
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
 
+        // Grille vide visible sous l'overlay (plus l'accueil).
+        blomixPvP_presentPrepBoardLeavingHomeIfNeeded()
+
         // Signale au manager que le polling de défi doit être suspendu.
         BlomixAvailablePlayersManager.shared.setActiveMatch(true)
         pvpCoordinator = BlomixPvPMatchCoordinator(match: match)
@@ -11829,7 +11891,47 @@ final class GameScene: SKScene {
         blomixPvP_showConnectingOverlayIfNeeded()
     }
 
+    /// Masque l'accueil et affiche une grille vide + HUD minimal pendant la connexion PvP.
+    /// Aligné sur le fix tutoriel : l'overlay de lancement ne doit pas flotter sur le menu.
+    private func blomixPvP_presentPrepBoardLeavingHomeIfNeeded() {
+        if isStartScreen {
+            childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+            isStartScreen = false
+            layoutGameCenterStatusLabel()
+            hapticSoft()
+        }
+        isGameOver = false
+        isProcessing = true // bloque les poses tant que le handshake n'est pas fini
+        isZenMode = false
+        isTutorialMode = false
+
+        if childNode(withName: Self.titleNodeName) == nil { addTopTitle() }
+        if childNode(withName: Self.bombHudIconName) == nil { setupBombHUD() }
+        if childNode(withName: Self.scoreHudLabelName) == nil { setupScoreHUD() }
+        if childNode(withName: Self.gridContainerName) == nil {
+            let node = SKNode()
+            node.name = Self.gridContainerName
+            node.zPosition = 1
+            addChild(node)
+        }
+        // Grille vide (pas encore de file partagée tant que le RNG n'est pas prêt).
+        grid = Array(repeating: Array(repeating: BlockType.empty, count: GridLayout.columnCount),
+                     count: GridLayout.rowCount)
+        drawGrid()
+        if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
+            scoreLabel.text = "0"
+        }
+        rebuildGameOverflowMenu()
+        setGameplayNodesHidden(false)
+        // File preview : masquée jusqu'au handshake (pas de RNG partagé).
+        childNode(withName: Self.previewNodeName)?.isHidden = true
+        childNode(withName: Self.upcomingSlotNextName)?.isHidden = true
+        childNode(withName: Self.upcomingSlotTwoAheadName)?.isHidden = true
+    }
+
     private func blomixPvP_showConnectingOverlayIfNeeded() {
+        // Toujours la grille sous l'overlay (accept défi avant match, ou beginPvP).
+        blomixPvP_presentPrepBoardLeavingHomeIfNeeded()
         childNode(withName: Self.pvpConnectingOverlayName)?.removeFromParent()
 
         // Conteneur parent : retirer le conteneur supprime automatiquement tous les enfants.
@@ -11926,6 +12028,10 @@ final class GameScene: SKScene {
     /// **avant** que GameKit ait terminé de trouver/connecter le match.
     /// Appelé depuis `GameViewController.acceptIncomingChallenge()`.
     func showPvPWaitingForMatchOverlay() {
+        // Sauvegarde solo si on quitte une partie en cours pour le matchmaking (avant la grille vide).
+        if !isStartScreen, pvpCoordinator == nil, !isTutorialMode {
+            saveCurrentSoloGameState()
+        }
         blomixPvP_showConnectingOverlayIfNeeded()
     }
 
@@ -12139,7 +12245,6 @@ final class GameScene: SKScene {
         childNode(withName: Self.bestScoreAboveName)?.isHidden = pvpCoordinator != nil
         if let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode {
             opponentLabel.text = BlomixL10n.pvpHudMatchAgainst(pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent)
-            let liftAboveGrid: CGFloat = 26 + GridLayout.cellPoints / 2
             let scoreY = scoreLbl.position.y
             opponentLabel.position = CGPoint(x: gridAreaCenter.x, y: scoreY + 34)
             opponentLabel.isHidden = pvpCoordinator == nil
@@ -12330,16 +12435,47 @@ final class GameScene: SKScene {
         }
     }
 
-    func blomixPvP_matchFailed(_ error: Error?) {
+    func blomixPvP_matchFailed(_ error: Error?, userMessage: String? = nil) {
         guard pvpCoordinator != nil else { return }
         _ = error
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
         dismissPvPResultModalIfNeeded()
         isWindingDown = true
         blomixPvP_teardown()
-        showPvPDisconnectOverlay(wasInGame: false, connectionFailed: true) { [weak self] in
+        showPvPDisconnectOverlay(
+            wasInGame: false,
+            connectionFailed: true,
+            customMessage: userMessage
+        ) { [weak self] in
             self?.unwindToStartScreen(restoreSave: true)
         }
+    }
+
+    /// Overlay léger « Reconnexion… » pendant la grace déco mid-game (4 s) — panneau style BLOMIX.
+    func blomixPvP_setReconnectingOverlayVisible(_ visible: Bool) {
+        let name = "pvpReconnectingOverlay"
+        childNode(withName: name)?.removeFromParent()
+        guard visible else { return }
+        let overlay = SKNode()
+        overlay.name = name
+        overlay.zPosition = 390
+        overlay.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        addChild(overlay)
+        let panelW = min(280, size.width - 64)
+        let bg = SKShapeNode(rectOf: CGSize(width: panelW, height: 56), cornerRadius: 14)
+        bg.fillColor = BlomixAppearance.panelFillSK
+        bg.strokeColor = BlomixAppearance.chipBorderSK
+        bg.lineWidth = 0.75
+        overlay.addChild(bg)
+        let label = SKLabelNode(text: BlomixL10n.pvpReconnectingMessage)
+        label.fontName = Self.customUIFontPostScriptName
+        label.fontSize = 15
+        label.fontColor = BlomixAppearance.primaryTextSK
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .center
+        label.numberOfLines = 0
+        label.preferredMaxLayoutWidth = panelW - 28
+        overlay.addChild(label)
     }
 
     private func dismissPvPResultModalIfNeeded() {
@@ -12348,72 +12484,82 @@ final class GameScene: SKScene {
         result.dismiss(animated: false)
     }
 
-    /// Affiche brièvement un message de déconnexion (2,7 s) puis appelle `completion`.
+    /// Dialogue de fin PvP (déco / échec) — même langage visuel que « Quitter la partie ? ».
     private func showPvPDisconnectOverlay(wasInGame: Bool,
                                          neutralLeave: Bool = false,
                                          connectionFailed: Bool = false,
+                                         customMessage: String? = nil,
                                          completion: @escaping () -> Void) {
         let overlayName = "pvpDisconnectOverlay"
         childNode(withName: overlayName)?.removeFromParent()
 
         let overlay = SKNode()
-        overlay.name      = overlayName
-        overlay.position  = CGPoint(x: size.width / 2, y: size.height / 2)
+        overlay.name = overlayName
         overlay.zPosition = 400
         addChild(overlay)
 
-        // Fond semi-transparent
-        let bg = SKShapeNode(rect: CGRect(origin: CGPoint(x: -size.width / 2, y: -size.height / 2),
-                                          size: size))
-        bg.fillColor   = SKColor.black.withAlphaComponent(0.75)
-        bg.strokeColor = .clear
-        bg.zPosition   = 0
-        overlay.addChild(bg)
+        let dim = SKSpriteNode(color: BlomixAppearance.dimOverlaySK, size: size)
+        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        dim.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.alpha = BlomixAppearance.isDark ? 0.78 : 0.45
+        dim.zPosition = 0
+        overlay.addChild(dim)
 
         let titleText = connectionFailed
-            ? BlomixL10n.pvpConnectionFailedTitle.uppercased()
-            : BlomixL10n.pvpDisconnectTitle.uppercased()
-        let title = SKLabelNode(text: titleText)
-        title.fontName                = Self.customUIFontPostScriptName
-        title.fontSize                = 26
-        title.fontColor               = BlomixAppearance.primaryTextSK
-        title.horizontalAlignmentMode = .center
-        title.verticalAlignmentMode   = .center
-        title.numberOfLines           = 0
-        title.lineBreakMode           = .byWordWrapping
-        title.preferredMaxLayoutWidth = size.width - 80
+            ? BlomixL10n.pvpConnectionFailedTitle
+            : BlomixL10n.pvpDisconnectTitle
         let subtitle: String? = {
+            if let customMessage, !customMessage.isEmpty { return customMessage }
             if wasInGame { return BlomixL10n.pvpDisconnectMessage }
             if connectionFailed { return BlomixL10n.pvpConnectionFailedMessage }
             if neutralLeave { return BlomixL10n.pvpDisconnectNeutralMessage }
             return nil
         }()
-        title.position                = CGPoint(x: 0, y: subtitle != nil ? 36 : 0)
-        title.zPosition               = 1
-        overlay.addChild(title)
+
+        let panelW: CGFloat = min(300, size.width - 48)
+        let panelH: CGFloat = subtitle == nil ? 120 : 170
+        let panelRect = CGRect(x: -panelW / 2, y: -panelH / 2, width: panelW, height: panelH)
+        let panel = SKShapeNode(rect: panelRect, cornerRadius: 14)
+        panel.fillColor = BlomixAppearance.panelFillSK
+        panel.strokeColor = BlomixAppearance.chipBorderSK
+        panel.lineWidth = 0.75
+        panel.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        panel.zPosition = 1
+        overlay.addChild(panel)
+
+        let title = SKLabelNode(text: titleText)
+        title.fontName = Self.customUIFontPostScriptName
+        title.fontSize = 18
+        title.fontColor = BlomixAppearance.primaryTextSK
+        title.horizontalAlignmentMode = .center
+        title.verticalAlignmentMode = .center
+        title.numberOfLines = 0
+        title.preferredMaxLayoutWidth = panelW - 32
+        title.position = CGPoint(x: 0, y: subtitle != nil ? 36 : 8)
+        title.zPosition = 2
+        panel.addChild(title)
 
         if let subtitle {
             let sub = SKLabelNode(text: subtitle)
-            sub.fontName                = Self.customUIFontPostScriptName
-            sub.fontSize                = 18
-            sub.fontColor               = wasInGame
-                ? SKColor(red: 0.4, green: 1.0, blue: 0.4, alpha: 1)
-                : SKColor(white: 0.82, alpha: 1)
+            sub.fontName = Self.customUIFontPostScriptName
+            sub.fontSize = 13
+            sub.fontColor = wasInGame
+                ? SKColor(red: 0.35, green: 0.78, blue: 0.42, alpha: 1)
+                : BlomixAppearance.secondaryTextSK
             sub.horizontalAlignmentMode = .center
-            sub.verticalAlignmentMode   = .center
-            sub.numberOfLines           = 0
-            sub.lineBreakMode           = .byWordWrapping
-            sub.preferredMaxLayoutWidth = size.width - 80
-            sub.position                = CGPoint(x: 0, y: -28)
-            sub.zPosition               = 1
-            overlay.addChild(sub)
+            sub.verticalAlignmentMode = .center
+            sub.numberOfLines = 0
+            sub.preferredMaxLayoutWidth = panelW - 32
+            sub.position = CGPoint(x: 0, y: -8)
+            sub.zPosition = 2
+            panel.addChild(sub)
         }
 
         overlay.alpha = 0
         overlay.run(.sequence([
-            .fadeIn(withDuration: 0.3),
-            .wait(forDuration: 2.0),
-            .fadeOut(withDuration: 0.4),
+            .fadeIn(withDuration: 0.18),
+            .wait(forDuration: 2.2),
+            .fadeOut(withDuration: 0.28),
             .removeFromParent(),
             .run(completion)
         ]))

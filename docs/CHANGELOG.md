@@ -9,15 +9,31 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.2] — 2026-07 (courant)
 
-Build **64**.
+Build **67** (fonctionnelle).
 
 ### Ajouté
 - **`AGENTS.md`** à la racine — brief opérationnel pour agents / contributeurs (architecture, conventions, boucle de clôture l10n / doc / git)
+- **PvP robustesse (vagues 1–3)** :
+  - `protocolVersion` au handshake + message d’update si incompatible
+  - File d’envoi + ack pour messages critiques (`iLost`, attaques, revanche…)
+  - Heartbeat + grace déco mid-game (4 s) avec overlay « Reconnexion… »
+  - Ack de fin de partie (`ackVictory`)
+  - `attackId` anti-doublon sur les lignes d’attaque
+  - Lobby : bouton **Partie rapide** (auto-match)
+  - Détection défi croisé CloudKit ; logs structurés `[PvP]`
+  - Copy mode A : invitation in-app, adversaire doit avoir l’app ouverte
+- **Classement Elo multipage** : charge jusqu’à N pages GC, filtre les entrées « jamais joué » (800/0), plus d’init GC 800/0 qui polluait le top
+- **Dialogs in-app BLOMIX** : erreurs / timeouts PvP et défis unifiés (`BlomixInAppDialogView`) à la place des `UIAlertController` système
 
 ### Modifié
 - **Transitions** (stage / Zen / PvP / **tutoriel**) : fill orange skin + contour thématisé **sans halo** (lisibilité par le contour seul)
 - **Tutoriel** : même pipeline sticker + pop-in central (plus de slide latéral ni voile) ; lancement **sur la grille** (accueil masqué avant l’overlay)
-- Version marketing **5.2** (build 64)
+- **PvP** : plus de fallback RNG local (anti-désync) ; reset défensif `isInActiveMatch` au `didBecomeActive`
+- **PvP lancement** : overlay « P vs P » sur **grille vide** (plus sur l’accueil) ; si peer déjà connecté, check immédiat + poll roster (évite handshake qui tourne dans le vide)
+- **Sauvegarde solo** : légalisation gravité/chaînes **toujours** avant persist **et** à la reprise (plus de blocs « flottants » après restore mid-vague)
+- Game over : libellé **justesse** (FR) / placement / … (plus « optimalité ») — l10n FR/EN/DE/ES/IT
+- **Hygiène Swift 6 / Xcode 26** : `findMatch` async, observers MainActor, completions Sendable, `contentEdgeInsets` → `blomixContentInsets`, police via `CTFontManagerRegisterFontsForURL`, assets `.png`/`.jpg`, settings projet (`LastUpgradeCheck` 2620, `DEAD_CODE_STRIPPING`)
+- Version marketing **5.2** (build **67**)
 
 ---
 

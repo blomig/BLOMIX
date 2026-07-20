@@ -105,6 +105,10 @@ final class BlomixAvailablePlayersManager {
     /// Mis à jour par GameScene via `setActiveMatch(_:)`.
     private(set) var isInActiveMatch: Bool = false
 
+    /// Cible du défi CloudKit sortant en cours (`chfrom_*`), si connu.
+    /// Sert à détecter un défi croisé (A défie B pendant que B défie A).
+    private(set) var outgoingChallengeTargetID: String?
+
     /// Appelé par GameScene quand une partie PvP démarre ou se termine.
     func setActiveMatch(_ active: Bool) {
         isInActiveMatch = active
@@ -124,6 +128,11 @@ final class BlomixAvailablePlayersManager {
         if isAvailableForChallenge {
             publishAvailability()
         }
+        BlomixPvPLog.event("active_match", ["active": "\(active)"])
+    }
+
+    func setOutgoingChallengeTarget(_ gamePlayerID: String?) {
+        outgoingChallengeTargetID = gamePlayerID
     }
 
     // MARK: - Setup
@@ -214,6 +223,16 @@ final class BlomixAvailablePlayersManager {
             // Vérification après await : la partie a peut-être démarré pendant le fetch.
             guard !self.isInActiveMatch else { return }
             if let challenge {
+                // P2.2 — Défi croisé : on défie déjà ce joueur → pas de bannière
+                // (les deux matchmakent déjà sur le même playerGroup).
+                if let out = self.outgoingChallengeTargetID,
+                   out == challenge.challengerGamePlayerID {
+                    BlomixPvPLog.event("mutual_challenge_detected", [
+                        "peer": challenge.challengerGamePlayerID
+                    ])
+                    self.lastNotifiedChallengerID = challenge.challengerGamePlayerID
+                    return
+                }
                 // Ne notifier que si c'est un nouveau challenger (verrou anti-rebond).
                 guard challenge.challengerGamePlayerID != self.lastNotifiedChallengerID else { return }
                 self.lastNotifiedChallengerID = challenge.challengerGamePlayerID
@@ -362,17 +381,25 @@ final class BlomixAvailablePlayersManager {
         record["eloRating"]     = matchPlayerGroup       as CKRecordValue
         record["lastHeartbeat"] = Date()                  as CKRecordValue
         try await modifyRecords([record])
-        print("[Available] challenge created chfrom_\(challengerGamePlayerID) → \(challengedGamePlayerID)")
+        outgoingChallengeTargetID = challengedGamePlayerID
+        BlomixPvPLog.event("challenge_created", [
+            "from": challengerGamePlayerID,
+            "to": challengedGamePlayerID,
+            "group": "\(matchPlayerGroup)"
+        ])
     }
 
     /// Supprime le record de défi sortant du joueur local (challenger uniquement).
     func clearOutgoingChallenge() {
+        outgoingChallengeTargetID = nil
         guard let challengerID = cachedGamePlayerID
             ?? (GKLocalPlayer.local.isAuthenticated ? GKLocalPlayer.local.gamePlayerID : nil)
         else { return }
         let recID = CKRecord.ID(recordName: Self.outgoingChallengePrefix + challengerID)
         publicDB.delete(withRecordID: recID) { _, error in
-            if let error { print("[Available] clearOutgoingChallenge error: \(error.localizedDescription)") }
+            if let error {
+                BlomixPvPLog.event("challenge_clear_error", ["error": error.localizedDescription])
+            }
         }
     }
 

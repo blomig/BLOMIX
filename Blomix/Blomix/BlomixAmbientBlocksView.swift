@@ -44,9 +44,11 @@ final class BlomixAmbientBlocksView: UIView {
         spawnTimer?.invalidate()
         let delay = Double.random(in: 0.25...2.0)
         spawnTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
-            guard let self, self.window != nil else { return }
-            self.spawnBlock()
-            self.scheduleNextSpawn()
+            Task { @MainActor [weak self] in
+                guard let self, self.window != nil else { return }
+                self.spawnBlock()
+                self.scheduleNextSpawn()
+            }
         }
     }
 

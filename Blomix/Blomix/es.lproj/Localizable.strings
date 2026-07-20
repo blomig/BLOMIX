@@ -236,7 +236,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "hud.time_caption" = "TIEMPO";
 "hud.line_caption" = "LÍNEA";
 
-"game_over.optimality_label" = "optimalidad";
+"game_over.optimality_label" = "acierto";
 "game_over.move_stats_format" = "✦ %lld jugadas excelentes  •  %lld errores";
 "game_over.view_worst_move" = "Ver tu peor jugada";
 "game_over.worst_move_title" = "Tu peor jugada";
@@ -274,3 +274,9 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "appearance.dark" = "Oscuro";
 "appearance.light" = "Claro";
 
+
+/* PvP robustness */
+"pvp.mode_quick_desc" = "Partida rápida";
+"pvp.protocol_mismatch.message" = "Versiones incompatibles. Actualiza BLOMIX en ambos dispositivos.";
+"pvp.reconnecting.message" = "Reconectando…";
+"pvp.available_invite_app_open_hint" = "Invitación en la app — el rival debe tener BLOMIX abierto.";

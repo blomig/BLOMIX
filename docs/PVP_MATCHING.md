@@ -16,7 +16,7 @@ BLOMIX propose **trois chemins distincts** pour lancer un duel 1 vs 1. Ils n'uti
 | **A. Joueurs disponibles** | Lobby PvP → « Joueurs disponibles » | CloudKit Public DB | Bannière in-app (`BlomixChallengeBannerView`) — **pas** de push Game Center |
 | **B. Adversaire récent** | Lobby PvP → « Adversaire récent » | GameKit direct | `GKInvite` → bannière in-app (`BlomixPvPInviteBannerView`) |
 | **C. Classement Elo** | Classement → onglet Elo → « Défier » | GameKit direct | Identique au mode B |
-| **D. Auto-match** | Code présent, **UI non branchée** | — | `beginMatchSearch()` / `BlomixPvPAutoSearcher` jamais appelés depuis l'UI |
+| **D. Auto-match / Partie rapide** | Lobby → **Partie rapide** | GameKit auto | `beginMatchSearch()` (Elo match request) ; `BlomixPvPAutoSearcher` reste dispo pour usage background |
 
 **Point critique pour le bug « on se voit dans la liste mais pas d'invitation »** : le mode A sépare **deux opérations CloudKit indépendantes** :
 
@@ -397,14 +397,35 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | **PVP-4** | Lecture `eloRating as? Int` (schéma Int64) | ✅ Corrigé — `intFromRecord` + recalcul secours |
 | **PVP-5** | Commentaires « ≤ 8 s » vs timer 4 s | ✅ Corrigé |
 | **PVP-6** | Pas de `bringSubviewToFront` sur bannière | ✅ Corrigé |
-| **PVP-7** | Mode auto-match non branché UI | Ouvert |
-| **PVP-8** | Pas de gestion « défi croisé » mode CloudKit | Ouvert |
+| **PVP-7** | Mode auto-match non branché UI | ✅ Corrigé — bouton **Partie rapide** dans le lobby |
+| **PVP-8** | Pas de gestion « défi croisé » mode CloudKit | ✅ Partiel — pas de double bannière si défi mutuel |
 | **PVP-9** | Format `chal_{défié}` — WRITE not permitted CloudKit | ✅ Corrigé — format `chfrom_{challenger}` |
 | **PVP-10** | Overlay déconnexion masqué derrière écran résultat | ✅ Corrigé — dismiss modal résultat d'abord |
 | **PVP-11** | Revanche : UI « Lancement » avant sync réseau | ✅ Corrigé — launching via coordinateur uniquement |
 | **PVP-12** | Revanche : helloSeed avant P2P prêt | ✅ Corrigé — `expectedPlayerCount == 0` |
 | **PVP-13** | Revanche : pas d'overlay attente / timeout | ✅ Corrigé — overlay + retry 2 s + timeout 45 s |
 | **PVP-14** | `matchFailed` silencieux | ✅ Corrigé — overlay « Connexion perdue » |
+| **PVP-15** | Fallback RNG local en PvP (désync) | ✅ Corrigé — `nil` + échec match si RNG absent |
+| **PVP-16** | Pas de `protocolVersion` | ✅ Corrigé — handshake + message d’update |
+| **PVP-17** | Messages critiques fire-and-forget | ✅ Corrigé — file + `msgId` / `ackMsg` |
+| **PVP-18** | Déco mid-game immédiate | ✅ Corrigé — grace 4 s + heartbeat 2,5 s |
+| **PVP-19** | `iLost` sans ack | ✅ Corrigé — `ackVictory` + retry |
+| **PVP-20** | Attaques sans id filaire | ✅ Corrigé — `attackId` anti-doublon |
+| **PVP-21** | `isInActiveMatch` collant post-crash | ✅ Corrigé — reset au `didBecomeActive` si pas de coordinateur |
+
+### Protocole filaire (résumé robustesse)
+
+| Champ / kind | Rôle |
+|---|---|
+| `protocolVersion` (sur `helloSeed`) | Compat builds ; mismatch → overlay update |
+| `msgId` + `ackMsg` | Retry applicatif des messages critiques |
+| `attackId` | Anti-doublon lignes d’attaque + discard RNG une seule fois |
+| `ackVictory` | Confirme réception de `iLost` |
+| `keepAlive` | Heartbeat ; silence > 10 s → grace déco |
+| Grace mid-game | 4 s + overlay « Reconnexion… » |
+| Grace handshake | 15 s (inchangé) |
+
+Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 
 ---
 

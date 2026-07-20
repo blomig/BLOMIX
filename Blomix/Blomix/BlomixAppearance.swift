@@ -345,7 +345,8 @@ enum BlomixAppearance {
         let imgSize = CGSize(width: canvasSide, height: canvasSide)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
-        format.scale = UIScreen.main.scale
+        // Évite UIScreen.main hors MainActor (Swift 6) ; 3× suffit pour l'icône HUD.
+        format.scale = 3
         let flat = UIGraphicsImageRenderer(size: imgSize, format: format).image { _ in
             // Centrer le glyphe dans le canvas.
             let aspect = sym.size.width / max(sym.size.height, 1)

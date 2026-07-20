@@ -139,7 +139,7 @@ final class GameTutorialOverlayView: UIView, UIScrollViewDelegate {
         // Barre du bas
         understoodButton.setTitle(BlomixL10n.tutorialGotIt, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: understoodButton)
-        understoodButton.contentEdgeInsets = UIEdgeInsets(top: 12, left: 24, bottom: 12, right: 24)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 24, bottom: 12, right: 24), to: understoodButton)
         understoodButton.addTarget(self, action: #selector(understoodTapped), for: .touchUpInside)
 
         // Radio "Afficher ce guide au démarrage" — même style que skins / polices

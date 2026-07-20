@@ -7,7 +7,17 @@
 //
 
 import Foundation
-import GameKit
+@preconcurrency import GameKit
+
+/// `GKPlayer` n'est pas `Sendable` — boîte pour traverser les callbacks GameKit (Swift 6).
+private struct BlomixPvPGKPlayerBox: @unchecked Sendable {
+    let player: GKPlayer
+}
+
+/// `GKLeaderboard` n'est pas `Sendable` non plus.
+private struct BlomixPvPGKLeaderboardBox: @unchecked Sendable {
+    let leaderboard: GKLeaderboard
+}
 
 enum BlomixPvPMatchOutcome: Sendable {
     case win
@@ -141,20 +151,18 @@ final class BlomixEloManager {
 
     func fetchLocalPlayerProfile() async throws -> BlomixEloProfile {
         guard GKLocalPlayer.local.isAuthenticated else {
-            throw makeError(code: 1, description: "Joueur local non authentifié : Elo indisponible.")
+            throw Self.makeError(code: 1, description: "Joueur local non authentifié : Elo indisponible.")
         }
 
         do {
             let current = try await loadLocalPlayerProfileFromLeaderboard()
             let resolved = current ?? BlomixEloProfile(rating: defaultRating, completedMatchCount: 0)
             persistLocalProfileCache(resolved)
+            // Ne PAS soumettre 800/context=0 sur GC au premier lancement : ça pollue le top 100
+            // avec des entrées « jamais joué » et repousse les vrais Elo < 800 hors de la 1ʳᵉ page.
+            // La 1ʳᵉ soumission GC se fait à la fin du 1ᵉʳ match PvP (finalizeLocalPlayerRating).
             if current == nil {
-                do {
-                    try await submitLocalProfile(resolved)
-                    print("[PvP Elo] Aucun Elo existant : initialisation du leaderboard « \(leaderboardID) » à \(resolved.rating) (matches=\(resolved.completedMatchCount)).")
-                } catch {
-                    print("[PvP Elo] Aucun Elo existant et initialisation Game Center impossible pour l’instant. Fallback local conservé à \(resolved.rating) / matches=\(resolved.completedMatchCount). Erreur: \(error.localizedDescription)")
-                }
+                print("[PvP Elo] Aucun Elo GC : cache local \(resolved.rating) (matches=0), pas d’init GC (évite le mur 800/0).")
             }
             return resolved
         } catch {
@@ -172,7 +180,7 @@ final class BlomixEloManager {
 
     func fetchProfile(for player: GKPlayer) async throws -> BlomixEloProfile {
         guard GKLocalPlayer.local.isAuthenticated else {
-            throw makeError(code: 2, description: "Joueur local non authentifié : impossible de lire l’Elo adverse.")
+            throw Self.makeError(code: 2, description: "Joueur local non authentifié : impossible de lire l’Elo adverse.")
         }
         let current = try await loadProfileFromLeaderboard(for: player)
         return current ?? BlomixEloProfile(rating: defaultRating, completedMatchCount: 0)
@@ -187,7 +195,7 @@ final class BlomixEloManager {
 
     func submitLocalProfile(_ profile: BlomixEloProfile) async throws {
         guard GKLocalPlayer.local.isAuthenticated else {
-            throw makeError(code: 3, description: "Joueur local non authentifié : impossible d’envoyer l’Elo.")
+            throw Self.makeError(code: 3, description: "Joueur local non authentifié : impossible d’envoyer l’Elo.")
         }
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -262,26 +270,37 @@ final class BlomixEloManager {
     // MARK: - Private leaderboard access
 
     private func loadLocalPlayerProfileFromLeaderboard() async throws -> BlomixEloProfile? {
-        try await withCheckedThrowingContinuation { continuation in
-            GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, loadError in
+        let boardID = leaderboardID
+        let floorRating = defaultRating
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<BlomixEloProfile?, Error>) in
+            GKLeaderboard.loadLeaderboards(IDs: [boardID]) { leaderboards, loadError in
                 if let loadError {
                     continuation.resume(throwing: loadError)
                     return
                 }
-                guard let leaderboard = leaderboards?.first else {
-                    continuation.resume(throwing: self.makeError(
+                // Box avant tout hop / capture Sendable — pas de passage de [GKLeaderboard] brut.
+                guard let raw = leaderboards?.first else {
+                    continuation.resume(throwing: Self.makeError(
                         code: 4,
-                        description: "Leaderboard Elo « \(self.leaderboardID) » introuvable."
+                        description: "Leaderboard Elo « \(boardID) » introuvable."
                     ))
                     return
                 }
-
-                leaderboard.loadEntries(for: [GKLocalPlayer.local], timeScope: .allTime) { _, entries, error in
+                let boardBox = BlomixPvPGKLeaderboardBox(leaderboard: raw)
+                boardBox.leaderboard.loadEntries(
+                    for: [GKLocalPlayer.local],
+                    timeScope: .allTime
+                ) { _, entries, error in
                     if let error {
                         continuation.resume(throwing: error)
                         return
                     }
-                    let profile: BlomixEloProfile? = entries?.first.flatMap { self.normalizedProfile(fromRating: Int($0.score), completedMatchCount: Swift.max(0, $0.context)) }
+                    // Extraire des Int Sendable dans le callback, avant resume.
+                    let score = entries?.first.map { Int($0.score) }
+                    let matches = entries?.first.map { Int($0.context) } ?? 0
+                    let profile = score.flatMap {
+                        Self.normalizedProfile(fromRating: $0, completedMatchCount: matches, defaultRating: floorRating)
+                    }
                     continuation.resume(returning: profile)
                 }
             }
@@ -289,26 +308,36 @@ final class BlomixEloManager {
     }
 
     private func loadProfileFromLeaderboard(for player: GKPlayer) async throws -> BlomixEloProfile? {
-        try await withCheckedThrowingContinuation { continuation in
-            GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, loadError in
+        let boardID = leaderboardID
+        let floorRating = defaultRating
+        let playerBox = BlomixPvPGKPlayerBox(player: player)
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<BlomixEloProfile?, Error>) in
+            GKLeaderboard.loadLeaderboards(IDs: [boardID]) { leaderboards, loadError in
                 if let loadError {
                     continuation.resume(throwing: loadError)
                     return
                 }
-                guard let leaderboard = leaderboards?.first else {
-                    continuation.resume(throwing: self.makeError(
+                guard let raw = leaderboards?.first else {
+                    continuation.resume(throwing: Self.makeError(
                         code: 5,
-                        description: "Leaderboard Elo « \(self.leaderboardID) » introuvable."
+                        description: "Leaderboard Elo « \(boardID) » introuvable."
                     ))
                     return
                 }
-
-                leaderboard.loadEntries(for: [player], timeScope: .allTime) { _, entries, error in
+                let boardBox = BlomixPvPGKLeaderboardBox(leaderboard: raw)
+                boardBox.leaderboard.loadEntries(
+                    for: [playerBox.player],
+                    timeScope: .allTime
+                ) { _, entries, error in
                     if let error {
                         continuation.resume(throwing: error)
                         return
                     }
-                    let profile: BlomixEloProfile? = entries?.first.flatMap { self.normalizedProfile(fromRating: Int($0.score), completedMatchCount: Swift.max(0, $0.context)) }
+                    let score = entries?.first.map { Int($0.score) }
+                    let matches = entries?.first.map { Int($0.context) } ?? 0
+                    let profile = score.flatMap {
+                        Self.normalizedProfile(fromRating: $0, completedMatchCount: matches, defaultRating: floorRating)
+                    }
                     continuation.resume(returning: profile)
                 }
             }
@@ -338,6 +367,15 @@ final class BlomixEloManager {
     }
 
     private func normalizedProfile(fromRating rating: Int, completedMatchCount: Int) -> BlomixEloProfile? {
+        Self.normalizedProfile(fromRating: rating, completedMatchCount: completedMatchCount, defaultRating: defaultRating)
+    }
+
+    /// Pure / nonisolated : utilisable depuis les callbacks GameKit (pas de data race MainActor).
+    nonisolated private static func normalizedProfile(
+        fromRating rating: Int,
+        completedMatchCount: Int,
+        defaultRating: Int
+    ) -> BlomixEloProfile? {
         let normalizedMatches = max(0, completedMatchCount)
 
         // Après le reset du leaderboard, ou avec une ancienne build, Game Center peut encore exposer
@@ -352,7 +390,7 @@ final class BlomixEloManager {
 
     // MARK: - Errors
 
-    private func makeError(code: Int, description: String) -> NSError {
+    nonisolated private static func makeError(code: Int, description: String) -> NSError {
         NSError(
             domain: "BlomixEloManager",
             code: code,

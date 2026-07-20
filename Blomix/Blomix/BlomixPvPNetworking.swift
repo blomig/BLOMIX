@@ -3,12 +3,25 @@
 //  Blomix
 //
 //  Multijoueur temps réel (GKMatch) : messages, RNG synchronisé par graine, coordinateur.
+//  Robustesse v2 : protocolVersion, file d'envoi + ack, heartbeat, grace déco mid-game,
+//  ack iLost, attackId, pas de RNG local de secours.
 //  Le solo n’instancie jamais ce module ; `GameScene` n’active ces chemins que si `pvpCoordinator != nil`.
 //
 
 import Foundation
 import GameKit
 import UIKit
+
+// MARK: - Logs structurés
+
+enum BlomixPvPLog {
+    static func event(_ name: String, _ fields: [String: String] = [:]) {
+        let extras = fields.isEmpty
+            ? ""
+            : " " + fields.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: " ")
+        print("[PvP] \(name)\(extras)")
+    }
+}
 
 // MARK: - Recherche automatique d'adversaire (arrière-plan)
 
@@ -23,7 +36,6 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
 
     private var maxDurationTimer: Timer?
     private let maxDuration: TimeInterval = 15 * 60
-    // Compteur de tentatives consécutives échouées pour le backoff exponentiel.
     private var findMatchRetryAttempt = 0
 
     private init() {}
@@ -34,7 +46,7 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
         findMatchRetryAttempt = 0
         startMaxDurationTimer()
         Task { await launchFindMatch() }
-        print("[PvP AutoSearch] Démarré — disponible pendant 15 min.")
+        BlomixPvPLog.event("autosearch_start")
     }
 
     func stopSearching() {
@@ -44,15 +56,14 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
         maxDurationTimer?.invalidate()
         maxDurationTimer = nil
         GKMatchmaker.shared().cancel()
-        print("[PvP AutoSearch] Arrêté.")
+        BlomixPvPLog.event("autosearch_stop")
     }
 
     private func launchFindMatch() async {
         guard isSearching else { return }
-        // Backoff exponentiel : 0 s, 2 s, 4 s, 8 s, 16 s max — évite de marteler GameCenter.
         if findMatchRetryAttempt > 0 {
             let delay = min(pow(2.0, Double(findMatchRetryAttempt - 1)) * 2.0, 16.0)
-            print("[PvP AutoSearch] Tentative \(findMatchRetryAttempt + 1) — attente \(Int(delay))s…")
+            BlomixPvPLog.event("autosearch_retry", ["attempt": "\(findMatchRetryAttempt + 1)", "delay_s": "\(Int(delay))"])
             try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             guard isSearching else { return }
         }
@@ -62,23 +73,22 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
         guard isSearching else { return }
 
         GKMatchmaker.shared().cancel()
-        GKMatchmaker.shared().findMatch(for: request) { [weak self] match, error in
-            let matchBox = match.map { BlomixPvPGKMatchBox(match: $0) }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let box = matchBox {
-                    self.isSearching = false
-                    self.findMatchRetryAttempt = 0
-                    self.maxDurationTimer?.invalidate()
-                    self.maxDurationTimer = nil
-                    GKMatchmaker.shared().finishMatchmaking(for: box.match)
-                    self.onMatch?(box.match)
-                    print("[PvP AutoSearch] Match trouvé !")
-                } else if self.isSearching {
-                    print("[PvP AutoSearch] Timeout/erreur, relance (tentative \(self.findMatchRetryAttempt))…")
-                    await self.launchFindMatch()
-                }
-            }
+        do {
+            let match = try await GKMatchmaker.shared().findMatch(for: request)
+            guard isSearching else { return }
+            isSearching = false
+            findMatchRetryAttempt = 0
+            maxDurationTimer?.invalidate()
+            maxDurationTimer = nil
+            GKMatchmaker.shared().finishMatchmaking(for: match)
+            onMatch?(match)
+            BlomixPvPLog.event("autosearch_match_found")
+        } catch {
+            guard isSearching else { return }
+            BlomixPvPLog.event("autosearch_find_failed", [
+                "error": error.localizedDescription
+            ])
+            await launchFindMatch()
         }
     }
 
@@ -88,7 +98,7 @@ final class BlomixPvPAutoSearcher: @unchecked Sendable {
             Task { @MainActor in
                 guard let self, self.isSearching else { return }
                 self.stopSearching()
-                print("[PvP AutoSearch] 15 min écoulées, arrêt automatique.")
+                BlomixPvPLog.event("autosearch_timeout_15m")
             }
         }
     }
@@ -102,16 +112,29 @@ private enum BlomixPvPMessageKind: String, Codable {
     case attackLine
     case boardFillDepth
     case iLost
+    case ackVictory
     case rematchRequest
     case rematchCancel
+    case ackMsg
+    case keepAlive
 }
 
 private struct BlomixPvPWireEnvelope: Codable {
     let k: BlomixPvPMessageKind
-    var seed: UInt64?
-    var line: [String]?
-    var fillDepth: Int?
-    var score: Int?
+    var seed: UInt64? = nil
+    var line: [String]? = nil
+    var fillDepth: Int? = nil
+    var score: Int? = nil
+    /// Version de protocole applicatif (helloSeed).
+    var protocolVersion: Int? = nil
+    /// Build marketing app (helloSeed) — info diagnostic.
+    var appBuild: Int? = nil
+    /// Identifiant monoto d'envoi pour ack applicatif.
+    var msgId: Int? = nil
+    /// Id monoto d'attaque (anti-doublon côté récepteur).
+    var attackId: Int? = nil
+    /// Ack d'un msgId critique.
+    var ackMsgId: Int? = nil
 }
 
 // MARK: - Blocs ↔ fil
@@ -190,9 +213,20 @@ struct BlomixPvPSeededBlockRNG {
 
 @MainActor
 final class BlomixPvPMatchCoordinator: NSObject {
+
+    /// Version de protocole filaire. Incrémenter à chaque breaking change.
+    static let protocolVersion: Int = 1
+
     private struct QueuedAttackLine {
         let id: Int
         let line: [BlockType]
+    }
+
+    private struct PendingCriticalSend {
+        var envelope: BlomixPvPWireEnvelope
+        var attempts: Int
+        let maxAttempts: Int
+        var lastSentAt: Date
     }
 
     private weak var scene: GameScene?
@@ -207,6 +241,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     private var incomingAttackLines: [QueuedAttackLine] = []
     private var nextIncomingAttackLineID: Int = 1
+    /// Dernier attackId reçu (anti-doublon).
+    private var lastReceivedAttackId: Int = 0
+    /// Prochain attackId sortant.
+    private var nextOutboundAttackId: Int = 1
     private var lastSentScoreAttackBracket: Int = 0
     private var lastSentBoardFillDepth: Int?
     private var lastSentScore: Int?
@@ -218,6 +256,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private var handshakeSeed: UInt64?
 
     private var didReportLocalLoss = false
+    private var didReceiveRemoteLoss = false
+    private var awaitingVictoryAck = false
     private var localRematchRequested = false
     private var remoteRematchRequested = false
     private var rematchRetryTimer: Timer?
@@ -225,44 +265,93 @@ final class BlomixPvPMatchCoordinator: NSObject {
     /// N’envoyer `helloSeed` qu’une fois tous les joueurs connectés (`expectedPlayerCount == 0`), sinon l’adversaire ne reçoit rien et la partie reste bloquée.
     private var didEmitHelloSeed = false
 
-    // MARK: - Watchdogs robustesse
+    // MARK: - Watchdogs / grace / heartbeat / send queue
 
-    /// Abandonne si le handshake n'est pas termine apres ce delai.
     private var handshakeWatchdog: Timer?
     private let handshakeWatchdogTimeout: TimeInterval = 60.0
-    /// Fenetre de grace avant d'abandonner en cas de micro-deconnexion pendant le handshake.
     private var disconnectionGraceTimer: Timer?
-    private let disconnectionGracePeriod: TimeInterval = 15.0
+    /// Grace handshake (micro-coupure avant partie).
+    private let handshakeDisconnectionGracePeriod: TimeInterval = 15.0
+    /// Grace mid-game (cellulaire instable).
+    private let inMatchDisconnectionGracePeriod: TimeInterval = 4.0
+    private var isInDisconnectionGrace = false
+
+    private var heartbeatTimer: Timer?
+    private let heartbeatInterval: TimeInterval = 2.5
+    private let peerSilenceTimeout: TimeInterval = 10.0
+    private var lastPeerAliveAt: Date?
+
+    private var nextMsgId: Int = 1
+    private var pendingCriticalSends: [Int: PendingCriticalSend] = [:]
+    private var criticalRetryTimer: Timer?
+    private let criticalRetryInterval: TimeInterval = 1.5
+
+    private static var localAppBuild: Int {
+        let raw = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+        return Int(raw ?? "") ?? 0
+    }
 
     init(match: GKMatch) {
         self.match = match
         super.init()
         match.delegate = self
-        // Tentative de résolution immédiate si les joueurs distants sont déjà présents.
-        // Si match.players est encore vide (cas fréquent quand onMatch est appelé tôt),
-        // la résolution est différée au 1er callback .connected — voir resolveHostRoleIfNeeded().
         resolveHostRoleIfNeeded()
     }
 
     /// Calcule et gèle `isHost` dès que `match.players` est peuplé.
-    /// Appel idempotent : ne fait rien si déjà résolu ou si players encore vides.
     private func resolveHostRoleIfNeeded() {
         guard !isHostResolved, !match.players.isEmpty else { return }
         let locals = [GKLocalPlayer.local] + match.players
         let sorted = locals.sorted { $0.gamePlayerID < $1.gamePlayerID }
         isHost = sorted.first?.gamePlayerID == GKLocalPlayer.local.gamePlayerID
         isHostResolved = true
-        print("[PvP] isHost résolu : \(isHost) (peers : \(match.players.map { $0.gamePlayerID }))")
+        BlomixPvPLog.event("host_resolved", [
+            "isHost": "\(isHost)",
+            "peers": match.players.map(\.gamePlayerID).joined(separator: ",")
+        ])
     }
 
     func attach(to scene: GameScene) {
         self.scene = scene
         beginHandshakeMonitoringIfNeeded()
         startHandshakeWatchdog()
+        startCriticalRetryTimer()
+        // Filet : roster parfois vide juste après findMatch même si expectedPlayerCount == 0
+        // (pas de nouveau .connected). On re-tente host resolve + helloSeed pendant ~12 s.
+        startRosterBootstrapPoll()
+    }
+
+    private var rosterBootstrapTimer: Timer?
+    private var rosterBootstrapTicks = 0
+
+    private func startRosterBootstrapPoll() {
+        rosterBootstrapTimer?.invalidate()
+        rosterBootstrapTicks = 0
+        let t = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.rosterBootstrapTicks += 1
+                self.resolveHostRoleIfNeeded()
+                self.beginHandshakeMonitoringIfNeeded()
+                if self.didFinishHandshake || self.rosterBootstrapTicks >= 30 {
+                    self.rosterBootstrapTimer?.invalidate()
+                    self.rosterBootstrapTimer = nil
+                }
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        rosterBootstrapTimer = t
+    }
+
+    private func stopRosterBootstrapPoll() {
+        rosterBootstrapTimer?.invalidate()
+        rosterBootstrapTimer = nil
     }
 
     private func beginHandshakeMonitoringIfNeeded() {
         resolveHostRoleIfNeeded()
+        // Tant que le rôle n'est pas résolu (roster vide), on ne peut pas décider host/guest.
+        guard isHostResolved else { return }
         guard isHost else { return }
         handshakeRetryTimer?.invalidate()
         attemptHostHandshakeSendIfReady()
@@ -299,8 +388,18 @@ final class BlomixPvPMatchCoordinator: NSObject {
         if !didEmitHelloSeed {
             didEmitHelloSeed = true
             didFinishHandshake = false
+            BlomixPvPLog.event("hello_seed_emit", [
+                "seed": "\(seed)",
+                "proto": "\(Self.protocolVersion)",
+                "build": "\(Self.localAppBuild)"
+            ])
         }
-        sendEnvelope(BlomixPvPWireEnvelope(k: .helloSeed, seed: seed, line: nil, fillDepth: nil))
+        var env = BlomixPvPWireEnvelope(k: .helloSeed, seed: seed, line: nil, fillDepth: nil)
+        env.protocolVersion = Self.protocolVersion
+        env.appBuild = Self.localAppBuild
+        // helloSeed : envoi direct + retries timer hôte (pas la file critique générique,
+        // pour ne pas empiler des msgId différents pour le même seed).
+        sendEnvelopeRaw(env)
     }
 
     func stopTurnTimer() {
@@ -312,33 +411,44 @@ final class BlomixPvPMatchCoordinator: NSObject {
         stopTurnTimer()
         stopHandshakeMonitoring()
         stopHandshakeWatchdog()
+        stopRosterBootstrapPoll()
         cancelDisconnectionGrace()
         stopRematchRetryTimer()
+        stopHeartbeat()
+        stopCriticalRetryTimer()
+        pendingCriticalSends.removeAll()
         resetRematchFlags()
         match.delegate = nil
         match.disconnect()
         rng = nil
         handshakeSeed = nil
         scene = nil
+        BlomixPvPLog.event("coordinator_teardown")
     }
 
-    func nextPlayableBlockForSharedMatch() -> BlockType {
+    /// `nil` si le RNG partagé n'est pas prêt — **jamais** de fallback local (anti-désync).
+    func nextPlayableBlockForSharedMatch() -> BlockType? {
         guard var g = rng else {
-            return GameScene.randomNextPlayableBlock()
+            BlomixPvPLog.event("rng_unavailable", ["op": "nextBlock"])
+            return nil
         }
         let b = g.nextPlayableBlock()
         rng = g
         return b
     }
 
-    func nextRandomBottomLineForSharedMatch() -> [BlockType] {
+    /// `nil` si le RNG partagé n'est pas prêt — **jamais** de fallback local.
+    func nextRandomBottomLineForSharedMatch() -> [BlockType]? {
         guard var g = rng else {
-            return (0..<8).map { _ in GameScene.randomNextPlayableBlock() }
+            BlomixPvPLog.event("rng_unavailable", ["op": "nextLine"])
+            return nil
         }
         let line = g.nextRandomLineRowIndependentCells()
         rng = g
         return line
     }
+
+    var hasSharedRNG: Bool { rng != nil }
 
     func consumeNextIncomingAttackLineIfAny() -> [BlockType]? {
         guard !incomingAttackLines.isEmpty else { return nil }
@@ -360,7 +470,12 @@ final class BlomixPvPMatchCoordinator: NSObject {
         let line = g.nextRandomLineRowIndependentCells()
         rng = g
         let tokens = line.map { $0.blomixPvPWireToken() }
-        sendEnvelope(BlomixPvPWireEnvelope(k: .attackLine, seed: nil, line: tokens, fillDepth: nil))
+        let attackId = nextOutboundAttackId
+        nextOutboundAttackId += 1
+        var env = BlomixPvPWireEnvelope(k: .attackLine, seed: nil, line: tokens, fillDepth: nil)
+        env.attackId = attackId
+        enqueueCritical(env, maxAttempts: 12)
+        BlomixPvPLog.event("attack_sent", ["attackId": "\(attackId)", "bracket": "\(bracket)"])
         return true
     }
 
@@ -370,27 +485,32 @@ final class BlomixPvPMatchCoordinator: NSObject {
         guard lastSentBoardFillDepth != normalized || lastSentScore != score else { return }
         lastSentBoardFillDepth = normalized
         lastSentScore = score
-        sendEnvelope(BlomixPvPWireEnvelope(k: .boardFillDepth, seed: nil, line: nil, fillDepth: normalized, score: score))
+        // Best-effort (non critique) — le HUD distant peut rater une frame.
+        sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .boardFillDepth, seed: nil, line: nil, fillDepth: normalized, score: score))
     }
 
     func localPlayerLost() {
         guard didFinishHandshake, !didReportLocalLoss else { return }
         didReportLocalLoss = true
+        awaitingVictoryAck = true
         stopTurnTimer()
-        sendEnvelope(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil))
+        stopHeartbeat()
+        enqueueCritical(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil), maxAttempts: 20)
+        BlomixPvPLog.event("local_lost_sent")
         scene?.blomixPvP_presentLocalDefeat()
     }
 
     /// Abandon volontaire en cours de partie (sortie via menu).
-    /// Informe le pair de la defaite locale sans afficher l'ecran de resultat.
     func forfeitMatch() {
         guard didFinishHandshake, !didReportLocalLoss else { return }
         didReportLocalLoss = true
+        awaitingVictoryAck = true
         stopTurnTimer()
-        sendEnvelope(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil))
+        stopHeartbeat()
+        enqueueCritical(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil), maxAttempts: 20)
+        BlomixPvPLog.event("forfeit_sent")
     }
 
-    /// Indique si la partie PvP est actuellement en cours (handshake termine).
     var isGameActive: Bool { didFinishHandshake }
 
     func sceneBecameIdleForLocalTurn() {
@@ -398,7 +518,6 @@ final class BlomixPvPMatchCoordinator: NSObject {
         restartTurnTimer()
     }
 
-    /// Match 1v1 actuel : renvoie l’unique adversaire attendu par le mode PvP.
     var primaryRemotePlayer: GKPlayer? {
         match.players.first
     }
@@ -422,6 +541,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
             stopTurnTimer()
             return
         }
+        // Pendant grace déco, on ne force pas d'auto-drop.
+        guard !isInDisconnectionGrace else { return }
         guard scene.blomixPvP_shouldRunTurnTimer() else { return }
         countdownRemaining -= 1
         if countdownRemaining <= 0 {
@@ -432,45 +553,133 @@ final class BlomixPvPMatchCoordinator: NSObject {
         scene.blomixPvP_setTurnCountdown(countdownRemaining)
     }
 
-    private func sendEnvelope(_ env: BlomixPvPWireEnvelope) {
+    // MARK: - Envoi / file critique
+
+    private func sendEnvelopeRaw(_ env: BlomixPvPWireEnvelope) {
         guard let data = try? JSONEncoder().encode(env) else { return }
         do {
             try match.sendData(toAllPlayers: data, with: .reliable)
         } catch {
-            print("[PvP] send error: \(error)")
+            BlomixPvPLog.event("send_error", [
+                "kind": env.k.rawValue,
+                "error": error.localizedDescription
+            ])
         }
     }
 
+    private func enqueueCritical(_ env: BlomixPvPWireEnvelope, maxAttempts: Int = 10) {
+        var e = env
+        let id = nextMsgId
+        nextMsgId += 1
+        e.msgId = id
+        pendingCriticalSends[id] = PendingCriticalSend(
+            envelope: e,
+            attempts: 0,
+            maxAttempts: maxAttempts,
+            lastSentAt: .distantPast
+        )
+        flushCriticalSend(id: id)
+    }
+
+    private func flushCriticalSend(id: Int) {
+        guard var pending = pendingCriticalSends[id] else { return }
+        pending.attempts += 1
+        pending.lastSentAt = Date()
+        pendingCriticalSends[id] = pending
+        sendEnvelopeRaw(pending.envelope)
+        if pending.attempts >= pending.maxAttempts {
+            BlomixPvPLog.event("critical_send_exhausted", [
+                "kind": pending.envelope.k.rawValue,
+                "msgId": "\(id)"
+            ])
+            pendingCriticalSends.removeValue(forKey: id)
+        }
+    }
+
+    private func startCriticalRetryTimer() {
+        stopCriticalRetryTimer()
+        let t = Timer.scheduledTimer(withTimeInterval: criticalRetryInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.retryPendingCriticalSends() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        criticalRetryTimer = t
+    }
+
+    private func stopCriticalRetryTimer() {
+        criticalRetryTimer?.invalidate()
+        criticalRetryTimer = nil
+    }
+
+    private func retryPendingCriticalSends() {
+        let now = Date()
+        for (id, pending) in pendingCriticalSends {
+            if now.timeIntervalSince(pending.lastSentAt) >= criticalRetryInterval {
+                flushCriticalSend(id: id)
+            }
+        }
+    }
+
+    private func acknowledgeMsgId(_ ackId: Int) {
+        if pendingCriticalSends.removeValue(forKey: ackId) != nil {
+            BlomixPvPLog.event("critical_acked", ["msgId": "\(ackId)"])
+        }
+    }
+
+    private func sendAck(forMsgId msgId: Int?) {
+        guard let msgId else { return }
+        var env = BlomixPvPWireEnvelope(k: .ackMsg, seed: nil, line: nil, fillDepth: nil)
+        env.ackMsgId = msgId
+        sendEnvelopeRaw(env)
+    }
+
+    // MARK: - Réception
+
     private func handleEnvelope(_ env: BlomixPvPWireEnvelope, remoteSenderGamePlayerID: String) {
+        lastPeerAliveAt = Date()
+
         switch env.k {
         case .helloSeed:
             guard !isHost, let seed = env.seed else { return }
-            // Si le handshake est déjà terminé (timer de retry de l'hôte encore actif),
-            // on renvoie juste ackReady pour arrêter les retries sans réinitialiser le jeu.
+            if let remoteProto = env.protocolVersion, remoteProto != Self.protocolVersion {
+                BlomixPvPLog.event("protocol_mismatch", [
+                    "remote": "\(remoteProto)",
+                    "local": "\(Self.protocolVersion)"
+                ])
+                scene?.blomixPvP_matchFailed(
+                    nil,
+                    userMessage: BlomixL10n.pvpProtocolMismatchMessage
+                )
+                return
+            }
+            // Compat soft : ancien client sans protocolVersion → on accepte (build transition).
             if didFinishHandshake {
-                sendEnvelope(BlomixPvPWireEnvelope(k: .ackReady, seed: nil, line: nil, fillDepth: nil))
+                sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .ackReady, seed: nil, line: nil, fillDepth: nil))
+                sendAck(forMsgId: env.msgId)
                 return
             }
             rng = BlomixPvPSeededBlockRNG(seed: seed)
-            didFinishHandshake = true
-            isPreparingNextRound = false
-            lastSentScoreAttackBracket = 0
-            stopHandshakeWatchdog()
-            cancelDisconnectionGrace()
-            sendEnvelope(BlomixPvPWireEnvelope(k: .ackReady, seed: nil, line: nil, fillDepth: nil))
+            markHandshakeComplete(isHostSide: false)
+            sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .ackReady, seed: nil, line: nil, fillDepth: nil))
+            sendAck(forMsgId: env.msgId)
             scene?.blomixPvP_onHandshakeCompleteRestartBoard()
+
         case .ackReady:
             guard isHost else { return }
             if !didFinishHandshake {
-                didFinishHandshake = true
-                isPreparingNextRound = false
-                stopHandshakeMonitoring()
-                stopHandshakeWatchdog()
-                cancelDisconnectionGrace()
+                markHandshakeComplete(isHostSide: true)
                 scene?.blomixPvP_onHandshakeCompleteRestartBoard()
             }
+            sendAck(forMsgId: env.msgId)
+
         case .attackLine:
+            sendAck(forMsgId: env.msgId)
             guard let tokens = env.line, let line = BlockType.lineFromWireTokens(tokens) else { return }
+            let wireId = env.attackId ?? (lastReceivedAttackId + 1)
+            if wireId <= lastReceivedAttackId {
+                BlomixPvPLog.event("attack_duplicate_ignored", ["attackId": "\(wireId)"])
+                return
+            }
+            lastReceivedAttackId = wireId
             incomingAttackLines.append(QueuedAttackLine(id: nextIncomingAttackLineID, line: line))
             nextIncomingAttackLineID += 1
             if var g = rng {
@@ -478,22 +687,99 @@ final class BlomixPvPMatchCoordinator: NSObject {
                 rng = g
             }
             scene?.blomixPvP_refreshPendingAttackLinePreview()
+            BlomixPvPLog.event("attack_received", ["attackId": "\(wireId)"])
+
         case .boardFillDepth:
             scene?.blomixPvP_setRemoteBoardFillDepth(env.fillDepth ?? 0)
             scene?.blomixPvP_setRemoteScore(env.score ?? 0)
+
         case .iLost:
+            sendAck(forMsgId: env.msgId)
             guard remoteSenderGamePlayerID != GKLocalPlayer.local.gamePlayerID else { return }
+            guard !didReceiveRemoteLoss else {
+                // Renvoi iLost : re-ack victory
+                enqueueCritical(BlomixPvPWireEnvelope(k: .ackVictory, seed: nil, line: nil, fillDepth: nil), maxAttempts: 8)
+                return
+            }
+            didReceiveRemoteLoss = true
             stopTurnTimer()
+            stopHeartbeat()
+            enqueueCritical(BlomixPvPWireEnvelope(k: .ackVictory, seed: nil, line: nil, fillDepth: nil), maxAttempts: 8)
+            BlomixPvPLog.event("remote_lost")
             scene?.blomixPvP_presentRemoteVictory()
+
+        case .ackVictory:
+            sendAck(forMsgId: env.msgId)
+            if awaitingVictoryAck {
+                awaitingVictoryAck = false
+                // Retire les iLost encore en file.
+                pendingCriticalSends = pendingCriticalSends.filter { $0.value.envelope.k != .iLost }
+                BlomixPvPLog.event("victory_acked")
+            }
+
         case .rematchRequest:
+            sendAck(forMsgId: env.msgId)
             guard !remoteRematchRequested else { return }
             remoteRematchRequested = true
             scene?.blomixPvP_remotePlayerRequestedRematch()
             evaluateRematchLaunchIfReady()
+
         case .rematchCancel:
+            sendAck(forMsgId: env.msgId)
             remoteRematchRequested = false
             stopRematchRetryTimer()
             scene?.blomixPvP_opponentCancelledRematch()
+
+        case .ackMsg:
+            if let ackId = env.ackMsgId {
+                acknowledgeMsgId(ackId)
+            }
+
+        case .keepAlive:
+            // lastPeerAliveAt déjà mis à jour en tête de handleEnvelope
+            break
+        }
+    }
+
+    private func markHandshakeComplete(isHostSide: Bool) {
+        didFinishHandshake = true
+        isPreparingNextRound = false
+        if isHostSide {
+            stopHandshakeMonitoring()
+        }
+        stopHandshakeWatchdog()
+        stopRosterBootstrapPoll()
+        cancelDisconnectionGrace()
+        lastPeerAliveAt = Date()
+        startHeartbeat()
+        BlomixPvPLog.event("handshake_complete", ["host": "\(isHostSide)"])
+    }
+
+    // MARK: - Heartbeat
+
+    private func startHeartbeat() {
+        stopHeartbeat()
+        lastPeerAliveAt = Date()
+        let t = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.tickHeartbeat() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        heartbeatTimer = t
+    }
+
+    private func stopHeartbeat() {
+        heartbeatTimer?.invalidate()
+        heartbeatTimer = nil
+    }
+
+    private func tickHeartbeat() {
+        guard didFinishHandshake, !didReportLocalLoss, !didReceiveRemoteLoss else { return }
+        sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .keepAlive, seed: nil, line: nil, fillDepth: nil))
+        if let last = lastPeerAliveAt, Date().timeIntervalSince(last) > peerSilenceTimeout {
+            BlomixPvPLog.event("peer_silence_timeout", ["silence_s": "\(Int(Date().timeIntervalSince(last)))"])
+            if !isInDisconnectionGrace {
+                beginInMatchDisconnectionGrace(reason: "peer_silence")
+            }
         }
     }
 
@@ -502,23 +788,18 @@ final class BlomixPvPMatchCoordinator: NSObject {
     func localPlayerRequestedRematch() {
         guard !localRematchRequested else { return }
         localRematchRequested = true
-        sendRematchRequest()
+        enqueueCritical(BlomixPvPWireEnvelope(k: .rematchRequest, seed: nil, line: nil, fillDepth: nil), maxAttempts: 15)
         startRematchRetryTimer()
         evaluateRematchLaunchIfReady()
     }
 
-    /// Abandon de l'écran résultat (Accueil) ou timeout revanche — informe l'adversaire.
     func cancelRematchFlowAndNotifyPeer() {
         guard localRematchRequested, !isPreparingNextRound else {
             resetRematchFlags()
             return
         }
-        sendEnvelope(BlomixPvPWireEnvelope(k: .rematchCancel, seed: nil, line: nil, fillDepth: nil))
+        enqueueCritical(BlomixPvPWireEnvelope(k: .rematchCancel, seed: nil, line: nil, fillDepth: nil), maxAttempts: 6)
         resetRematchFlags()
-    }
-
-    private func sendRematchRequest() {
-        sendEnvelope(BlomixPvPWireEnvelope(k: .rematchRequest, seed: nil, line: nil, fillDepth: nil))
     }
 
     private func startRematchRetryTimer() {
@@ -530,7 +811,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
                     self.stopRematchRetryTimer()
                     return
                 }
-                self.sendRematchRequest()
+                self.enqueueCritical(
+                    BlomixPvPWireEnvelope(k: .rematchRequest, seed: nil, line: nil, fillDepth: nil),
+                    maxAttempts: 8
+                )
             }
         }
         if let rematchRetryTimer {
@@ -559,26 +843,31 @@ final class BlomixPvPMatchCoordinator: NSObject {
         guard !isPreparingNextRound else { return }
         isPreparingNextRound = true
         stopRematchRetryTimer()
-        // Informe GameScene de se preparer avant de relancer le handshake.
+        stopHeartbeat()
+        pendingCriticalSends.removeAll()
         scene?.blomixPvP_startRematch()
-        // Remet a zero l'etat du coordinateur.
         didFinishHandshake = false
         didEmitHelloSeed = false
         handshakeSeed = nil
         localRematchRequested = false
         remoteRematchRequested = false
         didReportLocalLoss = false
+        didReceiveRemoteLoss = false
+        awaitingVictoryAck = false
         incomingAttackLines = []
         nextIncomingAttackLineID = 1
+        lastReceivedAttackId = 0
+        nextOutboundAttackId = 1
         lastSentScoreAttackBracket = 0
         lastSentBoardFillDepth = nil
         lastSentScore = nil
-        // Relance le handshake (l'hote enverra un nouveau helloSeed).
+        lastPeerAliveAt = nil
         beginHandshakeMonitoringIfNeeded()
         startHandshakeWatchdog()
+        BlomixPvPLog.event("rematch_prepare")
     }
 
-        // MARK: - Helpers watchdog & grace
+    // MARK: - Watchdog & grace
 
     private func startHandshakeWatchdog() {
         stopHandshakeWatchdog()
@@ -586,7 +875,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         let t = Timer.scheduledTimer(withTimeInterval: handshakeWatchdogTimeout, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self, !self.didFinishHandshake else { return }
-                print("[PvP] Handshake watchdog expire apres \(self.handshakeWatchdogTimeout)s — abandon.")
+                BlomixPvPLog.event("handshake_watchdog_expired")
                 self.scene?.blomixPvP_matchFailed(nil)
             }
         }
@@ -599,12 +888,29 @@ final class BlomixPvPMatchCoordinator: NSObject {
         handshakeWatchdog = nil
     }
 
-    private func startDisconnectionGrace() {
+    private func beginInMatchDisconnectionGrace(reason: String) {
+        guard didFinishHandshake else {
+            startDisconnectionGrace(period: handshakeDisconnectionGracePeriod, reason: reason)
+            return
+        }
+        startDisconnectionGrace(period: inMatchDisconnectionGracePeriod, reason: reason)
+        scene?.blomixPvP_setReconnectingOverlayVisible(true)
+    }
+
+    private func startDisconnectionGrace(period: TimeInterval, reason: String) {
         cancelDisconnectionGrace()
-        let t = Timer.scheduledTimer(withTimeInterval: disconnectionGracePeriod, repeats: false) { [weak self] _ in
+        isInDisconnectionGrace = true
+        BlomixPvPLog.event("disconnect_grace_start", [
+            "period_s": "\(period)",
+            "reason": reason,
+            "inMatch": "\(didFinishHandshake)"
+        ])
+        let t = Timer.scheduledTimer(withTimeInterval: period, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                guard let self, !self.didFinishHandshake else { return }
-                print("[PvP] Grace de deconnexion expiree — session consideree perdue.")
+                guard let self else { return }
+                self.isInDisconnectionGrace = false
+                self.scene?.blomixPvP_setReconnectingOverlayVisible(false)
+                BlomixPvPLog.event("disconnect_grace_expired", ["reason": reason])
                 self.scene?.blomixPvP_peerDisconnected()
             }
         }
@@ -613,8 +919,13 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private func cancelDisconnectionGrace() {
+        if isInDisconnectionGrace {
+            BlomixPvPLog.event("disconnect_grace_cancel")
+        }
+        isInDisconnectionGrace = false
         disconnectionGraceTimer?.invalidate()
         disconnectionGraceTimer = nil
+        scene?.blomixPvP_setReconnectingOverlayVisible(false)
     }
 }
 
@@ -622,32 +933,37 @@ extension BlomixPvPMatchCoordinator: GKMatchDelegate {
     nonisolated func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {
         let remoteID = player.gamePlayerID
         Task { @MainActor in
-            guard let env = try? JSONDecoder().decode(BlomixPvPWireEnvelope.self, from: data) else { return }
+            guard let env = try? JSONDecoder().decode(BlomixPvPWireEnvelope.self, from: data) else {
+                BlomixPvPLog.event("decode_failed")
+                return
+            }
             self.handleEnvelope(env, remoteSenderGamePlayerID: remoteID)
         }
     }
 
     nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
-        // Extraire les String (Sendable) AVANT le Task pour éviter de capturer GKPlayer
-        // (non-Sendable) à travers la frontière d'acteur.
         let displayName = player.displayName
         let gamePlayerID = player.gamePlayerID
         Task { @MainActor in
             if state == .disconnected {
+                BlomixPvPLog.event("peer_disconnected_gk", [
+                    "id": gamePlayerID,
+                    "handshakeDone": "\(self.didFinishHandshake)"
+                ])
                 if self.didFinishHandshake {
-                    // Partie en cours : signal immediat de deconnexion.
-                    self.scene?.blomixPvP_peerDisconnected()
+                    self.beginInMatchDisconnectionGrace(reason: "gk_disconnected")
                 } else {
-                    // Handshake en cours : fenetre de grace pour micro-deconnexion.
-                    print("[PvP] Deconnexion pendant handshake — grace de \(self.disconnectionGracePeriod)s.")
-                    self.startDisconnectionGrace()
+                    self.startDisconnectionGrace(
+                        period: self.handshakeDisconnectionGracePeriod,
+                        reason: "gk_disconnected_handshake"
+                    )
                 }
             } else if state == .connected {
                 self.cancelDisconnectionGrace()
+                self.lastPeerAliveAt = Date()
                 self.resolveHostRoleIfNeeded()
                 self.beginHandshakeMonitoringIfNeeded()
                 BlomixRecentOpponentsCache.shared.record(gamePlayerID: gamePlayerID, displayName: displayName)
-                // Notifie les couches UI avec les chaînes déjà extraites (Sendable).
                 NotificationCenter.default.post(
                     name: .blomixPvPOpponentConnected,
                     object: nil,
@@ -662,6 +978,7 @@ extension BlomixPvPMatchCoordinator: GKMatchDelegate {
 
     nonisolated func match(_ match: GKMatch, didFailWithError error: Error?) {
         Task { @MainActor in
+            BlomixPvPLog.event("match_failed", ["error": error?.localizedDescription ?? "nil"])
             self.scene?.blomixPvP_matchFailed(error)
         }
     }

@@ -217,16 +217,28 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
 - Auto-save en arrière-plan ; restauration au lancement
-- Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) pour éviter une grille incohérente après reprise
+- Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
+- À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
 ### PvP
 
 `BlomixPvPNetworking.swift` + `BlomixPvPUI.swift` :
-- Handshake RNG partagé
+- Handshake RNG partagé (`helloSeed` + `protocolVersion`) ; file d’envoi + ack pour messages critiques
+- Heartbeat / grace déco mid-game ; `attackId` anti-doublon
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
-- Elo : `BlomixEloManager` (défaut 800, K adaptatif)
+- Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init
+- Lobby : Partie rapide (auto-match), défis CloudKit / récents / classement
+- Overlay attente match sur **grille vide** (pas sur l’accueil)
+- Dialogs d’erreur / timeout : style in-app BLOMIX (`BlomixInAppDialogView`)
 - Fin : victoire/défaite/déconnexion → retour solo sauvegardé
+
+### Classement Elo (UI)
+
+`LeaderboardViewController` — onglet Elo :
+- Chargement **multipage** des entrées Game Center (fenêtre top 100 souvent remplie de 800/0)
+- Filtre applicatif : conserve les joueurs ayant joué (`context > 0` ou score ≠ 800)
+- Snapshots Sendable dans les callbacks GK (pas de `GKLeaderboard.Entry` hors callback)
 
 ---
 
@@ -257,7 +269,7 @@ Contraintes : bombe verrouillée jusqu'à l'étape ; Brix/Magix absents des lign
 - Lookahead 3 niveaux (P0, P1, P2) : 512 simulations max
 - `evalEnabled = true`, `realtimeFeedbackEnabled = false`
 - 5 hints par partie (`hintsRemaining`)
-- Stats fin de partie : optimalité %, pire coup (`worstMistakeSnapshot`)
+- Stats fin de partie : **justesse** % (ex-optimalité), pire coup (`worstMistakeSnapshot`)
 
 Voir [EVAL.md](EVAL.md).
 

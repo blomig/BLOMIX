@@ -245,7 +245,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "hud.line_caption" = "LINIE";
 
 /* Game over — move analysis */
-"game_over.optimality_label" = "Optimalität";
+"game_over.optimality_label" = "Platzierung";
 "game_over.move_stats_format" = "✦ %lld starke Züge  •  %lld Fehler";
 "game_over.view_worst_move" = "Schlechtesten Zug ansehen";
 "game_over.worst_move_title" = "Dein schlechtester Zug";
@@ -286,3 +286,9 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "appearance.dark" = "Dunkel";
 "appearance.light" = "Hell";
 
+
+/* PvP robustness */
+"pvp.mode_quick_desc" = "Schnellspiel";
+"pvp.protocol_mismatch.message" = "Inkompatible Versionen. Aktualisiere BLOMIX auf beiden Geräten.";
+"pvp.reconnecting.message" = "Verbindung wird wiederhergestellt…";
+"pvp.available_invite_app_open_hint" = "Einladung nur in der App — Gegner muss BLOMIX geöffnet haben.";

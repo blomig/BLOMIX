@@ -258,7 +258,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "hud.line_caption" = "LIGNE";
 
 /* Game over — analyse des coups */
-"game_over.optimality_label" = "optimalité";
+"game_over.optimality_label" = "justesse";
 "game_over.move_stats_format" = "✦ %lld coups excellents  •  %lld erreurs";
 "game_over.view_worst_move" = "Voir ton pire coup";
 "game_over.worst_move_title" = "Ton pire coup";
@@ -299,3 +299,9 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "appearance.dark" = "Sombre";
 "appearance.light" = "Clair";
 
+
+/* PvP robustness */
+"pvp.mode_quick_desc" = "Partie rapide";
+"pvp.protocol_mismatch.message" = "Versions incompatibles. Mettez à jour BLOMIX sur les deux appareils.";
+"pvp.reconnecting.message" = "Reconnexion…";
+"pvp.available_invite_app_open_hint" = "Invitation dans l'app — l'adversaire doit avoir BLOMIX ouvert.";

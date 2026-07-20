@@ -236,7 +236,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "hud.time_caption" = "TEMPO";
 "hud.line_caption" = "LINEA";
 
-"game_over.optimality_label" = "optimalità";
+"game_over.optimality_label" = "precisione";
 "game_over.move_stats_format" = "✦ %lld mosse eccellenti  •  %lld errori";
 "game_over.view_worst_move" = "Vedi la tua peggior mossa";
 "game_over.worst_move_title" = "La tua peggior mossa";
@@ -274,3 +274,9 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "appearance.dark" = "Scuro";
 "appearance.light" = "Chiaro";
 
+
+/* PvP robustness */
+"pvp.mode_quick_desc" = "Partita rapida";
+"pvp.protocol_mismatch.message" = "Versioni incompatibili. Aggiorna BLOMIX su entrambi i dispositivi.";
+"pvp.reconnecting.message" = "Riconnessione…";
+"pvp.available_invite_app_open_hint" = "Invito in-app — l'avversario deve avere BLOMIX aperto.";

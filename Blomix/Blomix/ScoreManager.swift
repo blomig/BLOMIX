@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import GameKit
+@preconcurrency import GameKit
 import UIKit
 
 /// Gestion Game Center pour le classement principal **BlomigMainScore_v2**.
@@ -298,7 +298,7 @@ final class ScoreManager {
         _ score: Int,
         leaderboardID: String = ScoreManager.mainLeaderboardID,
         context: Int = 0,
-        completion: ((Result<Void, Error>) -> Void)? = nil
+        completion: (@Sendable @MainActor (Result<Void, Error>) -> Void)? = nil
     ) {
         // Backup disque **toujours** tenté en premier (hors ligne, échec réseau Game Center, ou joueur non connecté).
         if leaderboardID == ScoreManager.zenLeaderboardID {
@@ -328,7 +328,7 @@ final class ScoreManager {
             player: GKLocalPlayer.local,
             leaderboardIDs: [leaderboardID]
         ) { [weak self] error in
-            DispatchQueue.main.async {
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let error {
                     // Échec réseau alors qu'authentifié : mise en attente pour re-tentative à la prochaine reconnexion GC.
@@ -352,7 +352,7 @@ final class ScoreManager {
     ///   - completion: Appelé sur le **main thread** avec `.success(nil)` si le joueur n’a encore aucune entrée.
     func fetchLocalPlayerBestScore(
         leaderboardID: String = ScoreManager.mainLeaderboardID,
-        completion: @escaping (Result<Int?, Error>) -> Void
+        completion: @escaping @Sendable @MainActor (Result<Int?, Error>) -> Void
     ) {
         guard isAuthenticated else {
             let error = NSError(
@@ -420,7 +420,7 @@ final class ScoreManager {
     /// Fetches the local player's global rank in `mainLeaderboardID` (BlomixMainScore_v3).
     /// Calls `completion` on the **main thread** with the rank (1-based), or `nil` on failure
     /// or if the player has no entry yet.
-    func fetchLocalPlayerMainScoreRank(completion: @escaping (Int?) -> Void) {
+    func fetchLocalPlayerMainScoreRank(completion: @escaping @Sendable @MainActor (Int?) -> Void) {
         fetchLocalPlayerRank(leaderboardID: ScoreManager.mainLeaderboardID, completion: completion)
     }
 
@@ -428,24 +428,28 @@ final class ScoreManager {
     /// Calls `completion` on the **main thread** with the rank (1-based), or `nil` on failure
     /// or if the player has no entry yet. Rank is not capped — the player's actual position
     /// in the full global leaderboard is returned regardless of their standing.
-    func fetchLocalPlayerRank(leaderboardID: String, completion: @escaping (Int?) -> Void) {
+    func fetchLocalPlayerRank(leaderboardID: String, completion: @escaping @Sendable @MainActor (Int?) -> Void) {
         guard GKLocalPlayer.local.isAuthenticated else {
             Task { @MainActor in completion(nil) }
             return
         }
+
+        // Box @unchecked : GKLeaderboard n'est pas Sendable, mais l'API GK reste thread-safe ici.
+        struct LeaderboardBox: @unchecked Sendable { let board: GKLeaderboard }
 
         GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, error in
             guard let leaderboard = leaderboards?.first, error == nil else {
                 Task { @MainActor in completion(nil) }
                 return
             }
-            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 1)) { localEntry, _, _, err in
+            let boardBox = LeaderboardBox(board: leaderboard)
+            boardBox.board.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 1)) { localEntry, _, _, err in
                 if err == nil, let rank = localEntry?.rank {
                     Task { @MainActor in completion(rank) }
                     return
                 }
                 // Secours : entrée explicite du joueur local (comme LeaderboardViewController).
-                leaderboard.loadEntries(for: [GKLocalPlayer.local], timeScope: .allTime) { _, entries, err2 in
+                boardBox.board.loadEntries(for: [GKLocalPlayer.local], timeScope: .allTime) { _, entries, err2 in
                     let rank: Int? = (err2 == nil) ? entries?.first?.rank : nil
                     Task { @MainActor in completion(rank) }
                 }

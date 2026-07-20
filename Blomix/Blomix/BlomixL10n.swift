@@ -54,7 +54,7 @@ enum BlomixL10n {
     static var gameOverRestart: String { tr("game_over.restart", comment: "Game over button") }
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
-    static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under optimality % on game over") }
+    static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under placement-quality % on game over (justesse / placement)") }
     static func gameOverMoveStats(excellent: Int, mistakes: Int) -> String {
         String(format: tr("game_over.move_stats_format", comment: "%lld excellent, %lld mistakes"), excellent, mistakes)
     }
@@ -208,6 +208,16 @@ enum BlomixL10n {
     static var pvpLobbyNoPlayersAvailable: String { tr("pvp.lobby_no_players_available", comment: "PvP lobby — nobody available") }
     static var pvpLobbyPreparationTimeout: String { tr("pvp.lobby_preparation_timeout", comment: "PvP lobby — boards preparation watchdog expired") }
     static var pvpAutoSearchActiveHint: String { tr("pvp.auto_search_active_hint", comment: "PvP lobby — auto search toggle is ON, hint text") }
+    static var pvpModeQuickDesc: String { tr("pvp.mode_quick_desc", comment: "PvP lobby — quick match / random opponent button") }
+    static var pvpProtocolMismatchMessage: String {
+        tr("pvp.protocol_mismatch.message", comment: "Shown when peer app protocol version mismatches")
+    }
+    static var pvpReconnectingMessage: String {
+        tr("pvp.reconnecting.message", comment: "Brief overlay while waiting for peer reconnect mid-match")
+    }
+    static var pvpAvailableInviteAppOpenHint: String {
+        tr("pvp.available_invite_app_open_hint", comment: "Mode A — invitation is in-app only, peer must have BLOMIX open")
+    }
     static func pvpLobbyActivePlayersHint(_ count: Int) -> String {
         String(format: tr("pvp.lobby_active_players_hint_format", comment: "PvP lobby — active player count hint"), count)
     }

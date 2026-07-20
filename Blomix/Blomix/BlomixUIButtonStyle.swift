@@ -100,9 +100,8 @@ enum BlomixUIDestinationButtonStyle {
     /// Texte / fond / bordure selon le thème chrome courant.
     static func apply(to button: UIButton, fontSize: CGFloat, weight: UIFont.Weight = .medium, cornerRadius: CGFloat = -1) {
         let cr = cornerRadius >= 0 ? cornerRadius : Self.cornerRadius
-        if #available(iOS 15.0, *) {
-            button.configuration = nil
-        }
+        // Style classique (layer / backgroundColor) : pas de UIButton.Configuration.
+        button.configuration = nil
         button.setTitleColor(titleColor, for: .normal)
         button.tintColor = titleColor
         button.backgroundColor = backgroundColor
@@ -116,6 +115,23 @@ enum BlomixUIDestinationButtonStyle {
         button.layer.shadowOpacity = shadowOpacity
         button.layer.shadowOffset  = shadowOffset
         button.layer.shadowRadius  = shadowRadius
+    }
+
+    /// Padding intérieur sans `contentEdgeInsets` (déprécié iOS 15 / ignoré avec Configuration).
+    static func applyContentInsets(_ insets: UIEdgeInsets, to button: UIButton) {
+        if let blomix = button as? BlomixUIButton {
+            blomix.blomixContentInsets = insets
+        } else {
+            // Secours hors BlomixUIButton : configuration minimale (pas le style principal).
+            var config = button.configuration ?? .plain()
+            config.contentInsets = NSDirectionalEdgeInsets(
+                top: insets.top,
+                leading: insets.left,
+                bottom: insets.bottom,
+                trailing: insets.right
+            )
+            button.configuration = config
+        }
     }
 
     /// Fond pastille pour `SKShapeNode` / pastilles d'accueil (aligné sur UIKit).
@@ -142,6 +158,15 @@ extension Notification.Name {
 @MainActor
 class BlomixUIButton: UIButton {
 
+    /// Remplace `contentEdgeInsets` (déprécié iOS 15) tout en restant hors `UIButton.Configuration`.
+    var blomixContentInsets: UIEdgeInsets = .zero {
+        didSet {
+            guard oldValue != blomixContentInsets else { return }
+            invalidateIntrinsicContentSize()
+            setNeedsLayout()
+        }
+    }
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupTapSound()
@@ -150,6 +175,22 @@ class BlomixUIButton: UIButton {
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupTapSound()
+    }
+
+    /// Agrandit le bouton autour du titre centré (équivalent pratique de contentEdgeInsets
+    /// sans APIs dépréciées ni UIButton.Configuration).
+    override var intrinsicContentSize: CGSize {
+        let base = super.intrinsicContentSize
+        guard blomixContentInsets != .zero else { return base }
+        var width = base.width
+        var height = base.height
+        if width != UIView.noIntrinsicMetric {
+            width += blomixContentInsets.left + blomixContentInsets.right
+        }
+        if height != UIView.noIntrinsicMetric {
+            height += blomixContentInsets.top + blomixContentInsets.bottom
+        }
+        return CGSize(width: width, height: height)
     }
 
     private func setupTapSound() {

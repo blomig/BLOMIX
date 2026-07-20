@@ -5,7 +5,7 @@
 //  Écran classement custom (in-app) alimenté par Game Center.
 //
 
-import GameKit
+@preconcurrency import GameKit
 import UIKit
 
 /// Présenté depuis `GameScene.showLeaderboard()` : écran in-app (fond noir) listant les meilleurs scores.
@@ -38,7 +38,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         let gameCount: Int
     }
 
-    private enum LeaderboardKind: CaseIterable {
+    private enum LeaderboardKind: CaseIterable, Sendable {
         case mainScore
         case elo
         case averageScore
@@ -163,7 +163,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         zenTabButton.setTitle(BlomixL10n.leaderboardZenTab,  for: .normal)
         [mainTabButton, eloTabButton, avgTabButton, zenTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
-            $0.contentEdgeInsets = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
+            BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8), to: $0)
         }
         mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
         eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
@@ -176,7 +176,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
-        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12), to: closeButton)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         view.addSubview(closeButton)
@@ -233,7 +233,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
         cancelInviteBtn.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: cancelInviteBtn)
-        cancelInviteBtn.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12), to: cancelInviteBtn)
         cancelInviteBtn.translatesAutoresizingMaskIntoConstraints = false
         cancelInviteBtn.addTarget(self, action: #selector(cancelInviteTapped), for: .touchUpInside)
         inviteOverlay.addSubview(cancelInviteBtn)
@@ -367,144 +367,347 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         setLoading(true)
         let selectedKind = selectedLeaderboardKind
 
+        // Elo : multi-pages (le top 100 est saturé de 800/0 qui poussent les Elo < 800 hors fenêtre).
         if selectedKind == .elo {
-            Task { @MainActor in
-                let localProfile = try? await BlomixEloManager.shared.fetchLocalPlayerProfile()
-                guard self.selectedLeaderboardKind == selectedKind else { return }
-                self.loadLeaderboardEntries(for: selectedKind, localEloOverride: localProfile?.rating)
+            Task { @MainActor [weak self] in
+                await self?.loadEloLeaderboardMultiPage()
             }
             return
         }
 
-        loadLeaderboardEntries(for: selectedKind, localEloOverride: nil)
+        loadLeaderboardEntries(for: selectedKind)
     }
 
-    private func loadLeaderboardEntries(for selectedKind: LeaderboardKind, localEloOverride: Int?) {
-        GKLeaderboard.loadLeaderboards(IDs: [selectedKind.leaderboardID]) { [weak self] leaderboards, error in
+    // MARK: - Elo multi-pages
+
+    /// Charge jusqu’à `eloMaxPages` × 100 rangs GC pour dépasser le mur des init 800/0.
+    private static let eloPageSize = 100
+    private static let eloMaxPages = 5
+
+    private func loadEloLeaderboardMultiPage() async {
+        let boardID = LeaderboardKind.elo.leaderboardID
+        let eloStartRating = BlomixEloManager.shared.defaultRating
+        let localPlayer = GKLocalPlayer.local
+        let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
+
+        struct LeaderboardBox: @unchecked Sendable { let board: GKLeaderboard }
+        /// Snapshot Sendable — **jamais** de `GKLeaderboard.Entry` à travers une continuation.
+        struct EntrySnapshot: Sendable {
+            let rank: Int
+            let score: Int
+            let context: Int
+            let playerName: String
+            let gamePlayerID: String
+            let teamOrGameID: String
+        }
+        /// Map joueurs + page : non-Sendable encapsulé (`GKPlayer` n'est pas Sendable).
+        struct PageBundle: @unchecked Sendable {
+            let snapshots: [EntrySnapshot]
+            let players: [String: GKPlayer]
+            let rawCount: Int
+        }
+
+        do {
+            let boardBox: LeaderboardBox = try await withCheckedThrowingContinuation { cont in
+                GKLeaderboard.loadLeaderboards(IDs: [boardID]) { leaderboards, error in
+                    if let error {
+                        cont.resume(throwing: error)
+                        return
+                    }
+                    guard let board = leaderboards?.first else {
+                        cont.resume(throwing: NSError(
+                            domain: "LeaderboardViewController",
+                            code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Leaderboard introuvable"]
+                        ))
+                        return
+                    }
+                    cont.resume(returning: LeaderboardBox(board: board))
+                }
+            }
+
+            var snapshots: [EntrySnapshot] = []
+            var playerMap: [String: GKPlayer] = [:]
+            var seenIDs = Set<String>()
+
+            for page in 0..<Self.eloMaxPages {
+                let startRank = 1 + page * Self.eloPageSize
+                // Conversion Entry → snapshot **dans** le callback GK (évite data race Sendable).
+                let pageBundle: PageBundle = await withCheckedContinuation { cont in
+                    boardBox.board.loadEntries(
+                        for: .global,
+                        timeScope: .allTime,
+                        range: NSRange(location: startRank, length: Self.eloPageSize)
+                    ) { _, rankedEntries, _, _ in
+                        let raw = rankedEntries ?? []
+                        var pageSnaps: [EntrySnapshot] = []
+                        var pagePlayers: [String: GKPlayer] = [:]
+                        pageSnaps.reserveCapacity(raw.count)
+                        for entry in raw {
+                            let gid = entry.player.gamePlayerID
+                            pagePlayers[gid] = entry.player
+                            let teamOrGame = entry.player.teamPlayerID.isEmpty
+                                ? entry.player.gamePlayerID
+                                : entry.player.teamPlayerID
+                            pageSnaps.append(EntrySnapshot(
+                                rank: entry.rank,
+                                score: Int(entry.score),
+                                context: Int(entry.context),
+                                playerName: entry.player.displayName,
+                                gamePlayerID: gid,
+                                teamOrGameID: teamOrGame
+                            ))
+                        }
+                        cont.resume(returning: PageBundle(
+                            snapshots: pageSnaps,
+                            players: pagePlayers,
+                            rawCount: raw.count
+                        ))
+                    }
+                }
+
+                let scores = pageBundle.snapshots.map(\.score)
+                let minS = scores.min().map(String.init) ?? "—"
+                let maxS = scores.max().map(String.init) ?? "—"
+                print("[Elo LB] page=\(page + 1) range=\(startRank)–\(startRank + Self.eloPageSize - 1) count=\(pageBundle.rawCount) min=\(minS) max=\(maxS)")
+
+                for (gid, player) in pageBundle.players {
+                    playerMap[gid] = player
+                }
+                for snap in pageBundle.snapshots where seenIDs.insert(snap.gamePlayerID).inserted {
+                    snapshots.append(snap)
+                }
+
+                if pageBundle.rawCount < Self.eloPageSize { break }
+            }
+
+            if snapshots.isEmpty {
+                print("[Elo LB] multi-page total unique=0")
+            } else {
+                let allScores = snapshots.map(\.score)
+                print("[Elo LB] multi-page total unique=\(snapshots.count) min=\(allScores.min() ?? 0) max=\(allScores.max() ?? 0)")
+            }
+
+            let played = snapshots.filter { $0.context > 0 || $0.score != eloStartRating }
+            print("[Elo LB] after app filter: kept=\(played.count) dropped=\(snapshots.count - played.count)")
+
+            var rows: [LeaderboardRow] = played.map { snap in
+                LeaderboardRow(
+                    rank: snap.rank,
+                    playerName: snap.playerName,
+                    gamePlayerID: snap.gamePlayerID,
+                    score: snap.score,
+                    isLocalPlayer: snap.teamOrGameID == localStableID,
+                    gameCount: max(0, snap.context)
+                )
+            }
+
+            // Entrée locale — snapshot Sendable uniquement.
+            let localBundle: PageBundle = await withCheckedContinuation { cont in
+                boardBox.board.loadEntries(for: [localPlayer], timeScope: .allTime) { _, entries, _ in
+                    let raw = entries ?? []
+                    var pageSnaps: [EntrySnapshot] = []
+                    var pagePlayers: [String: GKPlayer] = [:]
+                    for entry in raw {
+                        let gid = entry.player.gamePlayerID
+                        pagePlayers[gid] = entry.player
+                        let teamOrGame = entry.player.teamPlayerID.isEmpty
+                            ? entry.player.gamePlayerID
+                            : entry.player.teamPlayerID
+                        pageSnaps.append(EntrySnapshot(
+                            rank: entry.rank,
+                            score: Int(entry.score),
+                            context: Int(entry.context),
+                            playerName: entry.player.displayName,
+                            gamePlayerID: gid,
+                            teamOrGameID: teamOrGame
+                        ))
+                    }
+                    cont.resume(returning: PageBundle(
+                        snapshots: pageSnaps,
+                        players: pagePlayers,
+                        rawCount: raw.count
+                    ))
+                }
+            }
+
+            if let localSnap = localBundle.snapshots.first {
+                print("[Elo LB] local entry score=\(localSnap.score) context=\(localSnap.context) gcRank=\(localSnap.rank)")
+                if localSnap.context > 0 || localSnap.score != eloStartRating {
+                    let localRow = LeaderboardRow(
+                        rank: localSnap.rank,
+                        playerName: localSnap.playerName,
+                        gamePlayerID: localSnap.gamePlayerID,
+                        score: localSnap.score,
+                        isLocalPlayer: true,
+                        gameCount: max(0, localSnap.context)
+                    )
+                    if let idx = rows.firstIndex(where: { $0.isLocalPlayer }) {
+                        rows[idx] = localRow
+                    } else {
+                        rows.append(localRow)
+                    }
+                    for (gid, player) in localBundle.players {
+                        playerMap[gid] = player
+                    }
+                }
+            } else {
+                print("[Elo LB] local entry: none")
+            }
+
+            rows.sort { lhs, rhs in
+                if lhs.score != rhs.score { return lhs.score > rhs.score }
+                return lhs.playerName.localizedCaseInsensitiveCompare(rhs.playerName) == .orderedAscending
+            }
+            rows = rows.enumerated().map { index, row in
+                LeaderboardRow(
+                    rank: index + 1,
+                    playerName: row.playerName,
+                    gamePlayerID: row.gamePlayerID,
+                    score: row.score,
+                    isLocalPlayer: row.isLocalPlayer,
+                    gameCount: row.gameCount
+                )
+            }
+
+            print("[Elo LB] final UI rows=\(rows.count) scores=\(rows.map(\.score))")
+
+            guard selectedLeaderboardKind == .elo else { return }
+            eloGKPlayers = playerMap
+            setLoading(false)
+            self.rows = rows
+            statusLabel.text = rows.isEmpty
+                ? BlomixL10n.leaderboardEmpty
+                : BlomixL10n.leaderboardTopCount(rows.count)
+        } catch {
+            guard selectedLeaderboardKind == .elo else { return }
+            setLoading(false)
+            statusLabel.text = BlomixL10n.leaderboardLoadError(error.localizedDescription)
+            rows = []
+            print("[Elo LB] multi-page error: \(error.localizedDescription)")
+        }
+    }
+
+    private func loadLeaderboardEntries(for selectedKind: LeaderboardKind) {
+        // Valeurs MainActor lues *avant* les callbacks non-isolés GameKit.
+        let boardID = selectedKind.leaderboardID
+        let localAvgGameCount = selectedKind == .averageScore ? ScoreManager.shared.localGameCount() : 0
+        let localPlayer = GKLocalPlayer.local
+        let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
+
+        // ObjectIdentifier stable pour éviter « captured var self » dans les callbacks GK @Sendable.
+        struct WeakVC: @unchecked Sendable {
+            weak var value: LeaderboardViewController?
+            init(_ value: LeaderboardViewController?) { self.value = value }
+        }
+        let weakVC = WeakVC(self)
+
+        GKLeaderboard.loadLeaderboards(IDs: [boardID]) { leaderboards, error in
             if let error {
-                Task { @MainActor [weak self] in
-                    guard self?.selectedLeaderboardKind == selectedKind else { return }
-                    self?.setLoading(false)
-                    self?.statusLabel.text = BlomixL10n.leaderboardGcError(error.localizedDescription)
-                    self?.rows = []
+                let message = error.localizedDescription
+                Task { @MainActor in
+                    guard let vc = weakVC.value else { return }
+                    guard vc.selectedLeaderboardKind == selectedKind else { return }
+                    vc.setLoading(false)
+                    vc.statusLabel.text = BlomixL10n.leaderboardGcError(message)
+                    vc.rows = []
                 }
                 return
             }
 
             guard let leaderboard = leaderboards?.first else {
-                Task { @MainActor [weak self] in
-                    guard self?.selectedLeaderboardKind == selectedKind else { return }
-                    self?.setLoading(false)
-                    self?.statusLabel.text = BlomixL10n.leaderboardNotFound
-                    self?.rows = []
+                Task { @MainActor in
+                    guard let vc = weakVC.value else { return }
+                    guard vc.selectedLeaderboardKind == selectedKind else { return }
+                    vc.setLoading(false)
+                    vc.statusLabel.text = BlomixL10n.leaderboardNotFound
+                    vc.rows = []
                 }
                 return
             }
 
-            let localPlayer = GKLocalPlayer.local
-            let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
-            // Lu sur le main actor ici (avant le callback non-isolé) puis capturé comme constante.
-            let localAvgGameCount = selectedKind == .averageScore ? ScoreManager.shared.localGameCount() : 0
-            leaderboard.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: 100)) { _, rankedEntries, _, loadError in
+            struct LeaderboardBox: @unchecked Sendable { let board: GKLeaderboard }
+            let boardBox = LeaderboardBox(board: leaderboard)
+
+            boardBox.board.loadEntries(
+                for: .global,
+                timeScope: .allTime,
+                range: NSRange(location: 1, length: 100)
+            ) { _, rankedEntries, _, loadError in
                 if let loadError {
-                    Task { @MainActor [weak self] in
-                        guard self?.selectedLeaderboardKind == selectedKind else { return }
-                        self?.setLoading(false)
-                        self?.statusLabel.text = BlomixL10n.leaderboardLoadError(loadError.localizedDescription)
-                        self?.rows = []
+                    let message = loadError.localizedDescription
+                    Task { @MainActor in
+                        guard let vc = weakVC.value else { return }
+                        guard vc.selectedLeaderboardKind == selectedKind else { return }
+                        vc.setLoading(false)
+                        vc.statusLabel.text = BlomixL10n.leaderboardLoadError(message)
+                        vc.rows = []
                     }
                     return
                 }
 
-                func stablePlayerID(for player: GKPlayer) -> String {
-                    player.teamPlayerID.isEmpty ? player.gamePlayerID : player.teamPlayerID
+                // Snapshot Sendable dans le callback (pas de [GKLeaderboard.Entry] hors du callback).
+                struct RowSnap: Sendable {
+                    let rank: Int
+                    let playerName: String
+                    let gamePlayerID: String
+                    let teamOrGameID: String
+                    let score: Int
+                    let gameCount: Int
                 }
-
-                func buildRow(from entry: GKLeaderboard.Entry) -> LeaderboardRow {
-                    let isLocalPlayer = stablePlayerID(for: entry.player) == localStableID
-                    let resolvedScore: Int
-                    if selectedKind == .elo, isLocalPlayer, let localEloOverride {
-                        resolvedScore = max(Int(entry.score), localEloOverride)
-                    } else {
-                        resolvedScore = Int(entry.score)
-                    }
-                    // Pour le leaderboard de moyenne, le nombre de parties est stocké dans `context`.
-                    // Fallback UserDefaults pour le joueur local si context = 0 (entrée soumise avant
-                    // l'introduction du context dans la version actuelle).
+                let raw = rankedEntries ?? []
+                let snaps: [RowSnap] = raw.map { entry in
+                    let teamOrGame = entry.player.teamPlayerID.isEmpty
+                        ? entry.player.gamePlayerID
+                        : entry.player.teamPlayerID
+                    let ctx = Int(entry.context)
                     let gameCount: Int
                     if selectedKind == .averageScore {
-                        let ctx = Int(entry.context)
-                        if ctx > 0 {
-                            gameCount = ctx
-                        } else if isLocalPlayer {
-                            gameCount = localAvgGameCount
-                        } else {
-                            gameCount = 0
-                        }
+                        gameCount = ctx > 0 ? ctx : 0
                     } else {
                         gameCount = 0
                     }
-                    return LeaderboardRow(
+                    return RowSnap(
                         rank: entry.rank,
                         playerName: entry.player.displayName,
                         gamePlayerID: entry.player.gamePlayerID,
-                        score: resolvedScore,
-                        isLocalPlayer: isLocalPlayer,
+                        teamOrGameID: teamOrGame,
+                        score: Int(entry.score),
                         gameCount: gameCount
                     )
                 }
 
-                // Elo : exclure les joueurs sans aucune partie jouée (context == 0 → Elo par défaut 800).
-                // Pour le classement principal, on garde tout.
-                let eligibleEntries = selectedKind == .elo
-                    ? (rankedEntries ?? []).filter { $0.context > 0 }
-                    : (rankedEntries ?? [])
-                let mappedGlobal: [LeaderboardRow] = eligibleEntries.map(buildRow)
-
-                guard selectedKind == .elo else {
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        guard self.selectedLeaderboardKind == selectedKind else { return }
-                        self.setLoading(false)
-                        self.rows = mappedGlobal
-                        self.statusLabel.text = mappedGlobal.isEmpty ? BlomixL10n.leaderboardEmpty : BlomixL10n.leaderboardTopCount(mappedGlobal.count)
-                    }
-                    return
-                }
-
-                // Cache des GKPlayer pour l'onglet Elo : évite tout appel ultérieur à loadPlayers.
-                struct GKPlayerMapBox: @unchecked Sendable { let map: [String: GKPlayer] }
-                var playerMap: [String: GKPlayer] = [:]
-                for entry in rankedEntries ?? [] {
-                    playerMap[entry.player.gamePlayerID] = entry.player
-                }
-                let playerMapBox = GKPlayerMapBox(map: playerMap)
-
-                leaderboard.loadEntries(for: [localPlayer], timeScope: .allTime) { _, localEntries, localLoadError in
-                    var mergedRows = mappedGlobal
-
-                    // Inclure le joueur local seulement s'il a au moins une partie jouée.
-                    if let localEntry = localEntries?.first, localEntry.context > 0 {
-                        let localRow = buildRow(from: localEntry)
-                        if let localIndex = mergedRows.firstIndex(where: { $0.isLocalPlayer }) {
-                            mergedRows[localIndex] = localRow
+                Task { @MainActor in
+                    guard let vc = weakVC.value else { return }
+                    guard vc.selectedLeaderboardKind == selectedKind else { return }
+                    let mapped: [LeaderboardRow] = snaps.map { snap in
+                        let isLocal = snap.teamOrGameID == localStableID
+                        let count: Int
+                        if selectedKind == .averageScore {
+                            if snap.gameCount > 0 {
+                                count = snap.gameCount
+                            } else if isLocal {
+                                count = localAvgGameCount
+                            } else {
+                                count = 0
+                            }
                         } else {
-                            mergedRows.insert(localRow, at: 0)
+                            count = snap.gameCount
                         }
+                        return LeaderboardRow(
+                            rank: snap.rank,
+                            playerName: snap.playerName,
+                            gamePlayerID: snap.gamePlayerID,
+                            score: snap.score,
+                            isLocalPlayer: isLocal,
+                            gameCount: count
+                        )
                     }
-
-                    Task { @MainActor [weak self] in
-                        guard let self else { return }
-                        guard self.selectedLeaderboardKind == selectedKind else { return }
-                        self.eloGKPlayers = playerMapBox.map
-                        self.setLoading(false)
-                        self.rows = mergedRows
-                        if let localLoadError {
-                            self.statusLabel.text = BlomixL10n.leaderboardLoadError(localLoadError.localizedDescription)
-                        } else {
-                            self.statusLabel.text = mergedRows.isEmpty ? BlomixL10n.leaderboardEmpty : BlomixL10n.leaderboardTopCount(mergedRows.count)
-                        }
-                    }
+                    vc.setLoading(false)
+                    vc.rows = mapped
+                    vc.statusLabel.text = mapped.isEmpty
+                        ? BlomixL10n.leaderboardEmpty
+                        : BlomixL10n.leaderboardTopCount(mapped.count)
                 }
             }
         }
@@ -550,7 +753,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             let btn = BlomixUIButton()
             btn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
-            btn.contentEdgeInsets = UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14)
+            BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14), to: btn)
             btn.titleLabel?.font = FontTheme.gameFont(size: 14, fallbackWeight: .semibold)
             btn.tag = indexPath.row
             btn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
@@ -653,21 +856,19 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             }
         }
 
-        GKMatchmaker.shared().findMatch(for: request) { [weak self] match, error in
-            let box = match.map { BlomixPvPGKMatchBox(match: $0) }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let box {
-                    self.pendingInviteMatch = box.match
-                    box.match.delegate = self
-                } else {
-                    self.inviteTimer?.invalidate()
-                    self.inviteTimer = nil
-                    let msg = Self.inviteErrorMessage(from: error)
-                    self.hideInviteOverlay()
-                    self.inviteStatusLabel.text = msg
-                    self.inviteOverlay.isHidden = false
-                }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let match = try await GKMatchmaker.shared().findMatch(for: request)
+                self.pendingInviteMatch = match
+                match.delegate = self
+            } catch {
+                self.inviteTimer?.invalidate()
+                self.inviteTimer = nil
+                let msg = Self.inviteErrorMessage(from: error)
+                self.hideInviteOverlay()
+                self.inviteStatusLabel.text = msg
+                self.inviteOverlay.isHidden = false
             }
         }
     }
@@ -692,7 +893,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
 // MARK: - GKMatchDelegate (invitation sortante depuis leaderboard)
 
-extension LeaderboardViewController: @preconcurrency GKMatchDelegate {
+extension LeaderboardViewController: GKMatchDelegate {
     nonisolated func match(_ match: GKMatch, didReceive data: Data, fromRemotePlayer player: GKPlayer) {}
 
     nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
@@ -774,7 +975,7 @@ final class BlomixPlainTextModalViewController: UIViewController {
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
-        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12), to: closeButton)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         view.addSubview(closeButton)
@@ -1083,7 +1284,7 @@ final class SoundMixSettingsViewController: UIViewController {
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
-        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12), to: closeButton)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         view.addSubview(closeButton)
@@ -1236,7 +1437,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
-        closeButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12), to: closeButton)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         view.addSubview(closeButton)

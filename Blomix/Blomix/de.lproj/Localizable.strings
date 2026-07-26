@@ -227,8 +227,8 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "transition.tutorial_end.subtitle" = "Du bist dran";
 
 /* Zen mode intro */
-"zen.overlay.level_prefix" = "Zen";
-"zen.overlay.stage_text" = "Modus";
+"zen.overlay.level_prefix" = "Modus";
+"zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "entspannt";
 
 /* Stage transition overlay */
@@ -286,6 +286,17 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "appearance.dark" = "Dunkel";
 "appearance.light" = "Hell";
 
+/* Teilen */
+"share.button" = "Teilen";
+"share.a11y" = "BLOMIX teilen";
+"share.card.record_badge" = "Neuer Rekord";
+"share.home.score_format" = "Komm zu BLOMIX und versuch, meinen Score von %@ zu schlagen!";
+"share.home.score_zen_format" = "Komm zu BLOMIX und versuch, meinen Zen-Score von %@ zu schlagen!";
+"share.home.noscore" = "Komm zu BLOMIX — ein cleveres Ketten-Puzzle. Lust mitzuspielen?";
+"share.gameover.score_format" = "Ich habe gerade %@ bei BLOMIX geschafft. Schaffst du mehr?";
+"share.gameover.score_zen_format" = "Ich habe gerade %@ im Zen-Modus bei BLOMIX geschafft. Schaffst du mehr?";
+"share.gameover.record_format" = "Neuer Rekord bei BLOMIX: %@! Traust du dich?";
+"share.gameover.record_zen_format" = "Neuer Zen-Rekord bei BLOMIX: %@! Traust du dich?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Schnellspiel";

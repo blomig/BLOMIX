@@ -364,6 +364,57 @@ enum BlomixAppearance {
         tex.filteringMode = .linear
         return tex
     }
+
+    /// Icône partage accueil : avion en papier plein, discret (même teinte que soleil/lune).
+    /// Dessin vectoriel custom — pas le glyphe système `square.and.arrow.up`.
+    static func shareButtonTexture(pointSize: CGFloat = 18, canvasSide: CGFloat = 28) -> SKTexture {
+        _ = pointSize // réserve d’échelle si on aligne d’autres icônes HUD
+        let glyph = primaryText
+        let imgSize = CGSize(width: canvasSide, height: canvasSide)
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = 3
+        let flat = UIGraphicsImageRenderer(size: imgSize, format: format).image { ctx in
+            let c = ctx.cgContext
+            // Zone de dessin ~78 % du canvas (comme le toggle apparence).
+            let inset = canvasSide * 0.14
+            let b = CGRect(
+                x: inset,
+                y: inset,
+                width: canvasSide - inset * 2,
+                height: canvasSide - inset * 2
+            )
+            func pt(_ u: CGFloat, _ v: CGFloat) -> CGPoint {
+                CGPoint(x: b.minX + u * b.width, y: b.minY + v * b.height)
+            }
+
+            // Silhouette avion en papier (nez en haut à droite) — un seul aplats, lisible en petit.
+            let path = CGMutablePath()
+            path.move(to: pt(0.92, 0.18))   // nez
+            path.addLine(to: pt(0.08, 0.05)) // aile arrière haute
+            path.addLine(to: pt(0.40, 0.48)) // pli central
+            path.addLine(to: pt(0.12, 0.92)) // queue basse
+            path.addLine(to: pt(0.50, 0.58)) // aile avant
+            path.closeSubpath()
+
+            c.setFillColor(glyph.cgColor)
+            c.addPath(path)
+            c.fillPath()
+
+            // Ligne de pli (légère « découpe » pour le relief, sans second aplats bruyant).
+            c.setBlendMode(.destinationOut)
+            c.setStrokeColor(UIColor.black.withAlphaComponent(1).cgColor)
+            c.setLineWidth(max(1.0, canvasSide * 0.045))
+            c.setLineCap(.round)
+            c.move(to: pt(0.40, 0.48))
+            c.addLine(to: pt(0.92, 0.18))
+            c.strokePath()
+            c.setBlendMode(.normal)
+        }
+        let tex = SKTexture(image: flat)
+        tex.filteringMode = .linear
+        return tex
+    }
 }
 
 // MARK: - Hex helper

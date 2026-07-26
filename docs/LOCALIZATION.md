@@ -117,6 +117,7 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | Règles / crédits | Fallback si fichiers txt absents |
 | Paramètres | Audio, police, langue |
 | PvP | Lobby, invitations, résultats, Elo |
+| Partage | Bouton, a11y, messages accueil/GO, badge record (`share.*`) |
 | Tutoriel | Étapes guidées |
 | Classements | Leaderboard, Zen |
 

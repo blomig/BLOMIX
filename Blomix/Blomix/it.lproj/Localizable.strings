@@ -222,8 +222,8 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "transition.tutorial_end.title"    = "FINE TUTORIAL";
 "transition.tutorial_end.subtitle" = "Tocca a te";
 
-"zen.overlay.level_prefix" = "Zen";
-"zen.overlay.stage_text" = "Modalità";
+"zen.overlay.level_prefix" = "Modalità";
+"zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "rilassati";
 
 "stage.overlay.timer_format" = "%lld s per mossa";
@@ -274,6 +274,17 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "appearance.dark" = "Scuro";
 "appearance.light" = "Chiaro";
 
+/* Condividi */
+"share.button" = "Condividi";
+"share.a11y" = "Condividi BLOMIX";
+"share.card.record_badge" = "Nuovo record";
+"share.home.score_format" = "Unisciti a me su BLOMIX e prova a battere il mio punteggio di %@!";
+"share.home.score_zen_format" = "Unisciti a me su BLOMIX e prova a battere il mio punteggio Zen di %@!";
+"share.home.noscore" = "Unisciti a me su BLOMIX: un puzzle di catene avvincente. Ci stai?";
+"share.gameover.score_format" = "Ho appena fatto %@ su BLOMIX. Pensi di poter fare di meglio?";
+"share.gameover.score_zen_format" = "Ho appena fatto %@ in modalità Zen su BLOMIX. Pensi di poter fare di meglio?";
+"share.gameover.record_format" = "Nuovo record su BLOMIX: %@! Osi superarmi?";
+"share.gameover.record_zen_format" = "Nuovo record Zen su BLOMIX: %@! Osi superarmi?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Partita rapida";

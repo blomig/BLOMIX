@@ -172,6 +172,15 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         setNeedsStatusBarAppearanceUpdate()
     }
 
+    /// Présente la share sheet système (accueil / game over). `sourceRect` en coordonnées du `view` (iPad popover).
+    func presentBlomixShare(activityItems: [Any], sourceRect: CGRect) {
+        let activity = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        activity.popoverPresentationController?.sourceView = view
+        activity.popoverPresentationController?.sourceRect = sourceRect.integral
+        activity.popoverPresentationController?.permittedArrowDirections = [.up, .down, .left, .right]
+        present(activity, animated: true)
+    }
+
     /// Splash studio : forcer le noir (indépendant du thème Clair).
     func applyForcedBlackChromeForStudioSplash() {
         isStudioSplashChromeActive = true

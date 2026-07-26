@@ -240,8 +240,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "transition.tutorial_end.subtitle" = "À vous de jouer";
 
 /* Intro mode Zen */
-"zen.overlay.level_prefix" = "Zen";
-"zen.overlay.stage_text" = "Mode";
+"zen.overlay.level_prefix" = "Mode";
+"zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "tranquille";
 
 /* Overlay transition de stage */
@@ -299,6 +299,17 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "appearance.dark" = "Sombre";
 "appearance.light" = "Clair";
 
+/* Partage */
+"share.button" = "Partager";
+"share.a11y" = "Partager BLOMIX";
+"share.card.record_badge" = "Nouveau record";
+"share.home.score_format" = "Rejoins-moi sur BLOMIX et essaie de battre mon score de %@ !";
+"share.home.score_zen_format" = "Rejoins-moi sur BLOMIX et essaie de battre mon score Zen de %@ !";
+"share.home.noscore" = "Rejoins-moi sur BLOMIX — un puzzle de chaînes bien addictif. Tu te lances ?";
+"share.gameover.score_format" = "Je viens de faire %@ sur BLOMIX. Tu penses pouvoir faire mieux ?";
+"share.gameover.score_zen_format" = "Je viens de faire %@ en mode Zen sur BLOMIX. Tu penses pouvoir faire mieux ?";
+"share.gameover.record_format" = "Nouveau record sur BLOMIX : %@ ! Tu oses me challenger ?";
+"share.gameover.record_zen_format" = "Nouveau record Zen sur BLOMIX : %@ ! Tu oses me challenger ?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Partie rapide";

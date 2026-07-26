@@ -65,6 +65,7 @@
 		100000000000000000000223 /* BlomixMoveAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* BlomixMoveAnalyzer.swift */; };
 		100000000000000000000230 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000231 /* InfoPlist.strings */; };
 		100000000000000000000240 /* BlomixAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000241 /* BlomixAppearance.swift */; };
+		100000000000000000000251 /* BlomixShareComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000250 /* BlomixShareComposer.swift */; };
 		E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */; };
 		E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */; };
 		E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */; };
@@ -166,6 +167,7 @@
 		10000000000000000000023E /* es */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = es; path = es.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		10000000000000000000023F /* it */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = it; path = it.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		100000000000000000000241 /* BlomixAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAppearance.swift; sourceTree = "<group>"; };
+		100000000000000000000250 /* BlomixShareComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixShareComposer.swift; sourceTree = "<group>"; };
 		E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = victory.mp3; sourceTree = "<group>"; };
 		E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = wrong.wav; sourceTree = "<group>"; };
 		E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = calm.mp3; sourceTree = "<group>"; };
@@ -230,6 +232,7 @@
 				1000000000000000000001CC /* BlomixAmbientBlocksView.swift */,
 				1000000000000000000001C0 /* BlomixTypography.swift */,
 				100000000000000000000241 /* BlomixAppearance.swift */,
+				100000000000000000000250 /* BlomixShareComposer.swift */,
 				100000000000000000000003 /* GameScene.swift */,
 				10000000000000000000018D /* BlomixL10n.swift */,
 				100000000000000000000192 /* rules.txt */,
@@ -479,6 +482,7 @@
 				1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */,
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
 				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
+				100000000000000000000251 /* BlomixShareComposer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -699,7 +703,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 67;
+				CURRENT_PROJECT_VERSION = 68;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -709,7 +713,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.2;
+				MARKETING_VERSION = 5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -730,7 +734,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 67;
+				CURRENT_PROJECT_VERSION = 68;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -740,7 +744,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 5.2;
+				MARKETING_VERSION = 5.3;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

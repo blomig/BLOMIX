@@ -227,8 +227,8 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "transition.tutorial_end.subtitle" = "Your turn";
 
 /* Zen mode intro */
-"zen.overlay.level_prefix" = "Zen";
-"zen.overlay.stage_text" = "Mode";
+"zen.overlay.level_prefix" = "Mode";
+"zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "chill";
 
 /* Stage transition overlay */
@@ -286,6 +286,17 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "appearance.dark" = "Dark";
 "appearance.light" = "Light";
 
+/* Share */
+"share.button" = "Share";
+"share.a11y" = "Share BLOMIX";
+"share.card.record_badge" = "New best";
+"share.home.score_format" = "Join me on BLOMIX and try to beat my score of %@!";
+"share.home.score_zen_format" = "Join me on BLOMIX and try to beat my Zen score of %@!";
+"share.home.noscore" = "Join me on BLOMIX — a clever chain puzzle. Fancy a go?";
+"share.gameover.score_format" = "I just scored %@ on BLOMIX. Think you can beat that?";
+"share.gameover.score_zen_format" = "I just scored %@ in Zen mode on BLOMIX. Think you can beat that?";
+"share.gameover.record_format" = "New personal best on BLOMIX: %@! Think you can top that?";
+"share.gameover.record_zen_format" = "New Zen personal best on BLOMIX: %@! Think you can top that?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Quick match";

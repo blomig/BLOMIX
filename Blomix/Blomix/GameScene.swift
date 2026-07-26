@@ -802,6 +802,9 @@ final class GameScene: SKScene {
     private static let startScreenSettingsLinkName = "startScreenSettingsLink"
     private static let startScreenTutorialLinkName = "startScreenTutorialLink"
     private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
+    private static let startScreenShareChipName = "startScreenShareChip"
+    private static let startScreenShareLabelName = "startScreenShareLabel"
+    private static let gameOverShareLabelName = "gameOverShareLabel"
     private static let studioSplashOverlayName = "studioSplashOverlay"
     private static let hudPvPTurnTimerName = "hudPvPCountdown"
     private static let hudPvPOpponentName = "hudPvPOpponentName"
@@ -1088,6 +1091,12 @@ final class GameScene: SKScene {
 
     /// Score final au moment du **Game Over** (identique à `score` dans `triggerGameOver`) — envoi `ScoreManager` / affichage record.
     private(set) var gameOverFinalScore: Int = 0
+    /// Snapshot grille pour la carte de partage (figée à l'ouverture du game over).
+    private var gameOverShareGrid: [[BlockType]] = []
+    /// Record perso confirmé pour le message / bandeau de partage game over.
+    private var gameOverShareIsNewPB: Bool = false
+    /// Carte 1:1 pré-rendue pour la share sheet (invalidée en quittant le GO).
+    private var gameOverShareCardImage: UIImage?
 
     /// `true` tant que l’écran d’accueil plein écran est affiché ; la partie n’a pas encore commencé.
     private var isStartScreen = true
@@ -1452,6 +1461,9 @@ final class GameScene: SKScene {
         scoreRollStart  = 0
         scoreRollTarget = 0
         gameOverFinalScore = 0
+        gameOverShareGrid = []
+        gameOverShareIsNewPB = false
+        gameOverShareCardImage = nil
         chainSeriesLevel = 0
         currentStageIndex = 0
         stageTimerSecondsRemaining = Self.soloStages[0].timerSeconds
@@ -1595,6 +1607,41 @@ final class GameScene: SKScene {
         icon.zPosition = 1
         container.addChild(icon)
         return container
+    }
+
+    /// Chip « Partager » : icône avion en papier custom + libellé (secondaire, pas hero).
+    private func makeStartScreenShareChip() -> BlomixSKButtonNode {
+        let text = BlomixL10n.shareButton
+        let fontSize: CGFloat = 15
+        let iconSide: CGFloat = 18
+        let iconTextGap: CGFloat = 8
+        let font = BlomixTypography.uiFont(size: fontSize, weight: .regular)
+        let textW = (text as NSString).size(withAttributes: [.font: font]).width
+        let contentW = iconSide + iconTextGap + textW
+        let chipW = contentW + BlomixSKButtonNode.padH * 2
+        let chipH = max(40, ceil(font.lineHeight) + BlomixSKButtonNode.padV * 2)
+
+        let btn = BlomixSKButtonNode(
+            name: Self.startScreenShareChipName,
+            labelName: Self.startScreenShareLabelName,
+            text: text,
+            size: CGSize(width: chipW, height: chipH),
+            fontSize: fontSize
+        )
+
+        let iconX = -contentW / 2 + iconSide / 2
+        let labelX = -contentW / 2 + iconSide + iconTextGap + textW / 2
+        btn.labelNode?.position = CGPoint(x: labelX, y: 0)
+
+        let icon = SKSpriteNode(
+            texture: BlomixAppearance.shareButtonTexture(pointSize: 15, canvasSide: iconSide)
+        )
+        icon.name = "startScreenShareIcon"
+        icon.size = CGSize(width: iconSide, height: iconSide)
+        icon.position = CGPoint(x: iconX, y: 0)
+        icon.zPosition = 2
+        btn.addChild(icon)
+        return btn
     }
 
     /// Liens texte « Réglages · Tutoriel » sous la carte joueur.
@@ -1890,6 +1937,14 @@ final class GameScene: SKScene {
         appearanceToggle.zPosition = 2
         overlay.addChild(appearanceToggle)
 
+        // ── Partager (chip icône + texte, sous le toggle) ───────────────────────
+        let shareChip = makeStartScreenShareChip()
+        let shareChipH = shareChip.calculateAccumulatedFrame().height
+        let shareChipY = appearanceToggleY - 22 - max(shareChipH, 40) / 2
+        shareChip.position = CGPoint(x: cx, y: shareChipY)
+        shareChip.zPosition = 2
+        overlay.addChild(shareChip)
+
         // ── Bande 3 : boutons de jeu (hero Solo + PvP/Zen côte à côte) ───────────
         let maxChipOuter = size.width - 32
         let playBandW = maxChipOuter / 2
@@ -1901,8 +1956,9 @@ final class GameScene: SKScene {
         let heroFont = chipFont * 1.12
         let heroSize = CGSize(width: playBandW, height: heroH)
 
-        let playBandDrop: CGFloat = 100
-        let heroY = appearanceToggleY - 40 - heroH / 2 - playBandDrop
+        // Espace sous le chip Partager (réduit vs. ancien drop 100 sous le seul toggle).
+        let playBandDrop: CGFloat = 72
+        let heroY = shareChipY - max(shareChipH, 40) / 2 - 28 - heroH / 2 - playBandDrop
         let pairGap: CGFloat = 12
         let pairChipW = (playBandW - pairGap) / 2
         let pairChipSize = CGSize(width: pairChipW, height: hChip)
@@ -2066,6 +2122,9 @@ final class GameScene: SKScene {
 
         appearanceToggle.alpha = 0
         appearanceToggle.run(.sequence([.wait(forDuration: 0.36), .fadeIn(withDuration: 0.22)]))
+
+        shareChip.alpha = 0
+        runStartScreenGameChipEntrance(on: shareChip, delay: 0.30)
 
         // Boutons de jeu : stagger PvP+Zen puis Solo en conclusion.
         runStartScreenGameChipEntrance(on: pvpChip, delay: 0.22)
@@ -2450,6 +2509,10 @@ final class GameScene: SKScene {
         return abs(local.x) <= 22 && abs(local.y) <= 22
     }
 
+    private func touchHitsStartScreenShareButton(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForStartScreenChip(named: Self.startScreenShareChipName).contains(scenePoint)
+    }
+
     private func toggleAppearanceFromStartScreen() {
         BlomixAppearance.toggle()
         // L'icône hamburger est une texture rasterisée : invalider pour la prochaine partie.
@@ -2506,6 +2569,12 @@ final class GameScene: SKScene {
     private func touchHitsGameOverLeaderboardButton(_ scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.gameOverOverlayName),
               let node = overlay.childNode(withName: Self.gameOverLeaderboardLabelName) else { return false }
+        return sceneHitRectForGameOverButton(node).contains(scenePoint)
+    }
+
+    private func touchHitsGameOverShareButton(_ scenePoint: CGPoint) -> Bool {
+        guard let overlay = childNode(withName: Self.gameOverOverlayName),
+              let node = overlay.childNode(withName: Self.gameOverShareLabelName) else { return false }
         return sceneHitRectForGameOverButton(node).contains(scenePoint)
     }
 
@@ -2886,6 +2955,9 @@ final class GameScene: SKScene {
 
         let finalScore = score
         gameOverFinalScore = finalScore
+        gameOverShareGrid = grid
+        gameOverShareIsNewPB = false
+        gameOverShareCardImage = nil
 
         playMatchSound(.end)
 
@@ -3132,17 +3204,21 @@ final class GameScene: SKScene {
 
         let goButtonFontSize = BlomixUIDestinationButtonStyle.navigationTitleFontSize
         let goButtonSize = BlomixSKButtonNode.unifiedSize(
-            for: [BlomixL10n.gameOverRestart, BlomixL10n.gameOverLeaderboard],
+            for: [BlomixL10n.gameOverRestart, BlomixL10n.gameOverLeaderboard, BlomixL10n.shareButton],
             fontSize: goButtonFontSize,
             maxWidth: size.width - 48
         )
+        let restartY = size.height / 2 - 64 - analysisPanelShift
+        let leaderboardY = restartY - goButtonSize.height - 10
+        let shareY = leaderboardY - goButtonSize.height - 10
+
         let restart = BlomixSKButtonNode(
             name: Self.gameOverRestartLabelName,
             text: BlomixL10n.gameOverRestart,
             size: goButtonSize,
             fontSize: goButtonFontSize
         )
-        restart.position = CGPoint(x: size.width / 2, y: size.height / 2 - 64 - analysisPanelShift)
+        restart.position = CGPoint(x: size.width / 2, y: restartY)
         restart.alpha = 0
         restart.zPosition = 10
         overlay.addChild(restart)
@@ -3157,7 +3233,7 @@ final class GameScene: SKScene {
             size: goButtonSize,
             fontSize: goButtonFontSize
         )
-        leaderboard.position = CGPoint(x: size.width / 2, y: size.height / 2 - 64 - goButtonSize.height - 10 - analysisPanelShift)
+        leaderboard.position = CGPoint(x: size.width / 2, y: leaderboardY)
         leaderboard.alpha = 0
         leaderboard.zPosition = 10
         overlay.addChild(leaderboard)
@@ -3166,18 +3242,35 @@ final class GameScene: SKScene {
             SKAction.fadeIn(withDuration: 0.22),
         ]))
 
+        let share = BlomixSKButtonNode(
+            name: Self.gameOverShareLabelName,
+            text: BlomixL10n.shareButton,
+            size: goButtonSize,
+            fontSize: goButtonFontSize
+        )
+        share.position = CGPoint(x: size.width / 2, y: shareY)
+        share.alpha = 0
+        share.zPosition = 10
+        overlay.addChild(share)
+        share.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.46),
+            SKAction.fadeIn(withDuration: 0.22),
+        ]))
+
         let quote = randomGameOverQuote()
         let quoteMaxChars = max(18, Int((size.width - 40) / 11))
         let wrapped = Self.wrapQuoteForGameOver(quote.text, maxCharsPerLine: quoteMaxChars, maxLines: 4)
 
-        // Si le bouton "pire coup" est visible, la citation descend d'une hauteur de bouton supplémentaire.
+        // Décalage citations : bouton Partager toujours présent + éventuellement « pire coup ».
+        let shareBtnShift = goButtonSize.height + 12
         let worstMoveBtnShift: CGFloat = (BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil)
-            ? goButtonSize.height + 36
+            ? goButtonSize.height + 12
             : 0
+        let quoteExtraShift = shareBtnShift + worstMoveBtnShift
 
         if !wrapped.isEmpty {
             let lineHeight: CGFloat = 24
-            let firstLineY = size.height / 2 - 162 - analysisPanelShift - worstMoveBtnShift
+            let firstLineY = size.height / 2 - 162 - analysisPanelShift - quoteExtraShift
             for (index, line) in wrapped.enumerated() {
                 let quoteLine = SKLabelNode(text: line)
                 quoteLine.name = index == 0 ? Self.gameOverQuoteLine1LabelName : Self.gameOverQuoteLine2LabelName
@@ -3204,7 +3297,7 @@ final class GameScene: SKScene {
         author.fontColor = BlomixAppearance.gameOverSecondaryTextSK
         author.horizontalAlignmentMode = .center
         author.verticalAlignmentMode = .center
-        let authorY = size.height / 2 - 162 - CGFloat(max(1, wrapped.count)) * 24 - 10 - analysisPanelShift - worstMoveBtnShift
+        let authorY = size.height / 2 - 162 - CGFloat(max(1, wrapped.count)) * 24 - 10 - analysisPanelShift - quoteExtraShift
         author.position = CGPoint(x: size.width / 2, y: authorY)
         author.alpha = 0
         author.zPosition = 10
@@ -3223,9 +3316,8 @@ final class GameScene: SKScene {
                 size:     goButtonSize,
                 fontSize: goButtonFontSize
             )
-            let leaderboardY = size.height / 2 - 64 - goButtonSize.height - 10 - analysisPanelShift
             worstBtn.position = CGPoint(x: size.width / 2,
-                                        y: leaderboardY - goButtonSize.height - 10)
+                                        y: shareY - goButtonSize.height - 10)
             worstBtn.alpha    = 0
             worstBtn.zPosition = 10
             overlay.addChild(worstBtn)
@@ -3234,6 +3326,9 @@ final class GameScene: SKScene {
                 SKAction.fadeIn(withDuration: 0.22),
             ]))
         }
+
+        // Pré-rendu carte de partage (thème + skin actuels).
+        refreshGameOverShareCard()
 
         // Game Center : soumission solo uniquement sur BlomixMainScore_v3.
         // Les scores PvP sont gérés par le système Elo et n'entrent pas dans ce leaderboard.
@@ -3250,6 +3345,10 @@ final class GameScene: SKScene {
                 ScoreManager.shared.submitScore(finalScore, completion: nil)
                 ScoreManager.shared.recordGameScore(finalScore)
             }
+            if isNewPB {
+                self.gameOverShareIsNewPB = true
+                self.refreshGameOverShareCard()
+            }
             guard isNewPB,
                   let overlay = self.childNode(withName: Self.gameOverOverlayName) else { return }
             let personalBest = SKLabelNode(text: BlomixL10n.gameOverPersonalBest)
@@ -3265,6 +3364,63 @@ final class GameScene: SKScene {
             overlay.addChild(personalBest)
             personalBest.run(SKAction.fadeIn(withDuration: 0.22))
         }
+    }
+
+    /// Régénère la carte image de partage (grille + score + bandeau record).
+    private func refreshGameOverShareCard() {
+        guard !gameOverShareGrid.isEmpty else { return }
+        gameOverShareCardImage = BlomixShareComposer.makeGameOverShareCard(
+            grid: gameOverShareGrid,
+            score: gameOverFinalScore,
+            isZen: isZenMode,
+            isNewPB: gameOverShareIsNewPB
+        )
+    }
+
+    /// Share sheet depuis l'accueil (texte + URL App Store).
+    private func presentShareFromHome() {
+        presentBlomixShareSheet(
+            activityItems: BlomixShareComposer.homeActivityItems(),
+            chipName: Self.startScreenShareChipName,
+            overlayName: Self.startScreenOverlayName
+        )
+    }
+
+    /// Share sheet depuis le game over (carte + texte + URL).
+    private func presentShareFromGameOver() {
+        let items = BlomixShareComposer.gameOverActivityItems(
+            grid: gameOverShareGrid,
+            score: gameOverFinalScore,
+            isZen: isZenMode,
+            isNewPB: gameOverShareIsNewPB,
+            cardImage: gameOverShareCardImage
+        )
+        presentBlomixShareSheet(
+            activityItems: items,
+            chipName: Self.gameOverShareLabelName,
+            overlayName: Self.gameOverOverlayName
+        )
+    }
+
+    private func presentBlomixShareSheet(activityItems: [Any], chipName: String, overlayName: String) {
+        guard let skView = view,
+              let root = skView.window?.rootViewController as? GameViewController else { return }
+        var sourceRect = CGRect(x: skView.bounds.midX - 1, y: skView.bounds.midY - 1, width: 2, height: 2)
+        if let overlay = childNode(withName: overlayName),
+           let chip = overlay.childNode(withName: chipName) {
+            let box = chip.calculateAccumulatedFrame()
+            let parent = chip.parent ?? overlay
+            let p0 = convert(CGPoint(x: box.minX, y: box.minY), from: parent)
+            let p1 = convert(CGPoint(x: box.maxX, y: box.maxY), from: parent)
+            let sceneRect = CGRect(
+                x: min(p0.x, p1.x),
+                y: min(p0.y, p1.y),
+                width: abs(p1.x - p0.x),
+                height: abs(p1.y - p0.y)
+            )
+            sourceRect = skView.convert(sceneRect, from: self)
+        }
+        root.presentBlomixShare(activityItems: activityItems, sourceRect: sourceRect)
     }
 
 
@@ -11602,6 +11758,10 @@ final class GameScene: SKScene {
                 pendingButtonAction = { [weak self] in self?.toggleAppearanceFromStartScreen() }
                 return
             }
+            if touchHitsStartScreenShareButton(location) {
+                pendingButtonAction = { [weak self] in self?.presentShareFromHome() }
+                return
+            }
             if touchHitsStartScreenPvPButton(location) {
                 pendingButtonAction = { [weak self] in self?.showPvPLobby() }
                 return
@@ -11628,6 +11788,10 @@ final class GameScene: SKScene {
             }
             if touchHitsGameOverLeaderboardButton(location) {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard() }
+                return
+            }
+            if touchHitsGameOverShareButton(location) {
+                pendingButtonAction = { [weak self] in self?.presentShareFromGameOver() }
                 return
             }
             if touchHitsGameOverWorstMoveButton(location) {

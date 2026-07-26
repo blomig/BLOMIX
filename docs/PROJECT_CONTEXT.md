@@ -296,6 +296,20 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 - Boutons : chips inversés selon le thème (`BlomixSKButtonNode`, `BlomixUIDestinationButtonStyle`)
 - Transitions stage / Zen / PvP / tutoriel : fill **orange skin** inchangé ; **contour seul** via `transitionOutlineColor` (pas de halo)
 
+### Partage (accueil + game over)
+
+`BlomixShareComposer` + share sheet système (`UIActivityViewController` via `GameViewController`).
+
+| Entrée | Contenu |
+|---|---|
+| Accueil | Chip icône avion en papier custom + « Partager » (sous le toggle apparence) → texte challenge + URL App Store `id6762053543` |
+| Game over Solo/Zen | 3ᵉ bouton sous Classement → **carte 1:1** (grille finale, skin + thème chrome, score, bandeau record si PB) + texte + URL |
+| PvP | Hors scope v1 |
+
+- Score accueil : best Solo, sinon Zen, sinon message sans score ; mention « Zen » seulement si Zen
+- Messages localisés FR/EN/DE/ES/IT (`share.*`)
+- Icône : dessin vectoriel custom (`BlomixAppearance.shareButtonTexture`), pas le glyphe système `square.and.arrow.up`
+
 ### Police (`BlomixTypography`)
 
 | Nom | PostScript |
@@ -357,12 +371,13 @@ Blomix/Blomix/
 ├── BlomixMoveAnalyzer.swift      # Évaluation des coups, hints
 ├── BlomixL10n.swift              # Pont typé localisation
 ├── BlomixTypography.swift        # Police joueur
-├── BlomixAppearance.swift        # Thème chrome Sombre / Clair
+├── BlomixAppearance.swift        # Thème chrome Sombre / Clair (+ icône partage custom)
+├── BlomixShareComposer.swift     # Messages + carte 1:1 + items share sheet
 ├── BlomixPvPNetworking.swift     # GKMatch, RNG, attaques
 ├── BlomixPvPUI.swift             # Lobby, résultats, adversaires récents
 ├── BlomixEloManager.swift        # Elo PvP
 ├── ScoreManager.swift            # Game Center scores
-├── GameViewController.swift      # Root VC, overlay tutoriel legacy
+├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)
 ├── BlomixMusicPlayer.swift       # Musique par stage

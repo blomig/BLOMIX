@@ -304,6 +304,34 @@ enum BlomixL10n {
     static var appearanceDark: String { tr("appearance.dark", comment: "Dark appearance mode label") }
     static var appearanceLight: String { tr("appearance.light", comment: "Light appearance mode label") }
 
+    // MARK: - Partage (accueil + game over)
+    static var shareButton: String { tr("share.button", comment: "Share button label on home and game over") }
+    static var shareAccessibility: String { tr("share.a11y", comment: "VoiceOver — share BLOMIX") }
+    static var shareCardRecordBadge: String {
+        tr("share.card.record_badge", comment: "Badge on game-over share card when personal best")
+    }
+    static func shareHomeScore(_ score: String) -> String {
+        String(format: tr("share.home.score_format", comment: "Home share with Solo best; %@ = formatted score"), score)
+    }
+    static func shareHomeScoreZen(_ score: String) -> String {
+        String(format: tr("share.home.score_zen_format", comment: "Home share with Zen best; %@ = formatted score"), score)
+    }
+    static var shareHomeNoScore: String {
+        tr("share.home.noscore", comment: "Home share when player has no stored best score yet")
+    }
+    static func shareGameOverScore(_ score: String) -> String {
+        String(format: tr("share.gameover.score_format", comment: "Game over share; %@ = run score"), score)
+    }
+    static func shareGameOverScoreZen(_ score: String) -> String {
+        String(format: tr("share.gameover.score_zen_format", comment: "Game over Zen share; %@ = run score"), score)
+    }
+    static func shareGameOverRecord(_ score: String) -> String {
+        String(format: tr("share.gameover.record_format", comment: "Game over new personal best share; %@ = score"), score)
+    }
+    static func shareGameOverRecordZen(_ score: String) -> String {
+        String(format: tr("share.gameover.record_zen_format", comment: "Game over new Zen PB share; %@ = score"), score)
+    }
+
     static var rankDiscSolo: String { tr("rank_disc.solo", comment: "Start screen rank disc — solo leaderboard") }
     static var rankDiscAvg: String { tr("rank_disc.avg", comment: "Start screen rank disc — average score") }
     static var rankDiscZen: String { tr("rank_disc.zen", comment: "Start screen rank disc — zen mode") }

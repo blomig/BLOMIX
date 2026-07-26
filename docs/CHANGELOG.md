@@ -12,6 +12,12 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 Build **67** (fonctionnelle).
 
 ### Ajouté
+- **Partage BLOMIX** (accueil + game over Solo/Zen) :
+  - Chip **Partager** sur l’accueil (icône avion en papier custom + libellé) sous le toggle Sombre/Clair
+  - Bouton **Partager** au game over (3ᵉ sous Classement) avec **carte image 1:1** (grille finale, skin + thème chrome, score, bandeau « Nouveau record » si PB)
+  - Share sheet système (`UIActivityViewController`) : texte challenge + URL App Store `id6762053543` ; image au GO uniquement
+  - Messages localisés FR/EN/DE/ES/IT (`share.*`) ; score accueil = best Solo sinon Zen sinon invitation sans score
+  - Module `BlomixShareComposer` + `BlomixAppearance.shareButtonTexture`
 - **`AGENTS.md`** à la racine — brief opérationnel pour agents / contributeurs (architecture, conventions, boucle de clôture l10n / doc / git)
 - **PvP robustesse (vagues 1–3)** :
   - `protocolVersion` au handshake + message d’update si incompatible

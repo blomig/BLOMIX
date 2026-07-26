@@ -6,6 +6,7 @@
 /* Confirmation de quitter une partie solo */
 "quit_confirm.title" = "Quitter la partie ?";
 "quit_confirm.message" = "Ton score actuel sera comptabilisé dans ta moyenne.";
+"quit_confirm.message_zen" = "Ton score ne sera pas sauvegardé.";
 "quit_confirm.quit" = "Quitter";
 
 /* Accueil & jeu */

@@ -6,6 +6,7 @@
 /* Quit solo game confirmation */
 "quit_confirm.title" = "¿Salir de esta partida?";
 "quit_confirm.message" = "Tu puntuación actual contará para tu media.";
+"quit_confirm.message_zen" = "Tu puntuación no se guardará.";
 "quit_confirm.quit" = "Salir";
 
 /* Welcome & gameplay */

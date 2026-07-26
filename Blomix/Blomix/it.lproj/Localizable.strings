@@ -6,6 +6,7 @@
 /* Quit solo game confirmation */
 "quit_confirm.title" = "Uscire da questa partita?";
 "quit_confirm.message" = "Il punteggio attuale conterà nella tua media.";
+"quit_confirm.message_zen" = "Il tuo punteggio non verrà salvato.";
 "quit_confirm.quit" = "Esci";
 
 /* Welcome & gameplay */

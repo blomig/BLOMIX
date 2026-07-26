@@ -4065,8 +4065,9 @@ final class GameScene: SKScene {
         title.zPosition               = 2
         panel.addChild(title)
 
-        // Message (multi-lignes).
-        let msg = SKLabelNode(text: BlomixL10n.quitConfirmMessage)
+        // Message (multi-lignes) : Solo = moyenne ; Zen = score non sauvegardé.
+        let msgText = isZenMode ? BlomixL10n.quitConfirmMessageZen : BlomixL10n.quitConfirmMessage
+        let msg = SKLabelNode(text: msgText)
         msg.fontName                = Self.customUIFontPostScriptName
         msg.fontSize                = 13
         msg.fontColor               = BlomixAppearance.secondaryTextSK

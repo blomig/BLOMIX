@@ -6,6 +6,7 @@
 /* Quit solo game confirmation */
 "quit_confirm.title" = "Partie beenden?";
 "quit_confirm.message" = "Dein aktueller Score zählt für deinen Durchschnitt.";
+"quit_confirm.message_zen" = "Dein Score wird nicht gespeichert.";
 "quit_confirm.quit" = "Beenden";
 
 /* Welcome & gameplay */

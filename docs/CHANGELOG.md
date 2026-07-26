@@ -7,9 +7,9 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.2] — 2026-07 (courant)
+## [5.3] — 2026-07 (courant)
 
-Build **67** (fonctionnelle).
+Build **69**.
 
 ### Ajouté
 - **Partage BLOMIX** (accueil + game over Solo/Zen) :
@@ -18,6 +18,18 @@ Build **67** (fonctionnelle).
   - Share sheet système (`UIActivityViewController`) : texte challenge + URL App Store `id6762053543` ; image au GO uniquement
   - Messages localisés FR/EN/DE/ES/IT (`share.*`) ; score accueil = best Solo sinon Zen sinon invitation sans score
   - Module `BlomixShareComposer` + `BlomixAppearance.shareButtonTexture`
+
+### Modifié
+- **Quitter la partie (Zen)** : message adapté — « Ton score ne sera pas sauvegardé » (plus de mention de la moyenne Solo) ; titre et boutons inchangés
+- Version marketing **5.3** (build **69**)
+
+---
+
+## [5.2] — 2026-07
+
+Build **67** (fonctionnelle).
+
+### Ajouté
 - **`AGENTS.md`** à la racine — brief opérationnel pour agents / contributeurs (architecture, conventions, boucle de clôture l10n / doc / git)
 - **PvP robustesse (vagues 1–3)** :
   - `protocolVersion` au handshake + message d’update si incompatible

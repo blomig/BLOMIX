@@ -21,7 +21,11 @@ enum BlomixL10n {
     static var loading: String { tr("common.loading", comment: "Generic loading label") }
 
     static var quitConfirmTitle:   String { tr("quit_confirm.title",   comment: "Alert: quit solo game?") }
-    static var quitConfirmMessage: String { tr("quit_confirm.message", comment: "Alert: score counted in average") }
+    static var quitConfirmMessage: String { tr("quit_confirm.message", comment: "Alert: score counted in average (solo staged)") }
+    /// Message de sortie en mode Zen (pas de moyenne ; score non soumis si abandon).
+    static var quitConfirmMessageZen: String {
+        tr("quit_confirm.message_zen", comment: "Alert: score will not be saved (Zen quit)")
+    }
     static var quitConfirmQuit:    String { tr("quit_confirm.quit",    comment: "Alert: confirm quit button") }
 
     // MARK: - Accueil & jeu (SpriteKit)

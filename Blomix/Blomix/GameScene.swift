@@ -466,6 +466,8 @@ enum MagixKind: String, Codable, Equatable, CaseIterable {
     case cleanx
     /// Échange interactif de deux couleurs : le joueur sélectionne successivement deux couleurs.
     case twistx
+    /// Peint la case + voisins **déjà occupés** (pas de cases vides) ; chaque voisin peint un voisin occupé aléatoire (tâche) ; +1 bombe ; chaînes.
+    case bombx
 }
 
 enum BlockType: Equatable {
@@ -635,6 +637,7 @@ private enum MagixRules {
         (.chromax,  1.0 / 324.0),
         (.brixed,   1.0 / 324.0),
         (.cleanx,   1.0 / 500.0),
+        (.bombx,    1.0 / 500.0),   // même rareté que SAINTX
     ]
     /// Probabilité globale cumulée (utilisée pour le check rapide avant tirage de variante).
     static var spawnProbability: Double { spawnProbabilityByKind.reduce(0) { $0 + $1.p } }
@@ -655,6 +658,7 @@ private enum MagixRules {
         case .colorx:   return "COLORX"
         case .cleanx:   return "SAINTX"
         case .twistx:   return "TWISTX"
+        case .bombx:    return "BOMBX"
         }
     }
 
@@ -668,6 +672,7 @@ private enum MagixRules {
         case .colorx:   return "O"
         case .cleanx:   return "∞"
         case .twistx:   return "X"
+        case .bombx:    return "B"
         }
     }
 
@@ -1142,6 +1147,16 @@ final class GameScene: SKScene {
     /// Mode placement bombe (preview bombe ; `B` ou tap sur l’icône pour basculer).
     private var isBombMode: Bool = false
 
+    // MARK: BOMBX — feedback dots → HUD bombe
+    /// Cases peintes par le dernier BOMBX (pour lier clear / fallback dots).
+    private var bombxPaintedCells: Set<GridAddress> = []
+    /// Couleur de la tâche BOMBX (dots vers le compteur).
+    private var bombxStainColor: SKColor?
+    /// +1 bombe encore dû (garanti), livré à l’arrivée des dots.
+    private var bombxBonusPending: Bool = false
+    /// Une seule salve de dots bombe par BOMBX.
+    private var bombxDotsLaunched: Bool = false
+
     // (TWISTX n'a pas d'état interactif — effet entièrement automatique à l'atterrissage)
 
     /// Nombre de **vagues** où au moins une chaîne ≥ 5 a été supprimée — aligné sur `chainCount++` dans `checkChains` du web.
@@ -1453,6 +1468,7 @@ final class GameScene: SKScene {
         nextBottomLine = nextBottomLineRowForSession()
         bombCount = pvpCoordinator == nil ? 5 : 3
         isBombMode = false
+        clearBombxFeedbackState()
         chainClearWaveCount = 0
         score = 0
         lastScoreHundredMilestone = 0
@@ -1513,19 +1529,25 @@ final class GameScene: SKScene {
             baseRow = Self.generateNextRandomLineRowIndependentCells()
         }
         var row = baseRow
-        // Pas de blocs Magix ni Priks dans les lignes qui montent en tutoriel.
-        // Les blocs Magix ne doivent jamais apparaître dans les lignes du bas (effet trop brutal).
+        // Magix : jamais dans les lignes du bas (effet trop brutal), tous modes.
+        // Brix (Priks) : exclus en tutoriel — la ligne des 10 arrive avant l'étape Brix ;
+        // remplacer par un blox couleur (pas `randomNextPlayableBlock`, qui peut redonner un Brix/Magix).
         row = row.map { block in
             switch block {
             case .magix:
-                return Self.colorPalette.randomElement().map { .color($0) } ?? .color("red")
+                return Self.randomBottomLineColorOnlyBlock()
             case .priks where isTutorialMode:
-                return Self.randomNextPlayableBlock()
+                return Self.randomBottomLineColorOnlyBlock()
             default:
                 return block
             }
         }
         return row
+    }
+
+    /// Blox couleur pure pour le filtrage des lignes entrantes (pas de Brix / Magix).
+    private static func randomBottomLineColorOnlyBlock() -> BlockType {
+        .color(colorPalette.randomElement() ?? "red")
     }
 
     // Style des chips : centralisé dans BlomixSKButtonNode (cornerRadius, padH, padV, defaultFontSize).
@@ -4311,6 +4333,8 @@ final class GameScene: SKScene {
         // Aucune chaîne : fin de vague / de partie — reset du combo (`priks.html` : `else { chainSeriesLevel = 0 }` dans la boucle).
         guard !winningCells.isEmpty else {
             chainSeriesLevel = 0
+            // BOMBX : si aucune case peinte n’a été effacée (0 clear sur la tâche), dots depuis la zone peinte.
+            tryLaunchBombxBonusDots(clearedBombxCells: nil)
             if shouldRunPostPlacementHooks {
                 shouldRunPostPlacementHooks = false
                 moveCount += 1
@@ -4380,6 +4404,12 @@ final class GameScene: SKScene {
 
         chainClearWaveCount += 1
         updateBombHUD()
+
+        // BOMBX : dots vers le compteur bombe (en plus des dots score) si des cases peintes partent.
+        let clearedBombx = winningCells.intersection(bombxPaintedCells)
+        if !clearedBombx.isEmpty {
+            tryLaunchBombxBonusDots(clearedBombxCells: clearedBombx)
+        }
 
         // Score : **une** attribution par composante ≥ 5, même `chainSeriesLevel` pour toutes les composantes de cette vague.
         // La couleur de la composante est extraite (première cellule .color) pour teinter les dots et le label.
@@ -6787,6 +6817,7 @@ final class GameScene: SKScene {
         case .colorx:   applyMagixEffect_colorx(at: cell)
         case .cleanx:   applyMagixEffect_cleanx(at: cell)
         case .twistx:   applyMagixEffect_twistx(at: cell)
+        case .bombx:    applyMagixEffect_bombx(at: cell)
         }
     }
 
@@ -7564,6 +7595,210 @@ final class GameScene: SKScene {
         ]))
     }
 
+    // MARK: BOMBX
+
+    /// Cases **déjà occupées** uniquement :
+    /// rang 0 = atterrissage ; rang 1 = voisins 8-connexes occupés ;
+    /// rang 2 = 1 voisin occupé aléatoire par case du rang 1 ;
+    /// rang 3 = 1 voisin occupé aléatoire par case du rang 2 ;
+    /// puis `resolveChains` ; +1 bombe **garanti** livré à l’arrivée des dots HUD (pas de son bombe dédié).
+    private func applyMagixEffect_bombx(at cell: GridAddress) {
+        let chosenColorName = Self.colorPalette.randomElement() ?? "red"
+        let chosenColor = Self.bloxSolidFillColor(colorName: chosenColorName)
+            ?? SKColor(white: 0.55, alpha: 1)
+
+        // ── 1. Rangs de propagation (snapshot grille avant peinture).
+        let rank0: [GridAddress] = [cell]
+        let rank1 = Self.bombxOccupiedNeighbors(of: cell, in: grid)
+        var rank2: [GridAddress] = []
+        rank2.reserveCapacity(rank1.count)
+        for n in rank1 {
+            if let s = Self.bombxOccupiedNeighbors(of: n, in: grid).randomElement() {
+                rank2.append(s)
+            }
+        }
+        var rank3: [GridAddress] = []
+        rank3.reserveCapacity(rank2.count)
+        for s in rank2 {
+            if let t = Self.bombxOccupiedNeighbors(of: s, in: grid).randomElement() {
+                rank3.append(t)
+            }
+        }
+
+        // Ordre d’animation : vagues de rang (progression de tâche).
+        let paintOrder: [GridAddress] = rank0 + rank1 + rank2 + rank3
+        let paintedSet = Set(paintOrder)
+
+        // État feedback bombe (dots → HUD).
+        bombxPaintedCells = paintedSet
+        bombxStainColor = chosenColor
+        bombxBonusPending = true
+        bombxDotsLaunched = false
+
+        removeBloxJunctionElementsTouching(paintedSet)
+
+        // ── 2. Fallback sans container.
+        guard let container = childNode(withName: Self.gridContainerName) else {
+            for addr in paintedSet {
+                grid[addr.row][addr.col] = .color(chosenColorName)
+            }
+            drawGrid()
+            resolveChains()
+            return
+        }
+
+        // ── 3. Animation séquentielle par rang.
+        let stepDelay: TimeInterval = 0.055
+        var totalDelay: TimeInterval = 0
+        var stepIndex = 0
+
+        for addr in paintOrder {
+            let capturedAddr = addr
+            let capturedStep = stepIndex
+            let capturedDelay = totalDelay
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: capturedDelay),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    BlomixProceduralSFX.shared.playCrosxPulse(ring: min(capturedStep, 6))
+                    self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColorName)
+                    let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
+                    container.childNode(withName: nodeName)?.removeFromParent()
+                    let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColorName))
+                    newSprite.name = nodeName
+                    newSprite.position = Self.gridContainerLocalCellCenter(
+                        row: capturedAddr.row, column: capturedAddr.col)
+                    newSprite.setScale(0.5)
+                    container.addChild(newSprite)
+                    newSprite.run(SKAction.sequence([
+                        SKAction.scale(to: 1.35, duration: 0.07),
+                        SKAction.scale(to: 1.00, duration: 0.05),
+                    ]))
+                },
+            ]))
+            totalDelay += stepDelay
+            stepIndex += 1
+        }
+
+        let paintEnd = totalDelay + 0.12
+
+        // ── 4. Après peinture : chaînes (le +1 bombe partira via dots à l’arrivée).
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: paintEnd),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.drawGrid()
+                self.resolveChains()
+            },
+        ]))
+    }
+
+    /// Case peignable par BOMBX : déjà occupée (pas vide).
+    private static func isBombxPaintable(_ block: BlockType) -> Bool {
+        switch block {
+        case .empty: return false
+        case .color, .priks, .magix: return true
+        }
+    }
+
+    /// Voisins 8-connexes déjà occupés autour de `addr`.
+    private static func bombxOccupiedNeighbors(of addr: GridAddress, in grid: [[BlockType]]) -> [GridAddress] {
+        var out: [GridAddress] = []
+        for d in chainNeighborDeltas8 {
+            let nr = addr.row + d.dr
+            let nc = addr.col + d.dc
+            guard nr >= GridLayout.topRowIndex, nr < GridLayout.rowCount,
+                  nc >= 0, nc < GridLayout.columnCount else { continue }
+            guard isBombxPaintable(grid[nr][nc]) else { continue }
+            out.append(GridAddress(row: nr, col: nc))
+        }
+        return out
+    }
+
+    /// Lance au plus une salve de dots couleur tâche → HUD bombe.
+    /// - `clearedBombxCells` non nil et non vide : source = cases peintes qui partent.
+    /// - `nil` : fallback (0 clear sur la tâche) depuis toute la zone peinte.
+    private func tryLaunchBombxBonusDots(clearedBombxCells: Set<GridAddress>?) {
+        guard bombxBonusPending, !bombxDotsLaunched else { return }
+
+        let sourceCells: Set<GridAddress>
+        if let cleared = clearedBombxCells, !cleared.isEmpty {
+            sourceCells = cleared
+        } else if clearedBombxCells == nil {
+            // Fin de résolution sans clear BOMBX (ou aucune chaîne du tout).
+            guard !bombxPaintedCells.isEmpty else {
+                // Sécurité : +1 sans dots.
+                grantBombxStockBonus()
+                clearBombxFeedbackState()
+                return
+            }
+            sourceCells = bombxPaintedCells
+        } else {
+            // Intersection vide sur une vague de clear : attendre une vague ultérieure ou le fallback final.
+            return
+        }
+
+        bombxDotsLaunched = true
+        let color = bombxStainColor ?? BlomixAppearance.floatingScoreAccentSK
+        let from = sceneCentroid(for: sourceCells)
+        spawnBombxTransferDots(from: from, color: color)
+    }
+
+    /// Dots colorés vers le compteur / icône bombe ; +1 à l’arrivée (pas de son dédié).
+    private func spawnBombxTransferDots(from sourceCenter: CGPoint, color: SKColor) {
+        let targetCenter: CGPoint
+        if let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode {
+            let frame = icon.calculateAccumulatedFrame()
+            targetCenter = CGPoint(x: frame.midX, y: frame.midY)
+        } else if let label = childNode(withName: Self.bombHudCountLabelName) as? SKLabelNode {
+            let frame = label.calculateAccumulatedFrame()
+            targetCenter = CGPoint(x: frame.midX, y: frame.midY)
+        } else {
+            grantBombxStockBonus()
+            clearBombxFeedbackState()
+            return
+        }
+
+        let dotCount = 14
+        spawnTransferDots(
+            count: dotCount,
+            from: sourceCenter,
+            to: targetCenter,
+            color: color
+        ) { [weak self] in
+            guard let self else { return }
+            self.grantBombxStockBonus()
+            self.clearBombxFeedbackState()
+        }
+    }
+
+    /// +1 bombe au stock (aucun plafond) + pulse HUD — **sans** son bombLoad.
+    private func grantBombxStockBonus() {
+        bombCount += 1
+        updateBombHUD()
+        if let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode {
+            let pulse = SKAction.sequence([
+                SKAction.scale(to: 1.25, duration: 0.08),
+                SKAction.scale(to: 1.0, duration: 0.14),
+            ])
+            icon.run(pulse)
+        }
+        if let label = childNode(withName: Self.bombHudCountLabelName) as? SKLabelNode {
+            let pulse = SKAction.sequence([
+                SKAction.scale(to: 1.45, duration: 0.08),
+                SKAction.scale(to: 1.0, duration: 0.14),
+            ])
+            label.run(pulse)
+        }
+    }
+
+    private func clearBombxFeedbackState() {
+        bombxPaintedCells = []
+        bombxStainColor = nil
+        bombxBonusPending = false
+        bombxDotsLaunched = false
+    }
+
     // MARK: SCRUMBLX
 
     private static func scrumblxHoleNodeName(row: Int, column: Int) -> String {
@@ -8110,6 +8345,7 @@ final class GameScene: SKScene {
     }
 
     /// Met à jour le chiffre ; désactive le mode bombe si plus de munitions.
+    /// Stock vide **et** pas de bombe en main → icône assombrie + arrêt halo / particules (tous modes).
     private func updateBombHUD() {
         // bombCount peut être 0 quand une bombe est "sortie" (isBombMode = true) — ne pas annuler dans ce cas.
         // On annule seulement si le stock est négatif (incohérence) ou si on n'est pas en mode bombe.
@@ -8117,9 +8353,35 @@ final class GameScene: SKScene {
             bombCount = 0
             isBombMode = false
         }
+        let bombJuiceActive = bombCount > 0 || isBombMode
         (childNode(withName: Self.bombHudCountLabelName) as? SKLabelNode)?.text = "\(bombCount)"
-        (childNode(withName: Self.bombHudIconName) as? SKSpriteNode)?.alpha = (bombCount > 0 || isBombMode) ? 1.0 : 0.4
+        (childNode(withName: Self.bombHudIconName) as? SKSpriteNode)?.alpha = bombJuiceActive ? 1.0 : 0.4
+        refreshBombHudJuice(active: bombJuiceActive)
         refreshUpcomingQueueSlots()
+    }
+
+    /// Halo + particules orbitales de l’icône bombe HUD uniquement.
+    /// Actif tant qu’il reste des bombes en stock **ou** qu’une bombe est armée (`isBombMode`).
+    /// Preview / sprite de pose gardent leur juice via `applyBombShader` (hors de ce chemin).
+    private func refreshBombHudJuice(active: Bool) {
+        guard let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode else { return }
+        let hasGlow = icon.childNode(withName: MagixRules.glowNodeName) != nil
+        let hasOrbit = icon.action(forKey: MagixRules.orbitParticlesActionKey) != nil
+
+        if active {
+            // Réactiver seulement si manquant (évite de relancer le spawner à chaque update).
+            guard !hasGlow || !hasOrbit else { return }
+            Self.applyBombShader(to: icon, size: icon.size)
+            attachNukeDigitIfNeeded(to: icon, size: icon.size)
+        } else {
+            guard hasGlow || hasOrbit else { return }
+            icon.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+            icon.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+            // Points d’orbite éphémères (SKShapeNode sans name) encore en fade.
+            for child in icon.children where child is SKShapeNode {
+                child.removeFromParent()
+            }
+        }
     }
 
     private func toggleBombMode() {
@@ -8246,6 +8508,10 @@ final class GameScene: SKScene {
         guard let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode else { return }
         Self.applyBombShader(to: icon, size: icon.size)
         attachNukeDigitIfNeeded(to: icon, size: icon.size)
+        // `applyBombShader` ré-attache toujours halo + particules : les retirer si stock vide.
+        let bombJuiceActive = bombCount > 0 || isBombMode
+        icon.alpha = bombJuiceActive ? 1.0 : 0.4
+        refreshBombHudJuice(active: bombJuiceActive)
     }
 
     /// Couleurs distinctes des blox dans la zone 3×3 (pour gerbes secondaires optionnelles).

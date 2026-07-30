@@ -7,7 +7,22 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.3] — 2026-07 (courant)
+## [5.4] — 2026-07 (courant)
+
+Build **70**.
+
+### Ajouté
+- **BOMBX** (Magix `B`) : tâche 3 rangs sur cases déjà occupées ; chaînes ; dots couleur → HUD bombes (1 salve, +1 garanti à l’arrivée, aussi si 0 clear) ; en plus des dots score ; rareté ≈ SAINTX. Solo/Zen (pas de Magix en PvP).
+
+### Modifié
+- **HUD bombe** : à stock 0 (et bombe non armée), arrêt du halo et des particules orbitales
+- **Tutoriel** : pas de Brix dans les lignes entrantes (remplacement couleur pure)
+- **Icône d’app** : nouveau logo (`AppIcon` / `icon_blomix.png`)
+- Version marketing **5.4** (build **70**)
+
+---
+
+## [5.3] — 2026-07
 
 Build **69**.
 

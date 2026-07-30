@@ -308,6 +308,7 @@ enum BlomixShareComposer {
         case .colorx:   return "O"
         case .cleanx:   return "∞"
         case .twistx:   return "X"
+        case .bombx:    return "B"
         }
     }
 

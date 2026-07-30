@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 5.3
+> **Version de référence** : 5.4
 
 ---
 
@@ -52,9 +52,10 @@
 | **SCRUMBLX** | `.scrumblx` | = |
 | **COLORX** | `.colorx` | O |
 | **SAINTX** | `.cleanx` | ∞ |
-| **TWISTX** | `.twistx` | ↻ |
+| **TWISTX** | `.twistx` | X |
+| **BOMBX** | `.bombx` | B |
 
-> **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI).
+> **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI). Les Magix n’apparaissent **pas** en PvP.
 
 ---
 

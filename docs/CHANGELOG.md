@@ -7,7 +7,17 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.4] — 2026-07 (courant)
+## [5.5] — 2026-08 (courant)
+
+Build **71**.
+
+### Modifié
+- **Game Center offline** : files d’attente séparées Solo (`BlomixPendingGCScore`) / Zen (`BlomixPendingZenGCScore`) ; flush au succès d’auth vers le bon leaderboard ; resync **moyenne** locale (`BlomixAverageScore_v1`) à chaque auth — même robustesse Solo / Zen / moyenne
+- Version marketing **5.5** (build **71**)
+
+---
+
+## [5.4] — 2026-07
 
 Build **70**.
 

@@ -10,10 +10,13 @@ import Foundation
 @preconcurrency import GameKit
 import UIKit
 
-/// Gestion Game Center pour le classement principal **BlomigMainScore_v2**.
+/// Gestion Game Center pour les classements Solo / Zen / moyenne.
 ///
 /// - Appelez **`authenticateOnLaunch(from:)`** une seule fois au démarrage (ex. `SceneDelegate` / `AppDelegate`).
-/// - **`submitScore`** met toujours à jour le **backup UserDefaults** si le score bat le record local, puis tente Game Center.
+/// - **`submitScore`** met toujours à jour le **backup UserDefaults** (Solo ou Zen), puis tente Game Center ;
+///   hors ligne ou échec réseau → file d’attente **par leaderboard** (meilleur score Solo et Zen séparés).
+/// - **`recordGameScore`** met à jour la moyenne locale ; hors ligne la moyenne est resynchronisée à l’auth GC.
+/// - Au succès d’auth : flush Solo pending + Zen pending + moyenne locale courante.
 /// - **`fetchLocalPlayerBestScore`** alimente la comparaison pour **`isNewPersonalBest`** (max local + GC si déjà chargé).
 @MainActor
 final class ScoreManager {
@@ -38,6 +41,7 @@ final class ScoreManager {
         guard stored < LocalPersistence.currentScoreVersion else { return }
         UserDefaults.standard.set(0, forKey: LocalPersistence.highScoreKey)
         UserDefaults.standard.set(0, forKey: LocalPersistence.pendingGCScoreKey)
+        UserDefaults.standard.set(0, forKey: LocalPersistence.pendingZenGCScoreKey)
         UserDefaults.standard.set(LocalPersistence.currentScoreVersion, forKey: LocalPersistence.scoreVersionKey)
         print("[ScoreManager] Migration v\(LocalPersistence.currentScoreVersion) : meilleur score local remis à zéro.")
     }
@@ -56,8 +60,10 @@ final class ScoreManager {
         static let highScoreKey      = "BlomixLocalHighScore"
         /// Meilleur score Zen enregistré localement (indépendant du record Solo).
         static let zenHighScoreKey   = "BlomixLocalZenHighScore"
-        /// Meilleur score réalisé hors ligne (GC inaccessible) — soumis automatiquement à la reconnexion.
+        /// Meilleur score Solo hors ligne / échec GC — resoumis sur `mainLeaderboardID` à l’auth.
         static let pendingGCScoreKey = "BlomixPendingGCScore"
+        /// Meilleur score Zen hors ligne / échec GC — resoumis sur `zenLeaderboardID` à l’auth.
+        static let pendingZenGCScoreKey = "BlomixPendingZenGCScore"
         /// Version du système de score. Incrémentée quand les scores ne sont plus comparables (nouveau leaderboard, nouveau système de points…).
         static let scoreVersionKey   = "BlomixScoreVersion"
         static let currentScoreVersion = 3   // v3 : nouveau leaderboard BlomixMainScore_v3 + nouveau système de points
@@ -199,28 +205,62 @@ final class ScoreManager {
         }
     }
 
-    // MARK: - Score en attente (hors ligne → synchro GC à la reconnexion)
+    // MARK: - Scores en attente (hors ligne → synchro GC à la reconnexion)
 
-    /// Mémorise `score` comme score à soumettre à Game Center dès que la connexion sera rétablie.
-    /// Ne conserve que le meilleur score accumulé entre plusieurs parties hors ligne.
-    private func savePendingGCScore(_ score: Int) {
-        let current = UserDefaults.standard.integer(forKey: LocalPersistence.pendingGCScoreKey)
+    /// Clé UserDefaults du pending pour un leaderboard best-score (Solo ou Zen).
+    private func pendingKey(forLeaderboardID leaderboardID: String) -> String? {
+        if leaderboardID == ScoreManager.zenLeaderboardID {
+            return LocalPersistence.pendingZenGCScoreKey
+        }
+        if leaderboardID == ScoreManager.mainLeaderboardID {
+            return LocalPersistence.pendingGCScoreKey
+        }
+        // Autres leaderboards (moyenne, Elo…) : pas de file « best score » ici.
+        return nil
+    }
+
+    /// Mémorise `score` pour le leaderboard donné. Ne conserve que le **meilleur** score par file (Solo / Zen séparés).
+    private func savePendingGCScore(_ score: Int, leaderboardID: String) {
+        guard score > 0, let key = pendingKey(forLeaderboardID: leaderboardID) else { return }
+        let current = UserDefaults.standard.integer(forKey: key)
         guard score > current else { return }
-        UserDefaults.standard.set(score, forKey: LocalPersistence.pendingGCScoreKey)
-        print("[ScoreManager] Score \(score) mis en attente pour synchronisation Game Center (hors ligne).")
+        UserDefaults.standard.set(score, forKey: key)
+        print("[ScoreManager] Score \(score) mis en attente pour « \(leaderboardID) » (hors ligne / échec GC).")
     }
 
-    private func clearPendingGCScore() {
-        UserDefaults.standard.removeObject(forKey: LocalPersistence.pendingGCScoreKey)
+    private func clearPendingGCScore(leaderboardID: String) {
+        guard let key = pendingKey(forLeaderboardID: leaderboardID) else { return }
+        UserDefaults.standard.removeObject(forKey: key)
     }
 
-    /// Appelé dès que Game Center redevient disponible : soumet le meilleur score enregistré hors ligne (s'il existe).
+    /// Appelé dès que Game Center redevient disponible : Solo pending, Zen pending, puis moyenne locale.
     private func flushPendingGCScoreIfNeeded() {
-        let pending = UserDefaults.standard.integer(forKey: LocalPersistence.pendingGCScoreKey)
-        guard pending > 0 else { return }
-        clearPendingGCScore()
-        print("[ScoreManager] Reconnexion Game Center — soumission du score en attente : \(pending).")
-        submitScore(pending)
+        let ud = UserDefaults.standard
+
+        let pendingMain = ud.integer(forKey: LocalPersistence.pendingGCScoreKey)
+        if pendingMain > 0 {
+            clearPendingGCScore(leaderboardID: ScoreManager.mainLeaderboardID)
+            print("[ScoreManager] Reconnexion GC — soumission Solo en attente : \(pendingMain).")
+            submitScore(pendingMain, leaderboardID: ScoreManager.mainLeaderboardID, completion: nil)
+        }
+
+        let pendingZen = ud.integer(forKey: LocalPersistence.pendingZenGCScoreKey)
+        if pendingZen > 0 {
+            clearPendingGCScore(leaderboardID: ScoreManager.zenLeaderboardID)
+            print("[ScoreManager] Reconnexion GC — soumission Zen en attente : \(pendingZen).")
+            submitScore(pendingZen, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
+        }
+
+        flushLocalAverageToGCIfNeeded()
+    }
+
+    /// Resynchronise le leaderboard moyenne depuis les stats locales (toujours exactes hors ligne).
+    private func flushLocalAverageToGCIfNeeded() {
+        let count = localGameCount()
+        guard count > 0 else { return }
+        let average = localAverageScore()
+        print("[ScoreManager] Reconnexion GC — resync moyenne locale \(average) (\(count) partie(s)).")
+        submitAverageScoreToGC(average, gameCount: count)
     }
 
     // MARK: - Moyenne des scores (leaderboard BlomixAverageScore_v1)
@@ -229,6 +269,7 @@ final class ScoreManager {
     ///
     /// Les clés UserDefaults utilisées (`BlomixAvgTotalScore` / `BlomixAvgGameCount`) ne sont jamais
     /// effacées par `migrateScoreVersionIfNeeded()` — elles survivent à toutes les mises à jour de l'app.
+    /// Hors ligne : la moyenne locale est à jour ; le push GC a lieu au prochain succès d’auth (`flushLocalAverageToGCIfNeeded`).
     ///
     /// - Parameter score: Score final de la partie (ignoré s'il est ≤ 0).
     func recordGameScore(_ score: Int) {
@@ -248,8 +289,10 @@ final class ScoreManager {
     }
 
     private func submitAverageScoreToGC(_ average: Int, gameCount: Int) {
+        guard gameCount > 0, average >= 0 else { return }
         guard isAuthenticated else {
-            print("[ScoreManager] submitAverageScoreToGC(\(average)) : Game Center non disponible — valeur conservée localement.")
+            // Pas de file séparée : la source de vérité est locale ; flush à l’auth.
+            print("[ScoreManager] submitAverageScoreToGC(\(average), games=\(gameCount)) : GC non dispo — moyenne locale conservée, resync à l’auth.")
             return
         }
         GKLeaderboard.submitScore(
@@ -260,9 +303,10 @@ final class ScoreManager {
         ) { error in
             DispatchQueue.main.async {
                 if let error {
-                    print("[ScoreManager] Erreur soumission moyenne : \(error.localizedDescription)")
+                    // Prochaine auth resoumettra la moyenne locale courante.
+                    print("[ScoreManager] Erreur soumission moyenne : \(error.localizedDescription) — retry au prochain auth.")
                 } else {
-                    print("[ScoreManager] Moyenne \(average) soumise avec succès sur « \(ScoreManager.averageLeaderboardID) ».")
+                    print("[ScoreManager] Moyenne \(average) soumise avec succès sur « \(ScoreManager.averageLeaderboardID) » (context=\(gameCount)).")
                 }
             }
         }
@@ -301,21 +345,23 @@ final class ScoreManager {
         completion: (@Sendable @MainActor (Result<Void, Error>) -> Void)? = nil
     ) {
         // Backup disque **toujours** tenté en premier (hors ligne, échec réseau Game Center, ou joueur non connecté).
-        if leaderboardID == ScoreManager.zenLeaderboardID {
+        let isZen = (leaderboardID == ScoreManager.zenLeaderboardID)
+        if isZen {
             _ = updateLocalZenHighScoreIfBetter(score)
-        } else {
+        } else if leaderboardID == ScoreManager.mainLeaderboardID {
             _ = updateLocalHighScoreIfBetter(score)
         }
 
         guard isAuthenticated else {
-            // GC inaccessible : on mémorise le score pour l'envoyer à la prochaine reconnexion.
-            savePendingGCScore(score)
+            // GC inaccessible : file d’attente **par leaderboard** (Solo / Zen séparés).
+            savePendingGCScore(score, leaderboardID: leaderboardID)
+            let localBackup = isZen ? getLocalZenHighScore() : getLocalHighScore()
             let error = NSError(
                 domain: "ScoreManager",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "Joueur non authentifié : impossible d’envoyer le score."]
             )
-            print("[ScoreManager] submitScore(\(score)) : Game Center non disponible (non authentifié). Backup UserDefaults = \(getLocalHighScore()).")
+            print("[ScoreManager] submitScore(\(score), \(leaderboardID)) : GC non dispo. Backup local = \(localBackup).")
             completion?(.failure(error))
             return
         }
@@ -331,9 +377,10 @@ final class ScoreManager {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let error {
-                    // Échec réseau alors qu'authentifié : mise en attente pour re-tentative à la prochaine reconnexion GC.
-                    self.savePendingGCScore(score)
-                    print("[ScoreManager] Erreur Game Center après submitScore : \(error.localizedDescription) — backup local (UserDefaults) = \(self.getLocalHighScore()).")
+                    // Échec réseau alors qu'authentifié : re-tentative au prochain auth (même leaderboard).
+                    self.savePendingGCScore(score, leaderboardID: leaderboardID)
+                    let localBackup = isZen ? self.getLocalZenHighScore() : self.getLocalHighScore()
+                    print("[ScoreManager] Erreur submitScore \(leaderboardID): \(error.localizedDescription) — backup local = \(localBackup).")
                     completion?(.failure(error))
                 } else {
                     print("[ScoreManager] Score \(score) soumis avec succès sur « \(leaderboardID) ».")

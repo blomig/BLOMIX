@@ -372,11 +372,12 @@ Blomix/Blomix/
 ├── BlomixL10n.swift              # Pont typé localisation
 ├── BlomixTypography.swift        # Police joueur
 ├── BlomixAppearance.swift        # Thème chrome Sombre / Clair (+ icône partage custom)
-├── BlomixShareComposer.swift     # Messages + carte 1:1 + items share sheet
-├── BlomixPvPNetworking.swift     # GKMatch, RNG, attaques
-├── BlomixPvPUI.swift             # Lobby, résultats, adversaires récents
-├── BlomixEloManager.swift        # Elo PvP
-├── ScoreManager.swift            # Game Center scores
+├── BlomixShareComposer.swift     # Messages + carte 1:1 + items share sheet (accueil: texte+URL ; GO: +image)
+├── BlomixPvPNetworking.swift     # GKMatch / Multipeer, RNG, attaques
+├── BlomixPvPLocalSession.swift   # PvP Local (MultipeerConnectivity)
+├── BlomixPvPUI.swift             # Lobby, résultats, dialogues in-app, adversaires récents
+├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
+├── ScoreManager.swift            # Game Center scores (pending Solo/Zen + moyenne)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)

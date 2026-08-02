@@ -292,3 +292,19 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "pvp.protocol_mismatch.message" = "Versiones incompatibles. Actualiza BLOMIX en ambos dispositivos.";
 "pvp.reconnecting.message" = "Reconectando…";
 "pvp.available_invite_app_open_hint" = "Invitación en la app — el rival debe tener BLOMIX abierto.";
+
+/* PvP — partida rápida Local / En línea */
+"pvp.quick_match.title" = "Partida rápida";
+"pvp.quick_match.local_title" = "Local";
+"pvp.quick_match.local_subtitle" = "Bluetooth o Wi-Fi local, sin Internet";
+"pvp.quick_match.online_title" = "En línea";
+"pvp.quick_match.online_subtitle" = "Matchmaking por Game Center";
+"pvp.local.searching" = "Buscando un jugador cerca…";
+"pvp.local.connecting" = "Conectando…";
+"pvp.local.timeout" = "No hay jugadores cerca. Comprueba que ambos eligieron Local.";
+"pvp.local.connection_failed" = "Falló la conexión local.";
+"pvp.local.identity_failed" = "No se pudieron intercambiar los datos del jugador.";
+"pvp.local.gc_required_title" = "Game Center necesario";
+"pvp.local.gc_required_message" = "Inicia sesión en Game Center una vez con red. Luego podrás jugar en local aunque estés sin conexión.";
+"pvp.local.pick_peer_title" = "Jugadores cerca";
+"pvp.local.pick_peer_message" = "Elige contra quién jugar.";

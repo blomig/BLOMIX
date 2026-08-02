@@ -200,6 +200,13 @@ final class ScoreManager {
                 NotificationCenter.default.post(name: .blomixGameCenterAuthDidChange, object: nil)
                 if self.isAuthenticated {
                     self.flushPendingGCScoreIfNeeded()
+                    // Identité + Elo PvP (Local hors ligne).
+                    BlomixEloManager.shared.persistLocalGameIdentityFromGameCenter()
+                    BlomixEloManager.shared.flushPendingEloIfNeeded()
+                    // Rafraîchit aussi le cache Elo local depuis GC quand possible.
+                    Task { @MainActor in
+                        _ = try? await BlomixEloManager.shared.fetchLocalPlayerProfile()
+                    }
                 }
             }
         }

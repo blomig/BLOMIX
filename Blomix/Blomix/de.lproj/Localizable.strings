@@ -304,3 +304,19 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "pvp.protocol_mismatch.message" = "Inkompatible Versionen. Aktualisiere BLOMIX auf beiden Geräten.";
 "pvp.reconnecting.message" = "Verbindung wird wiederhergestellt…";
 "pvp.available_invite_app_open_hint" = "Einladung nur in der App — Gegner muss BLOMIX geöffnet haben.";
+
+/* PvP — Schnellspiel Lokal / Online */
+"pvp.quick_match.title" = "Schnellspiel";
+"pvp.quick_match.local_title" = "Lokal";
+"pvp.quick_match.local_subtitle" = "Bluetooth oder lokales WLAN — ohne Internet";
+"pvp.quick_match.online_title" = "Online";
+"pvp.quick_match.online_subtitle" = "Matchmaking über Game Center";
+"pvp.local.searching" = "Suche nach Spielern in der Nähe…";
+"pvp.local.connecting" = "Verbinden…";
+"pvp.local.timeout" = "Kein Spieler in der Nähe. Stellt sicher, dass beide „Lokal“ gewählt haben.";
+"pvp.local.connection_failed" = "Lokale Verbindung fehlgeschlagen.";
+"pvp.local.identity_failed" = "Spielerinfos konnten nicht ausgetauscht werden.";
+"pvp.local.gc_required_title" = "Game Center erforderlich";
+"pvp.local.gc_required_message" = "Melde dich einmal mit Netzwerk bei Game Center an. Danach kannst du lokal auch offline spielen.";
+"pvp.local.pick_peer_title" = "Spieler in der Nähe";
+"pvp.local.pick_peer_message" = "Wähle deinen Gegner.";

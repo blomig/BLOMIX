@@ -230,7 +230,12 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private weak var scene: GameScene?
-    private let match: GKMatch
+    /// Canal online (GameKit) — mutuellement exclusif avec `localSession`.
+    private var match: GKMatch?
+    /// Canal local Multipeer — mutuellement exclusif avec `match`.
+    private var localSession: BlomixPvPLocalSession?
+    /// Identité distante (Elo / nom) — GC players online, ou handshake Multipeer en local.
+    private(set) var remotePeerIdentity: BlomixPvPLocalPeerIdentity?
     private var rng: BlomixPvPSeededBlockRNG?
     private var didFinishHandshake = false
     /// Rôle déterminé par tri des gamePlayerID. Calculé paresseusement au 1er
@@ -238,6 +243,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
     /// évite le scénario « deux hôtes » qui bloque le handshake.
     private var isHost: Bool = false
     private var isHostResolved = false
+    /// `true` si le match utilise Multipeer (Local) plutôt que GameKit.
+    var isLocalMatch: Bool { localSession != nil }
 
     private var incomingAttackLines: [QueuedAttackLine] = []
     private var nextIncomingAttackLineID: Int = 1
@@ -293,21 +300,53 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     init(match: GKMatch) {
         self.match = match
+        self.localSession = nil
         super.init()
         match.delegate = self
         resolveHostRoleIfNeeded()
     }
 
-    /// Calcule et gèle `isHost` dès que `match.players` est peuplé.
+    /// Match local Multipeer (identité déjà échangée dans la session).
+    init(localSession: BlomixPvPLocalSession) {
+        self.match = nil
+        self.localSession = localSession
+        self.remotePeerIdentity = localSession.remoteIdentity
+        super.init()
+        localSession.onData = { [weak self] data in
+            Task { @MainActor in
+                self?.handleLocalGameData(data)
+            }
+        }
+        localSession.onDisconnected = { [weak self] in
+            Task { @MainActor in
+                self?.handleLocalDisconnect()
+            }
+        }
+        resolveHostRoleIfNeeded()
+    }
+
+    /// Calcule et gèle `isHost` dès que les IDs distants sont connus.
     private func resolveHostRoleIfNeeded() {
-        guard !isHostResolved, !match.players.isEmpty else { return }
-        let locals = [GKLocalPlayer.local] + match.players
-        let sorted = locals.sorted { $0.gamePlayerID < $1.gamePlayerID }
-        isHost = sorted.first?.gamePlayerID == GKLocalPlayer.local.gamePlayerID
+        guard !isHostResolved else { return }
+        let remoteID: String?
+        if let match {
+            guard !match.players.isEmpty else { return }
+            remoteID = match.players.first?.gamePlayerID
+        } else if let id = remotePeerIdentity?.gamePlayerID, !id.isEmpty {
+            remoteID = id
+        } else {
+            return
+        }
+        guard let remoteID else { return }
+        let localID = GKLocalPlayer.local.gamePlayerID
+        // Host = plus petit gamePlayerID (déterministe, même règle online / local).
+        isHost = localID < remoteID
         isHostResolved = true
         BlomixPvPLog.event("host_resolved", [
             "isHost": "\(isHost)",
-            "peers": match.players.map(\.gamePlayerID).joined(separator: ",")
+            "local": localID,
+            "remote": remoteID,
+            "channel": match != nil ? "gk" : "local"
         ])
     }
 
@@ -318,7 +357,31 @@ final class BlomixPvPMatchCoordinator: NSObject {
         startCriticalRetryTimer()
         // Filet : roster parfois vide juste après findMatch même si expectedPlayerCount == 0
         // (pas de nouveau .connected). On re-tente host resolve + helloSeed pendant ~12 s.
+        // En local l’identité est déjà là → bootstrap court suffit.
         startRosterBootstrapPoll()
+        if isLocalMatch {
+            // Pousse immédiatement le helloSeed côté hôte.
+            beginHandshakeMonitoringIfNeeded()
+        }
+    }
+
+    private func handleLocalGameData(_ data: Data) {
+        guard let env = try? JSONDecoder().decode(BlomixPvPWireEnvelope.self, from: data) else {
+            BlomixPvPLog.event("local_decode_fail")
+            return
+        }
+        let remoteID = remotePeerIdentity?.gamePlayerID ?? "local-peer"
+        handleEnvelope(env, remoteSenderGamePlayerID: remoteID)
+    }
+
+    private func handleLocalDisconnect() {
+        BlomixPvPLog.event("local_disconnect_mid_match")
+        // Même sémantique qu’une déco GK mid-game.
+        if didFinishHandshake {
+            beginInMatchDisconnectionGrace(reason: "local_disconnect")
+        } else {
+            scene?.blomixPvP_matchFailed(nil)
+        }
     }
 
     private var rosterBootstrapTimer: Timer?
@@ -375,8 +438,13 @@ final class BlomixPvPMatchCoordinator: NSObject {
         resolveHostRoleIfNeeded()
         guard isHost else { return }
         guard scene != nil else { return }
-        guard match.expectedPlayerCount == 0 else { return }
-        guard !match.players.isEmpty else { return }
+        if let match {
+            guard match.expectedPlayerCount == 0 else { return }
+            guard !match.players.isEmpty else { return }
+        } else {
+            // Local : pair + identité déjà établis.
+            guard localSession?.isConnected == true, remotePeerIdentity != nil else { return }
+        }
         let seed: UInt64
         if let handshakeSeed {
             seed = handshakeSeed
@@ -391,7 +459,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
             BlomixPvPLog.event("hello_seed_emit", [
                 "seed": "\(seed)",
                 "proto": "\(Self.protocolVersion)",
-                "build": "\(Self.localAppBuild)"
+                "build": "\(Self.localAppBuild)",
+                "channel": match != nil ? "gk" : "local"
             ])
         }
         var env = BlomixPvPWireEnvelope(k: .helloSeed, seed: seed, line: nil, fillDepth: nil)
@@ -418,8 +487,16 @@ final class BlomixPvPMatchCoordinator: NSObject {
         stopCriticalRetryTimer()
         pendingCriticalSends.removeAll()
         resetRematchFlags()
-        match.delegate = nil
-        match.disconnect()
+        if let match {
+            match.delegate = nil
+            match.disconnect()
+        }
+        localSession?.onData = nil
+        localSession?.onDisconnected = nil
+        localSession?.tearDown()
+        localSession = nil
+        match = nil
+        remotePeerIdentity = nil
         rng = nil
         handshakeSeed = nil
         scene = nil
@@ -519,7 +596,21 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     var primaryRemotePlayer: GKPlayer? {
-        match.players.first
+        match?.players.first
+    }
+
+    /// Profil Elo distant pour finalisation (online : via GC ; local : snapshot handshake).
+    var remoteEloProfileForFinalize: BlomixEloProfile? {
+        if let id = remotePeerIdentity {
+            return BlomixEloProfile(rating: id.eloRating, completedMatchCount: id.completedMatchCount)
+        }
+        return nil
+    }
+
+    var remoteDisplayNameResolved: String {
+        if let n = remotePeerIdentity?.displayName, !n.isEmpty { return n }
+        if let n = match?.players.first?.displayName, !n.isEmpty { return n }
+        return BlomixL10n.pvpUnknownOpponent
     }
 
     private func restartTurnTimer() {
@@ -557,13 +648,17 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     private func sendEnvelopeRaw(_ env: BlomixPvPWireEnvelope) {
         guard let data = try? JSONEncoder().encode(env) else { return }
-        do {
-            try match.sendData(toAllPlayers: data, with: .reliable)
-        } catch {
-            BlomixPvPLog.event("send_error", [
-                "kind": env.k.rawValue,
-                "error": error.localizedDescription
-            ])
+        if let match {
+            do {
+                try match.sendData(toAllPlayers: data, with: .reliable)
+            } catch {
+                BlomixPvPLog.event("send_error", [
+                    "kind": env.k.rawValue,
+                    "error": error.localizedDescription
+                ])
+            }
+        } else if let localSession {
+            localSession.sendGameData(data)
         }
     }
 

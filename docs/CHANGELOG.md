@@ -11,8 +11,19 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 Build **71**.
 
+### Ajouté
+- **PvP Local** (Partie rapide → **Local** / **En ligne**) :
+  - MultipeerConnectivity (Bluetooth + Wi‑Fi local, **sans Internet**)
+  - Prérequis : cache identité Game Center (auth au moins une fois sur l’appareil)
+  - Handshake identité + profil Elo ; même `BlomixPvPMatchCoordinator` (canal dual GK / local)
+  - Elo toujours calculé ; pending submit si GC offline (comme Solo/Zen)
+  - UI choix + alertes en **dialogue in-app BLOMIX** (`BlomixInAppDialogView`, thèmes Sombre/Clair) — plus d’action sheet système
+  - l10n FR/EN/DE/ES/IT ; `NSLocalNetworkUsageDescription` + Bonjour `_blomix-pvp`
+  - Module `BlomixPvPLocalSession.swift`
+
 ### Modifié
 - **Game Center offline** : files d’attente séparées Solo (`BlomixPendingGCScore`) / Zen (`BlomixPendingZenGCScore`) ; flush au succès d’auth vers le bon leaderboard ; resync **moyenne** locale (`BlomixAverageScore_v1`) à chaque auth — même robustesse Solo / Zen / moyenne
+- **Elo offline** : pending profil + identité GC en cache pour le Local
 - Version marketing **5.5** (build **71**)
 
 ---

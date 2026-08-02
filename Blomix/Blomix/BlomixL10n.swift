@@ -213,6 +213,51 @@ enum BlomixL10n {
     static var pvpLobbyPreparationTimeout: String { tr("pvp.lobby_preparation_timeout", comment: "PvP lobby — boards preparation watchdog expired") }
     static var pvpAutoSearchActiveHint: String { tr("pvp.auto_search_active_hint", comment: "PvP lobby — auto search toggle is ON, hint text") }
     static var pvpModeQuickDesc: String { tr("pvp.mode_quick_desc", comment: "PvP lobby — quick match / random opponent button") }
+
+    // MARK: - Partie rapide — Local / En ligne
+    static var pvpQuickMatchTitle: String {
+        tr("pvp.quick_match.title", comment: "Partie rapide — choose Local or Online")
+    }
+    static var pvpQuickMatchLocalTitle: String {
+        tr("pvp.quick_match.local_title", comment: "Partie rapide — Local option title")
+    }
+    static var pvpQuickMatchLocalSubtitle: String {
+        tr("pvp.quick_match.local_subtitle", comment: "Partie rapide — Local subtitle (Bluetooth / local Wi-Fi)")
+    }
+    static var pvpQuickMatchOnlineTitle: String {
+        tr("pvp.quick_match.online_title", comment: "Partie rapide — Online option title")
+    }
+    static var pvpQuickMatchOnlineSubtitle: String {
+        tr("pvp.quick_match.online_subtitle", comment: "Partie rapide — Online subtitle (Game Center)")
+    }
+    static var pvpLocalSearching: String {
+        tr("pvp.local.searching", comment: "Local Multipeer — searching nearby")
+    }
+    static var pvpLocalConnecting: String {
+        tr("pvp.local.connecting", comment: "Local Multipeer — connecting to peer")
+    }
+    static var pvpLocalTimeout: String {
+        tr("pvp.local.timeout", comment: "Local Multipeer — no peer found")
+    }
+    static var pvpLocalConnectionFailed: String {
+        tr("pvp.local.connection_failed", comment: "Local Multipeer — connection failed")
+    }
+    static var pvpLocalIdentityFailed: String {
+        tr("pvp.local.identity_failed", comment: "Local Multipeer — identity exchange failed")
+    }
+    static var pvpLocalGCRequiredTitle: String {
+        tr("pvp.local.gc_required_title", comment: "Local PvP — need prior Game Center sign-in")
+    }
+    static var pvpLocalGCRequiredMessage: String {
+        tr("pvp.local.gc_required_message", comment: "Local PvP — explain one-time GC auth needed")
+    }
+    static var pvpLocalPickPeerTitle: String {
+        tr("pvp.local.pick_peer_title", comment: "Local Multipeer — several peers nearby")
+    }
+    static var pvpLocalPickPeerMessage: String {
+        tr("pvp.local.pick_peer_message", comment: "Local Multipeer — choose who to play")
+    }
+
     static var pvpProtocolMismatchMessage: String {
         tr("pvp.protocol_mismatch.message", comment: "Shown when peer app protocol version mismatches")
     }

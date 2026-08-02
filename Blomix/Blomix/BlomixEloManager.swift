@@ -76,9 +76,53 @@ final class BlomixEloManager {
     private enum LocalCache {
         /// Incrémenter cette version si l’on doit invalider d’anciens caches Elo locaux.
         static let keyPrefix = "BlomixPvPEloCache.v2"
+        /// Identité GC locale (pour PvP Local hors ligne).
+        static let identityGamePlayerIDKey = "BlomixPvPGCIdentity.gamePlayerID"
+        static let identityDisplayNameKey = "BlomixPvPGCIdentity.displayName"
+        /// Dernier profil Elo à pousser sur GC (file d’attente offline).
+        static let pendingRatingKey = "BlomixPvPEloPending.rating"
+        static let pendingMatchesKey = "BlomixPvPEloPending.matches"
+        static let pendingFlagKey = "BlomixPvPEloPending.flag"
     }
 
     private init() {}
+
+    // MARK: - Identité GC locale (prérequis PvP Local)
+
+    struct LocalGameIdentity: Sendable {
+        let gamePlayerID: String
+        let displayName: String
+    }
+
+    /// Persiste nom + ID GC à chaque auth réussie (utilisable hors ligne ensuite).
+    func persistLocalGameIdentityFromGameCenter() {
+        let local = GKLocalPlayer.local
+        guard local.isAuthenticated else { return }
+        let id = local.gamePlayerID
+        guard !id.isEmpty else { return }
+        let name = local.displayName
+        UserDefaults.standard.set(id, forKey: LocalCache.identityGamePlayerIDKey)
+        UserDefaults.standard.set(name, forKey: LocalCache.identityDisplayNameKey)
+        print("[PvP Elo] Identité GC mise en cache : \(name) (\(id.prefix(8))…)")
+    }
+
+    /// `nil` si aucune auth GC n’a encore réussi sur cet appareil.
+    func cachedLocalGameIdentity() -> LocalGameIdentity? {
+        let id = UserDefaults.standard.string(forKey: LocalCache.identityGamePlayerIDKey) ?? ""
+        guard !id.isEmpty else { return nil }
+        let name = UserDefaults.standard.string(forKey: LocalCache.identityDisplayNameKey) ?? ""
+        let display = name.isEmpty ? "Player" : name
+        return LocalGameIdentity(gamePlayerID: id, displayName: display)
+    }
+
+    /// Profil Elo local pour handshake Multipeer (cache ou défaut 800).
+    func cachedLocalProfileOrDefault() -> BlomixEloProfile {
+        if let c = cachedLocalProfile() { return c }
+        return BlomixEloProfile(rating: defaultRating, completedMatchCount: 0)
+    }
+
+    /// `true` si le mode Local peut démarrer (identité GC déjà connue sur l’appareil).
+    var canStartLocalPvP: Bool { cachedLocalGameIdentity() != nil }
 
     // MARK: - Elo formula
 
@@ -195,6 +239,8 @@ final class BlomixEloManager {
 
     func submitLocalProfile(_ profile: BlomixEloProfile) async throws {
         guard GKLocalPlayer.local.isAuthenticated else {
+            persistLocalProfileCache(profile)
+            savePendingEloProfile(profile)
             throw Self.makeError(code: 3, description: "Joueur local non authentifié : impossible d’envoyer l’Elo.")
         }
 
@@ -214,6 +260,7 @@ final class BlomixEloManager {
         }
 
         persistLocalProfileCache(profile)
+        clearPendingEloProfile()
         print("[PvP Elo] Profil local soumis sur « \(leaderboardID) » : rating=\(profile.rating), matches=\(profile.completedMatchCount).")
     }
 
@@ -224,13 +271,78 @@ final class BlomixEloManager {
     ) async throws -> BlomixEloResult {
         let localProfile = try await fetchLocalPlayerProfile()
         let remoteProfile = try await fetchProfile(for: remotePlayer)
+        return try await finalizeWithProfiles(local: localProfile, remote: remoteProfile, outcome: outcome)
+    }
+
+    /// Finalisation Elo quand le profil adverse est déjà connu (match Local Multipeer).
+    @discardableResult
+    func finalizeLocalPlayerRating(
+        outcome: BlomixPvPMatchOutcome,
+        againstRemoteProfile remoteProfile: BlomixEloProfile
+    ) async throws -> BlomixEloResult {
+        let localProfile: BlomixEloProfile
+        if GKLocalPlayer.local.isAuthenticated {
+            localProfile = (try? await fetchLocalPlayerProfile()) ?? cachedLocalProfileOrDefault()
+        } else {
+            localProfile = cachedLocalProfileOrDefault()
+        }
+        return try await finalizeWithProfiles(local: localProfile, remote: remoteProfile, outcome: outcome)
+    }
+
+    private func finalizeWithProfiles(
+        local localProfile: BlomixEloProfile,
+        remote remoteProfile: BlomixEloProfile,
+        outcome: BlomixPvPMatchOutcome
+    ) async throws -> BlomixEloResult {
         let result = updatedRatings(localProfile: localProfile, remoteProfile: remoteProfile, outcome: outcome)
-        try await submitLocalProfile(BlomixEloProfile(
+        let newProfile = BlomixEloProfile(
             rating: result.localNewRating,
             completedMatchCount: result.localMatchCountAfter
-        ))
+        )
+        // Toujours mettre à jour le cache local (vérité appareil).
+        persistLocalProfileCache(newProfile)
+        do {
+            try await submitLocalProfile(newProfile)
+        } catch {
+            // Hors ligne / échec GC : file d’attente jusqu’à la prochaine auth.
+            savePendingEloProfile(newProfile)
+            print("[PvP Elo] Submit différé (pending) : \(error.localizedDescription)")
+        }
         print("[PvP Elo] Résultat finalisé: \(result.debugSummary)")
         return result
+    }
+
+    // MARK: - Pending Elo (offline → GC)
+
+    private func savePendingEloProfile(_ profile: BlomixEloProfile) {
+        UserDefaults.standard.set(true, forKey: LocalCache.pendingFlagKey)
+        UserDefaults.standard.set(profile.rating, forKey: LocalCache.pendingRatingKey)
+        UserDefaults.standard.set(profile.completedMatchCount, forKey: LocalCache.pendingMatchesKey)
+        print("[PvP Elo] Profil \(profile.rating) (matches=\(profile.completedMatchCount)) en attente de synchro GC.")
+    }
+
+    private func clearPendingEloProfile() {
+        UserDefaults.standard.set(false, forKey: LocalCache.pendingFlagKey)
+        UserDefaults.standard.removeObject(forKey: LocalCache.pendingRatingKey)
+        UserDefaults.standard.removeObject(forKey: LocalCache.pendingMatchesKey)
+    }
+
+    /// Appelé à l’auth GC : pousse le dernier profil Elo en attente.
+    func flushPendingEloIfNeeded() {
+        guard UserDefaults.standard.bool(forKey: LocalCache.pendingFlagKey) else { return }
+        guard GKLocalPlayer.local.isAuthenticated else { return }
+        let rating = UserDefaults.standard.integer(forKey: LocalCache.pendingRatingKey)
+        let matches = UserDefaults.standard.integer(forKey: LocalCache.pendingMatchesKey)
+        let profile = BlomixEloProfile(rating: rating, completedMatchCount: max(0, matches))
+        Task { @MainActor in
+            do {
+                try await self.submitLocalProfile(profile)
+                self.clearPendingEloProfile()
+                print("[PvP Elo] Pending soumis avec succès : \(profile.rating) / matches=\(profile.completedMatchCount).")
+            } catch {
+                print("[PvP Elo] Flush pending échoué : \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Matchmaking

@@ -265,7 +265,13 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
     var onClose: (() -> Void)?
     var onMatch: ((GKMatch) -> Void)?
+    /// Match Local Multipeer (Partie rapide → Local).
+    var onLocalMatch: ((BlomixPvPLocalSession) -> Void)?
     private let foundTransitionDelay: TimeInterval = 0.75
+    /// Session locale en cours de recherche (retenue tant que le lobby cherche).
+    private var localSearchSession: BlomixPvPLocalSession?
+    /// Évite d’empiler plusieurs dialogues de sélection de pairs.
+    private var isShowingLocalPeerPicker = false
 
     // MARK: - Cycle de vie
 
@@ -335,6 +341,12 @@ final class BlomixPvPLobbyViewController: UIViewController {
             activityRefreshTimer?.invalidate()
             activityRefreshTimer = nil
             GKMatchmaker.shared().cancel()
+            localSearchSession?.tearDown()
+            localSearchSession = nil
+            isShowingLocalPeerPicker = false
+            view.window.map { host in
+                host.subviews.compactMap { $0 as? BlomixInAppDialogView }.forEach { $0.removeFromSuperview() }
+            }
             transitionTo(.cancelled)
             NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
             dismiss(animated: true) {
@@ -831,10 +843,134 @@ final class BlomixPvPLobbyViewController: UIViewController {
         updateAvailableToggleAppearance()
     }
 
-    /// P2.3 — Partie rapide (auto-match Elo / file Game Center).
+    /// Host pour les dialogues in-app (fenêtre si dispo).
+    private var dialogHostView: UIView {
+        view.window ?? view
+    }
+
+    /// Partie rapide → choix Local (Multipeer) / En ligne (Game Center) — style BLOMIX.
     @objc private func modeQuickTapped() {
-        BlomixPvPLog.event("lobby_quick_match")
-        beginMatchSearch()
+        BlomixPvPLog.event("lobby_quick_match_menu")
+        BlomixInAppDialogView.presentChoices(
+            in: dialogHostView,
+            title: BlomixL10n.pvpQuickMatchTitle,
+            message: nil,
+            actions: [
+                BlomixInAppDialogAction(
+                    title: BlomixL10n.pvpQuickMatchLocalTitle,
+                    subtitle: BlomixL10n.pvpQuickMatchLocalSubtitle
+                ) { [weak self] in
+                    self?.beginLocalMatchSearch()
+                },
+                BlomixInAppDialogAction(
+                    title: BlomixL10n.pvpQuickMatchOnlineTitle,
+                    subtitle: BlomixL10n.pvpQuickMatchOnlineSubtitle
+                ) { [weak self] in
+                    BlomixPvPLog.event("lobby_quick_match_online")
+                    self?.beginMatchSearch()
+                },
+            ],
+            cancelTitle: BlomixL10n.cancel,
+            onCancel: nil
+        )
+    }
+
+    /// Recherche Multipeer (Bluetooth / Wi‑Fi local).
+    private func beginLocalMatchSearch() {
+        BlomixPvPLog.event("lobby_quick_match_local")
+        guard BlomixEloManager.shared.canStartLocalPvP,
+              let session = BlomixPvPLocalSession.makeIfGCCacheAvailable() else {
+            BlomixInAppDialogView.present(
+                in: dialogHostView,
+                title: BlomixL10n.pvpLocalGCRequiredTitle,
+                message: BlomixL10n.pvpLocalGCRequiredMessage,
+                buttonTitle: BlomixL10n.ok
+            )
+            return
+        }
+
+        localSearchSession?.tearDown()
+        localSearchSession = session
+        transitionTo(.searching)
+        statusLabel.text = BlomixL10n.pvpLocalSearching
+        hintLabel.text = BlomixL10n.pvpQuickMatchLocalSubtitle
+        noPlayerTimeoutTimer?.invalidate()
+
+        session.onPhaseChange = { [weak self] phase in
+            guard let self, case .searching = self.lobbyPhase else { return }
+            switch phase {
+            case .searching:
+                self.statusLabel.text = BlomixL10n.pvpLocalSearching
+            case .connecting:
+                self.statusLabel.text = BlomixL10n.pvpLocalConnecting
+            case .failed(let msg):
+                self.localSearchSession = nil
+                self.transitionTo(.failed(message: msg))
+            default:
+                break
+            }
+        }
+        session.onPeerDiscovered = { [weak self] peer, name in
+            self?.presentLocalPeerPickerIfNeeded()
+            _ = peer
+            _ = name
+        }
+        session.onReady = { [weak self] readySession in
+            guard let self else { return }
+            guard case .searching = self.lobbyPhase else {
+                readySession.tearDown()
+                return
+            }
+            let name = readySession.remoteIdentity?.displayName ?? BlomixL10n.pvpUnknownOpponent
+            self.transitionTo(.matchFound(opponentName: name))
+            self.localSearchSession = nil
+            // Notifie immédiatement la scène (comme le chemin GK).
+            self.onLocalMatch?(readySession)
+            self.searchBlocksView.stopAnimating(settle: true) { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + (self?.foundTransitionDelay ?? 0.75)) { [weak self] in
+                    guard let self else { return }
+                    guard case .matchFound(let n) = self.lobbyPhase else { return }
+                    self.transitionTo(.preparingBoards(opponentName: n))
+                }
+            }
+        }
+
+        session.startSearching(timeout: 60)
+        noPlayerTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, case .searching = self.lobbyPhase else { return }
+                self.localSearchSession?.tearDown()
+                self.localSearchSession = nil
+                self.transitionTo(.failed(message: BlomixL10n.pvpLocalTimeout))
+            }
+        }
+    }
+
+    /// Si plusieurs pairs : liste style BLOMIX ; si un seul l’auto-invite de la session suffit.
+    private func presentLocalPeerPickerIfNeeded() {
+        guard case .searching = lobbyPhase else { return }
+        guard let session = localSearchSession else { return }
+        let peers = session.discoveredPeers
+        guard peers.count > 1 else { return }
+        guard !isShowingLocalPeerPicker else { return }
+        isShowingLocalPeerPicker = true
+
+        let actions: [BlomixInAppDialogAction] = peers.map { peer, name in
+            BlomixInAppDialogAction(title: name) { [weak self] in
+                self?.isShowingLocalPeerPicker = false
+                self?.localSearchSession?.invite(peer)
+            }
+        }
+        BlomixInAppDialogView.presentChoices(
+            in: dialogHostView,
+            title: BlomixL10n.pvpLocalPickPeerTitle,
+            message: BlomixL10n.pvpLocalPickPeerMessage,
+            actions: actions,
+            cancelTitle: BlomixL10n.cancel,
+            onCancel: { [weak self] in
+                self?.isShowingLocalPeerPicker = false
+            }
+        )
     }
 
     @objc private func modeAvailableTapped() {
@@ -2062,8 +2198,21 @@ final class BlomixChallengeBannerView: UIView {
 
 // MARK: - Dialogue in-app (style BLOMIX — pas UIAlertController système)
 
+/// Action d’un dialogue multi-choix (titre + sous-titre optionnel, style chip).
+struct BlomixInAppDialogAction {
+    let title: String
+    let subtitle: String?
+    let handler: () -> Void
+
+    init(title: String, subtitle: String? = nil, handler: @escaping () -> Void) {
+        self.title = title
+        self.subtitle = subtitle
+        self.handler = handler
+    }
+}
+
 /// Boîte de dialogue centrée alignée sur la confirmation « Quitter » et les bannières PvP :
-/// voile, panneau arrondi, police jeu, bouton chip.
+/// voile, panneau arrondi, police jeu, boutons chip — thèmes Sombre / Clair via `BlomixAppearance`.
 @MainActor
 final class BlomixInAppDialogView: UIView {
 
@@ -2078,10 +2227,13 @@ final class BlomixInAppDialogView: UIView {
     private let panel = UIView()
     private let titleLabel = UILabel()
     private let messageLabel = UILabel()
-    private let okButton = BlomixUIButton()
-    private var onDismiss: (() -> Void)?
+    private let actionsStack = UIStackView()
+    private var actionHandlers: [() -> Void] = []
+    private var onCancel: (() -> Void)?
+    private var actionsTopToMessageConstraint: NSLayoutConstraint?
+    private var actionsTopToTitleConstraint: NSLayoutConstraint?
 
-    /// Présente un dialogue modal in-app sur `host` (souvent `window` ou la vue racine).
+    /// Présente un dialogue simple (1 bouton) — API historique.
     static func present(
         in host: UIView,
         title: String,
@@ -2089,10 +2241,35 @@ final class BlomixInAppDialogView: UIView {
         buttonTitle: String = BlomixL10n.ok,
         onDismiss: (() -> Void)? = nil
     ) {
-        // Une seule instance à la fois.
+        presentChoices(
+            in: host,
+            title: title,
+            message: message.isEmpty ? nil : message,
+            actions: [BlomixInAppDialogAction(title: buttonTitle, handler: { onDismiss?() })],
+            cancelTitle: nil,
+            onCancel: nil
+        )
+    }
+
+    /// Présente un dialogue multi-choix (ex. Partie rapide Local / En ligne).
+    /// Boutons principaux en pile verticale ; optionnellement un bouton Annuler en bas.
+    static func presentChoices(
+        in host: UIView,
+        title: String,
+        message: String? = nil,
+        actions: [BlomixInAppDialogAction],
+        cancelTitle: String? = BlomixL10n.cancel,
+        onCancel: (() -> Void)? = nil
+    ) {
         host.subviews.compactMap { $0 as? BlomixInAppDialogView }.forEach { $0.removeFromSuperview() }
         let dialog = BlomixInAppDialogView()
-        dialog.configure(title: title, message: message, buttonTitle: buttonTitle, onDismiss: onDismiss)
+        dialog.configureChoices(
+            title: title,
+            message: message,
+            actions: actions,
+            cancelTitle: cancelTitle,
+            onCancel: onCancel
+        )
         dialog.show(in: host)
     }
 
@@ -2109,9 +2286,14 @@ final class BlomixInAppDialogView: UIView {
     private func setup() {
         backgroundColor = .clear
 
-        dimView.backgroundColor = UIColor.black.withAlphaComponent(BlomixAppearance.isDark ? 0.72 : 0.45)
+        // Voile : même logique que la confirmation Quitter (Sombre / Clair).
+        dimView.backgroundColor = BlomixAppearance.isDark
+            ? UIColor.black.withAlphaComponent(0.72)
+            : UIColor.black.withAlphaComponent(0.45)
         dimView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(dimView)
+        let dimTap = UITapGestureRecognizer(target: self, action: #selector(dimTapped))
+        dimView.addGestureRecognizer(dimTap)
 
         panel.backgroundColor = BlomixAppearance.panelFill
         panel.layer.cornerRadius = 14
@@ -2129,18 +2311,24 @@ final class BlomixInAppDialogView: UIView {
         panel.addSubview(titleLabel)
 
         messageLabel.textColor = BlomixAppearance.secondaryText
-        messageLabel.font = FontTheme.gameFont(size: 14, weight: .regular)
+        messageLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
         messageLabel.textAlignment = .center
         messageLabel.numberOfLines = 0
         messageLabel.translatesAutoresizingMaskIntoConstraints = false
         panel.addSubview(messageLabel)
 
-        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: okButton)
-        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 28, bottom: 12, right: 28), to: okButton)
-        okButton.titleLabel?.font = FontTheme.gameFont(size: 16, weight: .semibold)
-        okButton.translatesAutoresizingMaskIntoConstraints = false
-        okButton.addTarget(self, action: #selector(okTapped), for: .touchUpInside)
-        panel.addSubview(okButton)
+        actionsStack.axis = .vertical
+        actionsStack.spacing = 10
+        actionsStack.alignment = .fill
+        actionsStack.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(actionsStack)
+
+        let actionsTopToMessage = actionsStack.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 18)
+        actionsTopToMessage.priority = .defaultHigh
+        let actionsTopToTitle = actionsStack.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 18)
+        actionsTopToTitle.priority = .defaultLow
+        actionsTopToMessageConstraint = actionsTopToMessage
+        actionsTopToTitleConstraint = actionsTopToTitle
 
         NSLayoutConstraint.activate([
             dimView.topAnchor.constraint(equalTo: topAnchor),
@@ -2153,27 +2341,101 @@ final class BlomixInAppDialogView: UIView {
             panel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 28),
             panel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -28),
             panel.widthAnchor.constraint(lessThanOrEqualToConstant: 320),
+            panel.widthAnchor.constraint(greaterThanOrEqualToConstant: 280),
 
             titleLabel.topAnchor.constraint(equalTo: panel.topAnchor, constant: 22),
             titleLabel.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 20),
             titleLabel.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -20),
 
-            messageLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
+            messageLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
             messageLabel.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 20),
             messageLabel.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -20),
 
-            okButton.topAnchor.constraint(equalTo: messageLabel.bottomAnchor, constant: 20),
-            okButton.centerXAnchor.constraint(equalTo: panel.centerXAnchor),
-            okButton.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -20),
-            okButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+            actionsTopToMessage,
+            actionsTopToTitle,
+            actionsStack.leadingAnchor.constraint(equalTo: panel.leadingAnchor, constant: 16),
+            actionsStack.trailingAnchor.constraint(equalTo: panel.trailingAnchor, constant: -16),
+            actionsStack.bottomAnchor.constraint(equalTo: panel.bottomAnchor, constant: -18),
         ])
     }
 
-    private func configure(title: String, message: String, buttonTitle: String, onDismiss: (() -> Void)?) {
+    private func configureChoices(
+        title: String,
+        message: String?,
+        actions: [BlomixInAppDialogAction],
+        cancelTitle: String?,
+        onCancel: (() -> Void)?
+    ) {
         titleLabel.text = title
-        messageLabel.text = message
-        okButton.setTitle(buttonTitle, for: .normal)
-        self.onDismiss = onDismiss
+        let hasMessage = message.map { !$0.isEmpty } ?? false
+        if hasMessage {
+            messageLabel.text = message
+            messageLabel.isHidden = false
+        } else {
+            messageLabel.text = nil
+            messageLabel.isHidden = true
+        }
+        actionsTopToMessageConstraint?.priority = hasMessage ? .required : .defaultLow
+        actionsTopToTitleConstraint?.priority = hasMessage ? .defaultLow : .required
+        self.onCancel = onCancel
+        actionHandlers = []
+
+        actionsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        for (index, action) in actions.enumerated() {
+            let btn = makeChoiceButton(title: action.title, subtitle: action.subtitle, tag: index, isCancel: false)
+            actionHandlers.append(action.handler)
+            actionsStack.addArrangedSubview(btn)
+        }
+
+        if let cancelTitle {
+            let cancelIndex = actionHandlers.count
+            actionHandlers.append { [weak self] in self?.onCancel?() }
+            let cancelBtn = makeChoiceButton(title: cancelTitle, subtitle: nil, tag: cancelIndex, isCancel: true)
+            actionsStack.addArrangedSubview(cancelBtn)
+        }
+    }
+
+    private func makeChoiceButton(title: String, subtitle: String?, tag: Int, isCancel: Bool) -> UIButton {
+        let btn = BlomixUIButton(type: .system)
+        btn.tag = tag
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
+        BlomixUIDestinationButtonStyle.applyContentInsets(
+            UIEdgeInsets(top: subtitle == nil ? 12 : 10, left: 16, bottom: subtitle == nil ? 12 : 10, right: 16),
+            to: btn
+        )
+        btn.titleLabel?.numberOfLines = 0
+        btn.titleLabel?.textAlignment = .center
+        btn.titleLabel?.lineBreakMode = .byWordWrapping
+
+        let titleFont = FontTheme.gameFont(size: 16, weight: .semibold)
+        let subFont = FontTheme.gameFont(size: 12, weight: .regular)
+        let titleColor = BlomixAppearance.chipTitle
+        let subColor = BlomixAppearance.secondaryText
+
+        let attr = NSMutableAttributedString()
+        attr.append(NSAttributedString(string: title, attributes: [
+            .font: titleFont,
+            .foregroundColor: titleColor
+        ]))
+        if let subtitle, !subtitle.isEmpty {
+            attr.append(NSAttributedString(string: "\n", attributes: [.font: subFont]))
+            attr.append(NSAttributedString(string: subtitle, attributes: [
+                .font: subFont,
+                .foregroundColor: subColor
+            ]))
+        }
+        btn.setAttributedTitle(attr, for: .normal)
+
+        // Annuler : un peu plus discret (même chip, alpha titre).
+        if isCancel {
+            btn.alpha = 0.92
+        }
+
+        btn.addTarget(self, action: #selector(actionTapped(_:)), for: .touchUpInside)
+        btn.heightAnchor.constraint(greaterThanOrEqualToConstant: subtitle == nil ? 44 : 52).isActive = true
+        return btn
     }
 
     private func show(in host: UIView) {
@@ -2194,14 +2456,28 @@ final class BlomixInAppDialogView: UIView {
         }
     }
 
-    @objc private func okTapped() {
+    private func dismiss(then handler: (() -> Void)? = nil) {
         UIView.animate(withDuration: 0.18, animations: {
             self.alpha = 0
             self.panel.transform = CGAffineTransform(scaleX: 0.94, y: 0.94)
         }, completion: { _ in
             self.removeFromSuperview()
-            self.onDismiss?()
+            handler?()
         })
+    }
+
+    @objc private func actionTapped(_ sender: UIButton) {
+        let index = sender.tag
+        let handler = (index >= 0 && index < actionHandlers.count) ? actionHandlers[index] : nil
+        dismiss(then: handler)
+    }
+
+    @objc private func dimTapped() {
+        // Tap hors panneau = annuler si un cancel existe, sinon ignorer (dialogue simple OK).
+        if onCancel != nil || actionHandlers.count > 1 {
+            let cancelHandler = onCancel
+            dismiss(then: cancelHandler)
+        }
     }
 }
 

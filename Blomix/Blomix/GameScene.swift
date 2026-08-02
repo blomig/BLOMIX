@@ -12271,6 +12271,9 @@ final class GameScene: SKScene {
         lobby.onMatch = { [weak self] match in
             self?.beginPvPWithMatch(match)
         }
+        lobby.onLocalMatch = { [weak self] session in
+            self?.beginPvPWithLocalSession(session)
+        }
         presentFullScreenModal(lobby)
     }
 
@@ -12283,20 +12286,37 @@ final class GameScene: SKScene {
             match.disconnect()
             return
         }
-        // Setup incomplet (handshake qui mouline) : on abandonne l'ancien match et on prend le nouveau
-        // plutôt que d'ignorer silencieusement le 2ᵉ défi (cause fréquente de « ça tourne dans le vide »).
+        preparePvPBoardForIncomingMatch(channel: "gk")
+        pvpCoordinator = BlomixPvPMatchCoordinator(match: match)
+        pvpOpponentDisplayName = match.players.first?.displayName ?? BlomixL10n.pvpUnknownOpponent
+        pvpLastEloResult = nil
+        pvpCoordinator?.attach(to: self)
+        blomixPvP_showConnectingOverlayIfNeeded()
+    }
+
+    /// Match Local Multipeer (identité déjà échangée).
+    func beginPvPWithLocalSession(_ session: BlomixPvPLocalSession) {
+        if let active = pvpCoordinator, active.isGameActive {
+            BlomixPvPLog.event("begin_pvp_local_ignored", ["reason": "game_active"])
+            session.tearDown()
+            return
+        }
+        preparePvPBoardForIncomingMatch(channel: "local")
+        pvpCoordinator = BlomixPvPMatchCoordinator(localSession: session)
+        pvpOpponentDisplayName = session.remoteIdentity?.displayName ?? BlomixL10n.pvpUnknownOpponent
+        pvpLastEloResult = nil
+        pvpCoordinator?.attach(to: self)
+        blomixPvP_showConnectingOverlayIfNeeded()
+    }
+
+    /// Prépare la scène pour un nouveau match PvP (online ou local).
+    private func preparePvPBoardForIncomingMatch(channel: String) {
+        // Setup incomplet (handshake qui mouline) : on abandonne l'ancien match et on prend le nouveau.
         if pvpMatchSetupInProgress || (pvpCoordinator != nil && pvpCoordinator?.isGameActive != true) {
-            BlomixPvPLog.event("begin_pvp_replace_incomplete_setup")
+            BlomixPvPLog.event("begin_pvp_replace_incomplete_setup", ["channel": channel])
             blomixPvP_teardown()
         }
-        // Arrête toute recherche automatique encore en cours sur tous les appareils
-        // (cas : AutoSearcher + invite simultanés → deux GKMatch créés).
         BlomixPvPAutoSearcher.shared.stopSearching()
-
-        // Teardown AVANT la sauvegarde : blomixPvP_teardown() met pvpCoordinator = nil, ce qui
-        // permet à saveCurrentSoloGameState() de passer son guard `pvpCoordinator == nil`.
-        // Cas traité : un coordinateur précédent (handshake incomplet, isGameActive == false) existait
-        // encore et bloquait silencieusement la sauvegarde dans l'ancien ordre.
         blomixPvP_teardown()
         pvpMatchSetupInProgress = true
         saveCurrentSoloGameState()
@@ -12309,17 +12329,8 @@ final class GameScene: SKScene {
             childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()
         }
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
-
-        // Grille vide visible sous l'overlay (plus l'accueil).
         blomixPvP_presentPrepBoardLeavingHomeIfNeeded()
-
-        // Signale au manager que le polling de défi doit être suspendu.
         BlomixAvailablePlayersManager.shared.setActiveMatch(true)
-        pvpCoordinator = BlomixPvPMatchCoordinator(match: match)
-        pvpOpponentDisplayName = match.players.first?.displayName ?? BlomixL10n.pvpUnknownOpponent
-        pvpLastEloResult = nil
-        pvpCoordinator?.attach(to: self)
-        blomixPvP_showConnectingOverlayIfNeeded()
     }
 
     /// Masque l'accueil et affiche une grille vide + HUD minimal pendant la connexion PvP.
@@ -12815,21 +12826,32 @@ final class GameScene: SKScene {
     private func blomixPvP_finalizeEloIfNeeded(outcome: BlomixPvPMatchOutcome) {
         guard !didFinalizePvPEloForCurrentMatch else { return }
         guard let coordinator = pvpCoordinator else { return }
-        guard let remotePlayer = coordinator.primaryRemotePlayer else {
-            print("[PvP Elo] Impossible de finaliser l’Elo : adversaire introuvable.")
-            return
-        }
 
         didFinalizePvPEloForCurrentMatch = true
         Task { @MainActor in
             do {
-                let result = try await BlomixEloManager.shared.finalizeLocalPlayerRating(
-                    outcome: outcome,
-                    against: remotePlayer
-                )
+                let result: BlomixEloResult
+                if let remotePlayer = coordinator.primaryRemotePlayer {
+                    result = try await BlomixEloManager.shared.finalizeLocalPlayerRating(
+                        outcome: outcome,
+                        against: remotePlayer
+                    )
+                } else if let remoteProfile = coordinator.remoteEloProfileForFinalize {
+                    // Match Local : profil adverse issu du handshake Multipeer.
+                    result = try await BlomixEloManager.shared.finalizeLocalPlayerRating(
+                        outcome: outcome,
+                        againstRemoteProfile: remoteProfile
+                    )
+                } else {
+                    print("[PvP Elo] Impossible de finaliser l’Elo : adversaire introuvable.")
+                    self.pvpLastEloResult = nil
+                    self.pvpPresentedResultViewController?.applyEloResult(nil)
+                    return
+                }
                 self.pvpLastEloResult = result
                 self.pvpPresentedResultViewController?.applyEloResult(result)
             } catch {
+                // Offline : finalize a déjà mis le pending ; afficher nil ou dernier résultat local.
                 self.pvpLastEloResult = nil
                 self.pvpPresentedResultViewController?.applyEloResult(nil)
                 print("[PvP Elo] Échec de finalisation Elo : \(error.localizedDescription)")

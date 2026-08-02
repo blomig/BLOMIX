@@ -32,6 +32,13 @@
 	<true/>
 	<key>NSGKFriendListUsageDescription</key>
 	<string>Blomix uses your Game Center friends list so you can invite a friend to PvP.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>BLOMIX uses the local network to find and play nearby opponents without Internet.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_blomix-pvp._tcp</string>
+		<string>_blomix-pvp._udp</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

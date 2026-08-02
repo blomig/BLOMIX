@@ -66,6 +66,7 @@
 		100000000000000000000230 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000231 /* InfoPlist.strings */; };
 		100000000000000000000240 /* BlomixAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000241 /* BlomixAppearance.swift */; };
 		100000000000000000000251 /* BlomixShareComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000250 /* BlomixShareComposer.swift */; };
+		100000000000000000000261 /* BlomixPvPLocalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000260 /* BlomixPvPLocalSession.swift */; };
 		E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */; };
 		E32D3DC52FA4FC9A00E9E3F1 /* wrong.wav in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */; };
 		E32D3DC72FA7406E00E9E3F1 /* calm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */; };
@@ -168,6 +169,7 @@
 		10000000000000000000023F /* it */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = it; path = it.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		100000000000000000000241 /* BlomixAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAppearance.swift; sourceTree = "<group>"; };
 		100000000000000000000250 /* BlomixShareComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixShareComposer.swift; sourceTree = "<group>"; };
+		100000000000000000000260 /* BlomixPvPLocalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPLocalSession.swift; sourceTree = "<group>"; };
 		E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = victory.mp3; sourceTree = "<group>"; };
 		E32D3DC32FA4FC9A00E9E3F1 /* wrong.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = wrong.wav; sourceTree = "<group>"; };
 		E32D3DC62FA7406E00E9E3F1 /* calm.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = calm.mp3; sourceTree = "<group>"; };
@@ -233,6 +235,7 @@
 				1000000000000000000001C0 /* BlomixTypography.swift */,
 				100000000000000000000241 /* BlomixAppearance.swift */,
 				100000000000000000000250 /* BlomixShareComposer.swift */,
+				100000000000000000000260 /* BlomixPvPLocalSession.swift */,
 				100000000000000000000003 /* GameScene.swift */,
 				10000000000000000000018D /* BlomixL10n.swift */,
 				100000000000000000000192 /* rules.txt */,
@@ -483,6 +486,7 @@
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
 				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
 				100000000000000000000251 /* BlomixShareComposer.swift in Sources */,
+				100000000000000000000261 /* BlomixPvPLocalSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

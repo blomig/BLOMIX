@@ -16,7 +16,17 @@ BLOMIX propose **trois chemins distincts** pour lancer un duel 1 vs 1. Ils n'uti
 | **A. Joueurs disponibles** | Lobby PvP → « Joueurs disponibles » | CloudKit Public DB | Bannière in-app (`BlomixChallengeBannerView`) — **pas** de push Game Center |
 | **B. Adversaire récent** | Lobby PvP → « Adversaire récent » | GameKit direct | `GKInvite` → bannière in-app (`BlomixPvPInviteBannerView`) |
 | **C. Classement Elo** | Classement → onglet Elo → « Défier » | GameKit direct | Identique au mode B |
-| **D. Auto-match / Partie rapide** | Lobby → **Partie rapide** | GameKit auto | `beginMatchSearch()` (Elo match request) ; `BlomixPvPAutoSearcher` reste dispo pour usage background |
+| **D. Auto-match / Partie rapide** | Lobby → **Partie rapide** | GameKit auto **ou** Multipeer | Choix **Local** / **En ligne** (voir ci-dessous) |
+| **E. Local (proximité)** | Partie rapide → **Local** | MultipeerConnectivity (BT + Wi‑Fi local) | `BlomixPvPLocalSession` — **sans Internet** ; prérequis cache GC |
+
+### Partie rapide — Local / En ligne
+
+| Option | Transport | Prérequis | Elo |
+|--------|-----------|-----------|-----|
+| **Local** | Multipeer (`serviceType` `blomix-pvp`) | Cache identité GC + Elo sur l’appareil (auth passée au moins une fois) | Calcul local + pending submit à l’auth |
+| **En ligne** | `GKMatchmaker.findMatch` (inchangé) | Game Center connecté | Comme avant |
+
+Handshake local : échange `BlomixPvPLocalPeerIdentity` (gamePlayerID, displayName, elo, matchCount, protocolVersion) puis même `helloSeed` / coordinateur que l’online (`BlomixPvPMatchCoordinator` dual canal GK / local).
 
 **Point critique pour le bug « on se voit dans la liste mais pas d'invitation »** : le mode A sépare **deux opérations CloudKit indépendantes** :
 

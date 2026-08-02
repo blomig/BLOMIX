@@ -304,3 +304,19 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.protocol_mismatch.message" = "Incompatible versions. Update BLOMIX on both devices.";
 "pvp.reconnecting.message" = "Reconnecting…";
 "pvp.available_invite_app_open_hint" = "In-app invite only — opponent must have BLOMIX open.";
+
+/* PvP — quick match Local / Online */
+"pvp.quick_match.title" = "Quick match";
+"pvp.quick_match.local_title" = "Local";
+"pvp.quick_match.local_subtitle" = "Bluetooth or local Wi-Fi — no Internet needed";
+"pvp.quick_match.online_title" = "Online";
+"pvp.quick_match.online_subtitle" = "Matchmaking via Game Center";
+"pvp.local.searching" = "Looking for a nearby player…";
+"pvp.local.connecting" = "Connecting…";
+"pvp.local.timeout" = "No nearby player found. Make sure both of you chose Local.";
+"pvp.local.connection_failed" = "Local connection failed.";
+"pvp.local.identity_failed" = "Could not exchange player info.";
+"pvp.local.gc_required_title" = "Game Center required";
+"pvp.local.gc_required_message" = "Sign in to Game Center once with a network connection. Then you can play Local matches even offline.";
+"pvp.local.pick_peer_title" = "Nearby players";
+"pvp.local.pick_peer_message" = "Choose who you want to play.";

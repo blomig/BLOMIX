@@ -7,7 +7,25 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.5] — 2026-08 (courant)
+## [5.6] — 2026-08 (courant)
+
+Build **74**.
+
+### Ajouté
+- **Accueil — lien Crédits** : « Réglages · Tutoriel · **Crédits** » ; modal `BlomixPlainTextModalViewController` (thème Sombre/Clair, police joueur, bouton Fermer) alimentée par `credits.txt` (FR/EN)
+
+### Modifié
+- **PvP Local (Multipeer) — reconnexion mid-match** :
+  - Découverte maintenue pendant le match ; relance effective advertiser/browser après drop
+  - Rebuild de `MCSession` + re-invite déterministe (anti-zombie / `notConnected` sans récupération)
+  - Silence peer local → `forceTransportReset` ; callback `onTransportRestored` annule grace + keepAlive + rejoue critiques
+  - Grace locale ~45 s, debounce overlay ~12 s ; logs `local_session_rebuild` / `local_peer_reconnected` / …
+- Indicateur scroll modal texte (crédits) adapté au thème chrome (Sombre/Clair)
+- Version marketing **5.6** (build **74**)
+
+---
+
+## [5.5] — 2026-08
 
 Build **71**.
 

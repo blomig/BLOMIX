@@ -1,7 +1,8 @@
 # PvP — Appariement et défis entre joueurs
 
-> **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Dernière revue** : juillet 2026
+> **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
+> **Version de référence** : 5.6 (build 74)  
+> **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
 
@@ -27,6 +28,26 @@ BLOMIX propose **trois chemins distincts** pour lancer un duel 1 vs 1. Ils n'uti
 | **En ligne** | `GKMatchmaker.findMatch` (inchangé) | Game Center connecté | Comme avant |
 
 Handshake local : échange `BlomixPvPLocalPeerIdentity` (gamePlayerID, displayName, elo, matchCount, protocolVersion) puis même `helloSeed` / coordinateur que l’online (`BlomixPvPMatchCoordinator` dual canal GK / local).
+
+### PvP Local — robustesse de liaison mid-match
+
+Multipeer (BT / Wi‑Fi local) est plus chahuté que `GKMatch`. Depuis **5.6**, le canal local ne se contente plus d’une grace passive :
+
+| Mécanisme | Comportement |
+|-----------|--------------|
+| **Découverte pendant le match** | Advertiser + browser **restent actifs** après ready (ne plus les stopper à +8 s sans `nil` — bug qui empêchait toute re-découverte) |
+| **`ensureDiscoveryRunning`** | Relance idempotente si les services ont été stoppés |
+| **Rebuild `MCSession`** | Après `notConnected` / silence zombie : nouvelle session (même `MCPeerID`), puis re-invite — ré-inviter sur une session morte échoue souvent |
+| **Invite déterministe** | Seul le côté au plus petit `gamePlayerID` invite ; l’autre accepte (évite invitations croisées) |
+| **Boucle mid-match** | ~2,5 s, ~45 s de tentatives ; rebuild périodique si toujours mort |
+| **Debounce UI** | ~12 s de tentatives actives avant `onDisconnected` → overlay « Reconnexion… » |
+| **Grace coordinator locale** | ~**45 s** (vs 4 s online) pendant lesquelles le jeu continue (timer tour gelé en grace) |
+| **Silence peer local** | ~**12 s** sans enveloppe → `forceTransportReset` (anti-zombie `connectedPeers` non vide sans data) |
+| **Restore** | `.connected` mid-match → `onTransportRestored` : annule grace, keepAlive, rejoue messages critiques non-ack |
+
+Symptôme historique (deux joueurs connectés vite, puis « Reconnexion… » des deux côtés sans jamais revenir, puis « adversaire déconnecté » ~30–45 s) : discovery fantôme + pas de rebuild de session + attente passive.
+
+Logs utiles : `local_session_rebuild`, `local_midgame_reconnect_loop_*`, `local_peer_reconnected`, `local_transport_restored`, `disconnect_grace_*`, `peer_silence_timeout`.
 
 **Point critique pour le bug « on se voit dans la liste mais pas d'invitation »** : le mode A sépare **deux opérations CloudKit indépendantes** :
 
@@ -418,10 +439,11 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | **PVP-15** | Fallback RNG local en PvP (désync) | ✅ Corrigé — `nil` + échec match si RNG absent |
 | **PVP-16** | Pas de `protocolVersion` | ✅ Corrigé — handshake + message d’update |
 | **PVP-17** | Messages critiques fire-and-forget | ✅ Corrigé — file + `msgId` / `ackMsg` |
-| **PVP-18** | Déco mid-game immédiate | ✅ Corrigé — grace 4 s + heartbeat 2,5 s |
+| **PVP-18** | Déco mid-game immédiate | ✅ Corrigé — grace 4 s + heartbeat 2,5 s (online) |
 | **PVP-19** | `iLost` sans ack | ✅ Corrigé — `ackVictory` + retry |
 | **PVP-20** | Attaques sans id filaire | ✅ Corrigé — `attackId` anti-doublon |
 | **PVP-21** | `isInActiveMatch` collant post-crash | ✅ Corrigé — reset au `didBecomeActive` si pas de coordinateur |
+| **PVP-22** | Local Multipeer : « Reconnexion… » sans jamais se reconnecter | ✅ Corrigé (5.6) — discovery live + rebuild `MCSession` + force reset silence + grace 45 s |
 
 ### Protocole filaire (résumé robustesse)
 
@@ -431,9 +453,10 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | `msgId` + `ackMsg` | Retry applicatif des messages critiques |
 | `attackId` | Anti-doublon lignes d’attaque + discard RNG une seule fois |
 | `ackVictory` | Confirme réception de `iLost` |
-| `keepAlive` | Heartbeat ; silence > 10 s → grace déco |
-| Grace mid-game | 4 s + overlay « Reconnexion… » |
-| Grace handshake | 15 s (inchangé) |
+| `keepAlive` | Heartbeat ; silence online > 10 s → grace ; local > 12 s → reset transport + grace |
+| Grace mid-game online | 4 s + overlay « Reconnexion… » |
+| Grace mid-game **local** | ~45 s + reconnexion Multipeer active (rebuild / re-invite) |
+| Grace handshake | 15 s online ; local utilise aussi la grace longue Multipeer |
 
 Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 
@@ -444,10 +467,11 @@ Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 | Fichier | Responsabilité |
 |---------|----------------|
 | `BlomixAvailablePlayersManager.swift` | CloudKit, heartbeat, poll, rendez-vous |
-| `BlomixPvPUI.swift` | Lobby, liste disponibles, récents, bannières |
+| `BlomixPvPUI.swift` | Lobby, liste disponibles, récents, bannières, recherche Multipeer |
+| `BlomixPvPLocalSession.swift` | Session Multipeer 1v1, identité, reconnexion mid-match |
 | `GameViewController.swift` | Réception défis CloudKit + invites GK |
 | `LeaderboardViewController.swift` | Défis depuis classement Elo |
-| `BlomixPvPNetworking.swift` | Auto-searcher, coordinateur in-match |
+| `BlomixPvPNetworking.swift` | Auto-searcher, coordinateur in-match (GK + local) |
 | `GameScene.swift` | `setup()`, `setActiveMatch`, lancement PvP |
 
 ---

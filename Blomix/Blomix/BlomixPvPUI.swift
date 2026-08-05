@@ -923,9 +923,10 @@ final class BlomixPvPLobbyViewController: UIViewController {
             }
             let name = readySession.remoteIdentity?.displayName ?? BlomixL10n.pvpUnknownOpponent
             self.transitionTo(.matchFound(opponentName: name))
-            self.localSearchSession = nil
-            // Notifie immédiatement la scène (comme le chemin GK).
+            // Notifie la scène AVANT de lâcher la ref — le coordinateur prend ownership.
             self.onLocalMatch?(readySession)
+            // Garder une ref tant que le coordinator n’a pas le strong retain (sécurité).
+            self.localSearchSession = readySession
             self.searchBlocksView.stopAnimating(settle: true) { [weak self] in
                 DispatchQueue.main.asyncAfter(deadline: .now() + (self?.foundTransitionDelay ?? 0.75)) { [weak self] in
                     guard let self else { return }

@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 5.5  
+> **Version de référence** : 5.6  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -222,13 +222,15 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 
 ### PvP
 
-`BlomixPvPNetworking.swift` + `BlomixPvPUI.swift` :
+`BlomixPvPNetworking.swift` + `BlomixPvPUI.swift` + `BlomixPvPLocalSession.swift` :
+- Canaux : **online** (`GKMatch`) ou **local** Multipeer (`serviceType` `blomix-pvp`) via le même coordinateur
 - Handshake RNG partagé (`helloSeed` + `protocolVersion`) ; file d’envoi + ack pour messages critiques
-- Heartbeat / grace déco mid-game ; `attackId` anti-doublon
+- Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
+- Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init
-- Lobby : Partie rapide (auto-match), défis CloudKit / récents / classement
+- Lobby : Partie rapide (**Local** / **En ligne**), défis CloudKit / récents / classement
 - Overlay attente match sur **grille vide** (pas sur l’accueil)
 - Dialogs d’erreur / timeout : style in-app BLOMIX (`BlomixInAppDialogView`)
 - Fin : victoire/défaite/déconnexion → retour solo sauvegardé
@@ -296,6 +298,21 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 - Boutons : chips inversés selon le thème (`BlomixSKButtonNode`, `BlomixUIDestinationButtonStyle`)
 - Transitions stage / Zen / PvP / tutoriel : fill **orange skin** inchangé ; **contour seul** via `transitionOutlineColor` (pas de halo)
 
+### Accueil — liens utilitaires & crédits
+
+Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
+
+| Lien | Action |
+|---|---|
+| **Réglages** | `SettingsViewController` (modal plein écran) |
+| **Tutoriel** | relance le tutoriel interactif |
+| **Crédits** | `BlomixPlainTextModalViewController` + corps `credits.txt` |
+
+- Séparateurs « · » en police **système** (la police jeu ne dessine pas toujours le glyphe)
+- Libellés en police **joueur** + couleurs `BlomixAppearance` (lien / séparateur)
+- Modal crédits : même chrome que Réglages / Classement (fond scène, blocs ambiants, titre + **Fermer** navigation, police `BlomixTypography`)
+- Contenu : `en.lproj` / `fr.lproj` `credits.txt` (chargement langue préférée → bundle → `BlomixL10n.creditsMissingBody`)
+
 ### Partage (accueil + game over)
 
 `BlomixShareComposer` + share sheet système (`UIActivityViewController` via `GameViewController`).
@@ -354,8 +371,8 @@ Tokens `BlomixAppearance` (fill / bordure / titre inversés Sombre ↔ Clair), r
 | `tips_of_day.json` | Conseils du jour |
 | `gameover_quotes.json` | Citations fin de partie |
 | `InfoPlist.strings` | Chaînes système (`NSGKFriendListUsageDescription`, etc.) |
-| `rules.txt` | Anciennes règles statiques (legacy) |
-| `credits.txt` | Crédits |
+| `rules.txt` | Anciennes règles statiques (legacy ; non exposé par l’UI) |
+| `credits.txt` | Crédits (accueil → lien Crédits ; FR + EN) |
 
 ---
 
@@ -379,7 +396,7 @@ Blomix/Blomix/
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
 ├── ScoreManager.swift            # Game Center scores (pending Solo/Zen + moyenne)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
-├── LeaderboardViewController.swift
+├── LeaderboardViewController.swift  # Classements + BlomixPlainTextModalViewController (crédits)
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)
 ├── BlomixMusicPlayer.swift       # Musique par stage
 ├── color_skins.json
@@ -389,4 +406,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v5.5 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v5.6 — à maintenir lors des évolutions majeures.*

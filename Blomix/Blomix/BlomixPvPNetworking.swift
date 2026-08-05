@@ -281,12 +281,20 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private let handshakeDisconnectionGracePeriod: TimeInterval = 15.0
     /// Grace mid-game (cellulaire instable).
     private let inMatchDisconnectionGracePeriod: TimeInterval = 4.0
+    /// Grace mid-game locale (Multipeer BT plus chahuté) — laisse le temps à rebuild+re-invite.
+    private let localInMatchDisconnectionGracePeriod: TimeInterval = 45.0
     private var isInDisconnectionGrace = false
 
     private var heartbeatTimer: Timer?
     private let heartbeatInterval: TimeInterval = 2.5
+    /// Silence peer online (cellulaire).
     private let peerSilenceTimeout: TimeInterval = 10.0
+    /// Silence peer local : Multipeer peut rater des keepAlive ; le jeu est tour par tour.
+    /// Plus court que la grace : on détecte un zombie et on force un reset transport.
+    private let localPeerSilenceTimeout: TimeInterval = 12.0
     private var lastPeerAliveAt: Date?
+    /// Throttle des force-reset local (évite rebuild en rafale).
+    private var lastLocalForceResetAt: Date?
 
     private var nextMsgId: Int = 1
     private var pendingCriticalSends: [Int: PendingCriticalSend] = [:]
@@ -322,6 +330,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
                 self?.handleLocalDisconnect()
             }
         }
+        localSession.onTransportRestored = { [weak self] in
+            Task { @MainActor in
+                self?.handleLocalTransportRestored()
+            }
+        }
         resolveHostRoleIfNeeded()
     }
 
@@ -329,23 +342,27 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private func resolveHostRoleIfNeeded() {
         guard !isHostResolved else { return }
         let remoteID: String?
+        let localID: String
         if let match {
             guard !match.players.isEmpty else { return }
             remoteID = match.players.first?.gamePlayerID
-        } else if let id = remotePeerIdentity?.gamePlayerID, !id.isEmpty {
-            remoteID = id
+            localID = GKLocalPlayer.local.gamePlayerID
+        } else if let remote = remotePeerIdentity?.gamePlayerID, !remote.isEmpty {
+            remoteID = remote
+            // Local : utiliser l’ID du snapshot Multipeer (cache GC), pas seulement GK live
+            // (hors ligne le gamePlayerID live peut être vide / différent).
+            localID = localSession?.localPeerIdentity.gamePlayerID ?? GKLocalPlayer.local.gamePlayerID
         } else {
             return
         }
-        guard let remoteID else { return }
-        let localID = GKLocalPlayer.local.gamePlayerID
+        guard let remoteID, !localID.isEmpty else { return }
         // Host = plus petit gamePlayerID (déterministe, même règle online / local).
         isHost = localID < remoteID
         isHostResolved = true
         BlomixPvPLog.event("host_resolved", [
             "isHost": "\(isHost)",
-            "local": localID,
-            "remote": remoteID,
+            "local": String(localID.prefix(12)),
+            "remote": String(remoteID.prefix(12)),
             "channel": match != nil ? "gk" : "local"
         ])
     }
@@ -360,8 +377,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
         // En local l’identité est déjà là → bootstrap court suffit.
         startRosterBootstrapPoll()
         if isLocalMatch {
-            // Pousse immédiatement le helloSeed côté hôte.
+            // Pousse immédiatement le helloSeed côté hôte + relance keepAlive pré-handshake.
             beginHandshakeMonitoringIfNeeded()
+            // Relancer l’envoi d’identité n’est plus possible ici ; on force des helloSeed fréquents.
+            // Le guest doit recevoir le seed avant le watchdog.
         }
     }
 
@@ -375,12 +394,39 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private func handleLocalDisconnect() {
-        BlomixPvPLog.event("local_disconnect_mid_match")
-        // Même sémantique qu’une déco GK mid-game.
+        BlomixPvPLog.event("local_disconnect_mid_match", [
+            "handshake": "\(didFinishHandshake)"
+        ])
+        // La session locale a déjà tenté rebuild+invite pendant le debounce.
+        // On affiche « Reconnexion… » et on laisse encore une grace longue.
         if didFinishHandshake {
             beginInMatchDisconnectionGrace(reason: "local_disconnect")
+            // Double filet : relancer explicitement la reconnexion active.
+            localSession?.attemptMidGameReconnect()
         } else {
-            scene?.blomixPvP_matchFailed(nil)
+            // Pendant « P vs P / préparation » : grace au lieu d’échec immédiat.
+            startDisconnectionGrace(
+                period: localInMatchDisconnectionGracePeriod,
+                reason: "local_disconnect_handshake"
+            )
+            localSession?.attemptMidGameReconnect()
+        }
+    }
+
+    /// Multipeer de nouveau connecté mid-match — annuler grace et reprendre le heartbeat.
+    private func handleLocalTransportRestored() {
+        BlomixPvPLog.event("local_transport_restored", [
+            "wasInGrace": "\(isInDisconnectionGrace)"
+        ])
+        lastPeerAliveAt = Date()
+        cancelDisconnectionGrace()
+        // Prouve immédiatement la vivacité aux deux côtés (et annule silence distant).
+        if didFinishHandshake {
+            sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .keepAlive, seed: nil, line: nil, fillDepth: nil))
+            // Rejouer les messages critiques non ackés (attaques / iLost / rematch).
+            for id in pendingCriticalSends.keys {
+                flushCriticalSend(id: id)
+            }
         }
     }
 
@@ -493,6 +539,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         }
         localSession?.onData = nil
         localSession?.onDisconnected = nil
+        localSession?.onTransportRestored = nil
         localSession?.tearDown()
         localSession = nil
         match = nil
@@ -731,6 +778,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     private func handleEnvelope(_ env: BlomixPvPWireEnvelope, remoteSenderGamePlayerID: String) {
         lastPeerAliveAt = Date()
+        // Pair de nouveau audible → fin de grace déco (surtout utile en Multipeer local).
+        if isInDisconnectionGrace {
+            cancelDisconnectionGrace()
+            BlomixPvPLog.event("disconnect_grace_cancel_peer_alive", ["kind": env.k.rawValue])
+        }
 
         switch env.k {
         case .helloSeed:
@@ -870,9 +922,33 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private func tickHeartbeat() {
         guard didFinishHandshake, !didReportLocalLoss, !didReceiveRemoteLoss else { return }
         sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .keepAlive, seed: nil, line: nil, fillDepth: nil))
-        if let last = lastPeerAliveAt, Date().timeIntervalSince(last) > peerSilenceTimeout {
-            BlomixPvPLog.event("peer_silence_timeout", ["silence_s": "\(Int(Date().timeIntervalSince(last)))"])
-            if !isInDisconnectionGrace {
+        // Local Multipeer : keepAlive parfois perdu — seuil plus large (tour par tour).
+        let silenceLimit = isLocalMatch ? localPeerSilenceTimeout : peerSilenceTimeout
+        if let last = lastPeerAliveAt, Date().timeIntervalSince(last) > silenceLimit {
+            BlomixPvPLog.event("peer_silence_timeout", [
+                "silence_s": "\(Int(Date().timeIntervalSince(last)))",
+                "limit": "\(Int(silenceLimit))",
+                "local": "\(isLocalMatch)",
+                "liveTransport": "\(localSession?.hasLiveTransport == true)"
+            ])
+            if isLocalMatch {
+                // Cas fréquent : MCSession « zombie » (connectedPeers non vide mais plus de data).
+                // Forcer un rebuild + re-invite plutôt que d’attendre passivement.
+                let now = Date()
+                let canReset: Bool = {
+                    guard let t = lastLocalForceResetAt else { return true }
+                    return now.timeIntervalSince(t) >= 8.0
+                }()
+                if canReset {
+                    lastLocalForceResetAt = now
+                    localSession?.forceTransportReset(reason: "peer_silence")
+                } else {
+                    localSession?.attemptMidGameReconnect()
+                }
+                if !isInDisconnectionGrace {
+                    beginInMatchDisconnectionGrace(reason: "peer_silence_local")
+                }
+            } else if !isInDisconnectionGrace {
                 beginInMatchDisconnectionGrace(reason: "peer_silence")
             }
         }
@@ -985,28 +1061,48 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     private func beginInMatchDisconnectionGrace(reason: String) {
         guard didFinishHandshake else {
-            startDisconnectionGrace(period: handshakeDisconnectionGracePeriod, reason: reason)
+            let period = isLocalMatch ? localInMatchDisconnectionGracePeriod : handshakeDisconnectionGracePeriod
+            startDisconnectionGrace(period: period, reason: reason)
             return
         }
-        startDisconnectionGrace(period: inMatchDisconnectionGracePeriod, reason: reason)
+        let period = isLocalMatch ? localInMatchDisconnectionGracePeriod : inMatchDisconnectionGracePeriod
+        startDisconnectionGrace(period: period, reason: reason)
         scene?.blomixPvP_setReconnectingOverlayVisible(true)
     }
 
     private func startDisconnectionGrace(period: TimeInterval, reason: String) {
+        // Ne pas raccourcir une grace locale déjà en cours.
+        if isInDisconnectionGrace, isLocalMatch { return }
         cancelDisconnectionGrace()
         isInDisconnectionGrace = true
         BlomixPvPLog.event("disconnect_grace_start", [
             "period_s": "\(period)",
             "reason": reason,
-            "inMatch": "\(didFinishHandshake)"
+            "inMatch": "\(didFinishHandshake)",
+            "local": "\(isLocalMatch)"
         ])
         let t = Timer.scheduledTimer(withTimeInterval: period, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
+                // Pair local de retour (transport live) ?
+                if self.isLocalMatch, self.localSession?.hasLiveTransport == true {
+                    self.isInDisconnectionGrace = false
+                    self.disconnectionGraceTimer = nil
+                    self.scene?.blomixPvP_setReconnectingOverlayVisible(false)
+                    self.lastPeerAliveAt = Date()
+                    BlomixPvPLog.event("disconnect_grace_aborted_reconnected")
+                    // KeepAlive pour resynchroniser le silence côté pair.
+                    self.sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .keepAlive, seed: nil, line: nil, fillDepth: nil))
+                    return
+                }
                 self.isInDisconnectionGrace = false
                 self.scene?.blomixPvP_setReconnectingOverlayVisible(false)
                 BlomixPvPLog.event("disconnect_grace_expired", ["reason": reason])
-                self.scene?.blomixPvP_peerDisconnected()
+                if self.didFinishHandshake {
+                    self.scene?.blomixPvP_peerDisconnected()
+                } else {
+                    self.scene?.blomixPvP_matchFailed(nil)
+                }
             }
         }
         RunLoop.main.add(t, forMode: .common)

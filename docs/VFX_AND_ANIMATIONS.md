@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 5.5  
+> **Version de référence** : 5.6  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 
@@ -581,7 +581,7 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 |---|---|
 | Branding | `BLOMIX` + tagline (`titleY = 86 %` hauteur) |
 | Carte joueur | Nom GC, ligne Elo + chevron `›` (→ onglet Elo), 3 disques SOLO / MOY. / ZEN |
-| Liens utilitaires | « Réglages · Tutoriel » (séparateur en police système) |
+| Liens utilitaires | « Réglages · Tutoriel · Crédits » (séparateur « · » en police système) |
 | Zone de jeu | Bouton hero **Solo** pleine largeur, puis **PvP** et **Zen** côte à côte |
 | Tip | Ancré en bas (`10 %` hauteur) |
 
@@ -589,7 +589,7 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 
 - Disque → `LeaderboardViewController` (onglet Solo / Moy. / Zen)
 - Ligne Elo → classement onglet Elo
-- Liens → Réglages / Tutoriel
+- Liens → Réglages / Tutoriel / Crédits (`BlomixPlainTextModalViewController` + `credits.txt`)
 
 | Effet | Paramètres |
 |---|---|

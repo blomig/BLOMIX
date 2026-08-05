@@ -988,7 +988,8 @@ final class BlomixPlainTextModalViewController: UIViewController {
         textView.isSelectable = true
         textView.isScrollEnabled = true
         textView.showsVerticalScrollIndicator = true
-        textView.indicatorStyle = .white
+        // Sombre → indicateur clair ; Clair → indicateur sombre (lisibilité sur fond crème).
+        textView.indicatorStyle = BlomixAppearance.isDark ? .white : .black
         textView.dataDetectorTypes = []
         textView.textContainerInset = UIEdgeInsets(top: 8, left: 4, bottom: 16, right: 4)
         textView.textContainer.lineFragmentPadding = 0

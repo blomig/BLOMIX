@@ -806,6 +806,7 @@ final class GameScene: SKScene {
     private static let startScreenUtilityLinksContainerName = "startScreenUtilityLinksContainer"
     private static let startScreenSettingsLinkName = "startScreenSettingsLink"
     private static let startScreenTutorialLinkName = "startScreenTutorialLink"
+    private static let startScreenCreditsLinkName = "startScreenCreditsLink"
     private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
     private static let startScreenShareChipName = "startScreenShareChip"
     private static let startScreenShareLabelName = "startScreenShareLabel"
@@ -1666,7 +1667,7 @@ final class GameScene: SKScene {
         return btn
     }
 
-    /// Liens texte « Réglages · Tutoriel » sous la carte joueur.
+    /// Liens texte « Réglages · Tutoriel · Crédits » sous la carte joueur.
     private func makeStartScreenUtilityLinks(fontSize: CGFloat) -> SKNode {
         let container = SKNode()
         container.name = Self.startScreenUtilityLinksContainerName
@@ -1692,34 +1693,47 @@ final class GameScene: SKScene {
             return label
         }
 
-        let settingsLink = makeLink(BlomixL10n.settings, name: Self.startScreenSettingsLinkName)
-        let separator = SKLabelNode(text: "·")
-        separator.fontName = sepFont.fontName
-        separator.fontSize = fontSize
-        separator.fontColor = sepColor
-        separator.horizontalAlignmentMode = .center
-        separator.verticalAlignmentMode = .baseline
+        func makeSeparator() -> SKLabelNode {
+            let separator = SKLabelNode(text: "·")
+            separator.fontName = sepFont.fontName
+            separator.fontSize = fontSize
+            separator.fontColor = sepColor
+            separator.horizontalAlignmentMode = .center
+            separator.verticalAlignmentMode = .baseline
+            return separator
+        }
 
+        let settingsLink = makeLink(BlomixL10n.settings, name: Self.startScreenSettingsLinkName)
         let tutorialLink = makeLink(BlomixL10n.menuTutorial, name: Self.startScreenTutorialLinkName)
+        let creditsLink = makeLink(BlomixL10n.credits, name: Self.startScreenCreditsLinkName)
+        let sep0 = makeSeparator()
+        let sep1 = makeSeparator()
 
         let gap: CGFloat = 8
         let w0   = textWidth(BlomixL10n.settings, gameFont)
         let wSep = textWidth("·", sepFont)
-        let w2   = textWidth(BlomixL10n.menuTutorial, gameFont)
-        let totalW = w0 + gap + wSep + gap + w2
+        let w1   = textWidth(BlomixL10n.menuTutorial, gameFont)
+        let w2   = textWidth(BlomixL10n.credits, gameFont)
+        let totalW = w0 + gap + wSep + gap + w1 + gap + wSep + gap + w2
 
         // Alignement baseline commun (évite le décalage vertical entre police jeu et système).
         let baselineY: CGFloat = 0
         var cursor = -totalW / 2
         settingsLink.position = CGPoint(x: cursor + w0 / 2, y: baselineY)
         cursor += w0 + gap
-        separator.position = CGPoint(x: cursor + wSep / 2, y: baselineY)
+        sep0.position = CGPoint(x: cursor + wSep / 2, y: baselineY)
         cursor += wSep + gap
-        tutorialLink.position = CGPoint(x: cursor + w2 / 2, y: baselineY)
+        tutorialLink.position = CGPoint(x: cursor + w1 / 2, y: baselineY)
+        cursor += w1 + gap
+        sep1.position = CGPoint(x: cursor + wSep / 2, y: baselineY)
+        cursor += wSep + gap
+        creditsLink.position = CGPoint(x: cursor + w2 / 2, y: baselineY)
 
         container.addChild(settingsLink)
-        container.addChild(separator)
+        container.addChild(sep0)
         container.addChild(tutorialLink)
+        container.addChild(sep1)
+        container.addChild(creditsLink)
         return container
     }
 
@@ -1944,7 +1958,7 @@ final class GameScene: SKScene {
         discsContainer.addChild(zenRank.shadow)
         discsContainer.addChild(zenRank.label)
 
-        // ── Bande utilitaire : liens texte Réglages · Tutoriel ────────────────────
+        // ── Bande utilitaire : liens texte Réglages · Tutoriel · Crédits ──────────
         let discBottomExtent = discDiameter / 2 + 18
         let utilityLinksY = discCenterY - discBottomExtent - 44
         let utilityLinks = makeStartScreenUtilityLinks(fontSize: 13)
@@ -2524,6 +2538,10 @@ final class GameScene: SKScene {
         touchHitsStartScreenUtilityLink(named: Self.startScreenTutorialLinkName, scenePoint: scenePoint)
     }
 
+    private func touchHitsStartScreenCreditsLink(_ scenePoint: CGPoint) -> Bool {
+        touchHitsStartScreenUtilityLink(named: Self.startScreenCreditsLinkName, scenePoint: scenePoint)
+    }
+
     private func touchHitsStartScreenAppearanceToggle(_ scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
               let toggle = overlay.childNode(withName: Self.startScreenAppearanceToggleName) else { return false }
@@ -2906,6 +2924,35 @@ final class GameScene: SKScene {
         guard let gameVC = modalRootViewController() as? GameViewController else { return }
         let anchors = makeTutorialLayoutAnchorsForOverlay()
         gameVC.showTutorialOverlay(anchors: anchors)
+    }
+
+    /// Crédits (`credits.txt`) : modal UIKit plein écran (thème chrome + police joueur).
+    private func showCredits() {
+        let body = Self.loadCreditsPlainText()
+        presentFullScreenModal(
+            BlomixPlainTextModalViewController(
+                screenTitle: BlomixL10n.modalCreditsTitle,
+                body: body
+            )
+        )
+    }
+
+    /// Charge `credits.txt` localisé (préférence langue, puis résolution bundle, puis message fallback).
+    private static func loadCreditsPlainText() -> String {
+        let preferredLangs = Locale.preferredLanguages.map { String($0.prefix(2)).lowercased() }
+        for lang in preferredLangs {
+            if let url = Bundle.main.url(forResource: "credits", withExtension: "txt", subdirectory: "\(lang).lproj"),
+               let raw = try? String(contentsOf: url, encoding: .utf8),
+               !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return raw
+            }
+        }
+        if let url = Bundle.main.url(forResource: "credits", withExtension: "txt"),
+           let raw = try? String(contentsOf: url, encoding: .utf8),
+           !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return raw
+        }
+        return BlomixL10n.creditsMissingBody
     }
 
     /// Prochain bloc « preview » : **1 chance sur 8** d’un `.priks(5)`, sinon couleur aléatoire.
@@ -12035,6 +12082,10 @@ final class GameScene: SKScene {
             }
             if touchHitsStartScreenTutorialLink(location) {
                 pendingButtonAction = { [weak self] in self?.startTutorialGameWithIntro() }
+                return
+            }
+            if touchHitsStartScreenCreditsLink(location) {
+                pendingButtonAction = { [weak self] in self?.showCredits() }
                 return
             }
             if touchHitsStartButton(location) {

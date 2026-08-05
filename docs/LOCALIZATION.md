@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 5.5
+> **Version de référence** : 5.6
 
 ---
 
@@ -38,10 +38,10 @@ Blomix/Blomix/
 ```
 
 Fichiers legacy (encore référencés en fallback) :
-- `rules.txt` — anciennes règles statiques
-- `credits.txt` — crédits
+- `rules.txt` — anciennes règles statiques (legacy ; non exposé par l’UI moderne)
+- `credits.txt` — crédits (écran accueil → lien **Crédits** → `BlomixPlainTextModalViewController` ; FR + EN dans le bundle)
 
-L'UI moderne utilise `RULES.md` / écrans in-game via `BlomixL10n`, pas `rules.txt`.
+L'UI moderne utilise `BlomixL10n` pour les chaînes ; le tutoriel remplace l’ancien `rules.txt`.
 
 ---
 
@@ -111,10 +111,10 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | MARK | Contenu |
 |---|---|
 | Commun | Fermer, annuler, alertes quitter |
-| Accueil & jeu | Boutons start, menu, game over, HUD |
+| Accueil & jeu | Boutons start, liens utilitaires (Réglages · Tutoriel · Crédits), game over, HUD |
 | Game Center | Statut connexion GC |
 | Skins | Noms des palettes couleur |
-| Règles / crédits | Fallback si fichiers txt absents |
+| Règles / crédits | Titres modals + fallback si `credits.txt` / `rules.txt` absents |
 | Paramètres | Audio, police, langue |
 | PvP | Lobby, invitations, résultats, Elo |
 | Partage | Bouton, a11y, messages accueil/GO, badge record (`share.*`) |

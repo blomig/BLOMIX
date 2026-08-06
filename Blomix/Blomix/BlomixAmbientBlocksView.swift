@@ -13,7 +13,9 @@ import UIKit
 @MainActor
 final class BlomixAmbientBlocksView: UIView {
 
-    private let blockSize: CGFloat = 18
+    /// Aligné sur SpriteKit (`GameScene.spawnAmbientBlock`) : max 18 pt, min = max/2.
+    private let blockSizeMax: CGFloat = 18
+    private var blockSizeMin: CGFloat { blockSizeMax / 2 }
     private let colorKeys = ["red", "blue", "green", "yellow", "purple", "orange"]
     private var spawnTimer: Timer?
 
@@ -42,7 +44,8 @@ final class BlomixAmbientBlocksView: UIView {
 
     private func scheduleNextSpawn() {
         spawnTimer?.invalidate()
-        let delay = Double.random(in: 0.25...2.0)
+        // Densité ×2 vs historique 0,25…2,0 s (aligné sur le même facteur côté SpriteKit).
+        let delay = Double.random(in: 0.125...1.0)
         spawnTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.window != nil else { return }
@@ -55,23 +58,24 @@ final class BlomixAmbientBlocksView: UIView {
     private func spawnBlock() {
         let w = bounds.width
         let h = bounds.height
-        guard w > blockSize * 2, h > 0 else { return }
+        guard w > blockSizeMax * 2, h > 0 else { return }
+
+        let blockSize = CGFloat.random(in: blockSizeMin...blockSizeMax)
 
         let colorKey = colorKeys.randomElement() ?? "blue"
         let color = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: colorKey)
                     ?? UIColor(red: 0.4, green: 0.5, blue: 0.9, alpha: 1)
 
+        // Forme alignée SpriteKit : carré plein, pas de coins / bordure.
         let block = UIView()
         block.backgroundColor = color
-        block.layer.cornerRadius = 3
-        block.layer.borderWidth = 0.5
-        block.layer.borderColor = (BlomixAppearance.isDark
-            ? UIColor(white: 1, alpha: 0.25)
-            : UIColor(white: 0, alpha: 0.12)).cgColor
-        block.alpha = 0.85
+        block.layer.cornerRadius = 0
+        block.alpha = 0.92
 
         let xInset = blockSize / 2 + 8
-        let x = CGFloat.random(in: xInset...(w - xInset - blockSize))
+        let maxX = w - xInset - blockSize
+        guard maxX > xInset else { return }
+        let x = CGFloat.random(in: xInset...maxX)
         block.frame = CGRect(x: x, y: h, width: blockSize, height: blockSize)
         addSubview(block)
 
@@ -82,7 +86,7 @@ final class BlomixAmbientBlocksView: UIView {
         let duration = TimeInterval(distance / speed)
 
         UIView.animate(withDuration: duration, delay: 0, options: [.curveLinear]) {
-            block.frame.origin.y = -(self.blockSize * 2)
+            block.frame.origin.y = -(blockSize * 2)
         } completion: { _ in
             block.removeFromSuperview()
         }

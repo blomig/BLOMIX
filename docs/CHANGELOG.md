@@ -7,7 +7,22 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.6] — 2026-08 (courant)
+## [5.7] — 2026-08 (courant)
+
+Build **75**.
+
+### Modifié
+- **SCRUMBLX** : fin d’animation robuste — attente = max sur toutes les lignes (plus seulement la dernière), réapplication idempotente des décalages depuis snapshot, token d’anim pour ignorer les callbacks en retard ; évite 1–2 blox/brix non remontés
+- **Blox ambiants** (accueil / game over SK + écrans UIKit) :
+  - Forme UIKit alignée SK (carré plein, α 0,92)
+  - Densité ×2 (intervalles de spawn divisés par 2)
+  - Taille aléatoire **9…18** pt
+- **Crédits** : mise à jour contenu `credits.txt` (FR/EN)
+- Version marketing **5.7** (build **75**)
+
+---
+
+## [5.6] — 2026-08
 
 Build **74**.
 

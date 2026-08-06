@@ -712,6 +712,8 @@ final class GameScene: SKScene {
     private static let junctionNodeNamePrefix = "junction_"
     /// Placeholders visuels des cases vides pendant l'animation SCRUMBLX (hors `cell_*` pour ne pas perturber la compaction).
     private static let scrumblxHoleNodePrefix = "scrumblx_hole_"
+    /// Génération d’animation SCRUMBLX : les callbacks différés d’une run précédente (ou en retard) s’ignorent.
+    private var scrumblxAnimGeneration: Int = 0
     private static let previewNodeName = "currentBlockPreview"
     private static let fallingSpriteName = "fallingBlockTemp"
     private static let previewPriksDigitName = "previewPriksDigit"
@@ -2187,7 +2189,8 @@ final class GameScene: SKScene {
         overlay.removeAction(forKey: actionKey)
 
         func scheduleNextSpawn(on overlay: SKNode) {
-            let wait = SKAction.wait(forDuration: Double.random(in: 0...2))
+            // Densité ×2 vs historique 0…2 s (même facteur que `BlomixAmbientBlocksView`).
+            let wait = SKAction.wait(forDuration: Double.random(in: 0...1))
             let spawn = SKAction.run { [weak self, weak overlay] in
                 guard let self, let overlay else { return }
                 guard overlay.parent != nil else { return }
@@ -2207,7 +2210,9 @@ final class GameScene: SKScene {
     private func spawnAmbientBlock(in overlay: SKNode, containerName: String) {
         guard let container = overlay.childNode(withName: containerName) else { return }
 
-        let miniSize = CGSize(width: 18, height: 18)
+        let sizeMax: CGFloat = 18
+        let side = CGFloat.random(in: (sizeMax / 2)...sizeMax)
+        let miniSize = CGSize(width: side, height: side)
         let colorKey = Self.startScreenAmbientBlockColorKeys.randomElement() ?? "red"
         let block = SKSpriteNode(
             color: Self.bloxSolidFillColor(forNormalizedKey: colorKey) ?? SKColor(white: 0.45, alpha: 1),
@@ -2218,7 +2223,9 @@ final class GameScene: SKScene {
         block.zPosition = 0
 
         let horizontalInset = miniSize.width / 2 + 8
-        let x = CGFloat.random(in: horizontalInset...(size.width - horizontalInset))
+        let maxX = size.width - horizontalInset
+        guard maxX > horizontalInset else { return }
+        let x = CGFloat.random(in: horizontalInset...maxX)
         let startY = -miniSize.height
         let endY = size.height + miniSize.height
         block.position = CGPoint(x: x, y: startY)
@@ -8035,6 +8042,15 @@ final class GameScene: SKScene {
             shifts.append(RowShift(row: r, direction: dir, steps: steps))
         }
 
+        // Snapshot logique **après** −1 Brix / case d’atterrissage, **avant** tout décalage de ligne.
+        // La finalisation réapplique ces shifts de façon idempotente (ne dépend pas des callbacks
+        // de fin de ligne, qui peuvent être en retard si une ligne du haut a plus de crans).
+        let gridBeforeRowShifts: [[BlockType]] = grid.map { Array($0) }
+
+        // Invalide d’éventuels callbacks d’un SCRUMBLX précédent ; capture pour cette run.
+        scrumblxAnimGeneration &+= 1
+        let animGen = scrumblxAnimGeneration
+
         // ── 5. Animation : un cran à la fois, wrap-around visuel à chaque bord.
         //
         // Pour chaque cran, on identifie les sprites qui sortiraient de la grille et on les
@@ -8056,7 +8072,7 @@ final class GameScene: SKScene {
                 run(SKAction.sequence([
                     SKAction.wait(forDuration: stepDelay),
                     SKAction.run { [weak self] in
-                        guard let self else { return }
+                        guard let self, self.scrumblxAnimGeneration == animGen else { return }
                         // Son procédural SCRUMBLX : un cliquet par cran (durée globale = timeline visuelle).
                         // Intensité légèrement corrélée au nombre de crans de la ligne (plus long = un peu plus présent).
                         let intensity = 0.65 + 0.35 * Float(shift.steps) / 7.0
@@ -8095,52 +8111,81 @@ final class GameScene: SKScene {
                 ]))
             }
 
-            // Après le dernier cran : mise à jour grille + renommage sprites.
+            // Après le dernier cran : renommage sprites uniquement (la grille logique est
+            // reconstruite de façon sûre à la finalisation depuis `gridBeforeRowShifts`).
             let finalDelay = lineStartDelay + Double(shift.steps) * cranDur
             run(SKAction.sequence([
                 SKAction.wait(forDuration: finalDelay),
                 SKAction.run { [weak self] in
-                    guard let self else { return }
+                    guard let self, self.scrumblxAnimGeneration == animGen else { return }
                     let r     = shift.row
                     let delta = shift.direction * shift.steps
-
-                    let oldRow = self.grid[r]
+                    // Mise à jour progressive de `grid` pour cohérence si un save mid-anim
+                    // (stabilize) lit l’état ; la finalisation réécrit depuis le snapshot.
+                    let oldRow = gridBeforeRowShifts[r]
                     var newRow = [BlockType](repeating: .empty, count: cols)
                     for c in 0..<cols {
                         let newC = ((c + delta) % cols + cols) % cols
                         newRow[newC] = oldRow[c]
                     }
                     self.grid[r] = newRow
-
                     self.renameScrumblxShiftRowSprites(in: container, row: r, delta: delta)
                 },
             ]))
         }
 
-        // ── 6. Après toutes les animations : gravité (compaction vers le haut) puis resolveChains.
+        // ── 6. Après **toutes** les lignes : gravité puis resolveChains.
+        // Bug historique : on prenait uniquement `last.steps` (dernière ligne du tableau).
+        // Une ligne plus haute avec plus de crans finissait **après** ce délai → drawGrid +
+        // compaction trop tôt → 1–2 blocs restaient visuellement bas / non remontés.
         let lastShiftEnd: TimeInterval = {
-            guard let last = shifts.last else { return flashDur }
-            return flashDur + Double(shifts.count - 1) * rowGap + Double(last.steps) * cranDur
+            guard !shifts.isEmpty else { return flashDur }
+            return shifts.enumerated().map { idx, shift in
+                flashDur + Double(idx) * rowGap + Double(shift.steps) * cranDur
+            }.max() ?? flashDur
         }()
-
-        // Snapshot des colonnes occupées pris maintenant (avant compaction) pour les bonus colonne vidée.
-        let columnHadBlock: [Bool] = (0..<GridLayout.columnCount).map { col in
-            (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
-        }
 
         run(SKAction.sequence([
             SKAction.wait(forDuration: lastShiftEnd + 0.15),
             SKAction.run { [weak self] in
-                guard let self else { return }
+                guard let self, self.scrumblxAnimGeneration == animGen else { return }
+                // Coupe net tout callback / moveBy encore en file pour cette run.
+                self.scrumblxAnimGeneration &+= 1
+
+                // État logique final = snapshot pré-shift + tous les décalages (idempotent).
+                self.grid = gridBeforeRowShifts
+                for shift in shifts {
+                    let r = shift.row
+                    let delta = shift.direction * shift.steps
+                    let oldRow = gridBeforeRowShifts[r]
+                    var newRow = [BlockType](repeating: .empty, count: cols)
+                    for c in 0..<cols {
+                        let newC = ((c + delta) % cols + cols) % cols
+                        newRow[newC] = oldRow[c]
+                    }
+                    self.grid[r] = newRow
+                }
+
+                // Bonus colonnes : snapshot **après** shifts, **avant** compaction.
+                let columnHadBlock: [Bool] = (0..<GridLayout.columnCount).map { col in
+                    (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
+                }
+
                 // Retirer le border temporaire posé dans la scène : drawGrid() le recrée dans le container.
                 tempOutline?.removeFromParent()
                 // Restaurer le container depuis le cropWrapper avant de redessiner la grille.
                 cropWrapper.removeFromParent()
                 container.removeFromParent()
+                // Stoppe les moveBy horizontaux résiduels avant le rebuild.
+                container.removeAllActions()
+                for child in container.children {
+                    child.removeAllActions()
+                }
                 container.position = containerScenePos
                 self.addChild(container)
                 // Retire les trous visuels SCRUMBLX : seuls les vrais blocs (`cell_*`) servent à la compaction.
                 self.removeScrumblxHolePlaceholders(in: container)
+                // Rebuild propre depuis la grille logique finale (positions exactes pré-compaction).
                 self.drawGrid()
                 self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
             },

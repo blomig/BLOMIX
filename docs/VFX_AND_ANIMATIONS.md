@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 5.6  
+> **Version de référence** : 5.7  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 
@@ -384,7 +384,8 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 | **Visuel** | Flash blanc sprite ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
 | **Logique** | −1 tous Brix avant shift |
 | **Audio** | `scrumblx` + `priksVanish` staggeré pour Brix à 0 |
-| **Suite** | `resolveChains()` |
+| **Fin d’anim** | Attente = **max** sur toutes les lignes de `flash + idx×0,3 + steps×0,08` (pas seulement la dernière ligne) ; réapplication idempotente des shifts depuis snapshot pré-décalage ; `drawGrid` puis compaction vers le haut |
+| **Suite** | compaction animée + `resolveChains()` |
 
 ### 6.5 COLORX
 
@@ -618,11 +619,14 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 | Settle | 0,04 s | scale 1,0 |
 | Hero release | — | restaure bordure/fond accent (`restingFillColor` / `restingBorderColor`) |
 
-### 11.3 Blocs ambiants (`BlomixAmbientBlocksView`)
+### 11.3 Blocs ambiants (`BlomixAmbientBlocksView` + SpriteKit)
 
-- SpriteKit (accueil, Game Over) et UIKit (settings)
-- Vitesse aléatoire, rotation lente, rebond sur bords
-- z 0,5 (entre fond et contenu)
+- SpriteKit (accueil, Game Over) et UIKit (réglages, classements, lobby PvP, …)
+- Montée bas → haut, courbe linéaire ; **pas** de rotation ni rebond
+- Forme : carré plein (UIKit aligné SK : sans coins / bordure) ; alpha **0,92**
+- Taille aléatoire **9…18** pt ; spawn densifié ×2 (SK `0…1` s, UIKit `0,125…1,0` s) ; pas de plafond de présence
+- Vitesse : multi **1/3…3×** (bases SK / UIKit inchangées)
+- z 0,5 SK (entre fond et contenu) ; UIKit en `insertSubview` index 0
 
 ### 11.4 Compteur LIGNE x/10
 

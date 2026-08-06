@@ -12,14 +12,13 @@ Merci à :
 - Google pour Google Sans
 - Toshi Omagari, Jennifer Daniel pour DynaPuff
 - JM Solé pour Alfa Slab One
-*
-Bomb icon : Bomb icon created by Freepik - Flaticon
+- Eduardo Tunni pour Changa One
 *
 Sounds: Freesound.org, vocalremover.org/pitch, pitchchanger.io,
 Merci à : HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux
 *
-Music : "Puzzle Game 2" by Eric Matyas Soundimage.org, "Calm" by Nikita Kondrashev from Pixabay
+Music : "Puzzle Game 2" by Eric Matyas Soundimage.org
 *
-Colour palette: Coolors.com — Tropical Sunset Vibes légèrement augmentée
+Colour palette: Coolors.com — Initialement Tropical Sunset Vibes légèrement augmentée
 *
 beta-testing: merci à Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben

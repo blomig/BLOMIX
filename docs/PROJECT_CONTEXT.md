@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 5.6  
+> **Version de référence** : 5.7  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -406,4 +406,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v5.6 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v5.7 — à maintenir lors des évolutions majeures.*

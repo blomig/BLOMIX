@@ -16,8 +16,10 @@ import UIKit
 /// - **`submitScore`** met toujours à jour le **backup UserDefaults** (Solo ou Zen), puis tente Game Center ;
 ///   hors ligne ou échec réseau → file d’attente **par leaderboard** (meilleur score Solo et Zen séparés).
 /// - **`recordGameScore`** met à jour la moyenne locale ; hors ligne la moyenne est resynchronisée à l’auth GC.
-/// - Au succès d’auth : flush Solo pending + Zen pending + moyenne locale courante.
-/// - **`fetchLocalPlayerBestScore`** alimente la comparaison pour **`isNewPersonalBest`** (max local + GC si déjà chargé).
+/// - Au succès d’auth / retour foreground : flush `max(local, pending)` Solo + Zen, puis moyenne ;
+///   réconciliation **local → GC** si le hiscore appareil dépasse le best GC (sans jamais baisser le local).
+/// - **`fetchLocalPlayerBestScore`** alimente la comparaison pour **`isNewPersonalBest`** (max local + GC si déjà chargé)
+///   et déclenche un upload local si `local > GC` (throttle).
 @MainActor
 final class ScoreManager {
     // MARK: - Singleton
@@ -33,6 +35,15 @@ final class ScoreManager {
 
     private init() {
         migrateScoreVersionIfNeeded()
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.syncScoresWithGameCenterIfPossible(reason: "did_become_active")
+            }
+        }
     }
 
     /// Réinitialise le meilleur score local si la version du scoring a changé (nouveau leaderboard, nouveau système de points).
@@ -53,6 +64,13 @@ final class ScoreManager {
 
     /// Évite de réinstaller `GKLocalPlayer.local.authenticateHandler` (une seule configuration au lancement).
     private var didStartAuthentication = false
+
+    /// Throttle des réconciliations fetch+upload (auth / foreground / fetch HUD).
+    private var lastFullSyncAt: Date?
+    private var lastForcedUploadAtByLeaderboard: [String: Date] = [:]
+    private let fullSyncMinInterval: TimeInterval = 12
+    private let forcedUploadMinInterval: TimeInterval = 45
+    private var isSyncingBestScores = false
 
     // MARK: - High-score local (backup UserDefaults)
 
@@ -88,6 +106,7 @@ final class ScoreManager {
     }
 
     /// Met à jour le high-score Solo **disque** uniquement si `score` est strictement supérieur à la valeur actuelle.
+    /// En cas de nouveau record, aligne aussi le pending GC (évite local haut / pending 0 après migration ou clear anticipé).
     @discardableResult
     func updateLocalHighScoreIfBetter(_ score: Int) -> Bool {
         guard score > localHighScore else {
@@ -95,15 +114,18 @@ final class ScoreManager {
             return false
         }
         localHighScore = score
+        savePendingGCScore(score, leaderboardID: ScoreManager.mainLeaderboardID)
         print("[ScoreManager] Backup local (UserDefaults) mis à jour : nouveau record = \(score).")
         return true
     }
 
     /// Met à jour le high-score Zen **disque** uniquement si `score` est strictement supérieur à la valeur actuelle.
+    /// En cas de nouveau record, aligne aussi le pending GC Zen.
     @discardableResult
     func updateLocalZenHighScoreIfBetter(_ score: Int) -> Bool {
         guard score > localZenHighScore else { return false }
         localZenHighScore = score
+        savePendingGCScore(score, leaderboardID: ScoreManager.zenLeaderboardID)
         print("[ScoreManager] Backup Zen local mis à jour : nouveau record Zen = \(score).")
         return true
     }
@@ -199,7 +221,7 @@ final class ScoreManager {
                 print("[ScoreManager] Authentification terminée. isAuthenticated=\(self.isAuthenticated), displayName=\(name)")
                 NotificationCenter.default.post(name: .blomixGameCenterAuthDidChange, object: nil)
                 if self.isAuthenticated {
-                    self.flushPendingGCScoreIfNeeded()
+                    self.syncScoresWithGameCenterIfPossible(reason: "auth_success")
                     // Identité + Elo PvP (Local hors ligne).
                     BlomixEloManager.shared.persistLocalGameIdentityFromGameCenter()
                     BlomixEloManager.shared.flushPendingEloIfNeeded()
@@ -226,6 +248,22 @@ final class ScoreManager {
         return nil
     }
 
+    private func localHighScore(forLeaderboardID leaderboardID: String) -> Int {
+        if leaderboardID == ScoreManager.zenLeaderboardID { return getLocalZenHighScore() }
+        if leaderboardID == ScoreManager.mainLeaderboardID { return getLocalHighScore() }
+        return 0
+    }
+
+    private func pendingScore(forLeaderboardID leaderboardID: String) -> Int {
+        guard let key = pendingKey(forLeaderboardID: leaderboardID) else { return 0 }
+        return max(0, UserDefaults.standard.integer(forKey: key))
+    }
+
+    /// Score à pousser vers GC : max(hiscore local, pending). Source de vérité appareil = local.
+    private func bestScoreToUpload(forLeaderboardID leaderboardID: String) -> Int {
+        max(localHighScore(forLeaderboardID: leaderboardID), pendingScore(forLeaderboardID: leaderboardID))
+    }
+
     /// Mémorise `score` pour le leaderboard donné. Ne conserve que le **meilleur** score par file (Solo / Zen séparés).
     private func savePendingGCScore(_ score: Int, leaderboardID: String) {
         guard score > 0, let key = pendingKey(forLeaderboardID: leaderboardID) else { return }
@@ -240,25 +278,119 @@ final class ScoreManager {
         UserDefaults.standard.removeObject(forKey: key)
     }
 
-    /// Appelé dès que Game Center redevient disponible : Solo pending, Zen pending, puis moyenne locale.
-    private func flushPendingGCScoreIfNeeded() {
-        let ud = UserDefaults.standard
-
-        let pendingMain = ud.integer(forKey: LocalPersistence.pendingGCScoreKey)
-        if pendingMain > 0 {
-            clearPendingGCScore(leaderboardID: ScoreManager.mainLeaderboardID)
-            print("[ScoreManager] Reconnexion GC — soumission Solo en attente : \(pendingMain).")
-            submitScore(pendingMain, leaderboardID: ScoreManager.mainLeaderboardID, completion: nil)
+    /// Après un submit **réussi** sur un leaderboard Best Score : GC a au moins `score`.
+    /// On efface le pending s’il est ≤ score (dette couverte). On ne recrée **pas** une dette
+    /// juste parce que le local est plus haut — la réconciliation fetch s’en charge si GC < local.
+    private func clearPendingAfterSuccessfulSubmit(score: Int, leaderboardID: String) {
+        let pending = pendingScore(forLeaderboardID: leaderboardID)
+        guard pending > 0 else { return }
+        if pending <= score {
+            clearPendingGCScore(leaderboardID: leaderboardID)
+            print("[ScoreManager] Pending « \(leaderboardID) » effacé après submit OK (\(score) ≥ pending \(pending)).")
         }
+    }
 
-        let pendingZen = ud.integer(forKey: LocalPersistence.pendingZenGCScoreKey)
-        if pendingZen > 0 {
-            clearPendingGCScore(leaderboardID: ScoreManager.zenLeaderboardID)
-            print("[ScoreManager] Reconnexion GC — soumission Zen en attente : \(pendingZen).")
-            submitScore(pendingZen, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
+    /// Point d’entrée public : auth, foreground, ou appel manuel.
+    /// Flush `max(local, pending)` Solo/Zen + moyenne, puis réconciliation fetch si besoin.
+    func syncScoresWithGameCenterIfPossible(reason: String) {
+        // Aligne l’état app sur GameKit (ex. réseau revenu sans rejouer le handler).
+        let gkOK = GKLocalPlayer.local.isAuthenticated
+        if gkOK != isAuthenticated {
+            isAuthenticated = gkOK
+            NotificationCenter.default.post(name: .blomixGameCenterAuthDidChange, object: nil)
         }
+        guard isAuthenticated else { return }
 
+        if let last = lastFullSyncAt, Date().timeIntervalSince(last) < fullSyncMinInterval {
+            // Toujours tenter un flush « best local » léger (pas de fetch) même sous throttle court.
+            flushBestLocalScoresToGCIfNeeded(reason: "\(reason)_throttled_flush")
+            return
+        }
+        lastFullSyncAt = Date()
+        flushBestLocalScoresToGCIfNeeded(reason: reason)
         flushLocalAverageToGCIfNeeded()
+        reconcileLocalHighScoresWithGameCenter(reason: reason)
+    }
+
+    /// Pousse Solo / Zen : `max(hiscore local, pending)` — **sans** clear pending avant succès réseau.
+    private func flushBestLocalScoresToGCIfNeeded(reason: String) {
+        guard isAuthenticated else { return }
+        for leaderboardID in [ScoreManager.mainLeaderboardID, ScoreManager.zenLeaderboardID] {
+            let toUpload = bestScoreToUpload(forLeaderboardID: leaderboardID)
+            guard toUpload > 0 else { continue }
+            // Si GC cache déjà ≥ local et pas de pending, inutile de re-soumettre en boucle.
+            let pending = pendingScore(forLeaderboardID: leaderboardID)
+            let local = localHighScore(forLeaderboardID: leaderboardID)
+            if pending == 0,
+               leaderboardID == ScoreManager.zenLeaderboardID,
+               hasFetchedGameCenterZenPersonalBest,
+               cachedGameCenterZenPersonalBest >= local {
+                continue
+            }
+            if pending == 0,
+               leaderboardID == ScoreManager.mainLeaderboardID,
+               hasFetchedGameCenterPersonalBest,
+               cachedGameCenterPersonalBest >= local {
+                continue
+            }
+            print("[ScoreManager] Sync GC (\(reason)) — upload \(toUpload) → « \(leaderboardID) » (local=\(local), pending=\(pending)).")
+            submitScore(toUpload, leaderboardID: leaderboardID, completion: nil)
+        }
+    }
+
+    /// Si hiscore local > best GC connu / fetché, re-soumet le local (leaderboards Best Score : GC garde le max).
+    private func reconcileLocalHighScoresWithGameCenter(reason: String) {
+        guard isAuthenticated, !isSyncingBestScores else { return }
+        isSyncingBestScores = true
+        let group = DispatchGroup()
+        for leaderboardID in [ScoreManager.mainLeaderboardID, ScoreManager.zenLeaderboardID] {
+            let local = localHighScore(forLeaderboardID: leaderboardID)
+            guard local > 0 else { continue }
+            group.enter()
+            fetchLocalPlayerBestScore(leaderboardID: leaderboardID) { [weak self] result in
+                defer { group.leave() }
+                guard let self else { return }
+                let remote: Int
+                switch result {
+                case .success(let best): remote = best ?? 0
+                case .failure: return
+                }
+                if local > remote {
+                    self.uploadLocalBestIfAhead(
+                        leaderboardID: leaderboardID,
+                        local: local,
+                        remoteBest: remote,
+                        reason: reason
+                    )
+                } else if remote >= self.pendingScore(forLeaderboardID: leaderboardID),
+                          remote >= local {
+                    // GC déjà ≥ local : plus de dette d’upload.
+                    self.clearPendingGCScore(leaderboardID: leaderboardID)
+                }
+            }
+        }
+        group.notify(queue: .main) { [weak self] in
+            self?.isSyncingBestScores = false
+        }
+    }
+
+    private func uploadLocalBestIfAhead(
+        leaderboardID: String,
+        local: Int,
+        remoteBest: Int,
+        reason: String
+    ) {
+        guard local > remoteBest, local > 0 else { return }
+        if let last = lastForcedUploadAtByLeaderboard[leaderboardID],
+           Date().timeIntervalSince(last) < forcedUploadMinInterval {
+            // Sous throttle : s’assurer au moins que le pending porte le local.
+            savePendingGCScore(local, leaderboardID: leaderboardID)
+            return
+        }
+        lastForcedUploadAtByLeaderboard[leaderboardID] = Date()
+        savePendingGCScore(local, leaderboardID: leaderboardID)
+        print("[ScoreManager] Réconciliation (\(reason)) local \(local) > GC \(remoteBest) sur « \(leaderboardID) » — upload.")
+        submitScore(local, leaderboardID: leaderboardID, completion: nil)
     }
 
     /// Resynchronise le leaderboard moyenne depuis les stats locales (toujours exactes hors ligne).
@@ -352,7 +484,9 @@ final class ScoreManager {
         completion: (@Sendable @MainActor (Result<Void, Error>) -> Void)? = nil
     ) {
         // Backup disque **toujours** tenté en premier (hors ligne, échec réseau Game Center, ou joueur non connecté).
+        // Nouveau record local → pending aligné (via updateLocal*).
         let isZen = (leaderboardID == ScoreManager.zenLeaderboardID)
+        let isBestScoreBoard = isZen || leaderboardID == ScoreManager.mainLeaderboardID
         if isZen {
             _ = updateLocalZenHighScoreIfBetter(score)
         } else if leaderboardID == ScoreManager.mainLeaderboardID {
@@ -360,8 +494,11 @@ final class ScoreManager {
         }
 
         guard isAuthenticated else {
-            // GC inaccessible : file d’attente **par leaderboard** (Solo / Zen séparés).
-            savePendingGCScore(score, leaderboardID: leaderboardID)
+            // Hors ligne : dette = max(score de la partie, hiscore local) pour ne jamais perdre un PB local.
+            if isBestScoreBoard {
+                let localBackup = localHighScore(forLeaderboardID: leaderboardID)
+                savePendingGCScore(max(score, localBackup), leaderboardID: leaderboardID)
+            }
             let localBackup = isZen ? getLocalZenHighScore() : getLocalHighScore()
             let error = NSError(
                 domain: "ScoreManager",
@@ -384,13 +521,29 @@ final class ScoreManager {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if let error {
-                    // Échec réseau alors qu'authentifié : re-tentative au prochain auth (même leaderboard).
-                    self.savePendingGCScore(score, leaderboardID: leaderboardID)
+                    // Échec réseau : pending = max(score tenté, hiscore local) pour le prochain sync.
+                    if isBestScoreBoard {
+                        let localBackup = self.localHighScore(forLeaderboardID: leaderboardID)
+                        self.savePendingGCScore(max(score, localBackup), leaderboardID: leaderboardID)
+                    }
                     let localBackup = isZen ? self.getLocalZenHighScore() : self.getLocalHighScore()
                     print("[ScoreManager] Erreur submitScore \(leaderboardID): \(error.localizedDescription) — backup local = \(localBackup).")
                     completion?(.failure(error))
                 } else {
                     print("[ScoreManager] Score \(score) soumis avec succès sur « \(leaderboardID) ».")
+                    if isBestScoreBoard {
+                        self.clearPendingAfterSuccessfulSubmit(score: score, leaderboardID: leaderboardID)
+                        // Cache GC : au moins ce score (Best Score GC ne descend pas).
+                        let prev: Int = {
+                            if isZen {
+                                return self.hasFetchedGameCenterZenPersonalBest
+                                    ? self.cachedGameCenterZenPersonalBest : 0
+                            }
+                            return self.hasFetchedGameCenterPersonalBest
+                                ? self.cachedGameCenterPersonalBest : 0
+                        }()
+                        self.recordGameCenterPersonalBestFromFetch(max(prev, score), leaderboardID: leaderboardID)
+                    }
                     completion?(.success(()))
                 }
             }
@@ -461,10 +614,28 @@ final class ScoreManager {
                         self.recordGameCenterPersonalBestFromFetch(value, leaderboardID: leaderboardID)
                         print("[ScoreManager] Meilleur score local sur « \(leaderboardID) » : \(value).")
                         completion(.success(value))
+                        let local = self.localHighScore(forLeaderboardID: leaderboardID)
+                        if local > value {
+                            self.uploadLocalBestIfAhead(
+                                leaderboardID: leaderboardID,
+                                local: local,
+                                remoteBest: value,
+                                reason: "fetch_best"
+                            )
+                        }
                     } else {
                         self.recordGameCenterPersonalBestFromFetch(nil, leaderboardID: leaderboardID)
                         print("[ScoreManager] Aucune entrée locale encore enregistrée sur « \(leaderboardID) ».")
                         completion(.success(nil))
+                        let local = self.localHighScore(forLeaderboardID: leaderboardID)
+                        if local > 0 {
+                            self.uploadLocalBestIfAhead(
+                                leaderboardID: leaderboardID,
+                                local: local,
+                                remoteBest: 0,
+                                reason: "fetch_best_empty"
+                            )
+                        }
                     }
                 }
             }

@@ -9,16 +9,19 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.7] — 2026-08 (courant)
 
-Build **75**.
+Build **76** (TestFlight).
+
+### Ajouté
+- **PvP — série de revanches** : compteur de victoires session (local only) ; HUD `ABC  X  ·  Y  DEF` après lancement d’une revanche ; overlay fin de série si ≥ 2 parties (Accueil / timeout / déco) — online + Multipeer ; Elo inchangé par partie
+- **Crédits en cartes** : `BlomixCreditsViewController` (header BLOMIX + tagline + version, sections Studio/Code/Polices/Sons/Musique/Palette/Beta, accent skin, Jour/Nuit)
 
 ### Modifié
-- **SCRUMBLX** : fin d’animation robuste — attente = max sur toutes les lignes (plus seulement la dernière), réapplication idempotente des décalages depuis snapshot, token d’anim pour ignorer les callbacks en retard ; évite 1–2 blox/brix non remontés
-- **Blox ambiants** (accueil / game over SK + écrans UIKit) :
-  - Forme UIKit alignée SK (carré plein, α 0,92)
-  - Densité ×2 (intervalles de spawn divisés par 2)
-  - Taille aléatoire **9…18** pt
-- **Crédits** : mise à jour contenu `credits.txt` (FR/EN)
-- Version marketing **5.7** (build **75**)
+- **Game Center Solo/Zen** : sync `max(local, pending)` ; pending effacé seulement après submit OK ; réconciliation **local > GC** (auth + foreground) — récupère un hiscore Zen offline non poussé
+- **Overlay défi Elo** : fond thème chrome (plus de noir fixe en mode Jour)
+- **Timer Solo** : affiche tout de suite 32 s au lancement (plus de flash 4 s/8 s d’un stage précédent)
+- **SCRUMBLX** : fin d’animation robuste (attente = max sur toutes les lignes + snapshot + token)
+- **Blox ambiants** : UIKit aligné SK ; densité ×2 ; taille aléatoire 9…18 pt
+- Version marketing **5.7** (build **76**)
 
 ---
 

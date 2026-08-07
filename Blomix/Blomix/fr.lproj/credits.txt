@@ -1,24 +1,3 @@
-BLOMIX (c) Terrasse studio
-Design / Lomig
-/////////
-Crédits:
-*
-Code : Grok.com & Cursor.com
-Un grand merci à Max pour son aide.
-*
-Font: Google Fonts
-Merci à :
-- Petr van Blokland pour Bitcount Grid Single
-- Google pour Google Sans
-- Toshi Omagari, Jennifer Daniel pour DynaPuff
-- JM Solé pour Alfa Slab One
-- Eduardo Tunni pour Changa One
-*
-Sounds: Freesound.org, vocalremover.org/pitch, pitchchanger.io,
-Merci à : HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux
-*
-Music : "Puzzle Game 2" by Eric Matyas Soundimage.org
-*
-Colour palette: Coolors.com — Initialement Tropical Sunset Vibes légèrement augmentée
-*
-beta-testing: merci à Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben
+# Legacy — non affiché par l’UI.
+# Contenu des crédits : clés credits.section.* dans Localizable.strings
+# + écran BlomixCreditsViewController.

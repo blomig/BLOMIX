@@ -67,6 +67,13 @@
 "pvp.result_rematch_opponent_ready" = "¡Oponente listo!";
 "pvp.result_rematch_launching" = "Iniciando…";
 "pvp.hud_match_against_format" = "Partida contra: %@";
+"pvp.hud_series_score_format" = "%@  %lld  ·  %lld  %@";
+"pvp.series_end_title" = "Fin de la serie";
+"pvp.series_end_you_lead" = "Lideras la serie";
+"pvp.series_end_you_trail" = "Vas perdiendo";
+"pvp.series_end_tied" = "Empate";
+"pvp.series_end_games_format" = "%lld partidas jugadas";
+"pvp.series_end_ok" = "OK";
 
 "menu.new_game" = "Inicio";
 "menu.scores" = "Puntuaciones";
@@ -308,3 +315,21 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "pvp.local.gc_required_message" = "Inicia sesión en Game Center una vez con red. Luego podrás jugar en local aunque estés sin conexión.";
 "pvp.local.pick_peer_title" = "Jugadores cerca";
 "pvp.local.pick_peer_message" = "Elige contra quién jugar.";
+
+/* Credits screen (cards) */
+"credits.tagline" = "Quienes hicieron posible el juego.";
+"credits.version_format" = "Versión %@ (%@)";
+"credits.section.studio.title" = "Estudio";
+"credits.section.studio.body" = "BLOMIX © Terrasse studio\nDiseño / Lomig";
+"credits.section.code.title" = "Código";
+"credits.section.code.body" = "Grok.com & Cursor.com\nUn gran gracias a Max por su ayuda.";
+"credits.section.fonts.title" = "Fuentes";
+"credits.section.fonts.body" = "Google Fonts\nPetr van Blokland — Bitcount Grid Single\nGoogle — Google Sans\nToshi Omagari, Jennifer Daniel — DynaPuff\nJM Solé — Alfa Slab One\nEduardo Tunni — Changa One";
+"credits.section.sounds.title" = "Sonidos";
+"credits.section.sounds.body" = "Freesound.org, vocalremover.org/pitch, pitchchanger.io\nGracias a: HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux";
+"credits.section.music.title" = "Música";
+"credits.section.music.body" = "« Puzzle Game 2 » de Eric Matyas — Soundimage.org";
+"credits.section.palette.title" = "Paleta de color";
+"credits.section.palette.body" = "Coolors.com — inicialmente Tropical Sunset Vibes, ligeramente mejorada";
+"credits.section.beta.title" = "Beta-test";
+"credits.section.beta.body" = "Gracias a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";

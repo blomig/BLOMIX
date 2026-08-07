@@ -1337,6 +1337,121 @@ final class BlomixPvPResultViewController: UIViewController {
     }
 }
 
+// MARK: - Fin de série PvP (revanches enchaînées)
+
+/// Overlay court après ≥ 2 parties enchaînées par revanches — style résultat PvP (Jour/Nuit).
+@MainActor
+final class BlomixPvPSeriesEndViewController: UIViewController {
+
+    private let localPrefix: String
+    private let remotePrefix: String
+    private let localWins: Int
+    private let remoteWins: Int
+    private let gamesPlayed: Int
+
+    private let titleLabel = UILabel()
+    private let scoreLabel = UILabel()
+    private let outcomeLabel = UILabel()
+    private let gamesLabel = UILabel()
+    private let okButton = BlomixUIButton()
+
+    var onDismiss: (() -> Void)?
+
+    init(localPrefix: String, remotePrefix: String, localWins: Int, remoteWins: Int, gamesPlayed: Int) {
+        self.localPrefix = localPrefix
+        self.remotePrefix = remotePrefix
+        self.localWins = localWins
+        self.remoteWins = remoteWins
+        self.gamesPlayed = gamesPlayed
+        super.init(nibName: nil, bundle: nil)
+        modalPresentationStyle = .overFullScreen
+        modalTransitionStyle = .crossDissolve
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = BlomixAppearance.sceneBackground.withAlphaComponent(BlomixAppearance.isDark ? 0.92 : 0.96)
+        addAmbientBlocksBackground()
+
+        titleLabel.text = BlomixL10n.pvpSeriesEndTitle
+        titleLabel.textColor = BlomixAppearance.primaryText
+        titleLabel.font = BlomixTypography.uiFont(size: 26, weight: .semibold)
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
+
+        scoreLabel.text = BlomixL10n.pvpHudSeriesScore(
+            localPrefix: localPrefix,
+            localWins: localWins,
+            remoteWins: remoteWins,
+            remotePrefix: remotePrefix
+        )
+        scoreLabel.textColor = BlomixAppearance.primaryText
+        scoreLabel.font = BlomixTypography.uiFont(size: 28, weight: .semibold)
+        scoreLabel.textAlignment = .center
+        scoreLabel.numberOfLines = 1
+        scoreLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scoreLabel)
+
+        if localWins > remoteWins {
+            outcomeLabel.text = BlomixL10n.pvpSeriesEndYouLead
+        } else if localWins < remoteWins {
+            outcomeLabel.text = BlomixL10n.pvpSeriesEndYouTrail
+        } else {
+            outcomeLabel.text = BlomixL10n.pvpSeriesEndTied
+        }
+        outcomeLabel.textColor = BlomixAppearance.secondaryText
+        outcomeLabel.font = BlomixTypography.uiFont(size: 16, weight: .regular)
+        outcomeLabel.textAlignment = .center
+        outcomeLabel.numberOfLines = 0
+        outcomeLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(outcomeLabel)
+
+        gamesLabel.text = BlomixL10n.pvpSeriesEndGames(gamesPlayed)
+        gamesLabel.textColor = BlomixAppearance.tertiaryText
+        gamesLabel.font = BlomixTypography.uiFont(size: 14, weight: .regular)
+        gamesLabel.textAlignment = .center
+        gamesLabel.numberOfLines = 0
+        gamesLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(gamesLabel)
+
+        okButton.setTitle(BlomixL10n.pvpSeriesEndOK, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: okButton)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 14, left: 28, bottom: 14, right: 28), to: okButton)
+        okButton.translatesAutoresizingMaskIntoConstraints = false
+        okButton.addTarget(self, action: #selector(okTapped), for: .touchUpInside)
+        view.addSubview(okButton)
+
+        NSLayoutConstraint.activate([
+            titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -72),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            scoreLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            scoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            scoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            outcomeLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 14),
+            outcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            outcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            gamesLabel.topAnchor.constraint(equalTo: outcomeLabel.bottomAnchor, constant: 10),
+            gamesLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            gamesLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            okButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            okButton.topAnchor.constraint(equalTo: gamesLabel.bottomAnchor, constant: 28),
+        ])
+    }
+
+    @objc private func okTapped() {
+        dismiss(animated: true) { self.onDismiss?() }
+    }
+}
+
 // MARK: - Adversaires récents
 
 /// Wrapper Sendable pour [GKPlayer] (non-Sendable) traversant les frontières d'acteur.

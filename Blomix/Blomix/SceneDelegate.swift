@@ -32,5 +32,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene,
               let root = windowScene.windows.first?.rootViewController else { return }
         ScoreManager.shared.authenticateOnLaunch(from: root)
+        // Filet hors ligne → GC : hiscores Solo/Zen locaux + pending + moyenne (throttle interne).
+        ScoreManager.shared.syncScoresWithGameCenterIfPossible(reason: "scene_did_become_active")
     }
 }

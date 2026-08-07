@@ -1237,6 +1237,20 @@ final class GameScene: SKScene {
     private var pvpRemoteBoardFillDepth: Int = 0
     private var pvpRemoteScore: Int = 0
 
+    // MARK: Série PvP (revanches enchaînées — état session local only)
+
+    /// Victoires du joueur local dans la série courante (reset à chaque nouveau match, pas en revanche).
+    private var pvpSeriesLocalWins = 0
+    private var pvpSeriesRemoteWins = 0
+    /// Parties **terminées** (victoire/défaite validée) dans la série.
+    private var pvpSeriesGamesPlayed = 0
+    /// `true` après le lancement d’au moins une revanche → HUD score de série.
+    private var pvpSeriesHudActive = false
+    private var pvpSeriesLocalPrefix = "???"
+    private var pvpSeriesRemotePrefix = "???"
+    /// Évite un double +1 pour la même partie (même garde-fou que l’Elo).
+    private var pvpSeriesDidCountCurrentMatch = false
+
     // MARK: - Aide (Hint)
     /// Nombre d'aides restantes pour la partie en cours.
     private var hintsRemaining: Int = 5
@@ -2933,33 +2947,9 @@ final class GameScene: SKScene {
         gameVC.showTutorialOverlay(anchors: anchors)
     }
 
-    /// Crédits (`credits.txt`) : modal UIKit plein écran (thème chrome + police joueur).
+    /// Crédits : modal cartes (thème chrome + accent skin + blox ambiants).
     private func showCredits() {
-        let body = Self.loadCreditsPlainText()
-        presentFullScreenModal(
-            BlomixPlainTextModalViewController(
-                screenTitle: BlomixL10n.modalCreditsTitle,
-                body: body
-            )
-        )
-    }
-
-    /// Charge `credits.txt` localisé (préférence langue, puis résolution bundle, puis message fallback).
-    private static func loadCreditsPlainText() -> String {
-        let preferredLangs = Locale.preferredLanguages.map { String($0.prefix(2)).lowercased() }
-        for lang in preferredLangs {
-            if let url = Bundle.main.url(forResource: "credits", withExtension: "txt", subdirectory: "\(lang).lproj"),
-               let raw = try? String(contentsOf: url, encoding: .utf8),
-               !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                return raw
-            }
-        }
-        if let url = Bundle.main.url(forResource: "credits", withExtension: "txt"),
-           let raw = try? String(contentsOf: url, encoding: .utf8),
-           !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return raw
-        }
-        return BlomixL10n.creditsMissingBody
+        presentFullScreenModal(BlomixCreditsViewController())
     }
 
     /// Prochain bloc « preview » : **1 chance sur 8** d’un `.priks(5)`, sinon couleur aléatoire.
@@ -5564,6 +5554,11 @@ final class GameScene: SKScene {
 
         layoutScoreLabel()
         refreshBestScoreHUDIfNeeded()
+        // Le label timer de stage n’est pas détruit ci-dessus : le resynchroniser au modèle
+        // (évite un flash 4 s/8 s d’un stage précédent au lancement d’une nouvelle partie).
+        if childNode(withName: Self.stageTimerHudName) != nil {
+            updateStageTimerHUD()
+        }
     }
 
     private func layoutScoreLabel() {
@@ -11113,8 +11108,14 @@ final class GameScene: SKScene {
     /// Lance le Stage 1 overlay au démarrage d'une partie solo, puis démarre le timer.
     private func startStagedSoloSession() {
         guard isInStagedSoloMode else { return }
+        // Affiche tout de suite le timer Stage 1 (32 s). Sans ça, le label `hudStageTimer`
+        // (non recréé par setupScoreHUD) peut encore montrer 4 s / 8 s de la partie précédente
+        // jusqu’à `restartStageTimer()` en fin d’overlay.
+        currentStageIndex = 0
+        stageTimerSecondsRemaining = Self.soloStages[0].timerSeconds
         ensureStageTimerHUD()
         layoutStageTimerHUD()
+        updateStageTimerHUD()
         let cfg = Self.soloStages[0]
         showTransitionOverlay(stageLevelText: cfg.levelText,
                               line1: cfg.overlayLine1,
@@ -12352,12 +12353,136 @@ final class GameScene: SKScene {
         pvpPresentedResultViewController = nil
         pvpRemoteBoardFillDepth = 0
         pvpRemoteScore = 0
+        blomixPvP_resetSeriesState()
         childNode(withName: Self.pvpConnectingOverlayName)?.removeFromParent()
         childNode(withName: Self.hudPvPTurnTimerName)?.removeFromParent()
         childNode(withName: Self.hudPvPOpponentName)?.removeFromParent()
         childNode(withName: Self.pvpRemoteFillContainerName)?.removeFromParent()
         pvpCoordinator?.tearDown()
         pvpCoordinator = nil
+    }
+
+    // MARK: - Série PvP (revanches)
+
+    private func blomixPvP_resetSeriesState() {
+        pvpSeriesLocalWins = 0
+        pvpSeriesRemoteWins = 0
+        pvpSeriesGamesPlayed = 0
+        pvpSeriesHudActive = false
+        pvpSeriesLocalPrefix = "???"
+        pvpSeriesRemotePrefix = "???"
+        pvpSeriesDidCountCurrentMatch = false
+    }
+
+    /// Préfixes 3 graphemes + reset compteurs pour un **nouveau** match (pas une revanche).
+    private func blomixPvP_beginNewSeriesSession() {
+        blomixPvP_resetSeriesState()
+        blomixPvP_refreshSeriesNamePrefixes()
+    }
+
+    private func blomixPvP_refreshSeriesNamePrefixes() {
+        let localName: String = {
+            let n = GKLocalPlayer.local.displayName
+            if !n.isEmpty { return n }
+            return BlomixL10n.startScreenPlayerUnknown
+        }()
+        let remoteName = pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
+        pvpSeriesLocalPrefix = Self.pvpSeriesNamePrefix(localName)
+        pvpSeriesRemotePrefix = Self.pvpSeriesNamePrefix(remoteName)
+    }
+
+    /// 3 premiers caractères affichables (graphemes) ; `"???"` si vide.
+    private static func pvpSeriesNamePrefix(_ name: String, maxLength: Int = 3) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "???" }
+        var out = ""
+        for ch in trimmed {
+            out.append(ch)
+            if out.count >= maxLength { break }
+        }
+        return out
+    }
+
+    private func blomixPvP_recordSeriesMatchOutcome(localWon: Bool) {
+        guard pvpCoordinator != nil else { return }
+        guard !pvpSeriesDidCountCurrentMatch else { return }
+        pvpSeriesDidCountCurrentMatch = true
+        pvpSeriesGamesPlayed += 1
+        if localWon {
+            pvpSeriesLocalWins += 1
+        } else {
+            pvpSeriesRemoteWins += 1
+        }
+        BlomixPvPLog.event("pvp_series_score", [
+            "local": "\(pvpSeriesLocalWins)",
+            "remote": "\(pvpSeriesRemoteWins)",
+            "games": "\(pvpSeriesGamesPlayed)"
+        ])
+        blomixPvP_refreshOpponentHudLabel()
+    }
+
+    private var blomixPvP_shouldPresentSeriesEndOverlay: Bool {
+        pvpSeriesGamesPlayed >= 2
+    }
+
+    private func blomixPvP_refreshOpponentHudLabel() {
+        guard let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode else { return }
+        if pvpSeriesHudActive {
+            opponentLabel.text = BlomixL10n.pvpHudSeriesScore(
+                localPrefix: pvpSeriesLocalPrefix,
+                localWins: pvpSeriesLocalWins,
+                remoteWins: pvpSeriesRemoteWins,
+                remotePrefix: pvpSeriesRemotePrefix
+            )
+        } else {
+            opponentLabel.text = BlomixL10n.pvpHudMatchAgainst(
+                pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
+            )
+        }
+    }
+
+    /// Fin de boucle revanche / retour accueil : overlay série si ≥ 2 parties, puis home.
+    private func blomixPvP_endSeriesIfNeededThenReturnHome() {
+        if blomixPvP_shouldPresentSeriesEndOverlay {
+            blomixPvP_presentSeriesEndOverlayThenHome()
+        } else {
+            blomixPvP_returnToHomeAfterMatch()
+        }
+    }
+
+    private func blomixPvP_presentSeriesEndOverlayThenHome(
+        afterDismissing intermediate: UIViewController? = nil
+    ) {
+        let localW = pvpSeriesLocalWins
+        let remoteW = pvpSeriesRemoteWins
+        let games = pvpSeriesGamesPlayed
+        let localP = pvpSeriesLocalPrefix
+        let remoteP = pvpSeriesRemotePrefix
+        let present: () -> Void = { [weak self] in
+            guard let self else { return }
+            guard let rootVC = self.modalRootViewController() else {
+                self.blomixPvP_returnToHomeAfterMatch()
+                return
+            }
+            let seriesVC = BlomixPvPSeriesEndViewController(
+                localPrefix: localP,
+                remotePrefix: remoteP,
+                localWins: localW,
+                remoteWins: remoteW,
+                gamesPlayed: games
+            )
+            seriesVC.onDismiss = { [weak self] in
+                self?.blomixPvP_returnToHomeAfterMatch()
+            }
+            seriesVC.modalPresentationStyle = .overFullScreen
+            seriesVC.modalTransitionStyle = .crossDissolve
+            rootVC.present(seriesVC, animated: true)
+        }
+        if let intermediate {
+            intermediate.dismiss(animated: true) { present() }
+        } else {
+            present()
+        }
     }
 
     private func showPvPLobby() {
@@ -12386,6 +12511,7 @@ final class GameScene: SKScene {
         pvpCoordinator = BlomixPvPMatchCoordinator(match: match)
         pvpOpponentDisplayName = match.players.first?.displayName ?? BlomixL10n.pvpUnknownOpponent
         pvpLastEloResult = nil
+        blomixPvP_beginNewSeriesSession()
         pvpCoordinator?.attach(to: self)
         blomixPvP_showConnectingOverlayIfNeeded()
     }
@@ -12401,6 +12527,7 @@ final class GameScene: SKScene {
         pvpCoordinator = BlomixPvPMatchCoordinator(localSession: session)
         pvpOpponentDisplayName = session.remoteIdentity?.displayName ?? BlomixL10n.pvpUnknownOpponent
         pvpLastEloResult = nil
+        blomixPvP_beginNewSeriesSession()
         pvpCoordinator?.attach(to: self)
         blomixPvP_showConnectingOverlayIfNeeded()
     }
@@ -12678,6 +12805,9 @@ final class GameScene: SKScene {
             rootVC.dismiss(animated: true)
         }
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
+        blomixPvP_refreshSeriesNamePrefixes()
+        // Nouvelle manche (1ʳᵉ ou revanche) : autoriser un +1 série à la prochaine fin.
+        pvpSeriesDidCountCurrentMatch = false
         if isStartScreen {
             childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
             isStartScreen = false
@@ -12695,6 +12825,7 @@ final class GameScene: SKScene {
         ensureRemoteBoardFillIndicatorIfNeeded()
         ensurePvPTurnCountdownLabelIfNeeded()
         ensurePvPOpponentLabelIfNeeded()
+        blomixPvP_refreshOpponentHudLabel()
 
         resetSessionModelForNewMatch()
         isGameOver = false
@@ -12782,7 +12913,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = pvpCoordinator == nil
         childNode(withName: Self.bestScoreAboveName)?.isHidden = pvpCoordinator != nil
         if let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode {
-            opponentLabel.text = BlomixL10n.pvpHudMatchAgainst(pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent)
+            blomixPvP_refreshOpponentHudLabel()
             let scoreY = scoreLbl.position.y
             opponentLabel.position = CGPoint(x: gridAreaCenter.x, y: scoreY + 34)
             opponentLabel.isHidden = pvpCoordinator == nil
@@ -12840,6 +12971,7 @@ final class GameScene: SKScene {
 
     func blomixPvP_presentLocalDefeat() {
         guard pvpCoordinator != nil else { return }
+        blomixPvP_recordSeriesMatchOutcome(localWon: false)
         blomixPvP_finalizeEloIfNeeded(outcome: .loss)
         isGameOver = true
         isProcessing = true
@@ -12861,6 +12993,7 @@ final class GameScene: SKScene {
 
     func blomixPvP_presentRemoteVictory() {
         guard pvpCoordinator != nil else { return }
+        blomixPvP_recordSeriesMatchOutcome(localWon: true)
         blomixPvP_finalizeEloIfNeeded(outcome: .win)
         isGameOver = true
         isProcessing = true
@@ -12883,7 +13016,7 @@ final class GameScene: SKScene {
             result.applyEloResult(pvpLastEloResult)
         }
         result.onHome = { [weak self] in
-            self?.blomixPvP_returnToHomeAfterMatch()
+            self?.blomixPvP_endSeriesIfNeededThenReturnHome()
         }
         result.onRematch = { [weak self] in
             self?.pvpCoordinator?.localPlayerRequestedRematch()
@@ -12893,6 +13026,12 @@ final class GameScene: SKScene {
         }
         result.onRematchTimeout = { [weak self] in
             self?.pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
+            // Fin de boucle revanche → overlay série si ≥ 2 parties, sinon reste sur l’écran résultat.
+            guard let self else { return }
+            if self.blomixPvP_shouldPresentSeriesEndOverlay {
+                self.dismissPvPResultModalIfNeeded()
+                self.blomixPvP_presentSeriesEndOverlayThenHome()
+            }
         }
         result.modalPresentationStyle = .overFullScreen
         result.modalTransitionStyle = .crossDissolve
@@ -12913,6 +13052,9 @@ final class GameScene: SKScene {
         // Le nouveau handshake appellera blomixPvP_onHandshakeCompleteRestartBoard.
         didFinalizePvPEloForCurrentMatch = false
         pvpLastEloResult = nil
+        // Dès la 1ʳᵉ revanche lancée : HUD score de série (après au moins 1 partie finie).
+        pvpSeriesHudActive = true
+        blomixPvP_refreshOpponentHudLabel()
         pvpPresentedResultViewController?.markLaunchingRematch()
         pvpPresentedResultViewController?.dismiss(animated: true)
         pvpPresentedResultViewController = nil
@@ -12972,6 +13114,13 @@ final class GameScene: SKScene {
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
         let hadResultScreen = pvpPresentedResultViewController != nil
         let wasInGame = pvpCoordinator?.isGameActive == true && !isGameOver
+        // Snapshot série **avant** teardown (qui reset les compteurs).
+        let seriesEnd = blomixPvP_shouldPresentSeriesEndOverlay
+        let seriesLocalW = pvpSeriesLocalWins
+        let seriesRemoteW = pvpSeriesRemoteWins
+        let seriesGames = pvpSeriesGamesPlayed
+        let seriesLocalP = pvpSeriesLocalPrefix
+        let seriesRemoteP = pvpSeriesRemotePrefix
         if wasInGame {
             blomixPvP_finalizeEloIfNeeded(outcome: .win)
         }
@@ -12980,7 +13129,28 @@ final class GameScene: SKScene {
         blomixPvP_teardown()
         let showWinMessage = wasInGame && !hadResultScreen
         showPvPDisconnectOverlay(wasInGame: showWinMessage, neutralLeave: hadResultScreen) { [weak self] in
-            self?.unwindToStartScreen(restoreSave: true)
+            guard let self else { return }
+            if seriesEnd {
+                guard let rootVC = self.modalRootViewController() else {
+                    self.unwindToStartScreen(restoreSave: true)
+                    return
+                }
+                let seriesVC = BlomixPvPSeriesEndViewController(
+                    localPrefix: seriesLocalP,
+                    remotePrefix: seriesRemoteP,
+                    localWins: seriesLocalW,
+                    remoteWins: seriesRemoteW,
+                    gamesPlayed: seriesGames
+                )
+                seriesVC.onDismiss = { [weak self] in
+                    self?.unwindToStartScreen(restoreSave: true)
+                }
+                seriesVC.modalPresentationStyle = .overFullScreen
+                seriesVC.modalTransitionStyle = .crossDissolve
+                rootVC.present(seriesVC, animated: true)
+            } else {
+                self.unwindToStartScreen(restoreSave: true)
+            }
         }
     }
 

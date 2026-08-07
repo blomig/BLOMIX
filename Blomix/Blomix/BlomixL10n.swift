@@ -97,6 +97,60 @@ enum BlomixL10n {
     static var modalRulesTitle: String { tr("modal.rules_title", comment: "Rules screen title") }
     static var modalCreditsTitle: String { tr("modal.credits_title", comment: "Credits screen title") }
 
+    /// Sous-titre header écran Crédits.
+    static var creditsTagline: String {
+        tr("credits.tagline", comment: "Credits header tagline under BLOMIX")
+    }
+    static func creditsVersionLine(marketing: String, build: String) -> String {
+        String(
+            format: tr("credits.version_format", comment: "Credits version; %@ marketing, %@ build"),
+            marketing, build
+        )
+    }
+
+    /// Sections structurées de l’écran Crédits (titres + lignes corps).
+    static var creditsSections: [BlomixCreditsSection] {
+        [
+            BlomixCreditsSection(
+                title: tr("credits.section.studio.title", comment: "Credits section — studio"),
+                lines: bodyLines(tr("credits.section.studio.body", comment: "Credits section body — studio"))
+            ),
+            BlomixCreditsSection(
+                title: tr("credits.section.code.title", comment: "Credits section — code"),
+                lines: bodyLines(tr("credits.section.code.body", comment: "Credits section body — code"))
+            ),
+            BlomixCreditsSection(
+                title: tr("credits.section.fonts.title", comment: "Credits section — fonts"),
+                lines: bodyLines(tr("credits.section.fonts.body", comment: "Credits section body — fonts"))
+            ),
+            BlomixCreditsSection(
+                title: tr("credits.section.sounds.title", comment: "Credits section — sounds"),
+                lines: bodyLines(tr("credits.section.sounds.body", comment: "Credits section body — sounds"))
+            ),
+            BlomixCreditsSection(
+                title: tr("credits.section.music.title", comment: "Credits section — music"),
+                lines: bodyLines(tr("credits.section.music.body", comment: "Credits section body — music"))
+            ),
+            BlomixCreditsSection(
+                title: tr("credits.section.palette.title", comment: "Credits section — palette"),
+                lines: bodyLines(tr("credits.section.palette.body", comment: "Credits section body — palette"))
+            ),
+            BlomixCreditsSection(
+                title: tr("credits.section.beta.title", comment: "Credits section — beta"),
+                lines: bodyLines(tr("credits.section.beta.body", comment: "Credits section body — beta"))
+            ),
+        ]
+    }
+
+    /// Découpe un corps multiligne (`\n` dans Localizable.strings) en lignes non vides.
+    private static func bodyLines(_ body: String) -> [String] {
+        body
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
     // MARK: - Classement (UIKit)
 
     static var leaderboardTitle: String { tr("leaderboard.title", comment: "Leaderboard screen title") }
@@ -341,6 +395,36 @@ enum BlomixL10n {
     static var pvpResultRematchLaunching: String { tr("pvp.result_rematch_launching", comment: "PvP result — both confirmed, rematch launching") }
     static func pvpHudMatchAgainst(_ name: String) -> String {
         String(format: tr("pvp.hud_match_against_format", comment: "PvP HUD above timer; %@ = display name"), name)
+    }
+
+    /// HUD série revanches : préfixe local, wins local, wins remote, préfixe remote.
+    static func pvpHudSeriesScore(localPrefix: String, localWins: Int, remoteWins: Int, remotePrefix: String) -> String {
+        String(
+            format: tr(
+                "pvp.hud_series_score_format",
+                comment: "PvP HUD series; %@ local prefix, %lld local wins, %lld remote wins, %@ remote prefix"
+            ),
+            localPrefix, localWins, remoteWins, remotePrefix
+        )
+    }
+
+    static var pvpSeriesEndTitle: String {
+        tr("pvp.series_end_title", comment: "PvP series end overlay title")
+    }
+    static var pvpSeriesEndYouLead: String {
+        tr("pvp.series_end_you_lead", comment: "PvP series end — local ahead")
+    }
+    static var pvpSeriesEndYouTrail: String {
+        tr("pvp.series_end_you_trail", comment: "PvP series end — local behind")
+    }
+    static var pvpSeriesEndTied: String {
+        tr("pvp.series_end_tied", comment: "PvP series end — draw")
+    }
+    static func pvpSeriesEndGames(_ count: Int) -> String {
+        String(format: tr("pvp.series_end_games_format", comment: "PvP series end — games played; %lld = count"), count)
+    }
+    static var pvpSeriesEndOK: String {
+        tr("pvp.series_end_ok", comment: "PvP series end — dismiss button")
     }
 
     // MARK: - Start screen tip

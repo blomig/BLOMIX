@@ -39,7 +39,7 @@ Blomix/Blomix/
 
 Fichiers legacy (encore référencés en fallback) :
 - `rules.txt` — anciennes règles statiques (legacy ; non exposé par l’UI moderne)
-- `credits.txt` — crédits (écran accueil → lien **Crédits** → `BlomixPlainTextModalViewController` ; FR + EN dans le bundle)
+- `credits.txt` — legacy (non branché UI) ; crédits via clés `credits.section.*` + `BlomixCreditsViewController`
 
 L'UI moderne utilise `BlomixL10n` pour les chaînes ; le tutoriel remplace l’ancien `rules.txt`.
 

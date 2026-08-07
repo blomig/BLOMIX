@@ -227,9 +227,10 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Handshake RNG partagé (`helloSeed` + `protocolVersion`) ; file d’envoi + ack pour messages critiques
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
+- **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 2 parties (voir `PVP_MATCHING.md`)
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
-- Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init
+- Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
 - Lobby : Partie rapide (**Local** / **En ligne**), défis CloudKit / récents / classement
 - Overlay attente match sur **grille vide** (pas sur l’accueil)
 - Dialogs d’erreur / timeout : style in-app BLOMIX (`BlomixInAppDialogView`)
@@ -306,12 +307,13 @@ Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
 |---|---|
 | **Réglages** | `SettingsViewController` (modal plein écran) |
 | **Tutoriel** | relance le tutoriel interactif |
-| **Crédits** | `BlomixPlainTextModalViewController` + corps `credits.txt` |
+| **Crédits** | `BlomixCreditsViewController` (cartes par section) |
 
 - Séparateurs « · » en police **système** (la police jeu ne dessine pas toujours le glyphe)
 - Libellés en police **joueur** + couleurs `BlomixAppearance` (lien / séparateur)
-- Modal crédits : même chrome que Réglages / Classement (fond scène, blocs ambiants, titre + **Fermer** navigation, police `BlomixTypography`)
-- Contenu : `en.lproj` / `fr.lproj` `credits.txt` (chargement langue préférée → bundle → `BlomixL10n.creditsMissingBody`)
+- Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
+- Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
+- Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) — pas de liens ; `credits.txt` legacy non branché UI
 
 ### Partage (accueil + game over)
 
@@ -394,7 +396,8 @@ Blomix/Blomix/
 ├── BlomixPvPLocalSession.swift   # PvP Local (MultipeerConnectivity)
 ├── BlomixPvPUI.swift             # Lobby, résultats, dialogues in-app, adversaires récents
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
-├── ScoreManager.swift            # Game Center scores (pending Solo/Zen + moyenne)
+├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + reconcile local>GC
+├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift  # Classements + BlomixPlainTextModalViewController (crédits)
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)

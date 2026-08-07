@@ -199,7 +199,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         view.addSubview(spinner)
 
         // ── Overlay invitation ─────────────────────────────────────────────────
-        inviteOverlay.backgroundColor = UIColor.black.withAlphaComponent(0.92)
+        // Fond thème chrome (Sombre/Clair) — pas de noir opaque « Nuit » en mode Jour.
+        inviteOverlay.backgroundColor = BlomixAppearance.sceneBackground
         inviteOverlay.translatesAutoresizingMaskIntoConstraints = false
         inviteOverlay.isHidden = true
         view.addSubview(inviteOverlay)
@@ -767,6 +768,15 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     // MARK: - Invitation sortante
 
+    /// Réapplique tokens chrome sur l’overlay d’invitation (au cas où le thème a changé depuis le load).
+    private func applyInviteOverlayAppearance() {
+        inviteOverlay.backgroundColor = BlomixAppearance.sceneBackground
+        inviteStatusLabel.textColor = BlomixAppearance.secondaryText
+        inviteHintLabel.textColor = BlomixAppearance.tertiaryText
+        inviteCountdownLabel.textColor = BlomixAppearance.primaryText
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: cancelInviteBtn)
+    }
+
     @objc private func challengeTapped(_ sender: UIButton) {
         guard sender.tag < rows.count else { return }
         let row = rows[sender.tag]
@@ -776,6 +786,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     }
 
     private func showInviteOverlay(playerName: String) {
+        applyInviteOverlayAppearance()
         inviteStatusLabel.text = BlomixL10n.pvpRecentInviteSent(playerName)
         inviteHintLabel.text   = BlomixL10n.pvpRecentInviteHint
         inviteHintLabel.isHidden      = false

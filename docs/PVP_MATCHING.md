@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.7 (build 75)  
+> **Version de référence** : 5.7 (build 76)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -28,6 +28,18 @@ BLOMIX propose **trois chemins distincts** pour lancer un duel 1 vs 1. Ils n'uti
 | **En ligne** | `GKMatchmaker.findMatch` (inchangé) | Game Center connecté | Comme avant |
 
 Handshake local : échange `BlomixPvPLocalPeerIdentity` (gamePlayerID, displayName, elo, matchCount, protocolVersion) puis même `helloSeed` / coordinateur que l’online (`BlomixPvPMatchCoordinator` dual canal GK / local).
+
+### Série de revanches (session)
+
+Compteur **local only** (pas de message filaire) pendant une enchaîne de revanches sur le **même** coordinateur (online + Multipeer) :
+
+| | |
+|---|---|
+| Reset | Chaque **nouveau** match (lobby / défi / local) — **pas** entre revanches |
+| +1 | Fin de partie validée (même chemins que résultat / Elo) |
+| HUD | 1ʳᵉ partie : « match contre… » ; **après lancement d’une revanche** : `ABC  X  ·  Y  DEF` (local à gauche) |
+| Fin de série | Accueil / cancel / timeout revanche / déco si **≥ 2** parties → overlay `BlomixPvPSeriesEndViewController` (thème Jour/Nuit) |
+| Elo | Inchangé (1 update par partie) |
 
 ### PvP Local — robustesse de liaison mid-match
 

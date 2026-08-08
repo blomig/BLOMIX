@@ -345,3 +345,6 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "credits.section.palette.body" = "Coolors.com — initially Tropical Sunset Vibes, slightly upgraded";
 "credits.section.beta.title" = "Beta testing";
 "credits.section.beta.body" = "Thanks to Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";
+
+"pvp.series_end_series_caption" = "Series";
+"pvp.series_end_total_caption" = "Total";

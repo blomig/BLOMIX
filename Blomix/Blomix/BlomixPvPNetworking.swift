@@ -660,6 +660,16 @@ final class BlomixPvPMatchCoordinator: NSObject {
         return BlomixL10n.pvpUnknownOpponent
     }
 
+    /// gamePlayerID distant (GK ou Multipeer) — pour H2H / logs. Vide si inconnu.
+    var remoteGamePlayerIDResolved: String {
+        if let id = match?.players.first?.gamePlayerID, !id.isEmpty { return id }
+        if let id = remotePeerIdentity?.gamePlayerID, !id.isEmpty { return id }
+        return ""
+    }
+
+    /// Canal pour stats H2H.
+    var h2hChannelLabel: String { isLocalMatch ? "local" : "online" }
+
     private func restartTurnTimer() {
         turnTimer?.invalidate()
         countdownRemaining = turnSeconds

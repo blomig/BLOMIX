@@ -7,7 +7,22 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.7] — 2026-08 (courant)
+## [5.8] — 2026-08 (courant)
+
+Build **78** (TestFlight).
+
+### Ajouté
+- **PvP H2H (total victoires)** : juge CloudKit Public `PvPH2HEvent` (1 point = 1 manche gagnée) ; cache + pending locaux ; affichage **Total** sous la **Série** en fin de série de revanches
+  - Module isolé `BlomixPvPH2HManager` — échec cloud = ligne total absente/stale **uniquement** (match / Elo / reconnexion intacts)
+  - Writer = vainqueur (record `h2h_{uuid}`) ; lecture query `pairKey` ; flush au foreground
+
+### Modifié
+- **`ITSAppUsesNonExemptEncryption` = false** dans `Info.plist` — plus de questionnaire Export Compliance à chaque upload ASC / TestFlight
+- Version marketing **5.8** (build **78**)
+
+---
+
+## [5.7] — 2026-08
 
 Build **76** (TestFlight).
 

@@ -426,6 +426,12 @@ enum BlomixL10n {
     static var pvpSeriesEndOK: String {
         tr("pvp.series_end_ok", comment: "PvP series end — dismiss button")
     }
+    static var pvpSeriesEndSeriesCaption: String {
+        tr("pvp.series_end_series_caption", comment: "PvP series end — label above session score")
+    }
+    static var pvpSeriesEndTotalCaption: String {
+        tr("pvp.series_end_total_caption", comment: "PvP series end — label above all-time H2H total")
+    }
 
     // MARK: - Start screen tip
     static var startScreenTipHeader: String { tr("start_screen.tip_header", comment: "Start screen — small header above the daily tip") }

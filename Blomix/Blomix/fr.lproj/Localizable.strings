@@ -358,3 +358,6 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "credits.section.palette.body" = "Coolors.com — initialement Tropical Sunset Vibes, légèrement augmentée";
 "credits.section.beta.title" = "Beta-test";
 "credits.section.beta.body" = "Merci à Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";
+
+"pvp.series_end_series_caption" = "Série";
+"pvp.series_end_total_caption" = "Total";

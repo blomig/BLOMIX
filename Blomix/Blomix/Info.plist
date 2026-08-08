@@ -30,6 +30,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Évite le questionnaire Export Compliance à chaque upload TestFlight / ASC
+	     (chiffrement standard OS / HTTPS uniquement — pas de crypto non exemptée). -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSGKFriendListUsageDescription</key>
 	<string>Blomix uses your Game Center friends list so you can invite a friend to PvP.</string>
 	<key>NSLocalNetworkUsageDescription</key>

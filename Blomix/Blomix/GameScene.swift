@@ -12419,6 +12419,23 @@ final class GameScene: SKScene {
             "games": "\(pvpSeriesGamesPlayed)"
         ])
         blomixPvP_refreshOpponentHudLabel()
+        // H2H long terme (CloudKit) — best-effort isolé ; n’impacte jamais le match.
+        blomixPvP_recordH2HOutcomeBestEffort(localWon: localWon)
+    }
+
+    /// Side-effect H2H uniquement. Toute erreur est avalée dans le manager.
+    private func blomixPvP_recordH2HOutcomeBestEffort(localWon: Bool) {
+        let remoteID = pvpCoordinator?.remoteGamePlayerIDResolved ?? ""
+        guard !remoteID.isEmpty else {
+            BlomixPvPLog.event("h2h_skip_no_remote_id")
+            return
+        }
+        let channel = pvpCoordinator?.h2hChannelLabel ?? "online"
+        BlomixPvPH2HManager.shared.recordMatchOutcome(
+            localWon: localWon,
+            remoteGamePlayerID: remoteID,
+            channel: channel
+        )
     }
 
     private var blomixPvP_shouldPresentSeriesEndOverlay: Bool {
@@ -12458,6 +12475,10 @@ final class GameScene: SKScene {
         let games = pvpSeriesGamesPlayed
         let localP = pvpSeriesLocalPrefix
         let remoteP = pvpSeriesRemotePrefix
+        let remoteID = pvpCoordinator?.remoteGamePlayerIDResolved ?? ""
+        let cachedH2H = remoteID.isEmpty
+            ? nil
+            : BlomixPvPH2HManager.shared.cachedTotals(against: remoteID)
         let present: () -> Void = { [weak self] in
             guard let self else { return }
             guard let rootVC = self.modalRootViewController() else {
@@ -12469,7 +12490,8 @@ final class GameScene: SKScene {
                 remotePrefix: remoteP,
                 localWins: localW,
                 remoteWins: remoteW,
-                gamesPlayed: games
+                gamesPlayed: games,
+                initialH2HTotals: cachedH2H
             )
             seriesVC.onDismiss = { [weak self] in
                 self?.blomixPvP_returnToHomeAfterMatch()
@@ -12477,6 +12499,13 @@ final class GameScene: SKScene {
             seriesVC.modalPresentationStyle = .overFullScreen
             seriesVC.modalTransitionStyle = .crossDissolve
             rootVC.present(seriesVC, animated: true)
+            // Refresh cloud best-effort (ne bloque pas la présentation).
+            if !remoteID.isEmpty {
+                Task { @MainActor in
+                    let refreshed = await BlomixPvPH2HManager.shared.refreshTotals(against: remoteID)
+                    seriesVC.applyH2HTotals(refreshed)
+                }
+            }
         }
         if let intermediate {
             intermediate.dismiss(animated: true) { present() }
@@ -13121,6 +13150,10 @@ final class GameScene: SKScene {
         let seriesGames = pvpSeriesGamesPlayed
         let seriesLocalP = pvpSeriesLocalPrefix
         let seriesRemoteP = pvpSeriesRemotePrefix
+        let remoteID = pvpCoordinator?.remoteGamePlayerIDResolved ?? ""
+        let cachedH2H = remoteID.isEmpty
+            ? nil
+            : BlomixPvPH2HManager.shared.cachedTotals(against: remoteID)
         if wasInGame {
             blomixPvP_finalizeEloIfNeeded(outcome: .win)
         }
@@ -13140,7 +13173,8 @@ final class GameScene: SKScene {
                     remotePrefix: seriesRemoteP,
                     localWins: seriesLocalW,
                     remoteWins: seriesRemoteW,
-                    gamesPlayed: seriesGames
+                    gamesPlayed: seriesGames,
+                    initialH2HTotals: cachedH2H
                 )
                 seriesVC.onDismiss = { [weak self] in
                     self?.unwindToStartScreen(restoreSave: true)
@@ -13148,6 +13182,12 @@ final class GameScene: SKScene {
                 seriesVC.modalPresentationStyle = .overFullScreen
                 seriesVC.modalTransitionStyle = .crossDissolve
                 rootVC.present(seriesVC, animated: true)
+                if !remoteID.isEmpty {
+                    Task { @MainActor in
+                        let refreshed = await BlomixPvPH2HManager.shared.refreshTotals(against: remoteID)
+                        seriesVC.applyH2HTotals(refreshed)
+                    }
+                }
             } else {
                 self.unwindToStartScreen(restoreSave: true)
             }

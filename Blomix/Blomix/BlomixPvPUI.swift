@@ -1340,6 +1340,7 @@ final class BlomixPvPResultViewController: UIViewController {
 // MARK: - Fin de série PvP (revanches enchaînées)
 
 /// Overlay court après ≥ 2 parties enchaînées par revanches — style résultat PvP (Jour/Nuit).
+/// Affiche la **série** session + le **total H2H** (CloudKit / cache) en best-effort.
 @MainActor
 final class BlomixPvPSeriesEndViewController: UIViewController {
 
@@ -1348,21 +1349,33 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
     private let localWins: Int
     private let remoteWins: Int
     private let gamesPlayed: Int
+    private var h2hTotals: BlomixPvPH2HTotals?
 
     private let titleLabel = UILabel()
+    private let seriesCaptionLabel = UILabel()
     private let scoreLabel = UILabel()
+    private let totalCaptionLabel = UILabel()
+    private let totalScoreLabel = UILabel()
     private let outcomeLabel = UILabel()
     private let gamesLabel = UILabel()
     private let okButton = BlomixUIButton()
 
     var onDismiss: (() -> Void)?
 
-    init(localPrefix: String, remotePrefix: String, localWins: Int, remoteWins: Int, gamesPlayed: Int) {
+    init(
+        localPrefix: String,
+        remotePrefix: String,
+        localWins: Int,
+        remoteWins: Int,
+        gamesPlayed: Int,
+        initialH2HTotals: BlomixPvPH2HTotals? = nil
+    ) {
         self.localPrefix = localPrefix
         self.remotePrefix = remotePrefix
         self.localWins = localWins
         self.remoteWins = remoteWins
         self.gamesPlayed = gamesPlayed
+        self.h2hTotals = initialH2HTotals
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .overFullScreen
         modalTransitionStyle = .crossDissolve
@@ -1383,6 +1396,13 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
+        seriesCaptionLabel.text = BlomixL10n.pvpSeriesEndSeriesCaption
+        seriesCaptionLabel.textColor = BlomixAppearance.tertiaryText
+        seriesCaptionLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
+        seriesCaptionLabel.textAlignment = .center
+        seriesCaptionLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(seriesCaptionLabel)
+
         scoreLabel.text = BlomixL10n.pvpHudSeriesScore(
             localPrefix: localPrefix,
             localWins: localWins,
@@ -1395,6 +1415,21 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
         scoreLabel.numberOfLines = 1
         scoreLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scoreLabel)
+
+        totalCaptionLabel.text = BlomixL10n.pvpSeriesEndTotalCaption
+        totalCaptionLabel.textColor = BlomixAppearance.tertiaryText
+        totalCaptionLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
+        totalCaptionLabel.textAlignment = .center
+        totalCaptionLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(totalCaptionLabel)
+
+        totalScoreLabel.textColor = BlomixAppearance.secondaryText
+        totalScoreLabel.font = BlomixTypography.uiFont(size: 20, weight: .semibold)
+        totalScoreLabel.textAlignment = .center
+        totalScoreLabel.numberOfLines = 1
+        totalScoreLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(totalScoreLabel)
+        refreshTotalLabel()
 
         if localWins > remoteWins {
             outcomeLabel.text = BlomixL10n.pvpSeriesEndYouLead
@@ -1426,15 +1461,27 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
         view.addSubview(okButton)
 
         NSLayoutConstraint.activate([
-            titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -72),
+            titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -100),
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
-            scoreLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            seriesCaptionLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16),
+            seriesCaptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            seriesCaptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            scoreLabel.topAnchor.constraint(equalTo: seriesCaptionLabel.bottomAnchor, constant: 4),
             scoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             scoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
-            outcomeLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 14),
+            totalCaptionLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 14),
+            totalCaptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            totalCaptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            totalScoreLabel.topAnchor.constraint(equalTo: totalCaptionLabel.bottomAnchor, constant: 4),
+            totalScoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            totalScoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            outcomeLabel.topAnchor.constraint(equalTo: totalScoreLabel.bottomAnchor, constant: 14),
             outcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             outcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
@@ -1445,6 +1492,40 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
             okButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             okButton.topAnchor.constraint(equalTo: gamesLabel.bottomAnchor, constant: 28),
         ])
+    }
+
+    /// Mise à jour async après fetch CloudKit (best-effort).
+    func applyH2HTotals(_ totals: BlomixPvPH2HTotals?) {
+        h2hTotals = totals
+        guard isViewLoaded else { return }
+        refreshTotalLabel()
+    }
+
+    private func refreshTotalLabel() {
+        if let t = h2hTotals, t.localWins + t.remoteWins > 0 {
+            totalScoreLabel.text = BlomixL10n.pvpHudSeriesScore(
+                localPrefix: localPrefix,
+                localWins: t.localWins,
+                remoteWins: t.remoteWins,
+                remotePrefix: remotePrefix
+            )
+            totalScoreLabel.isHidden = false
+            totalCaptionLabel.isHidden = false
+        } else if let t = h2hTotals {
+            // 0–0 connu
+            totalScoreLabel.text = BlomixL10n.pvpHudSeriesScore(
+                localPrefix: localPrefix,
+                localWins: t.localWins,
+                remoteWins: t.remoteWins,
+                remotePrefix: remotePrefix
+            )
+            totalScoreLabel.isHidden = false
+            totalCaptionLabel.isHidden = false
+        } else {
+            // Pas encore de donnée : masquer plutôt qu’afficher un faux 0–0.
+            totalScoreLabel.isHidden = true
+            totalCaptionLabel.isHidden = true
+        }
     }
 
     @objc private func okTapped() {

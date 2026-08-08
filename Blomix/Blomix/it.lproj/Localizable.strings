@@ -333,3 +333,6 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "credits.section.palette.body" = "Coolors.com — inizialmente Tropical Sunset Vibes, leggermente arricchita";
 "credits.section.beta.title" = "Beta-test";
 "credits.section.beta.body" = "Grazie a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";
+
+"pvp.series_end_series_caption" = "Serie";
+"pvp.series_end_total_caption" = "Totale";

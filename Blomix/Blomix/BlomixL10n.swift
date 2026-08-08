@@ -430,7 +430,7 @@ enum BlomixL10n {
         tr("pvp.series_end_series_caption", comment: "PvP series end — label above session score")
     }
     static var pvpSeriesEndTotalCaption: String {
-        tr("pvp.series_end_total_caption", comment: "PvP series end — label above all-time H2H total")
+        tr("pvp.series_end_total_caption", comment: "PvP series end — label for all-time H2H (below OK)")
     }
 
     // MARK: - Start screen tip

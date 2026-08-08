@@ -1104,11 +1104,15 @@ final class BlomixPvPResultViewController: UIViewController {
 
     private let didWin: Bool
     private let opponentName: String
+    /// Score de la série session (ex. « ABC  1  ·  0  DEF »), nil si non affiché.
+    private let seriesScoreText: String?
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
     private let eloCurrentLabel = UILabel()
     private let eloDeltaLabel = UILabel()
     private let eloNewLabel = UILabel()
+    private let seriesCaptionLabel = UILabel()
+    private let seriesScoreLabel = UILabel()
     private let homeButton = BlomixUIButton()
     private let rematchButton = BlomixUIButton()
 
@@ -1119,9 +1123,10 @@ final class BlomixPvPResultViewController: UIViewController {
     /// Appelé si l'adversaire ne confirme pas la revanche à temps.
     var onRematchTimeout: (() -> Void)?
 
-    init(didWin: Bool, opponentName: String) {
+    init(didWin: Bool, opponentName: String, seriesScoreText: String? = nil) {
         self.didWin = didWin
         self.opponentName = opponentName
+        self.seriesScoreText = seriesScoreText
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .overFullScreen
         modalTransitionStyle = .crossDissolve
@@ -1179,6 +1184,24 @@ final class BlomixPvPResultViewController: UIViewController {
         eloNewLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(eloNewLabel)
 
+        // Score de la série en cours (session revanches) — pure mise en page.
+        let showSeries = seriesScoreText != nil
+        seriesCaptionLabel.text = BlomixL10n.pvpSeriesEndSeriesCaption
+        seriesCaptionLabel.textColor = BlomixAppearance.tertiaryText
+        seriesCaptionLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        seriesCaptionLabel.textAlignment = .center
+        seriesCaptionLabel.isHidden = !showSeries
+        seriesCaptionLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(seriesCaptionLabel)
+
+        seriesScoreLabel.text = seriesScoreText
+        seriesScoreLabel.textColor = BlomixAppearance.primaryText
+        seriesScoreLabel.font = FontTheme.gameFont(size: 20, weight: .semibold)
+        seriesScoreLabel.textAlignment = .center
+        seriesScoreLabel.isHidden = !showSeries
+        seriesScoreLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(seriesScoreLabel)
+
         homeButton.setTitle(BlomixL10n.pvpResultBackHome, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: homeButton)
         BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 14, left: 28, bottom: 14, right: 28), to: homeButton)
@@ -1192,7 +1215,7 @@ final class BlomixPvPResultViewController: UIViewController {
         view.addSubview(rematchButton)
         applyRematchButtonStyle()
 
-        NSLayoutConstraint.activate([
+        var constraints: [NSLayoutConstraint] = [
             titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -60),
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
@@ -1213,12 +1236,23 @@ final class BlomixPvPResultViewController: UIViewController {
             eloNewLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             eloNewLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
+            seriesCaptionLabel.topAnchor.constraint(equalTo: eloNewLabel.bottomAnchor, constant: showSeries ? 16 : 0),
+            seriesCaptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            seriesCaptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+            seriesCaptionLabel.heightAnchor.constraint(equalToConstant: showSeries ? 18 : 0),
+
+            seriesScoreLabel.topAnchor.constraint(equalTo: seriesCaptionLabel.bottomAnchor, constant: showSeries ? 4 : 0),
+            seriesScoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            seriesScoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+            seriesScoreLabel.heightAnchor.constraint(equalToConstant: showSeries ? 24 : 0),
+
             rematchButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            rematchButton.topAnchor.constraint(equalTo: eloNewLabel.bottomAnchor, constant: 28),
+            rematchButton.topAnchor.constraint(equalTo: seriesScoreLabel.bottomAnchor, constant: 28),
 
             homeButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             homeButton.topAnchor.constraint(equalTo: rematchButton.bottomAnchor, constant: 14),
-        ])
+        ]
+        NSLayoutConstraint.activate(constraints)
     }
 
     // MARK: - Elo
@@ -1473,15 +1507,8 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
             scoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             scoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
-            totalCaptionLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 14),
-            totalCaptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
-            totalCaptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
-
-            totalScoreLabel.topAnchor.constraint(equalTo: totalCaptionLabel.bottomAnchor, constant: 4),
-            totalScoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
-            totalScoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
-
-            outcomeLabel.topAnchor.constraint(equalTo: totalScoreLabel.bottomAnchor, constant: 14),
+            // Total historique sous le bloc série (plus bas : sous le bouton OK).
+            outcomeLabel.topAnchor.constraint(equalTo: scoreLabel.bottomAnchor, constant: 14),
             outcomeLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             outcomeLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
@@ -1491,6 +1518,14 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
 
             okButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             okButton.topAnchor.constraint(equalTo: gamesLabel.bottomAnchor, constant: 28),
+
+            totalCaptionLabel.topAnchor.constraint(equalTo: okButton.bottomAnchor, constant: 28),
+            totalCaptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            totalCaptionLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+
+            totalScoreLabel.topAnchor.constraint(equalTo: totalCaptionLabel.bottomAnchor, constant: 4),
+            totalScoreLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
+            totalScoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
         ])
     }
 

@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.8 (build 78)  
+> **Version de référence** : 5.8 (build 79)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -40,6 +40,8 @@ Compteur **local only** (pas de message filaire) pendant une enchaîne de revanc
 | HUD | 1ʳᵉ partie : « match contre… » ; **après lancement d’une revanche** : `ABC  X  ·  Y  DEF` (local à gauche) |
 | Fin de série | Accueil / cancel / timeout revanche / déco si **≥ 2** parties → overlay `BlomixPvPSeriesEndViewController` (thème Jour/Nuit) |
 | Elo | Inchangé (1 update par partie) |
+| Écran résultat manche | Score **Série** affiché entre Elo et boutons Revanche / Accueil (`BlomixPvPResultViewController`) |
+| Overlay fin de série | **Série** en haut ; **Total historique** (H2H) **sous** le bouton OK |
 
 ### H2H long terme (total victoires, CloudKit)
 
@@ -54,7 +56,7 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
 | Cache local | UserDefaults agrégat par paire (affichage immédiat) |
 | Pending | File d’events vainqueur non uploadés ; flush au `didBecomeActive` |
-| UI | Overlay fin de série : ligne **Série** + ligne **Total** (fetch async ; si échec → cache ou masqué) |
+| UI | Overlay fin de série : **Série** puis, sous **OK**, **Total historique** (fetch async ; si échec → cache ou masqué) |
 | Déploiement | Créer le type + index **Queryable** sur `pairKey` dans CloudKit Console (Development puis Promote Production) |
 
 ### PvP Local — robustesse de liaison mid-match

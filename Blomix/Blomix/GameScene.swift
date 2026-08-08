@@ -13037,9 +13037,20 @@ final class GameScene: SKScene {
 
     private func blomixPvP_showPvPResult(didWin: Bool) {
         guard let rootVC = modalRootViewController() else { return }
+        // Score série session (déjà incrémenté avant cet écran) — affichage purement UI.
+        let seriesText: String? = {
+            guard pvpSeriesGamesPlayed >= 1 else { return nil }
+            return BlomixL10n.pvpHudSeriesScore(
+                localPrefix: pvpSeriesLocalPrefix,
+                localWins: pvpSeriesLocalWins,
+                remoteWins: pvpSeriesRemoteWins,
+                remotePrefix: pvpSeriesRemotePrefix
+            )
+        }()
         let result = BlomixPvPResultViewController(
             didWin: didWin,
-            opponentName: pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
+            opponentName: pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent,
+            seriesScoreText: seriesText
         )
         if let pvpLastEloResult {
             result.applyEloResult(pvpLastEloResult)

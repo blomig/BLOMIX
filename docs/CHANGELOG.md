@@ -9,16 +9,18 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.8] — 2026-08 (courant)
 
-Build **78** (TestFlight).
+Build **79** (TestFlight).
 
 ### Ajouté
-- **PvP H2H (total victoires)** : juge CloudKit Public `PvPH2HEvent` (1 point = 1 manche gagnée) ; cache + pending locaux ; affichage **Total** sous la **Série** en fin de série de revanches
+- **PvP H2H (total victoires)** : juge CloudKit Public `PvPH2HEvent` (1 point = 1 manche gagnée) ; cache + pending locaux ; affichage **Total historique** en fin de série de revanches
   - Module isolé `BlomixPvPH2HManager` — échec cloud = ligne total absente/stale **uniquement** (match / Elo / reconnexion intacts)
   - Writer = vainqueur (record `h2h_{uuid}`) ; lecture query `pairKey` ; flush au foreground
 
 ### Modifié
+- **Écran résultat PvP** : score de la **série** en cours (entre Elo et boutons Revanche / Accueil)
+- **Fin de série** : total H2H sous le bouton OK, libellé **Total historique**
 - **`ITSAppUsesNonExemptEncryption` = false** dans `Info.plist` — plus de questionnaire Export Compliance à chaque upload ASC / TestFlight
-- Version marketing **5.8** (build **78**)
+- Version marketing **5.8** (build **79**)
 
 ---
 

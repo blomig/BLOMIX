@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 5.8  
+> **Version de référence** : 5.9  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -398,9 +398,9 @@ Blomix/Blomix/
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
 ├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + reconcile local>GC
 ├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
-├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (total victoires, isolé)
+├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
-├── LeaderboardViewController.swift  # Classements + BlomixPlainTextModalViewController (crédits)
+├── LeaderboardViewController.swift  # Classements Elo H2H + défis ; crédits plain-text legacy
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)
 ├── BlomixMusicPlayer.swift       # Musique par stage
 ├── color_skins.json
@@ -410,4 +410,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v5.7 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v5.9 — à maintenir lors des évolutions majeures.*

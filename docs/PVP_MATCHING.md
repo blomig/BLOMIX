@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.8 (build 79)  
+> **Version de référence** : 5.9 (build 82)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -54,10 +54,12 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | recordName | `h2h_{clientEventId}` (UUID) — **créateur = vainqueur** → WRITE OK |
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel` (`online`/`local`), `clientEventId`, `createdAt` |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
-| Cache local | UserDefaults agrégat par paire (affichage immédiat) |
+| Cache local | UserDefaults multi-clés par ID distant + **alias** game↔team (affichage immédiat) |
 | Pending | File d’events vainqueur non uploadés ; flush au `didBecomeActive` |
+| Identité | Match et leaderboard GK peuvent renvoyer des chaînes différentes pour le même joueur (`gamePlayerID` / `teamPlayerID`, formats `A:_…` vs hex) — lookup H2H croise les deux + pont `displayName` (adversaires récents) |
 | UI | Overlay fin de série : **Série** puis, sous **OK**, **Total historique** (fetch async ; si échec → cache ou masqué) |
-| Déploiement | Créer le type + index **Queryable** sur `pairKey` dans CloudKit Console (Development puis Promote Production) |
+| Classement Elo | Si historique : `X - Y` **à gauche de Défier uniquement** (vert / rouge / gris) ; pas sur la ligne secondaire Elo |
+| Déploiement | Type `PvPH2HEvent` + index **Queryable** sur `pairKey` (et `recordName` pour la Console) en Production |
 
 ### PvP Local — robustesse de liaison mid-match
 

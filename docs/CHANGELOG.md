@@ -7,7 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.8] — 2026-08 (courant)
+## [5.9] — 2026-08 (courant)
+
+Build **82** (TestFlight).
+
+### Modifié
+- **HUD PvP** (libellé au-dessus du score) : couleur `secondaryText` thème chrome — lisible en mode Jour
+- **Police par défaut** (première install) : **Changa One** (préférence UserDefaults existante inchangée)
+- **Skin Default** : palette Hex mise à jour ; ancien default resemé dans **Perso** si besoin
+- **H2H / classement Elo** : lookup multi-ID GameKit (`gamePlayerID` + `teamPlayerID` + alias + pont displayName) — corrige l’absence de cumul quand l’ID match (`A:_…`) ≠ l’ID ligne Elo ; cache sans pollution `0-0`
+- **Classement Elo** : cumul H2H `X - Y` **uniquement** à gauche de « Défier » (vert / rouge / gris égalité ; masqué si pas d’historique) — plus sur la ligne secondaire Elo
+- Version marketing **5.9** (build **82**)
+
+---
+
+## [5.8] — 2026-08
 
 Build **79** (TestFlight).
 

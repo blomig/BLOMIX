@@ -254,20 +254,24 @@ final class BlomixSkinCatalog: @unchecked Sendable {
         }
     }
 
-    /// Hex `#RRGGBB` pour un slot du skin perso désigné (fallback = palette par défaut).
+    /// Hex `#RRGGBB` pour un slot du skin perso désigné.
+    /// Fallback (jamais édité) : **ancienne** palette Default (seed Perso / Perso 2), pas le Default JSON courant —
+    /// ainsi à l’install Default ≠ Perso, et les couleurs historiques restent accessibles via Perso.
     private static func readPersoHexStatic(bloxKey: String, skinId: String = persoSkinId) -> String {
         let udKey = udPersoHexKey(bloxKey, skinId: skinId)
         if let s = UserDefaults.standard.string(forKey: udKey),
            let norm = normalizeHexForStorage(s) {
             return norm
         }
+        // Alea a sa propre génération ; les autres slots perso seedent sur l’ex-Default.
+        let seed = (skinId == aleaSkinId) ? builtinDefaultSkin : builtinPersoSeedSkin
         if bloxKey == "priks" {
-            return normalizeHexForStorage(builtinDefaultSkin.priks) ?? "#6B5B73"
+            return normalizeHexForStorage(seed.priks) ?? "#6B5B73"
         }
         if bloxKey == "prikstext" {
-            return normalizeHexForStorage(builtinDefaultSkin.prikstext ?? "#FFFFFF") ?? "#FFFFFF"
+            return normalizeHexForStorage(seed.prikstext ?? "#FFFFFF") ?? "#FFFFFF"
         }
-        if let h = builtinDefaultSkin.blox[bloxKey] {
+        if let h = seed.blox[bloxKey] {
             return normalizeHexForStorage(h) ?? h
         }
         return "#808080"
@@ -347,9 +351,23 @@ final class BlomixSkinCatalog: @unchecked Sendable {
         return SKColor(red: r, green: g, blue: b, alpha: 1)
     }
 
+    /// Fallback si `color_skins.json` absent — aligné sur le skin `default` du JSON.
     private static let builtinDefaultSkin = BlomixSkinDefinition(
         id: "default",
         displayName: BlomixL10n.skinDisplayDefault,
+        blox: [
+            "blue": "#00B3E9", "red": "#F2009F", "purple": "#FDA1FF",
+            "yellow": "#FFB200", "green": "#008E34", "orange": "#00688B",
+        ],
+        priks: "#00024C",
+        prikstext: "#EAD400"
+    )
+
+    /// Ancienne palette Default (Tropical Sunset) — seed / fallback des skins **Perso** / **Perso 2**
+    /// tant qu’aucune couleur n’a été enregistrée en UserDefaults.
+    private static let builtinPersoSeedSkin = BlomixSkinDefinition(
+        id: "perso-seed",
+        displayName: "Perso seed",
         blox: [
             "blue": "#299D8F", "red": "#E66F51", "purple": "#264753",
             "yellow": "#E8C46A", "green": "#8BB17D", "orange": "#F4A261",
@@ -12425,15 +12443,21 @@ final class GameScene: SKScene {
 
     /// Side-effect H2H uniquement. Toute erreur est avalée dans le manager.
     private func blomixPvP_recordH2HOutcomeBestEffort(localWon: Bool) {
-        let remoteID = pvpCoordinator?.remoteGamePlayerIDResolved ?? ""
-        guard !remoteID.isEmpty else {
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else {
             BlomixPvPLog.event("h2h_skip_no_remote_id")
             return
         }
         let channel = pvpCoordinator?.h2hChannelLabel ?? "online"
+        // Enregistrer game + team : le classement Elo ne renvoie pas toujours le même ID que le match.
         BlomixPvPH2HManager.shared.recordMatchOutcome(
             localWon: localWon,
-            remoteGamePlayerID: remoteID,
+            remoteGamePlayerID: remoteGameID,
+            remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
             channel: channel
         )
     }
@@ -12444,6 +12468,7 @@ final class GameScene: SKScene {
 
     private func blomixPvP_refreshOpponentHudLabel() {
         guard let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode else { return }
+        opponentLabel.fontColor = BlomixAppearance.secondaryTextSK
         if pvpSeriesHudActive {
             opponentLabel.text = BlomixL10n.pvpHudSeriesScore(
                 localPrefix: pvpSeriesLocalPrefix,
@@ -12920,7 +12945,8 @@ final class GameScene: SKScene {
         label.name = Self.hudPvPOpponentName
         label.fontName = Self.customUIFontPostScriptName
         label.fontSize = 12
-        label.fontColor = SKColor(white: 0.84, alpha: 1)
+        // Thème chrome : lisible en Jour (plus de gris 0.84 fixe trop clair sur fond crème).
+        label.fontColor = BlomixAppearance.secondaryTextSK
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .center
         label.numberOfLines = 2

@@ -4,17 +4,17 @@
       "id": "default",
       "displayName": "Default",
       "blox": {
-        "blue": "#299D8F",
-        "red": "#E66F51",
-        "purple": "#264753",
-        "yellow": "#E8C46A",
-        "green": "#8BB17D",
-        "orange": "#F4A261"
+        "blue": "#00b3e9",
+        "red": "#f2009f",
+        "purple": "#fda1ff",
+        "yellow": "#ffb200",
+        "green": "#008e34",
+        "orange": "#00688b"
       },
-      "priks": "#6B5B73",
-      "prikstext": "#FFFFFF"
+      "priks": "#00024c",
+      "prikstext": "#ead400"
     },
-{
+    {
       "id": "fresh",
       "displayName": "Fresh",
       "blox": {

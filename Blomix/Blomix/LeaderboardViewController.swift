@@ -31,11 +31,21 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private struct LeaderboardRow: Sendable {
         let rank: Int
         let playerName: String
+        /// `GKPlayer.gamePlayerID` (souvent format différent du match / H2H).
         let gamePlayerID: String
+        /// `GKPlayer.teamPlayerID` — souvent la clé qui rejoint l’ID match `A:_…`.
+        let teamPlayerID: String
         let score: Int
         let isLocalPlayer: Bool
         /// Nombre de parties ayant servi au calcul (uniquement renseigné pour `.averageScore`, via `entry.context`).
         let gameCount: Int
+
+        /// IDs à croiser avec le cache H2H (game + team, non vides).
+        var h2hLookupIDs: [String] {
+            [gamePlayerID, teamPlayerID]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty && $0 != "GKPlayerIDUnknown" }
+        }
     }
 
     private enum LeaderboardKind: CaseIterable, Sendable {
@@ -399,6 +409,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             let context: Int
             let playerName: String
             let gamePlayerID: String
+            let teamPlayerID: String
             let teamOrGameID: String
         }
         /// Map joueurs + page : non-Sendable encapsulé (`GKPlayer` n'est pas Sendable).
@@ -446,16 +457,18 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                         pageSnaps.reserveCapacity(raw.count)
                         for entry in raw {
                             let gid = entry.player.gamePlayerID
-                            pagePlayers[gid] = entry.player
-                            let teamOrGame = entry.player.teamPlayerID.isEmpty
-                                ? entry.player.gamePlayerID
-                                : entry.player.teamPlayerID
+                            let tid = entry.player.teamPlayerID
+                            // Indexer le GKPlayer sous les deux IDs (défi / H2H).
+                            if !gid.isEmpty { pagePlayers[gid] = entry.player }
+                            if !tid.isEmpty { pagePlayers[tid] = entry.player }
+                            let teamOrGame = tid.isEmpty ? gid : tid
                             pageSnaps.append(EntrySnapshot(
                                 rank: entry.rank,
                                 score: Int(entry.score),
                                 context: Int(entry.context),
                                 playerName: entry.player.displayName,
                                 gamePlayerID: gid,
+                                teamPlayerID: tid,
                                 teamOrGameID: teamOrGame
                             ))
                         }
@@ -472,11 +485,18 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                 let maxS = scores.max().map(String.init) ?? "—"
                 print("[Elo LB] page=\(page + 1) range=\(startRank)–\(startRank + Self.eloPageSize - 1) count=\(pageBundle.rawCount) min=\(minS) max=\(maxS)")
 
-                for (gid, player) in pageBundle.players {
-                    playerMap[gid] = player
+                for (key, player) in pageBundle.players {
+                    playerMap[key] = player
                 }
-                for snap in pageBundle.snapshots where seenIDs.insert(snap.gamePlayerID).inserted {
+                for snap in pageBundle.snapshots {
+                    let dedupeKey = snap.teamOrGameID.isEmpty ? snap.gamePlayerID : snap.teamOrGameID
+                    guard seenIDs.insert(dedupeKey).inserted else { continue }
                     snapshots.append(snap)
+                    // Alias game ↔ team dès le chargement Elo (même GKPlayer).
+                    if !snap.gamePlayerID.isEmpty, !snap.teamPlayerID.isEmpty,
+                       snap.gamePlayerID != snap.teamPlayerID {
+                        BlomixPvPH2HManager.shared.registerAliases([snap.gamePlayerID, snap.teamPlayerID])
+                    }
                 }
 
                 if pageBundle.rawCount < Self.eloPageSize { break }
@@ -497,6 +517,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     rank: snap.rank,
                     playerName: snap.playerName,
                     gamePlayerID: snap.gamePlayerID,
+                    teamPlayerID: snap.teamPlayerID,
                     score: snap.score,
                     isLocalPlayer: snap.teamOrGameID == localStableID,
                     gameCount: max(0, snap.context)
@@ -511,16 +532,17 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     var pagePlayers: [String: GKPlayer] = [:]
                     for entry in raw {
                         let gid = entry.player.gamePlayerID
-                        pagePlayers[gid] = entry.player
-                        let teamOrGame = entry.player.teamPlayerID.isEmpty
-                            ? entry.player.gamePlayerID
-                            : entry.player.teamPlayerID
+                        let tid = entry.player.teamPlayerID
+                        if !gid.isEmpty { pagePlayers[gid] = entry.player }
+                        if !tid.isEmpty { pagePlayers[tid] = entry.player }
+                        let teamOrGame = tid.isEmpty ? gid : tid
                         pageSnaps.append(EntrySnapshot(
                             rank: entry.rank,
                             score: Int(entry.score),
                             context: Int(entry.context),
                             playerName: entry.player.displayName,
                             gamePlayerID: gid,
+                            teamPlayerID: tid,
                             teamOrGameID: teamOrGame
                         ))
                     }
@@ -533,12 +555,13 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             }
 
             if let localSnap = localBundle.snapshots.first {
-                print("[Elo LB] local entry score=\(localSnap.score) context=\(localSnap.context) gcRank=\(localSnap.rank)")
+                print("[Elo LB] local entry score=\(localSnap.score) context=\(localSnap.context) gcRank=\(localSnap.rank) gid=\(String(localSnap.gamePlayerID.prefix(12))) tid=\(String(localSnap.teamPlayerID.prefix(12)))")
                 if localSnap.context > 0 || localSnap.score != eloStartRating {
                     let localRow = LeaderboardRow(
                         rank: localSnap.rank,
                         playerName: localSnap.playerName,
                         gamePlayerID: localSnap.gamePlayerID,
+                        teamPlayerID: localSnap.teamPlayerID,
                         score: localSnap.score,
                         isLocalPlayer: true,
                         gameCount: max(0, localSnap.context)
@@ -548,8 +571,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     } else {
                         rows.append(localRow)
                     }
-                    for (gid, player) in localBundle.players {
-                        playerMap[gid] = player
+                    for (key, player) in localBundle.players {
+                        playerMap[key] = player
                     }
                 }
             } else {
@@ -565,6 +588,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     rank: index + 1,
                     playerName: row.playerName,
                     gamePlayerID: row.gamePlayerID,
+                    teamPlayerID: row.teamPlayerID,
                     score: row.score,
                     isLocalPlayer: row.isLocalPlayer,
                     gameCount: row.gameCount
@@ -580,6 +604,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             statusLabel.text = rows.isEmpty
                 ? BlomixL10n.leaderboardEmpty
                 : BlomixL10n.leaderboardTopCount(rows.count)
+            // H2H : le chemin multi-pages Elo oubliait le prefetch (seul loadLeaderboardEntries le faisait).
+            prefetchH2HTotalsForEloRows(rows)
         } catch {
             guard selectedLeaderboardKind == .elo else { return }
             setLoading(false)
@@ -652,15 +678,16 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     let rank: Int
                     let playerName: String
                     let gamePlayerID: String
+                    let teamPlayerID: String
                     let teamOrGameID: String
                     let score: Int
                     let gameCount: Int
                 }
                 let raw = rankedEntries ?? []
                 let snaps: [RowSnap] = raw.map { entry in
-                    let teamOrGame = entry.player.teamPlayerID.isEmpty
-                        ? entry.player.gamePlayerID
-                        : entry.player.teamPlayerID
+                    let gid = entry.player.gamePlayerID
+                    let tid = entry.player.teamPlayerID
+                    let teamOrGame = tid.isEmpty ? gid : tid
                     let ctx = Int(entry.context)
                     let gameCount: Int
                     if selectedKind == .averageScore {
@@ -671,7 +698,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     return RowSnap(
                         rank: entry.rank,
                         playerName: entry.player.displayName,
-                        gamePlayerID: entry.player.gamePlayerID,
+                        gamePlayerID: gid,
+                        teamPlayerID: tid,
                         teamOrGameID: teamOrGame,
                         score: Int(entry.score),
                         gameCount: gameCount
@@ -695,10 +723,16 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                         } else {
                             count = snap.gameCount
                         }
+                        if selectedKind == .elo,
+                           !snap.gamePlayerID.isEmpty, !snap.teamPlayerID.isEmpty,
+                           snap.gamePlayerID != snap.teamPlayerID {
+                            BlomixPvPH2HManager.shared.registerAliases([snap.gamePlayerID, snap.teamPlayerID])
+                        }
                         return LeaderboardRow(
                             rank: snap.rank,
                             playerName: snap.playerName,
                             gamePlayerID: snap.gamePlayerID,
+                            teamPlayerID: snap.teamPlayerID,
                             score: snap.score,
                             isLocalPlayer: isLocal,
                             gameCount: count
@@ -709,8 +743,51 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     vc.statusLabel.text = mapped.isEmpty
                         ? BlomixL10n.leaderboardEmpty
                         : BlomixL10n.leaderboardTopCount(mapped.count)
+                    // Elo : remplir le cache H2H depuis CloudKit (best-effort) pour afficher X-Y.
+                    if selectedKind == .elo {
+                        vc.prefetchH2HTotalsForEloRows(mapped)
+                    }
                 }
             }
+        }
+    }
+
+    /// Refresh H2H cloud pour les adversaires Elo (hors chemin critique match). Recharge toujours la table ensuite.
+    private func prefetchH2HTotalsForEloRows(_ rows: [LeaderboardRow]) {
+        let remotes = rows.filter { !$0.isLocalPlayer && !$0.h2hLookupIDs.isEmpty }
+        print("[H2H Elo] \(BlomixPvPH2HManager.shared.debugDumpCacheSummary())")
+        guard !remotes.isEmpty else {
+            print("[H2H Elo] prefetch skip — no remote rows")
+            return
+        }
+        let capped = Array(remotes.prefix(50))
+        print("[H2H Elo] prefetch start count=\(capped.count) names=\(capped.prefix(5).map(\.playerName))")
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var hits = 0
+            for row in capped {
+                guard self.selectedLeaderboardKind == .elo else { return }
+                let ids = row.h2hLookupIDs
+                // Alias game↔team + pont displayName (adversaires récents / ID match A:_…).
+                BlomixPvPH2HManager.shared.registerAliases(ids)
+                if let cached = BlomixPvPH2HManager.shared.cachedTotals(
+                    againstRemoteIDs: ids,
+                    displayName: row.playerName
+                ), cached.hasHistory {
+                    hits += 1
+                }
+                let t = await BlomixPvPH2HManager.shared.refreshTotals(
+                    againstRemoteIDs: ids,
+                    displayName: row.playerName
+                )
+                if let t, t.hasHistory {
+                    hits += 1
+                    print("[H2H Elo] hit \(row.playerName) gid=\(String(row.gamePlayerID.prefix(10)))… tid=\(String(row.teamPlayerID.prefix(10)))… \(t.localWins)-\(t.remoteWins)")
+                }
+            }
+            guard self.selectedLeaderboardKind == .elo else { return }
+            self.tableView.reloadData()
+            print("[H2H Elo] prefetch done hits≈\(hits) → reloadData")
         }
     }
 
@@ -725,9 +802,19 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         let cell = tableView.dequeueReusableCell(withIdentifier: "LeaderboardCell", for: indexPath)
         cell.backgroundColor = row.isLocalPlayer ? BlomixAppearance.tableRowHighlight : UIColor.clear
         cell.selectionStyle = .none
+        cell.accessoryView = nil
+
+        let h2hForRow: BlomixPvPH2HTotals? = {
+            guard selectedLeaderboardKind == .elo, !row.isLocalPlayer else { return nil }
+            return BlomixPvPH2HManager.shared.cachedTotals(
+                againstRemoteIDs: row.h2hLookupIDs,
+                displayName: row.playerName
+            )
+        }()
 
         var content = UIListContentConfiguration.subtitleCell()
         content.text = "#\(row.rank)  \(row.playerName)"
+        // 2ᵉ ligne : score Elo uniquement — le H2H `X - Y` est à côté de « Défier ».
         content.secondaryText = selectedLeaderboardKind.secondaryText(for: row.score)
         content.textProperties.color = BlomixAppearance.primaryText
         content.secondaryTextProperties.color = row.isLocalPlayer
@@ -749,21 +836,62 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             return cell
         }
 
-        // Bouton "Défier" uniquement sur l'onglet Elo, pour les autres joueurs.
+        // Bouton "Défier" (+ score H2H ou « - » à gauche) sur l'onglet Elo.
         if selectedLeaderboardKind == .elo && !row.isLocalPlayer && onMatch != nil {
-            let btn = BlomixUIButton()
-            btn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
-            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
-            BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14), to: btn)
-            btn.titleLabel?.font = FontTheme.gameFont(size: 14, fallbackWeight: .semibold)
-            btn.tag = indexPath.row
-            btn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
-            btn.sizeToFit()
-            cell.accessoryView = btn
-        } else {
-            cell.accessoryView = nil
+            cell.accessoryView = makeEloChallengeAccessory(rowIndex: indexPath.row, h2h: h2hForRow)
         }
         return cell
+    }
+
+    /// Accessory Elo : `[ X - Y ][ Défier ]` si historique H2H, sinon bouton seul.
+    private func makeEloChallengeAccessory(rowIndex: Int, h2h: BlomixPvPH2HTotals?) -> UIView {
+        let btn = BlomixUIButton(type: .system)
+        btn.setTitle(BlomixL10n.pvpRecentChallenge, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14), to: btn)
+        btn.titleLabel?.font = FontTheme.gameFont(size: 14, fallbackWeight: .semibold)
+        btn.tag = rowIndex
+        btn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
+        btn.sizeToFit()
+
+        guard let totals = h2h, totals.hasHistory else {
+            return btn
+        }
+
+        let scoreLabel = UILabel()
+        scoreLabel.font = FontTheme.gameFont(size: 13, fallbackWeight: .semibold)
+        scoreLabel.textAlignment = .right
+        scoreLabel.text = "\(totals.localWins) - \(totals.remoteWins)"
+        if totals.localWins > totals.remoteWins {
+            scoreLabel.textColor = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+        } else if totals.localWins < totals.remoteWins {
+            scoreLabel.textColor = UIColor(red: 0.90, green: 0.28, blue: 0.28, alpha: 1)
+        } else {
+            scoreLabel.textColor = BlomixAppearance.secondaryText
+        }
+        scoreLabel.sizeToFit()
+        let scoreW = max(ceil(scoreLabel.bounds.width), 18)
+
+        let gap: CGFloat = 8
+        let h = max(scoreLabel.bounds.height, btn.bounds.height, 34)
+        let w = scoreW + gap + ceil(btn.bounds.width)
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: w, height: h))
+        container.isUserInteractionEnabled = true
+        scoreLabel.frame = CGRect(
+            x: 0,
+            y: (h - scoreLabel.bounds.height) / 2,
+            width: scoreW,
+            height: scoreLabel.bounds.height
+        )
+        btn.frame = CGRect(
+            x: scoreW + gap,
+            y: (h - btn.bounds.height) / 2,
+            width: ceil(btn.bounds.width),
+            height: btn.bounds.height
+        )
+        container.addSubview(scoreLabel)
+        container.addSubview(btn)
+        return container
     }
 
     // MARK: - Invitation sortante
@@ -780,7 +908,9 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     @objc private func challengeTapped(_ sender: UIButton) {
         guard sender.tag < rows.count else { return }
         let row = rows[sender.tag]
-        guard let player = eloGKPlayers[row.gamePlayerID] else { return }
+        let player = eloGKPlayers[row.gamePlayerID]
+            ?? (!row.teamPlayerID.isEmpty ? eloGKPlayers[row.teamPlayerID] : nil)
+        guard let player else { return }
         showInviteOverlay(playerName: row.playerName)
         sendInvitation(to: player)
     }

@@ -1145,6 +1145,7 @@ extension BlomixPvPMatchCoordinator: GKMatchDelegate {
     nonisolated func match(_ match: GKMatch, player: GKPlayer, didChange state: GKPlayerConnectionState) {
         let displayName = player.displayName
         let gamePlayerID = player.gamePlayerID
+        let teamPlayerID = player.teamPlayerID
         Task { @MainActor in
             if state == .disconnected {
                 BlomixPvPLog.event("peer_disconnected_gk", [
@@ -1165,6 +1166,12 @@ extension BlomixPvPMatchCoordinator: GKMatchDelegate {
                 self.resolveHostRoleIfNeeded()
                 self.beginHandshakeMonitoringIfNeeded()
                 BlomixRecentOpponentsCache.shared.record(gamePlayerID: gamePlayerID, displayName: displayName)
+                // Alias H2H game ↔ team dès la connexion match (lookup Elo multi-ID).
+                if !gamePlayerID.isEmpty || !teamPlayerID.isEmpty {
+                    BlomixPvPH2HManager.shared.registerAliases(
+                        [gamePlayerID, teamPlayerID].filter { !$0.isEmpty }
+                    )
+                }
                 NotificationCenter.default.post(
                     name: .blomixPvPOpponentConnected,
                     object: nil,

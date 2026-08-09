@@ -57,7 +57,8 @@ final class BlomixTypography {
     var selectedFontChoice: BlomixFontChoice {
         get {
             let raw = UserDefaults.standard.string(forKey: Persistence.selectedFontIDKey)
-            return raw.flatMap(BlomixFontChoice.init(rawValue:)) ?? .bitcount
+            // Première install (aucune clé) : Changa One. Préférence joueur déjà enregistrée : inchangée.
+            return raw.flatMap(BlomixFontChoice.init(rawValue:)) ?? .changaOne
         }
         set {
             guard selectedFontChoice != newValue else { return }

@@ -1529,15 +1529,9 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
         ])
     }
 
-    /// Mise à jour async après fetch CloudKit (best-effort).
-    /// Garde-fou UI : ne jamais redescendre un côté déjà affiché (max composante par composante).
+    /// Mise à jour async après fetch CloudKit — **vérité cloud** (remplace, pas de max local).
     func applyH2HTotals(_ totals: BlomixPvPH2HTotals?) {
-        guard let totals else { return }
-        if let current = h2hTotals {
-            h2hTotals = current.merging(totals)
-        } else {
-            h2hTotals = totals
-        }
+        h2hTotals = totals
         guard isViewLoaded else { return }
         refreshTotalLabel()
     }

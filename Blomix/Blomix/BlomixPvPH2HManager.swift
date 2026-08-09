@@ -21,13 +21,13 @@
 //  `teamPlayerID`, formats `A:_…` vs hex). Le cache est multi-clés + alias ;
 //  les queries cloud tentent les combinaisons d’IDs locaux/distants.
 //
-//  Réconciliation robuste (cohérence Elo → parties → fin de série) :
-//  - **Plancher de session** (UserDefaults) : baseline + deltas des manches
-//    enregistrées localement ; tant que le cloud n’a pas rattrapé, on n’affiche
-//    jamais moins que ce plancher (ni local ni remote).
-//  - **Hors session ouverte** : localWins = cloud + pending upload (anti-inflation) ;
-//    remoteWins = max(cloud, cache) (upload adverse en retard hors session).
-//  - Flush pending avant lecture ; 1 re-essai si plancher > cloud ; pairKey A:_….
+//  Réconciliation produit (v5.9 build 86+) — **vérité CloudKit** :
+//  - Si fetch Public DB **OK** → affichage / cache = **uniquement** le compte cloud
+//    (même total pour les deux joueurs, en miroir). Plus de max(cache/plancher).
+//  - Pending vainqueur : flush agressif avant lecture ; **non** ajouté à l’affichage
+//    (sinon un seul téléphone voit +1).
+//  - Si fetch **KO** (réseau) → secours cache / plancher session (offline only).
+//  - Plancher session : ne pilote plus l’UI quand le cloud répond.
 //
 
 import CloudKit
@@ -240,101 +240,75 @@ final class BlomixPvPH2HManager {
         }
 
         let previous = cachedTotals(againstRemoteIDs: remotes)
-        let floorBefore = sessionFloorState(forRemoteIDs: remotes)
+        let floorState = sessionFloorState(forRemoteIDs: remotes)
 
-        // Flush + lecture cloud (avec 1 re-essai si plancher session > cloud).
+        // Flush agressif (2 passes) pour pousser les wins avant lecture vérité cloud.
+        await flushPendingEventsAsync()
+        var pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
+        if pendingLeft > 0 {
+            print("[H2H] pending after flush#1: \(pendingLeft) — retry")
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            await flushPendingEventsAsync()
+            pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
+        }
+        if pendingLeft > 0 {
+            print("[H2H] pending still \(pendingLeft) (affichage cloud sans les ajouter) — \(debugDumpPendingSummary())")
+        }
+
         var cloudBundle = await fetchCloudSum(
             localIDs: localIDs,
             remotes: remotes,
-            flushFirst: true
+            flushFirst: false
         )
-        var pendingExtra = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
-        if let floor = floorBefore, floor.hasOpenSession {
-            let cloudL = cloudBundle.sum.localWins + pendingExtra
+        // Si encore du pending et cloud sous le plancher / cache, 3ᵉ passe flush+query.
+        if pendingLeft > 0 || (floorState?.hasOpenSession == true) {
+            let cloudL = cloudBundle.sum.localWins
             let cloudR = cloudBundle.sum.remoteWins
-            if cloudBundle.anyHit || cloudBundle.querySucceeded {
-                if cloudL < floor.floorLocal || cloudR < floor.floorRemote {
-                    print("[H2H] floor \(floor.floorLocal)-\(floor.floorRemote) > cloud \(cloudL)-\(cloudR) — retry flush+query")
-                    try? await Task.sleep(nanoseconds: 450_000_000)
-                    cloudBundle = await fetchCloudSum(
-                        localIDs: localIDs,
-                        remotes: remotes,
-                        flushFirst: true
-                    )
-                    pendingExtra = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
-                }
+            let wantL = max(floorState?.floorLocal ?? 0, previous?.localWins ?? 0)
+            let wantR = max(floorState?.floorRemote ?? 0, previous?.remoteWins ?? 0)
+            if cloudL < wantL || cloudR < wantR || pendingLeft > 0 {
+                print("[H2H] cloud \(cloudL)-\(cloudR) vs want~\(wantL)-\(wantR) — extra flush+query")
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                await flushPendingEventsAsync()
+                cloudBundle = await fetchCloudSum(
+                    localIDs: localIDs,
+                    remotes: remotes,
+                    flushFirst: false
+                )
+                pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
             }
         }
-
-        if pendingExtra > 0 {
-            print("[H2H] pending local wins for duo: \(pendingExtra) — \(debugDumpPendingSummary())")
-        }
-
-        let cloudL = cloudBundle.sum.localWins + pendingExtra
-        let cloudR = cloudBundle.sum.remoteWins
-        let floorState = sessionFloorState(forRemoteIDs: remotes)
 
         let reconciled: BlomixPvPH2HTotals?
-        if cloudBundle.anyHit {
-            let total: BlomixPvPH2HTotals
-            if let floor = floorState, floor.hasOpenSession {
-                // Session en cours / non rattrapée : jamais sous le plancher des manches jouées.
-                total = BlomixPvPH2HTotals(
-                    localWins: max(cloudL, max(floor.floorLocal, previous?.localWins ?? 0)),
-                    remoteWins: max(cloudR, max(floor.floorRemote, previous?.remoteWins ?? 0))
-                )
-                print("[H2H] reconcile session-floor cloud \(cloudBundle.sum.localWins)-\(cloudBundle.sum.remoteWins)+pendL=\(pendingExtra) floor \(floor.floorLocal)-\(floor.floorRemote) prev \(previous.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil") → \(total.localWins)-\(total.remoteWins)")
+        if cloudBundle.querySucceeded {
+            // ── Vérité CloudKit (identique pour les deux clients) ──
+            // Pas de +pending, pas de max(cache), pas de plancher session.
+            let total = cloudBundle.sum
+            if total.hasHistory {
+                replaceTotals(total, underRemoteIDs: remotes)
+                print("[H2H] reconcile CLOUD-TRUTH \(total.localWins)-\(total.remoteWins) (raw cloud, pendingLeft=\(pendingLeft)) prev \(previous.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
             } else {
-                // Hors session : cloud juge le local (anti-inflation) ; remote protégé vs upload adverse en retard.
-                total = BlomixPvPH2HTotals(
-                    localWins: cloudL,
-                    remoteWins: max(cloudR, previous?.remoteWins ?? 0)
-                )
-                print("[H2H] reconcile idle cloud \(cloudBundle.sum.localWins)-\(cloudBundle.sum.remoteWins)+pendL=\(pendingExtra) → \(total.localWins)-\(total.remoteWins)")
+                clearTotals(underRemoteIDs: remotes)
+                print("[H2H] reconcile CLOUD-TRUTH empty (0 events) — cache cleared")
             }
-            reconciled = total
-            alignSessionFloorIfCaughtUp(
-                remoteIDs: remotes,
-                cloudLocal: cloudL,
-                cloudRemote: cloudR,
-                displayed: total
-            )
-        } else if cloudBundle.querySucceeded {
-            if let floor = floorState, floor.hasOpenSession {
-                let total = BlomixPvPH2HTotals(
-                    localWins: max(floor.floorLocal, max(previous?.localWins ?? 0, pendingExtra)),
-                    remoteWins: max(floor.floorRemote, previous?.remoteWins ?? 0)
-                )
-                reconciled = total
-                print("[H2H] reconcile cloud empty + session floor → \(total.localWins)-\(total.remoteWins)")
-            } else if let previous, previous.hasHistory {
-                let total = BlomixPvPH2HTotals(
-                    localWins: max(previous.localWins, pendingExtra),
-                    remoteWins: previous.remoteWins
-                )
-                reconciled = total
-                print("[H2H] reconcile cloud empty — keep cache \(total.localWins)-\(total.remoteWins)")
-            } else if pendingExtra > 0 {
-                reconciled = BlomixPvPH2HTotals(localWins: pendingExtra, remoteWins: 0)
-                print("[H2H] reconcile cloud empty +pendingLocal=\(pendingExtra)")
-            } else {
-                reconciled = nil
-                print("[H2H] reconcile cloud empty — nothing to show")
+            // Ferme le plancher : le cloud a tranché (même s’il est en retard d’un upload encore pending).
+            forceCloseSessionFloor(remoteIDs: remotes, to: total)
+            if !total.hasHistory {
+                print("[H2H] refresh OK cloud empty remotes=\(remotes.prefix(2).map(debugID).joined(separator: ","))…")
             }
-        } else if let previous, previous.hasHistory {
-            reconciled = previous
-            print("[H2H] refresh keep cache (cloud unreachable) \(previous.localWins)-\(previous.remoteWins)")
-        } else if let floor = floorState, floor.hasOpenSession {
-            reconciled = BlomixPvPH2HTotals(localWins: floor.floorLocal, remoteWins: floor.floorRemote)
-            print("[H2H] refresh unreachable — session floor \(floor.floorLocal)-\(floor.floorRemote)")
-        } else {
-            reconciled = nil
+            return total.hasHistory ? total : nil
         }
 
-        if let reconciled, reconciled.hasHistory {
-            replaceTotals(reconciled, underRemoteIDs: remotes)
-            print("[H2H] refresh OK remotes=\(remotes.map(debugID).joined(separator: ",")) → \(reconciled.localWins)-\(reconciled.remoteWins) \(debugDumpSessionSummary(forRemoteIDs: remotes))")
-            return reconciled
+        // ── Offline / CK down : secours local uniquement ──
+        if let previous, previous.hasHistory {
+            print("[H2H] refresh OFFLINE keep cache \(previous.localWins)-\(previous.remoteWins)")
+            return previous
+        }
+        if let floor = floorState, floor.hasOpenSession {
+            let total = BlomixPvPH2HTotals(localWins: floor.floorLocal, remoteWins: floor.floorRemote)
+            replaceTotals(total, underRemoteIDs: remotes)
+            print("[H2H] refresh OFFLINE session floor \(total.localWins)-\(total.remoteWins)")
+            return total
         }
 
         print("[H2H] refresh empty remotes=\(remotes.prefix(3).map(debugID).joined(separator: ","))…")
@@ -541,33 +515,23 @@ final class BlomixPvPH2HManager {
         return best
     }
 
-    /// Quand le cloud a rattrapé le plancher, on ferme la session (prochains refresh = idle anti-inflation).
-    private func alignSessionFloorIfCaughtUp(
-        remoteIDs: [String],
-        cloudLocal: Int,
-        cloudRemote: Int,
-        displayed: BlomixPvPH2HTotals
-    ) {
-        guard let state = sessionFloorState(forRemoteIDs: remoteIDs), state.hasOpenSession else { return }
-        if cloudLocal >= state.floorLocal && cloudRemote >= state.floorRemote {
-            var all = loadSessionFloors()
-            let cleared = SessionFloorState(
-                confirmedLocal: displayed.localWins,
-                confirmedRemote: displayed.remoteWins,
-                deltaLocal: 0,
-                deltaRemote: 0,
-                updatedAt: Date()
-            )
-            let key = sessionStorageKey(forRemoteIDs: remoteIDs)
-            all[key] = cleared
-            for rid in expandedRemoteIDs(remoteIDs) {
-                all[rid] = cleared
-            }
-            saveSessionFloors(all)
-            print("[H2H] session floor caught up → conf \(cleared.confirmedLocal)-\(cleared.confirmedRemote) (closed)")
-        } else {
-            print("[H2H] session floor open cloud \(cloudLocal)-\(cloudRemote) < floor \(state.floorLocal)-\(state.floorRemote) — keep guard")
+    /// Ferme le plancher après un fetch cloud OK (vérité partagée = cloud).
+    private func forceCloseSessionFloor(remoteIDs: [String], to displayed: BlomixPvPH2HTotals) {
+        var all = loadSessionFloors()
+        let cleared = SessionFloorState(
+            confirmedLocal: displayed.localWins,
+            confirmedRemote: displayed.remoteWins,
+            deltaLocal: 0,
+            deltaRemote: 0,
+            updatedAt: Date()
+        )
+        let key = sessionStorageKey(forRemoteIDs: remoteIDs)
+        all[key] = cleared
+        for rid in expandedRemoteIDs(remoteIDs) {
+            all[rid] = cleared
         }
+        saveSessionFloors(all)
+        print("[H2H] session floor closed → conf \(cleared.confirmedLocal)-\(cleared.confirmedRemote) (cloud-truth)")
     }
 
     private func sessionStorageKey(forRemoteIDs remoteIDs: [String]) -> String {

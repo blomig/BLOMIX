@@ -9,16 +9,15 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **85** (TestFlight).
+Build **86** (TestFlight).
 
 ### Modifié
-- **HUD PvP** (libellé au-dessus du score) : couleur `secondaryText` thème chrome — lisible en mode Jour
-- **Police par défaut** (première install) : **Changa One** (préférence UserDefaults existante inchangée)
-- **Skin Default** : palette Hex mise à jour ; ancien default resemé dans **Perso** si besoin
-- **H2H / classement Elo** : lookup multi-ID GameKit + alias + pont displayName
-- **H2H plancher de session** : baseline + deltas des manches jouées ; refresh Elo / fin de série ne redescend plus sous ce plancher tant que le cloud n’a pas rattrapé ; hors session local = cloud+pending (anti-inflation) ; retry flush si plancher > cloud ; UI fin de série en max monotoone
-- **Classement Elo** : cumul H2H `X - Y` **uniquement** à gauche de « Défier »
-- Version marketing **5.9** (build **85**)
+- **H2H vérité CloudKit** : si fetch Public DB OK → cumul affiché = **uniquement** le compte cloud (même total en miroir pour les deux) ; plus de max(cache/plancher) ni +pending à l’UI ; flush agressif avant lecture ; plancher session **uniquement offline**
+- **Fin de série** : refresh applique le total cloud (remplace, pas max)
+- Version marketing **5.9** (build **86**)
+
+### Antérieur 5.9 (builds 80–85, résumé)
+- HUD PvP secondaryText ; police défaut Changa One ; skin Default Hex ; H2H multi-ID Elo ; plancher session (85) ; cumul à gauche de Défier
 
 ---
 

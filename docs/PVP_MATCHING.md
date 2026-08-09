@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 85)  
+> **Version de référence** : 5.9 (build 86)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -54,12 +54,12 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | recordName | `h2h_{clientEventId}` (UUID) — **créateur = vainqueur** → WRITE OK |
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel` (`online`/`local`), `clientEventId`, `createdAt` |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
-| Cache local | UserDefaults multi-clés + **alias** |
-| Pending upload | Events vainqueur (`blomixPvPH2HPending_v1`) ; flush avant lecture + foreground + retry 0,5 s |
-| Plancher session | `blomixPvPH2HSessionFloor_v1` : confirmed + Δ manches locales ; **tant que cloud < plancher**, affichage ≥ plancher (local **et** remote) |
-| Réconciliation | **Session ouverte** → max(cloud+pending, plancher, cache) ; **idle** → local=cloud+pending, remote=max(cloud,cache) ; fermeture plancher quand cloud rattrape |
-| UI | Fin de série : total sous OK, `applyH2HTotals` monotone (max) ; Elo : `X-Y` à gauche de Défier |
-| Diagnostic | Logs `[H2H]` : `session floor`, `pending=`, `reconcile session-floor` / `idle` |
+| Cache local | Miroir du **dernier cloud OK** (multi-clés + alias) |
+| Pending upload | Wins vainqueur (`blomixPvPH2HPending_v1`) ; flush ×2 avant lecture ; **pas** ajouté au total affiché |
+| Plancher session | Secours **offline uniquement** (fetch CK KO) |
+| Réconciliation | **Fetch OK** → `CLOUD-TRUTH` = count events uniquement (identique des deux côtés en miroir) ; **fetch KO** → cache / plancher |
+| UI | Elo + fin de série après refresh : total cloud ; Elo `X-Y` à gauche de Défier |
+| Diagnostic | Logs `[H2H] reconcile CLOUD-TRUTH` / `OFFLINE` / `pending` |
 | Déploiement | `PvPH2HEvent` + `pairKey` Queryable (+ `recordName` pour Console) en Production |
 
 ### PvP Local — robustesse de liaison mid-match

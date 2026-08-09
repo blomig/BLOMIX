@@ -12453,12 +12453,15 @@ final class GameScene: SKScene {
             return
         }
         let channel = pvpCoordinator?.h2hChannelLabel ?? "online"
+        // Clé stable par manche de la série (évite double event cloud si fin de match rejouée).
+        let matchEventKey = "\(channel)|g\(pvpSeriesGamesPlayed)|\(remoteGameID)|\(remoteTeamID)"
         // Enregistrer game + team : le classement Elo ne renvoie pas toujours le même ID que le match.
         BlomixPvPH2HManager.shared.recordMatchOutcome(
             localWon: localWon,
             remoteGamePlayerID: remoteGameID,
             remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
-            channel: channel
+            channel: channel,
+            matchEventKey: matchEventKey
         )
     }
 

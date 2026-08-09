@@ -21,6 +21,11 @@
 //  `teamPlayerID`, formats `A:_…` vs hex). Le cache est multi-clés + alias ;
 //  les queries cloud tentent les combinaisons d’IDs locaux/distants.
 //
+//  Réconciliation (v5.9+) : après fetch cloud réussi, le cloud est la vérité
+//  (plus de max(local, cloud) qui fige un cache gonflé). Les wins encore en
+//  pending local s’ajoutent au cloud le temps du flush. pairKey d’écriture =
+//  IDs « match-like » prioritaires (A:_…).
+//
 
 import CloudKit
 import Foundation
@@ -105,48 +110,61 @@ final class BlomixPvPH2HManager {
 
     /// Enregistre le résultat d’une manche. Fournir **tous** les IDs distants connus
     /// (`gamePlayerID`, `teamPlayerID`) pour que le classement Elo retrouve le cumul.
+    /// - Parameter matchEventKey: clé stable optionnelle (ex. seed+index de manche) pour
+    ///   idempotence cloud ; si omis → UUID (comportement historique).
     func recordMatchOutcome(
         localWon: Bool,
         remoteGamePlayerID: String,
         remoteTeamPlayerID: String? = nil,
-        channel: String
+        channel: String,
+        matchEventKey: String? = nil
     ) {
         registerLifecycleIfNeeded()
         migrateCacheV1IfNeeded()
 
         let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
-        guard let primaryRemote = remoteIDs.first else {
+        guard !remoteIDs.isEmpty else {
             print("[H2H] record skip — remote IDs vides")
             return
         }
         registerAliases(remoteIDs)
 
         let localIDs = resolvedLocalPlayerIDs()
-        guard let primaryLocal = localIDs.first else {
+        // IDs d’écriture cloud : priorité match-like (A:_…) pour coller à l’historique prod.
+        guard let primaryLocal = Self.preferredCloudID(from: localIDs),
+              let primaryRemote = Self.preferredCloudID(from: remoteIDs)
+        else {
             print("[H2H] record skip — local ID manquant")
             return
         }
 
-        // pairKey cloud : préférer gamePlayerID live (historique existant en `A:_…`).
         guard let pair = Self.pairKey(localID: primaryLocal, remoteID: primaryRemote) else {
             print("[H2H] record skip — IDs manquants local=\(debugID(primaryLocal)) remote=\(debugID(primaryRemote))")
             return
         }
 
-        // Une seule incrémentation, puis réplication sous toutes les clés / alias (évite double-count).
+        // Cache optimiste (affichage immédiat). Un refresh cloud-first le recalera ensuite.
         var next = cachedTotals(againstRemoteIDs: remoteIDs) ?? .zero
         if localWon {
             next.localWins += 1
         } else {
             next.remoteWins += 1
         }
-        writeTotals(next, underRemoteIDs: remoteIDs)
+        replaceTotals(next, underRemoteIDs: remoteIDs)
         print("[H2H] cache \(localWon ? "win" : "loss") vs \(remoteIDs.map(debugID).joined(separator: ",")) → \(next.localWins)-\(next.remoteWins)")
 
         guard localWon else { return }
 
+        let clientEventId = Self.stableClientEventId(matchEventKey: matchEventKey, pairKey: pair, winnerID: primaryLocal)
+        // Idempotence : déjà en pending ou déjà traité récemment.
+        if loadPending().contains(where: { $0.clientEventId == clientEventId }) {
+            print("[H2H] win already pending event=\(clientEventId.prefix(12))…")
+            flushPendingEventsBestEffort()
+            return
+        }
+
         let event = PendingH2HEvent(
-            clientEventId: UUID().uuidString,
+            clientEventId: clientEventId,
             pairKey: pair,
             winnerID: primaryLocal,
             loserID: primaryRemote,
@@ -154,7 +172,7 @@ final class BlomixPvPH2HManager {
             createdAt: Date()
         )
         enqueuePending(event)
-        print("[H2H] win queued event=\(event.clientEventId.prefix(8))… pair=\(String(pair.prefix(40)))…")
+        print("[H2H] win queued event=\(event.clientEventId.prefix(12))… pair=\(String(pair.prefix(40)))…")
         flushPendingEventsBestEffort()
     }
 
@@ -208,14 +226,16 @@ final class BlomixPvPH2HManager {
         }
 
         let previous = cachedTotals(againstRemoteIDs: remotes)
+        // Flush d’abord : le vainqueur doit pousser ses pending avant que le perdant lise le cloud.
         await flushPendingEventsAsync()
 
         let localSet = Set(localIDs)
-        var cloudBest = BlomixPvPH2HTotals.zero
+        var cloudSum = BlomixPvPH2HTotals.zero
         var anyCloudHit = false
+        var cloudQuerySucceeded = false
         var triedPairs = Set<String>()
 
-        // Essayer d’abord les paires « match-like » (préfixe A:_), puis le reste.
+        // Toutes les combinaisons d’IDs : union des events (pairKeys historiques divergents).
         let orderedLocals = localIDs.sorted { Self.idQueryPriority($0) > Self.idQueryPriority($1) }
         let orderedRemotes = remotes.sorted { Self.idQueryPriority($0) > Self.idQueryPriority($1) }
 
@@ -225,35 +245,57 @@ final class BlomixPvPH2HManager {
                 guard triedPairs.insert(pair).inserted else { continue }
                 do {
                     let cloud = try await fetchTotalsFromCloud(pairKey: pair, localIDs: localSet)
+                    cloudQuerySucceeded = true
                     if cloud.hasHistory {
-                        cloudBest = cloudBest.merging(cloud)
+                        // Somme : deux pairKeys peuvent porter des manches distinctes (split ID).
+                        cloudSum = BlomixPvPH2HTotals(
+                            localWins: cloudSum.localWins + cloud.localWins,
+                            remoteWins: cloudSum.remoteWins + cloud.remoteWins
+                        )
                         anyCloudHit = true
                         print("[H2H] cloud hit pair=\(String(pair.prefix(36)))… → \(cloud.localWins)-\(cloud.remoteWins)")
-                        // Une paire fertile suffit en pratique (même duo).
-                        break
                     }
                 } catch {
                     print("[H2H] cloud query fail pair=\(String(pair.prefix(24)))…: \(error.localizedDescription)")
                 }
             }
-            if anyCloudHit { break }
         }
 
-        let merged: BlomixPvPH2HTotals
-        if let previous, previous.hasHistory, !cloudBest.hasHistory {
-            merged = previous
-            print("[H2H] refresh keep cache (cloud empty) \(previous.localWins)-\(previous.remoteWins)")
-        } else if let previous {
-            merged = previous.merging(cloudBest)
+        // Wins vainqueur encore en file locale (pas encore visibles cloud pour le duo).
+        let pendingExtra = pendingLocalWins(localIDs: localSet, remoteIDs: Set(remotes))
+
+        let reconciled: BlomixPvPH2HTotals?
+        if anyCloudHit {
+            // Cloud = juge. + pending non uploadés (preview symétrique dès que flush OK).
+            let total = BlomixPvPH2HTotals(
+                localWins: cloudSum.localWins + pendingExtra,
+                remoteWins: cloudSum.remoteWins
+            )
+            reconciled = total
+            print("[H2H] reconcile cloud-first \(cloudSum.localWins)-\(cloudSum.remoteWins) +pendingLocal=\(pendingExtra) → \(total.localWins)-\(total.remoteWins)")
+        } else if cloudQuerySucceeded {
+            // Queries OK mais 0 event : vérité vide (efface un cache fantôme gonflé).
+            if pendingExtra > 0 {
+                reconciled = BlomixPvPH2HTotals(localWins: pendingExtra, remoteWins: 0)
+                print("[H2H] reconcile cloud empty +pendingLocal=\(pendingExtra)")
+            } else {
+                reconciled = nil
+                print("[H2H] reconcile cloud empty — clear inflated cache if any")
+                clearTotals(underRemoteIDs: remotes)
+            }
+        } else if let previous, previous.hasHistory {
+            // Réseau / CK down : garder le cache (stale OK).
+            reconciled = previous
+            print("[H2H] refresh keep cache (cloud unreachable) \(previous.localWins)-\(previous.remoteWins)")
         } else {
-            merged = cloudBest
+            reconciled = nil
         }
 
-        // Ne pas polluer le cache avec des 0-0 (c’était la source des 79 clés vides).
-        if merged.hasHistory {
-            writeTotals(merged, underRemoteIDs: remotes)
-            print("[H2H] refresh OK remotes=\(remotes.map(debugID).joined(separator: ",")) → \(merged.localWins)-\(merged.remoteWins) (cloud \(cloudBest.localWins)-\(cloudBest.remoteWins))")
-            return merged
+        if let reconciled, reconciled.hasHistory {
+            // Remplace (pas max) — corrige 10-7 local vs 8-7 cloud.
+            replaceTotals(reconciled, underRemoteIDs: remotes)
+            print("[H2H] refresh OK remotes=\(remotes.map(debugID).joined(separator: ",")) → \(reconciled.localWins)-\(reconciled.remoteWins)")
+            return reconciled
         }
 
         print("[H2H] refresh empty remotes=\(remotes.prefix(3).map(debugID).joined(separator: ","))…")
@@ -286,10 +328,10 @@ final class BlomixPvPH2HManager {
         }
         saveAliases(map)
 
-        // Répliquer le meilleur cache sous toutes les clés du groupe.
+        // Répliquer le meilleur cache sous toutes les clés du groupe (même total, pas de max artificiel).
         let group = clean.flatMap { expandedRemoteIDs([$0]) }
         if let best = cachedTotals(againstRemoteIDs: group), best.hasHistory {
-            writeTotals(best, underRemoteIDs: group)
+            replaceTotals(best, underRemoteIDs: group)
         }
     }
 
@@ -353,14 +395,18 @@ final class BlomixPvPH2HManager {
     private func isIdempotentCloudSuccess(_ error: Error) -> Bool {
         if let ck = error as? CKError {
             switch ck.code {
-            case .serverRecordChanged, .batchRequestFailed:
+            case .serverRecordChanged, .batchRequestFailed, .partialFailure:
+                // Record déjà présent (re-flush / clientEventId stable) → succès.
                 return true
             default:
                 break
             }
         }
         let msg = error.localizedDescription.lowercased()
-        return msg.contains("already exists") || msg.contains("duplicate") || msg.contains("unique")
+        return msg.contains("already exists")
+            || msg.contains("duplicate")
+            || msg.contains("unique")
+            || msg.contains("server record changed")
     }
 
     private func fetchTotalsFromCloud(
@@ -434,11 +480,72 @@ final class BlomixPvPH2HManager {
         return Self.normalizedIDList(raw)
     }
 
-    /// Priorité de tentative query : IDs style match `A:_…` d’abord (historique cloud).
+    /// Priorité de tentative query / écriture : IDs style match `A:_…` d’abord (historique cloud).
     private static func idQueryPriority(_ id: String) -> Int {
         if id.hasPrefix("A:_") || id.hasPrefix("G:") || id.hasPrefix("T:") { return 3 }
         if id.contains(":") { return 2 }
         return 1
+    }
+
+    /// ID préféré pour pairKey / winnerID / loserID (stable avec l’historique prod).
+    private static func preferredCloudID(from ids: [String]) -> String? {
+        let clean = normalizedIDList(ids)
+        guard !clean.isEmpty else { return nil }
+        return clean.max(by: {
+            if idQueryPriority($0) != idQueryPriority($1) {
+                return idQueryPriority($0) < idQueryPriority($1)
+            }
+            // À priorité égale : lexico plus petit (déterministe).
+            return $0 > $1
+        })
+    }
+
+    /// `clientEventId` cloud : stable si `matchEventKey` fourni (idempotence), sinon UUID.
+    private static func stableClientEventId(
+        matchEventKey: String?,
+        pairKey: String,
+        winnerID: String
+    ) -> String {
+        let raw = (matchEventKey ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return UUID().uuidString }
+        let material = "\(pairKey)|\(winnerID)|\(raw)"
+        // UUID-like déterministe (32 hex) — recordName `h2h_<id>` reste unique par manche.
+        let digest = Self.fnv1a64(material)
+        let hex = String(digest, radix: 16, uppercase: true)
+        return "M" + hex.padding(toLength: 15, withPad: "0", startingAt: 0) + String(material.count, radix: 16)
+    }
+
+    private static func fnv1a64(_ string: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for b in string.utf8 {
+            hash ^= UInt64(b)
+            hash = hash &* 0x100000001b3
+        }
+        return hash
+    }
+
+    /// Nombre de wins locales encore en pending pour ce duo (après flush partiel).
+    private func pendingLocalWins(localIDs: Set<String>, remoteIDs: Set<String>) -> Int {
+        let pending = loadPending()
+        guard !pending.isEmpty else { return 0 }
+        var n = 0
+        for event in pending {
+            guard localIDs.contains(event.winnerID) else { continue }
+            // loserID doit être l’adversaire (ou un de ses alias déjà dans remoteIDs).
+            if remoteIDs.contains(event.loserID) {
+                n += 1
+                continue
+            }
+            // pairKey contient les deux IDs triés.
+            let parts = event.pairKey.split(separator: "|").map(String.init)
+            if parts.count == 2 {
+                let a = parts[0], b = parts[1]
+                let touchesLocal = localIDs.contains(a) || localIDs.contains(b)
+                let touchesRemote = remoteIDs.contains(a) || remoteIDs.contains(b)
+                if touchesLocal && touchesRemote { n += 1 }
+            }
+        }
+        return n
     }
 
     private static func isUsablePlayerID(_ id: String) -> Bool {
@@ -532,19 +639,25 @@ final class BlomixPvPH2HManager {
         }
     }
 
-    private func writeTotals(_ totals: BlomixPvPH2HTotals, underRemoteIDs remoteIDs: [String]) {
-        guard totals.hasHistory else { return }
+    /// Écrit le total **tel quel** sous toutes les clés (réconciliation cloud-first).
+    private func replaceTotals(_ totals: BlomixPvPH2HTotals, underRemoteIDs remoteIDs: [String]) {
         var cache = loadCacheV2()
-        for rid in expandedRemoteIDs(remoteIDs) {
-            if let existing = cache[rid] {
-                cache[rid] = existing.merging(totals)
-            } else {
+        let keys = expandedRemoteIDs(remoteIDs)
+        if totals.hasHistory {
+            for rid in keys {
                 cache[rid] = totals
             }
+        } else {
+            for rid in keys {
+                cache.removeValue(forKey: rid)
+            }
         }
-        // Nettoyage opportuniste des 0-0.
         cache = cache.filter { $0.value.hasHistory }
         saveCacheV2(cache)
+    }
+
+    private func clearTotals(underRemoteIDs remoteIDs: [String]) {
+        replaceTotals(.zero, underRemoteIDs: remoteIDs)
     }
 
     private func pruneEmptyCacheEntriesIfNeeded() {

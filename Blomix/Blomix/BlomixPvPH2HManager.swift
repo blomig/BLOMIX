@@ -24,10 +24,14 @@
 //  Réconciliation produit (v5.9 build 86+) — **vérité CloudKit** :
 //  - Si fetch Public DB **OK** → affichage / cache = **uniquement** le compte cloud
 //    (même total pour les deux joueurs, en miroir). Plus de max(cache/plancher).
-//  - Pending vainqueur : flush agressif avant lecture ; **non** ajouté à l’affichage
-//    (sinon un seul téléphone voit +1).
+//  - Pending vainqueur : flush agressif avant lecture ; **non** ajouté à l’affichage.
 //  - Si fetch **KO** (réseau) → secours cache / plancher session (offline only).
-//  - Plancher session : ne pilote plus l’UI quand le cloud répond.
+//
+//  Agrégation events (build 87+) — évite 12-10 vs 10-14 :
+//  - Dédup par recordName / clientEventId (plus de somme aveugle multi-pairKey).
+//  - Queries `winnerID ==` (si index Queryable) + pairKeys (IDs × connus × pending).
+//  - Apprend les IDs winner/loser pour classer local vs remote de façon stable.
+//  Console : idéalement `winnerID` **Queryable** (en plus de `pairKey`).
 //
 
 import CloudKit
@@ -75,6 +79,8 @@ final class BlomixPvPH2HManager {
     private static let aliasKey = "blomixPvPH2HAliases_v1"
     /// Plancher de session : confirmed + deltas tant que le cloud n’a pas rattrapé.
     private static let sessionFloorKey = "blomixPvPH2HSessionFloor_v1"
+    /// pairKeys déjà vus (écriture ou lecture) — pour retrouver l’historique multi-ID.
+    private static let knownPairKeysKey = "blomixPvPH2HKnownPairKeys_v1"
     /// Expire un plancher non rattrapé (évite inflation éternelle si bug d’enregistrement).
     private static let sessionFloorMaxAge: TimeInterval = 7 * 24 * 3600
 
@@ -315,12 +321,20 @@ final class BlomixPvPH2HManager {
         return previous
     }
 
-    // MARK: - Cloud fetch helper
+    // MARK: - Cloud fetch helper (dédup events)
 
     private struct CloudSumBundle {
         var sum: BlomixPvPH2HTotals
         var anyHit: Bool
         var querySucceeded: Bool
+    }
+
+    private struct H2HCloudEvent {
+        var recordName: String
+        var winnerID: String
+        var loserID: String
+        var pairKey: String
+        var clientEventId: String
     }
 
     private func fetchCloudSum(
@@ -331,36 +345,192 @@ final class BlomixPvPH2HManager {
         if flushFirst {
             await flushPendingEventsAsync()
         }
-        let localSet = Set(localIDs)
-        var cloudSum = BlomixPvPH2HTotals.zero
-        var anyCloudHit = false
-        var cloudQuerySucceeded = false
-        var triedPairs = Set<String>()
 
-        let orderedLocals = localIDs.sorted { Self.idQueryPriority($0) > Self.idQueryPriority($1) }
-        let orderedRemotes = remotes.sorted { Self.idQueryPriority($0) > Self.idQueryPriority($1) }
+        var localSet = Set(localIDs)
+        var remoteSet = Set(remotes)
+        var unique: [String: H2HCloudEvent] = [:]
+        var querySucceeded = false
+        var winnerQueryUseful = false
 
-        for local in orderedLocals {
-            for remote in orderedRemotes {
-                guard let pair = Self.pairKey(localID: local, remoteID: remote) else { continue }
-                guard triedPairs.insert(pair).inserted else { continue }
-                do {
-                    let cloud = try await fetchTotalsFromCloud(pairKey: pair, localIDs: localSet)
-                    cloudQuerySucceeded = true
-                    if cloud.hasHistory {
-                        cloudSum = BlomixPvPH2HTotals(
-                            localWins: cloudSum.localWins + cloud.localWins,
-                            remoteWins: cloudSum.remoteWins + cloud.remoteWins
-                        )
-                        anyCloudHit = true
-                        print("[H2H] cloud hit pair=\(String(pair.prefix(36)))… → \(cloud.localWins)-\(cloud.remoteWins)")
-                    }
-                } catch {
-                    print("[H2H] cloud query fail pair=\(String(pair.prefix(24)))…: \(error.localizedDescription)")
-                }
+        // 1) Queries par winnerID (même ensemble d’events des deux côtés si index Queryable).
+        let winnerIDs = Array(localSet.union(remoteSet)).sorted { Self.idQueryPriority($0) > Self.idQueryPriority($1) }
+        for wid in winnerIDs {
+            do {
+                let recs = try await fetchRecords(predicate: NSPredicate(format: "winnerID == %@", wid))
+                querySucceeded = true
+                winnerQueryUseful = true
+                mergeCloudRecords(recs, into: &unique)
+            } catch {
+                // Index absent ou erreur : on bascule sur pairKey (pas fatal).
+                print("[H2H] winnerID query fail id=\(debugID(wid)): \(error.localizedDescription)")
             }
         }
-        return CloudSumBundle(sum: cloudSum, anyHit: anyCloudHit, querySucceeded: cloudQuerySucceeded)
+
+        // 2) Queries pairKey (IDs live + known + pending) — couvre l’historique même sans index winnerID.
+        let pairKeys = candidatePairKeys(localIDs: Array(localSet), remotes: Array(remoteSet))
+        for pair in pairKeys {
+            do {
+                let recs = try await fetchRecords(predicate: NSPredicate(format: "pairKey == %@", pair))
+                querySucceeded = true
+                mergeCloudRecords(recs, into: &unique)
+                if !recs.isEmpty {
+                    rememberPairKey(pair)
+                    print("[H2H] cloud hit pair=\(String(pair.prefix(36)))… raw=\(recs.count)")
+                }
+            } catch {
+                print("[H2H] pairKey query fail pair=\(String(pair.prefix(24)))…: \(error.localizedDescription)")
+            }
+        }
+
+        // 3) Filtrer strictement le duo (winnerID renvoie toutes les wins vs tout le monde).
+        //    Puis enrichir les sets d’IDs seulement à partir d’events déjà duo-valides.
+        func isStrictDuo(_ ev: H2HCloudEvent, loc: Set<String>, rem: Set<String>) -> Bool {
+            Self.eventInvolvesDuo(
+                winnerID: ev.winnerID,
+                loserID: ev.loserID,
+                pairKey: ev.pairKey,
+                localIDs: loc,
+                remoteIDs: rem
+            )
+        }
+
+        var duoEvents = unique.values.filter { isStrictDuo($0, loc: localSet, rem: remoteSet) }
+
+        // Enrichissement borné : IDs alternatifs sur des events déjà reconnus duo.
+        for ev in duoEvents {
+            rememberPairKey(ev.pairKey)
+            if remoteSet.contains(ev.loserID) || localSet.contains(ev.winnerID) {
+                localSet.insert(ev.winnerID)
+                remoteSet.insert(ev.loserID)
+            }
+            if localSet.contains(ev.loserID) || remoteSet.contains(ev.winnerID) {
+                remoteSet.insert(ev.winnerID)
+                localSet.insert(ev.loserID)
+            }
+        }
+        // Re-filtre avec sets enrichis (récupère d’éventuels events orphelins du même duo).
+        duoEvents = unique.values.filter { isStrictDuo($0, loc: localSet, rem: remoteSet) }
+
+        let learnedLocal = localSet.subtracting(Set(localIDs))
+        let learnedRemote = remoteSet.subtracting(Set(remotes))
+        if !learnedLocal.isEmpty {
+            registerAliases(Array(learnedLocal) + localIDs)
+            print("[H2H] learned local IDs \(learnedLocal.map(debugID).joined(separator: ","))")
+        }
+        if !learnedRemote.isEmpty {
+            registerAliases(Array(learnedRemote) + remotes)
+            print("[H2H] learned remote IDs \(learnedRemote.map(debugID).joined(separator: ","))")
+        }
+
+        var localWins = 0
+        var remoteWins = 0
+        for ev in duoEvents {
+            if Self.isLocalWinner(winnerID: ev.winnerID, localIDs: localSet, remoteIDs: remoteSet) {
+                localWins += 1
+            } else if remoteSet.contains(ev.winnerID) {
+                remoteWins += 1
+            } else {
+                // Winner inconnu mais event duo via pairKey : l’autre côté du pair.
+                remoteWins += 1
+            }
+        }
+
+        let sum = BlomixPvPH2HTotals(localWins: localWins, remoteWins: remoteWins)
+        if !duoEvents.isEmpty {
+            print("[H2H] cloud unique events=\(duoEvents.count) pairsTried=\(pairKeys.count) winnerQ=\(winnerQueryUseful) → \(localWins)-\(remoteWins)")
+        }
+        return CloudSumBundle(sum: sum, anyHit: sum.hasHistory, querySucceeded: querySucceeded)
+    }
+
+    private func mergeCloudRecords(_ records: [CKRecord], into unique: inout [String: H2HCloudEvent]) {
+        for rec in records {
+            let name = rec.recordID.recordName
+            let winner = (rec["winnerID"] as? String) ?? ""
+            let loser = (rec["loserID"] as? String) ?? ""
+            let pair = (rec["pairKey"] as? String) ?? ""
+            let cid = (rec["clientEventId"] as? String) ?? name
+            let key = cid.isEmpty ? name : cid
+            guard !winner.isEmpty else { continue }
+            unique[key] = H2HCloudEvent(
+                recordName: name,
+                winnerID: winner,
+                loserID: loser,
+                pairKey: pair,
+                clientEventId: cid
+            )
+        }
+    }
+
+    private static func eventInvolvesDuo(
+        winnerID: String,
+        loserID: String,
+        pairKey: String,
+        localIDs: Set<String>,
+        remoteIDs: Set<String>
+    ) -> Bool {
+        let winLocal = localIDs.contains(winnerID)
+        let winRemote = remoteIDs.contains(winnerID)
+        let loseLocal = localIDs.contains(loserID)
+        let loseRemote = remoteIDs.contains(loserID)
+        if (winLocal && loseRemote) || (winRemote && loseLocal) { return true }
+        // pairKey historique : les deux IDs du duo.
+        let parts = pairKey.split(separator: "|").map(String.init)
+        if parts.count == 2 {
+            let a = parts[0], b = parts[1]
+            let aL = localIDs.contains(a), aR = remoteIDs.contains(a)
+            let bL = localIDs.contains(b), bR = remoteIDs.contains(b)
+            if (aL && bR) || (aR && bL) { return true }
+        }
+        return false
+    }
+
+    private static func isLocalWinner(
+        winnerID: String,
+        localIDs: Set<String>,
+        remoteIDs: Set<String>
+    ) -> Bool {
+        if localIDs.contains(winnerID) { return true }
+        if remoteIDs.contains(winnerID) { return false }
+        // Inconnu : ne pas attribuer au local par défaut.
+        return false
+    }
+
+    private func fetchRecords(predicate: NSPredicate) async throws -> [CKRecord] {
+        let query = CKQuery(recordType: Self.recordType, predicate: predicate)
+        var all: [CKRecord] = []
+        var cursor: CKQueryOperation.Cursor?
+
+        repeat {
+            let (batch, next): ([CKRecord], CKQueryOperation.Cursor?) = try await withCheckedThrowingContinuation { cont in
+                let op: CKQueryOperation
+                if let cursor {
+                    op = CKQueryOperation(cursor: cursor)
+                } else {
+                    op = CKQueryOperation(query: query)
+                }
+                op.qualityOfService = .userInitiated
+                op.resultsLimit = 200
+                var page: [CKRecord] = []
+                op.recordMatchedBlock = { _, result in
+                    if case .success(let rec) = result {
+                        page.append(rec)
+                    }
+                }
+                op.queryResultBlock = { result in
+                    switch result {
+                    case .success(let c):
+                        cont.resume(returning: (page, c))
+                    case .failure(let err):
+                        cont.resume(throwing: err)
+                    }
+                }
+                publicDB.add(op)
+            }
+            all.append(contentsOf: batch)
+            cursor = next
+        } while cursor != nil
+
+        return all
     }
 
     /// Enregistre que plusieurs IDs désignent le même joueur (game ↔ team, Elo ↔ match).
@@ -594,8 +764,12 @@ final class BlomixPvPH2HManager {
 
         do {
             _ = try await publicDB.save(record)
+            rememberPairKey(event.pairKey)
         } catch {
-            if isIdempotentCloudSuccess(error) { return }
+            if isIdempotentCloudSuccess(error) {
+                rememberPairKey(event.pairKey)
+                return
+            }
             throw error
         }
     }
@@ -617,61 +791,67 @@ final class BlomixPvPH2HManager {
             || msg.contains("server record changed")
     }
 
-    private func fetchTotalsFromCloud(
-        pairKey: String,
-        localIDs: Set<String>
-    ) async throws -> BlomixPvPH2HTotals {
-        let predicate = NSPredicate(format: "pairKey == %@", pairKey)
-        let query = CKQuery(recordType: Self.recordType, predicate: predicate)
+    // MARK: - Known pairKeys
 
-        var localWins = 0
-        var remoteWins = 0
-        var cursor: CKQueryOperation.Cursor?
-        var totalRecords = 0
+    private func rememberPairKey(_ pairKey: String) {
+        let p = pairKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard p.contains("|") else { return }
+        var set = loadKnownPairKeys()
+        guard set.insert(p).inserted else { return }
+        saveKnownPairKeys(set)
+    }
 
-        repeat {
-            let (records, next): ([CKRecord], CKQueryOperation.Cursor?) = try await withCheckedThrowingContinuation { cont in
-                let op: CKQueryOperation
-                if let cursor {
-                    op = CKQueryOperation(cursor: cursor)
-                } else {
-                    op = CKQueryOperation(query: query)
-                }
-                op.qualityOfService = .userInitiated
-                op.resultsLimit = 200
-                var batch: [CKRecord] = []
-                op.recordMatchedBlock = { _, result in
-                    if case .success(let rec) = result {
-                        batch.append(rec)
-                    }
-                }
-                op.queryResultBlock = { result in
-                    switch result {
-                    case .success(let c):
-                        cont.resume(returning: (batch, c))
-                    case .failure(let err):
-                        cont.resume(throwing: err)
-                    }
-                }
-                publicDB.add(op)
-            }
+    private func loadKnownPairKeys() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: Self.knownPairKeysKey),
+              let arr = try? JSONDecoder().decode([String].self, from: data)
+        else { return [] }
+        return Set(arr)
+    }
 
-            totalRecords += records.count
-            for rec in records {
-                let winner = (rec["winnerID"] as? String) ?? ""
-                if localIDs.contains(winner) {
-                    localWins += 1
-                } else if !winner.isEmpty {
-                    remoteWins += 1
-                }
-            }
-            cursor = next
-        } while cursor != nil
-
-        if totalRecords > 0 {
-            print("[H2H] cloud query pair=\(String(pairKey.prefix(32)))… records=\(totalRecords) → \(localWins)-\(remoteWins)")
+    private func saveKnownPairKeys(_ set: Set<String>) {
+        let arr = Array(set).sorted()
+        if arr.isEmpty {
+            UserDefaults.standard.removeObject(forKey: Self.knownPairKeysKey)
+            return
         }
-        return BlomixPvPH2HTotals(localWins: localWins, remoteWins: remoteWins)
+        if let data = try? JSONEncoder().encode(arr) {
+            UserDefaults.standard.set(data, forKey: Self.knownPairKeysKey)
+        }
+    }
+
+    /// pairKeys candidats pour ce duo (IDs live × connus × pending).
+    private func candidatePairKeys(localIDs: [String], remotes: [String]) -> [String] {
+        var keys = Set<String>()
+        for local in localIDs {
+            for remote in remotes {
+                if let p = Self.pairKey(localID: local, remoteID: remote) {
+                    keys.insert(p)
+                }
+            }
+        }
+        let localSet = Set(localIDs)
+        let remoteSet = Set(remotes)
+        for pk in loadKnownPairKeys() {
+            let parts = pk.split(separator: "|").map(String.init)
+            guard parts.count == 2 else { continue }
+            let a = parts[0], b = parts[1]
+            let touchesLocal = localSet.contains(a) || localSet.contains(b)
+            let touchesRemote = remoteSet.contains(a) || remoteSet.contains(b)
+            if touchesLocal && touchesRemote {
+                keys.insert(pk)
+            }
+        }
+        for event in loadPending() {
+            let parts = event.pairKey.split(separator: "|").map(String.init)
+            guard parts.count == 2 else { continue }
+            let a = parts[0], b = parts[1]
+            if (localSet.contains(a) || localSet.contains(b))
+                && (remoteSet.contains(a) || remoteSet.contains(b)
+                    || remoteSet.contains(event.loserID) || localSet.contains(event.winnerID)) {
+                keys.insert(event.pairKey)
+            }
+        }
+        return keys.sorted()
     }
 
     // MARK: - Identity

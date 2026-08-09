@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 86)  
+> **Version de référence** : 5.9 (build 87)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -57,10 +57,11 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Cache local | Miroir du **dernier cloud OK** (multi-clés + alias) |
 | Pending upload | Wins vainqueur (`blomixPvPH2HPending_v1`) ; flush ×2 avant lecture ; **pas** ajouté au total affiché |
 | Plancher session | Secours **offline uniquement** (fetch CK KO) |
-| Réconciliation | **Fetch OK** → `CLOUD-TRUTH` = count events uniquement (identique des deux côtés en miroir) ; **fetch KO** → cache / plancher |
+| Réconciliation | **Fetch OK** → `CLOUD-TRUTH` = events **uniques** (dédup `clientEventId`) via `winnerID` + `pairKey` ; **fetch KO** → cache / plancher |
+| Agrégation | Plus de somme multi-pairKey ; filtre duo strict ; mémorise `knownPairKeys` |
 | UI | Elo + fin de série après refresh : total cloud ; Elo `X-Y` à gauche de Défier |
-| Diagnostic | Logs `[H2H] reconcile CLOUD-TRUTH` / `OFFLINE` / `pending` |
-| Déploiement | `PvPH2HEvent` + `pairKey` Queryable (+ `recordName` pour Console) en Production |
+| Diagnostic | Logs `cloud unique events=` / `CLOUD-TRUTH` / `OFFLINE` |
+| Déploiement | `pairKey` **Queryable** ; **`winnerID` Queryable** (fortement recommandé) ; `recordName` Queryable pour Console |
 
 ### PvP Local — robustesse de liaison mid-match
 

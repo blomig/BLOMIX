@@ -9,15 +9,13 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **86** (TestFlight).
+Build **87** (TestFlight).
 
 ### Modifié
-- **H2H vérité CloudKit** : si fetch Public DB OK → cumul affiché = **uniquement** le compte cloud (même total en miroir pour les deux) ; plus de max(cache/plancher) ni +pending à l’UI ; flush agressif avant lecture ; plancher session **uniquement offline**
-- **Fin de série** : refresh applique le total cloud (remplace, pas max)
-- Version marketing **5.9** (build **86**)
-
-### Antérieur 5.9 (builds 80–85, résumé)
-- HUD PvP secondaryText ; police défaut Changa One ; skin Default Hex ; H2H multi-ID Elo ; plancher session (85) ; cumul à gauche de Défier
+- **H2H vérité CloudKit** (86) : cumul affiché = compte cloud si fetch OK ; flush agressif ; plancher offline only
+- **H2H agrégation stable** (87) : dédup events par `clientEventId` ; queries `winnerID` + `pairKey` (known/pending) ; plus de somme aveugle multi-pairKey qui donnait 12-10 vs 10-14 ; filtre strict duo
+- **Console CloudKit** : ajouter index **Queryable** sur `winnerID` (recommandé) pour que les deux clients voient le même ensemble d’events
+- Version marketing **5.9** (build **87**)
 
 ---
 

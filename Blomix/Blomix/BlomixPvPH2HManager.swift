@@ -21,10 +21,12 @@
 //  `teamPlayerID`, formats `A:_…` vs hex). Le cache est multi-clés + alias ;
 //  les queries cloud tentent les combinaisons d’IDs locaux/distants.
 //
-//  Réconciliation (v5.9+) : après fetch cloud réussi, le cloud est la vérité
-//  (plus de max(local, cloud) qui fige un cache gonflé). Les wins encore en
-//  pending local s’ajoutent au cloud le temps du flush. pairKey d’écriture =
-//  IDs « match-like » prioritaires (A:_…).
+//  Réconciliation (asymétrique, robuste) :
+//  - **localWins**  = cloud + pending local (le vainqueur écrit : un cache gonflé
+//    se recalcule à la baisse si le cloud n’a pas l’event).
+//  - **remoteWins** = max(cloud, cache) : le perdant n’upload pas ; une défaite
+//    vue en local ne doit pas disparaître si l’upload adverse a traîné/échoué.
+//  - pending local compté le temps du flush ; pairKey d’écriture priorise A:_….
 //
 
 import CloudKit
@@ -263,25 +265,38 @@ final class BlomixPvPH2HManager {
 
         // Wins vainqueur encore en file locale (pas encore visibles cloud pour le duo).
         let pendingExtra = pendingLocalWins(localIDs: localSet, remoteIDs: Set(remotes))
+        if pendingExtra > 0 {
+            print("[H2H] pending local wins for duo: \(pendingExtra) — \(debugDumpPendingSummary())")
+        }
 
         let reconciled: BlomixPvPH2HTotals?
         if anyCloudHit {
-            // Cloud = juge. + pending non uploadés (preview symétrique dès que flush OK).
+            // Asymétrique :
+            // - local  : cloud + pending (anti cache gonflé côté vainqueur)
+            // - remote : max(cloud, cache) — défaites vues en local si upload adverse en retard
+            let prevRemote = previous?.remoteWins ?? 0
             let total = BlomixPvPH2HTotals(
                 localWins: cloudSum.localWins + pendingExtra,
-                remoteWins: cloudSum.remoteWins
+                remoteWins: max(cloudSum.remoteWins, prevRemote)
             )
             reconciled = total
-            print("[H2H] reconcile cloud-first \(cloudSum.localWins)-\(cloudSum.remoteWins) +pendingLocal=\(pendingExtra) → \(total.localWins)-\(total.remoteWins)")
+            let keptRemote = total.remoteWins > cloudSum.remoteWins
+            print("[H2H] reconcile asym cloud \(cloudSum.localWins)-\(cloudSum.remoteWins) +pendL=\(pendingExtra) prevR=\(prevRemote) → \(total.localWins)-\(total.remoteWins)\(keptRemote ? " (kept local remoteWins)" : "")")
         } else if cloudQuerySucceeded {
-            // Queries OK mais 0 event : vérité vide (efface un cache fantôme gonflé).
-            if pendingExtra > 0 {
+            // Queries OK mais 0 event cloud pour ce duo — ne pas détruire le cache local.
+            if let previous, previous.hasHistory {
+                let total = BlomixPvPH2HTotals(
+                    localWins: max(previous.localWins, pendingExtra),
+                    remoteWins: previous.remoteWins
+                )
+                reconciled = total
+                print("[H2H] reconcile cloud empty — keep cache \(total.localWins)-\(total.remoteWins) pendL=\(pendingExtra)")
+            } else if pendingExtra > 0 {
                 reconciled = BlomixPvPH2HTotals(localWins: pendingExtra, remoteWins: 0)
                 print("[H2H] reconcile cloud empty +pendingLocal=\(pendingExtra)")
             } else {
                 reconciled = nil
-                print("[H2H] reconcile cloud empty — clear inflated cache if any")
-                clearTotals(underRemoteIDs: remotes)
+                print("[H2H] reconcile cloud empty — nothing to show")
             }
         } else if let previous, previous.hasHistory {
             // Réseau / CK down : garder le cache (stale OK).
@@ -292,7 +307,6 @@ final class BlomixPvPH2HManager {
         }
 
         if let reconciled, reconciled.hasHistory {
-            // Remplace (pas max) — corrige 10-7 local vs 8-7 cloud.
             replaceTotals(reconciled, underRemoteIDs: remotes)
             print("[H2H] refresh OK remotes=\(remotes.map(debugID).joined(separator: ",")) → \(reconciled.localWins)-\(reconciled.remoteWins)")
             return reconciled
@@ -341,14 +355,32 @@ final class BlomixPvPH2HManager {
         }
     }
 
-    /// Debug / diagnostic.
+    /// Debug / diagnostic cache + pending (logs Xcode / Console).
     func debugDumpCacheSummary() -> String {
         migrateCacheV1IfNeeded()
         pruneEmptyCacheEntriesIfNeeded()
         let c = loadCacheV2().filter { $0.value.hasHistory }
         let parts = c.map { "\(debugID($0.key)):\($0.value.localWins)-\($0.value.remoteWins)" }
         let aliasCount = loadAliases().count
-        return "entries=\(c.count) aliases=\(aliasCount) [\(parts.joined(separator: ", "))] localIDs=\(resolvedLocalPlayerIDs().map(debugID).joined(separator: ","))"
+        let pend = debugDumpPendingSummary()
+        return "entries=\(c.count) aliases=\(aliasCount) [\(parts.joined(separator: ", "))] localIDs=\(resolvedLocalPlayerIDs().map(debugID).joined(separator: ",")) \(pend)"
+    }
+
+    /// Wins locales en attente d’upload CloudKit (ce qui « traîne » sur cet iPhone).
+    func debugDumpPendingSummary() -> String {
+        let pending = loadPending()
+        if pending.isEmpty { return "pending=0" }
+        let bits = pending.prefix(12).map { e in
+            let age = Int(Date().timeIntervalSince(e.createdAt))
+            return "\(e.clientEventId.prefix(8))… ch=\(e.channel) age=\(age)s pair=\(String(e.pairKey.prefix(28)))…"
+        }
+        let more = pending.count > 12 ? " +\(pending.count - 12) more" : ""
+        return "pending=\(pending.count) [\(bits.joined(separator: "; "))]\(more)"
+    }
+
+    /// Nombre d’events vainqueur non encore uploadés (diagnostic).
+    func pendingUploadCount() -> Int {
+        loadPending().count
     }
 
     // MARK: - CloudKit

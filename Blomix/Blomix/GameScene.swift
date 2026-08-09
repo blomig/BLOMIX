@@ -12528,10 +12528,15 @@ final class GameScene: SKScene {
             seriesVC.modalTransitionStyle = .crossDissolve
             rootVC.present(seriesVC, animated: true)
             // Refresh cloud best-effort (ne bloque pas la présentation).
+            // La réconciliation asymétrique évite de redescendre remoteWins si l’upload adverse traîne.
             if !remoteID.isEmpty {
                 Task { @MainActor in
+                    print("[H2H] series-end refresh \(BlomixPvPH2HManager.shared.debugDumpCacheSummary())")
                     let refreshed = await BlomixPvPH2HManager.shared.refreshTotals(against: remoteID)
                     seriesVC.applyH2HTotals(refreshed)
+                    if let refreshed {
+                        print("[H2H] series-end applied \(refreshed.localWins)-\(refreshed.remoteWins)")
+                    }
                 }
             }
         }
@@ -13224,8 +13229,12 @@ final class GameScene: SKScene {
                 rootVC.present(seriesVC, animated: true)
                 if !remoteID.isEmpty {
                     Task { @MainActor in
+                        print("[H2H] series-end refresh \(BlomixPvPH2HManager.shared.debugDumpCacheSummary())")
                         let refreshed = await BlomixPvPH2HManager.shared.refreshTotals(against: remoteID)
                         seriesVC.applyH2HTotals(refreshed)
+                        if let refreshed {
+                            print("[H2H] series-end applied \(refreshed.localWins)-\(refreshed.remoteWins)")
+                        }
                     }
                 }
             } else {

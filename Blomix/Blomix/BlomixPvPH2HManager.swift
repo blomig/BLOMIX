@@ -297,7 +297,7 @@ final class BlomixPvPH2HManager {
             return
         }
 
-        // Affichage session = baseline + série (pas un simple +1 sur un cache incohérent).
+        // Affichage session = baseline + série. **Aucun** CloudKit ici (match / inter-manches).
         let displayed = applyLiveSeriesOutcome(localWon: localWon, remoteIDs: remoteIDs)
         noteSessionOutcome(
             remoteIDs: remoteIDs,
@@ -312,10 +312,9 @@ final class BlomixPvPH2HManager {
         guard localWon else { return }
 
         let clientEventId = Self.stableClientEventId(matchEventKey: matchEventKey, pairKey: pair, winnerID: primaryLocal)
-        // Idempotence : déjà en pending ou déjà traité récemment.
+        // Idempotence : déjà en pending.
         if loadPending().contains(where: { $0.clientEventId == clientEventId }) {
             print("[H2H] win already pending event=\(clientEventId.prefix(12))…")
-            flushPendingEventsBestEffort()
             return
         }
 
@@ -328,9 +327,8 @@ final class BlomixPvPH2HManager {
             createdAt: Date()
         )
         enqueuePending(event)
-        print("[H2H] win queued event=\(event.clientEventId.prefix(12))… pair=\(String(pair.prefix(40)))…")
-        // Un seul flush async léger — pas de 2ᵉ passe qui reprend le MainActor en boucle.
-        flushPendingEventsBestEffort()
+        print("[H2H] win queued event=\(event.clientEventId.prefix(12))… (no flush in-match)")
+        // Flush uniquement hors partie (didBecomeActive / fin de série / ouverture Elo).
     }
 
     /// Totaux en cache pour un ID distant (suit les alias).

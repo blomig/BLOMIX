@@ -492,11 +492,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     let dedupeKey = snap.teamOrGameID.isEmpty ? snap.gamePlayerID : snap.teamOrGameID
                     guard seenIDs.insert(dedupeKey).inserted else { continue }
                     snapshots.append(snap)
-                    // Alias game ↔ team dès le chargement Elo (même GKPlayer).
-                    if !snap.gamePlayerID.isEmpty, !snap.teamPlayerID.isEmpty,
-                       snap.gamePlayerID != snap.teamPlayerID {
-                        BlomixPvPH2HManager.shared.registerAliases([snap.gamePlayerID, snap.teamPlayerID])
-                    }
+                    // Pas de registerAliases ici (N× UserDefaults sur MainActor = freeze scroll).
                 }
 
                 if pageBundle.rawCount < Self.eloPageSize { break }
@@ -604,8 +600,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             statusLabel.text = rows.isEmpty
                 ? BlomixL10n.leaderboardEmpty
                 : BlomixL10n.leaderboardTopCount(rows.count)
-            // H2H : le chemin multi-pages Elo oubliait le prefetch (seul loadLeaderboardEntries le faisait).
-            prefetchH2HTotalsForEloRows(rows)
+            // H2H : cache local only (jamais fetchCloudSum × N joueurs — freeze MainActor).
+            applyLocalH2HCacheToEloRows(rows)
         } catch {
             guard selectedLeaderboardKind == .elo else { return }
             setLoading(false)
@@ -723,11 +719,6 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                         } else {
                             count = snap.gameCount
                         }
-                        if selectedKind == .elo,
-                           !snap.gamePlayerID.isEmpty, !snap.teamPlayerID.isEmpty,
-                           snap.gamePlayerID != snap.teamPlayerID {
-                            BlomixPvPH2HManager.shared.registerAliases([snap.gamePlayerID, snap.teamPlayerID])
-                        }
                         return LeaderboardRow(
                             rank: snap.rank,
                             playerName: snap.playerName,
@@ -743,52 +734,23 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     vc.statusLabel.text = mapped.isEmpty
                         ? BlomixL10n.leaderboardEmpty
                         : BlomixL10n.leaderboardTopCount(mapped.count)
-                    // Elo : remplir le cache H2H depuis CloudKit (best-effort) pour afficher X-Y.
+                    // Elo H2H : cache local only (voir applyLocalH2HCacheToEloRows).
                     if selectedKind == .elo {
-                        vc.prefetchH2HTotalsForEloRows(mapped)
+                        vc.applyLocalH2HCacheToEloRows(mapped)
                     }
                 }
             }
         }
     }
 
-    /// Refresh H2H cloud pour les adversaires Elo (hors chemin critique match). Recharge toujours la table ensuite.
-    private func prefetchH2HTotalsForEloRows(_ rows: [LeaderboardRow]) {
-        let remotes = rows.filter { !$0.isLocalPlayer && !$0.h2hLookupIDs.isEmpty }
-        print("[H2H Elo] \(BlomixPvPH2HManager.shared.debugDumpCacheSummary())")
-        guard !remotes.isEmpty else {
-            print("[H2H Elo] prefetch skip — no remote rows")
-            return
-        }
-        let capped = Array(remotes.prefix(50))
-        print("[H2H Elo] prefetch start count=\(capped.count) names=\(capped.prefix(5).map(\.playerName))")
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            var hits = 0
-            for row in capped {
-                guard self.selectedLeaderboardKind == .elo else { return }
-                let ids = row.h2hLookupIDs
-                // Alias game↔team + pont displayName (adversaires récents / ID match A:_…).
-                BlomixPvPH2HManager.shared.registerAliases(ids)
-                if let cached = BlomixPvPH2HManager.shared.cachedTotals(
-                    againstRemoteIDs: ids,
-                    displayName: row.playerName
-                ), cached.hasHistory {
-                    hits += 1
-                }
-                let t = await BlomixPvPH2HManager.shared.refreshTotals(
-                    againstRemoteIDs: ids,
-                    displayName: row.playerName
-                )
-                if let t, t.hasHistory {
-                    hits += 1
-                    print("[H2H Elo] hit \(row.playerName) gid=\(String(row.gamePlayerID.prefix(10)))… tid=\(String(row.teamPlayerID.prefix(10)))… \(t.localWins)-\(t.remoteWins)")
-                }
-            }
-            guard self.selectedLeaderboardKind == .elo else { return }
-            self.tableView.reloadData()
-            print("[H2H Elo] prefetch done hits≈\(hits) → reloadData")
-        }
+    /// Affiche les cumuls H2H depuis le **cache local** uniquement.
+    /// **Interdit** : `refreshTotals` / `fetchCloudSum` par ligne (×50 joueurs = freeze total MainActor).
+    private func applyLocalH2HCacheToEloRows(_ rows: [LeaderboardRow]) {
+        // Lecture cache pure (sync, légère). Pas de CloudKit, pas de boucle async.
+        // Flush pending une fois, en arrière-plan, sans bloquer l’UI du tableau.
+        BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
+        print("[H2H Elo] local-cache only for \(rows.count) rows (no cloud prefetch)")
+        // Pas de reloadData forcé : cellForRow lit déjà le cache.
     }
 
     // MARK: - UITableViewDataSource

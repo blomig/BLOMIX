@@ -12393,15 +12393,33 @@ final class GameScene: SKScene {
     }
 
     /// Préfixes 3 graphemes + reset compteurs pour un **nouveau** match (pas une revanche).
+    /// **Aucun** fetch CloudKit ici — le handshake PvP ne doit pas être ralenti.
     private func blomixPvP_beginNewSeriesSession() {
         blomixPvP_resetSeriesState()
         blomixPvP_refreshSeriesNamePrefixes()
-        // Baseline H2H = cloud figé au début de série (affichage = baseline + série ensuite).
-        blomixPvP_captureH2HSeriesBaselineBestEffort()
+        // Baseline locale immédiate (cache) ; raffinement cloud **après** handshake uniquement.
+        blomixPvP_seedH2HSeriesBaselineFromCacheOnly()
     }
 
-    /// Fetch cloud une fois pour figer la baseline cumul (best-effort, hors chemin critique).
-    private func blomixPvP_captureH2HSeriesBaselineBestEffort() {
+    /// Baseline H2H synchrone depuis le cache local (0 réseau). Safe pendant le lancement match.
+    private func blomixPvP_seedH2HSeriesBaselineFromCacheOnly() {
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
+        BlomixPvPH2HManager.shared.seedSeriesBaselineFromCache(
+            remoteGamePlayerID: remoteGameID,
+            remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+            displayName: pvpOpponentDisplayName
+        )
+    }
+
+    /// Raffine la baseline H2H via CloudKit **après** handshake (hors chemin d’appariement).
+    private func blomixPvP_refineH2HSeriesBaselineAfterHandshakeBestEffort() {
+        // Uniquement 1ʳᵉ manche de la série (pas chaque revanche).
+        guard pvpSeriesGamesPlayed == 0 else { return }
         let remotePlayer = pvpCoordinator?.primaryRemotePlayer
         let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
             ?? remotePlayer?.gamePlayerID
@@ -12409,7 +12427,11 @@ final class GameScene: SKScene {
         let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
         guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
         let name = pvpOpponentDisplayName
-        Task { @MainActor in
+        // priority utility : ne pas concurrencer le gameplay / timers de tour.
+        Task(priority: .utility) { @MainActor in
+            // Laisse une frame au board / overlay pour se stabiliser.
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 300_000_000)
             await BlomixPvPH2HManager.shared.beginSeriesBaseline(
                 remoteGamePlayerID: remoteGameID,
                 remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
@@ -12888,6 +12910,8 @@ final class GameScene: SKScene {
         }
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
         blomixPvP_refreshSeriesNamePrefixes()
+        // H2H baseline cloud : uniquement maintenant (match live), jamais pendant l’appariement.
+        blomixPvP_refineH2HSeriesBaselineAfterHandshakeBestEffort()
         // Nouvelle manche (1ʳᵉ ou revanche) : autoriser un +1 série à la prochaine fin.
         pvpSeriesDidCountCurrentMatch = false
         if isStartScreen {

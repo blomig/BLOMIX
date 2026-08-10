@@ -124,8 +124,44 @@ final class BlomixPvPH2HManager {
 
     // MARK: - Public API (best-effort)
 
-    /// Figé la **baseline cloud** au début d’une série (nouveau match, pas une revanche).
-    /// Appeler dès que l’adversaire est connu. Best-effort ; fallback cache si offline.
+    /// Baseline **locale immédiate** (cache uniquement, 0 réseau).
+    /// À appeler au début de série / lancement match — ne bloque jamais le handshake.
+    func seedSeriesBaselineFromCache(
+        remoteGamePlayerID: String,
+        remoteTeamPlayerID: String? = nil,
+        displayName: String? = nil
+    ) {
+        registerLifecycleIfNeeded()
+        migrateCacheV1IfNeeded()
+        let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
+        guard !remoteIDs.isEmpty else { return }
+        if let name = displayName { bridgeAliasesUsingDisplayName(name, eloIDs: remoteIDs) }
+        registerAliases(remoteIDs)
+
+        if let live = liveSeries(forRemoteIDs: remoteIDs),
+           live.isActive,
+           live.seriesLocal + live.seriesRemote > 0 {
+            return
+        }
+
+        let remotes = expandedRemoteIDs(remoteIDs)
+        let base = cachedTotals(againstRemoteIDs: remotes) ?? .zero
+        let ctx = LiveSeriesContext(
+            remoteKey: sessionStorageKey(forRemoteIDs: remoteIDs),
+            remoteIDs: remotes,
+            baselineLocal: base.localWins,
+            baselineRemote: base.remoteWins,
+            seriesLocal: 0,
+            seriesRemote: 0,
+            isActive: true,
+            graceUntil: nil,
+            updatedAt: Date()
+        )
+        saveLiveSeries(ctx)
+        print("[H2H] series baseline seed cache \(base.localWins)-\(base.remoteWins)")
+    }
+
+    /// Raffine la baseline via CloudKit. **Après handshake uniquement** (jamais pendant l’appariement).
     func beginSeriesBaseline(
         remoteGamePlayerID: String,
         remoteTeamPlayerID: String? = nil,
@@ -138,8 +174,7 @@ final class BlomixPvPH2HManager {
         if let name = displayName { bridgeAliasesUsingDisplayName(name, eloIDs: remoteIDs) }
         registerAliases(remoteIDs)
 
-        // Appelé au début d’une nouvelle série. Ne pas écraser si des manches sont déjà comptées
-        // (course baseline async vs fin de 1ʳᵉ manche).
+        // Ne pas écraser si des manches de la série sont déjà comptées.
         if let live = liveSeries(forRemoteIDs: remoteIDs),
            live.isActive,
            live.seriesLocal + live.seriesRemote > 0 {
@@ -147,7 +182,7 @@ final class BlomixPvPH2HManager {
             return
         }
 
-        await flushPendingEventsAsync()
+        // Pas de flush lourd ici (évite contention MainActor) : lecture cloud seule.
         let localIDs = resolvedLocalPlayerIDs()
         let remotes = expandedRemoteIDs(remoteIDs)
         let cloud = await fetchCloudSum(localIDs: localIDs, remotes: remotes, flushFirst: false)

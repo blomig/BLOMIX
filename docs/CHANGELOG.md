@@ -9,15 +9,15 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **88** (TestFlight).
+Build **89** (TestFlight).
 
-### Modifié
-- **H2H modèle baseline + série** : au début de série, baseline = cloud figé ; affichage session / fin de série = **baseline + score de série** (plus d’écrasement cloud sur l’écran de fin) ; Elo pendant 15 min post-série = max(cloud, baseline+série) puis cloud pur une fois sync
-- Uploads cloud toujours winner-only en arrière-plan (flush agressif)
-- Version marketing **5.9** (build **88**)
+### Corrigé
+- **PvP lancement** : plus aucun fetch CloudKit H2H pendant `beginPvP` / handshake (cause timeouts / « préparation grille » / erreur de connexion en build 88)
+- Baseline H2H : seed **cache local** au début de série ; raffinement cloud **uniquement après handshake** (priority utility + délai)
 
-### Antérieur 5.9 (86–87)
-- CLOUD-TRUTH + dédup events multi-ID / `winnerID` Queryable
+### Modifié (rappel 88)
+- Cumul = baseline + série en session ; fin de série verrouillée ; grâce Elo 15 min
+- Version marketing **5.9** (build **89**)
 
 ---
 

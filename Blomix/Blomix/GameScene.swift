@@ -4098,6 +4098,8 @@ final class GameScene: SKScene {
 
         // En PvP actif (partie commencée, pas encore terminée) : le joueur local abandonne → défaite.
         if let coord = pvpCoordinator, coord.isGameActive, !isGameOver {
+            // Série + H2H loss (symétrie avec le win du restant via iLost).
+            blomixPvP_recordSeriesMatchOutcome(localWon: false)
             blomixPvP_finalizeEloIfNeeded(outcome: .loss)
             coord.forfeitMatch()
         }
@@ -12459,6 +12461,22 @@ final class GameScene: SKScene {
         blomixPvP_recordH2HOutcomeBestEffort(localWon: localWon)
     }
 
+    /// Applique un snapshot H2H reçu du peer (merge max, 0 CloudKit). Appelé depuis le fil PvP.
+    func blomixPvP_applyRemoteH2HSnapshot(peerOwnWins: Int, peerClaimsOurWins: Int) {
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
+        BlomixPvPH2HManager.shared.mergeMaxFromPeerSnapshot(
+            peerOwnWins: peerOwnWins,
+            peerClaimsOurWins: peerClaimsOurWins,
+            remoteGamePlayerID: remoteGameID.isEmpty ? remoteTeamID : remoteGameID,
+            remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID
+        )
+    }
+
     /// Side-effect H2H uniquement. Toute erreur est avalée dans le manager.
     private func blomixPvP_recordH2HOutcomeBestEffort(localWon: Bool) {
         let remotePlayer = pvpCoordinator?.primaryRemotePlayer
@@ -12886,9 +12904,11 @@ final class GameScene: SKScene {
         }
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
         blomixPvP_refreshSeriesNamePrefixes()
-        // H2H : aucun CloudKit ici — le match live ne doit jamais partager le MainActor avec fetchCloudSum.
+        // H2H : aucun CloudKit ici. Snapshot max-merge déjà envoyé depuis le coordinator au handshake.
         // Nouvelle manche (1ʳᵉ ou revanche) : autoriser un +1 série à la prochaine fin.
         pvpSeriesDidCountCurrentMatch = false
+        // Renvoi best-effort du snapshot (si le 1er envoi coordinator était trop tôt / IDs incomplets).
+        pvpCoordinator?.sendH2HSnapshotBestEffort()
         if isStartScreen {
             childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
             isStartScreen = false
@@ -13215,30 +13235,33 @@ final class GameScene: SKScene {
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
         let hadResultScreen = pvpPresentedResultViewController != nil
         let wasInGame = pvpCoordinator?.isGameActive == true && !isGameOver
-        // Snapshot série **avant** teardown (qui reset les compteurs).
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        if wasInGame {
+            // Forfait déco : win série + H2H + Elo (avant snapshot pour lock / overlay).
+            blomixPvP_recordSeriesMatchOutcome(localWon: true)
+            blomixPvP_finalizeEloIfNeeded(outcome: .win)
+        }
+        // Snapshot série **après** éventuel +1 forfait, **avant** teardown.
         let seriesEnd = blomixPvP_shouldPresentSeriesEndOverlay
         let seriesLocalW = pvpSeriesLocalWins
         let seriesRemoteW = pvpSeriesRemoteWins
         let seriesGames = pvpSeriesGamesPlayed
         let seriesLocalP = pvpSeriesLocalPrefix
         let seriesRemoteP = pvpSeriesRemotePrefix
-        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
-        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
-            ?? remotePlayer?.gamePlayerID
-            ?? ""
-        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
         let lockedH2H: BlomixPvPH2HTotals? = {
-            guard seriesEnd, !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return nil }
+            guard seriesEnd || wasInGame, !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return nil }
+            // Toujours figer le cumul si une manche vient d’être comptée (même série à 1 partie).
             return BlomixPvPH2HManager.shared.lockSeriesEndDisplay(
-                remoteGamePlayerID: remoteGameID,
+                remoteGamePlayerID: remoteGameID.isEmpty ? remoteTeamID : remoteGameID,
                 remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
                 seriesLocalWins: seriesLocalW,
                 seriesRemoteWins: seriesRemoteW
             )
         }()
-        if wasInGame {
-            blomixPvP_finalizeEloIfNeeded(outcome: .win)
-        }
         dismissPvPResultModalIfNeeded()
         isWindingDown = true
         blomixPvP_teardown()

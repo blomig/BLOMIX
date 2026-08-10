@@ -117,6 +117,8 @@ private enum BlomixPvPMessageKind: String, Codable {
     case rematchCancel
     case ackMsg
     case keepAlive
+    /// Snapshot H2H léger (2 ints) — merge max au contact ; clients anciens ignorent (decode fail soft).
+    case h2hSnapshot
 }
 
 private struct BlomixPvPWireEnvelope: Codable {
@@ -135,6 +137,10 @@ private struct BlomixPvPWireEnvelope: Codable {
     var attackId: Int? = nil
     /// Ack d'un msgId critique.
     var ackMsgId: Int? = nil
+    /// H2H : mes victoires vs adversaire (POV émetteur).
+    var h2hMyWins: Int? = nil
+    /// H2H : victoires de l’adversaire (POV émetteur).
+    var h2hTheirWins: Int? = nil
 }
 
 // MARK: - Blocs ↔ fil
@@ -895,6 +901,12 @@ final class BlomixPvPMatchCoordinator: NSObject {
         case .keepAlive:
             // lastPeerAliveAt déjà mis à jour en tête de handleEnvelope
             break
+
+        case .h2hSnapshot:
+            // Best-effort, non critique : pas d’ack obligatoire. Payload = 2 ints.
+            let peerOwn = env.h2hMyWins ?? 0
+            let peerOurs = env.h2hTheirWins ?? 0
+            scene?.blomixPvP_applyRemoteH2HSnapshot(peerOwnWins: peerOwn, peerClaimsOurWins: peerOurs)
         }
     }
 
@@ -910,6 +922,28 @@ final class BlomixPvPMatchCoordinator: NSObject {
         lastPeerAliveAt = Date()
         startHeartbeat()
         BlomixPvPLog.event("handshake_complete", ["host": "\(isHostSide)"])
+        // Snapshot H2H après handshake (1 message best-effort, hors chemin critique pose).
+        sendH2HSnapshotBestEffort()
+    }
+
+    /// Envoie le cumul H2H local (2 entiers). Aucun CloudKit. Ignore si IDs inconnus.
+    func sendH2HSnapshotBestEffort() {
+        guard didFinishHandshake else { return }
+        let remoteGame = remoteGamePlayerIDResolved
+        let remoteTeam = primaryRemotePlayer?.teamPlayerID ?? ""
+        guard !remoteGame.isEmpty || !remoteTeam.isEmpty else { return }
+        let snap = BlomixPvPH2HManager.shared.wireSnapshot(
+            remoteGamePlayerID: remoteGame.isEmpty ? remoteTeam : remoteGame,
+            remoteTeamPlayerID: remoteTeam.isEmpty ? nil : remoteTeam
+        )
+        var env = BlomixPvPWireEnvelope(k: .h2hSnapshot, seed: nil, line: nil, fillDepth: nil)
+        env.h2hMyWins = snap.myWins
+        env.h2hTheirWins = snap.theirWins
+        sendEnvelopeRaw(env)
+        BlomixPvPLog.event("h2h_snapshot_sent", [
+            "my": "\(snap.myWins)",
+            "their": "\(snap.theirWins)"
+        ])
     }
 
     // MARK: - Heartbeat

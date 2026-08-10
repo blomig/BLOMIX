@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 92)  
+> **Version de référence** : 5.9 (build 94)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -54,12 +54,13 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | recordName | `h2h_{clientEventId}` (UUID) — **créateur = vainqueur** → WRITE OK |
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel` (`online`/`local`), `clientEventId`, `createdAt` |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
-| Baseline série | Cache local only au lancement |
-| Pendant match | **0 CloudKit H2H** (pending en file uniquement) |
-| Fin de série | LOCK baseline+série + committed floor ; flush pending léger |
-| Elo | H2H = **cache local only** (pas de prefetch cloud × N joueurs) |
-| Upload | Winner-only en file ; flush sur foreground / fin de série / ouverture Elo (1×) |
-| Règle d’or | Jamais `fetchCloudSum` sur le MainActor pendant match ou scroll Elo |
+| Baseline série | Cache local ; **merge max** via snapshot wire au handshake (event rare) |
+| Snapshot H2H | Message `h2hSnapshot` : `h2hMyWins` / `h2hTheirWins` — max par joueur, 0 CloudKit |
+| Déco mid-match | Restant : série+H2H+Elo **win** ; abandon menu : série+H2H+Elo **loss** + `iLost` |
+| Pendant match | **0 CloudKit H2H** (pending en file) |
+| Fin de série | LOCK baseline+série + committed floor |
+| Elo | Cache local only (pas de prefetch cloud × N) |
+| Règle d’or | Jamais `fetchCloudSum` pendant match / scroll Elo |
 
 ### PvP Local — robustesse de liaison mid-match
 

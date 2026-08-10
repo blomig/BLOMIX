@@ -127,6 +127,95 @@ final class BlomixPvPH2HManager {
 
     // MARK: - Public API (best-effort)
 
+    /// Snapshot filaire (2 ints) pour merge max au contact PvP. Lecture cache pure, 0 CloudKit.
+    func wireSnapshot(
+        remoteGamePlayerID: String,
+        remoteTeamPlayerID: String? = nil
+    ) -> (myWins: Int, theirWins: Int) {
+        let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
+        let t = displayedTotalsPreferringLive(againstRemoteIDs: remoteIDs)
+        return (t.localWins, t.remoteWins)
+    }
+
+    /// Merge max avec le snapshot du peer (event rare).
+    /// - peerOwnWins : victoires que le peer s’attribue
+    /// - peerClaimsOurWins : victoires qu’il nous attribue
+    func mergeMaxFromPeerSnapshot(
+        peerOwnWins: Int,
+        peerClaimsOurWins: Int,
+        remoteGamePlayerID: String,
+        remoteTeamPlayerID: String? = nil
+    ) {
+        registerLifecycleIfNeeded()
+        migrateCacheV1IfNeeded()
+        let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
+        guard !remoteIDs.isEmpty else { return }
+        registerAliases(remoteIDs)
+        let remotes = expandedRemoteIDs(remoteIDs)
+
+        let ours = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
+        let merged = BlomixPvPH2HTotals(
+            localWins: max(ours.localWins, max(0, peerClaimsOurWins)),
+            remoteWins: max(ours.remoteWins, max(0, peerOwnWins))
+        )
+        guard merged != ours else {
+            print("[H2H] peer snapshot no-op \(ours.localWins)-\(ours.remoteWins)")
+            return
+        }
+
+        // Série déjà en cours : on ne touche qu’à la baseline (garde les Δ série).
+        if var live = liveSeries(forRemoteIDs: remotes),
+           live.isActive,
+           live.seriesLocal + live.seriesRemote > 0 {
+            live.baselineLocal = max(live.baselineLocal, max(0, merged.localWins - live.seriesLocal))
+            live.baselineRemote = max(live.baselineRemote, max(0, merged.remoteWins - live.seriesRemote))
+            live.updatedAt = Date()
+            saveLiveSeries(live)
+            let disp = live.displayedTotals
+            replaceTotals(disp, underRemoteIDs: remotes)
+            commitDisplayFloor(disp, remoteIDs: remotes)
+            print("[H2H] peer max-merge mid-series → base \(live.baselineLocal)-\(live.baselineRemote) disp \(disp.localWins)-\(disp.remoteWins)")
+            return
+        }
+
+        replaceTotals(merged, underRemoteIDs: remotes)
+        commitDisplayFloor(merged, remoteIDs: remotes)
+        if var live = liveSeries(forRemoteIDs: remotes), live.isActive {
+            live.baselineLocal = merged.localWins
+            live.baselineRemote = merged.remoteWins
+            live.updatedAt = Date()
+            saveLiveSeries(live)
+        } else if liveSeries(forRemoteIDs: remotes) == nil {
+            let ctx = LiveSeriesContext(
+                remoteKey: sessionStorageKey(forRemoteIDs: remotes),
+                remoteIDs: remotes,
+                baselineLocal: merged.localWins,
+                baselineRemote: merged.remoteWins,
+                seriesLocal: 0,
+                seriesRemote: 0,
+                isActive: true,
+                graceUntil: nil,
+                updatedAt: Date()
+            )
+            saveLiveSeries(ctx)
+        }
+        print("[H2H] peer max-merge \(ours.localWins)-\(ours.remoteWins) + peer claims us=\(peerClaimsOurWins) them=\(peerOwnWins) → \(merged.localWins)-\(merged.remoteWins)")
+    }
+
+    /// Totaux à afficher : live series si protège, sinon committed max cache.
+    private func displayedTotalsPreferringLive(againstRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals {
+        let remotes = expandedRemoteIDs(remoteIDs)
+        if let live = liveSeries(forRemoteIDs: remotes), live.protectsDisplay {
+            return live.displayedTotals
+        }
+        let cache = cachedTotals(againstRemoteIDs: remotes) ?? .zero
+        let committed = committedFloor(forRemoteIDs: remotes) ?? .zero
+        return BlomixPvPH2HTotals(
+            localWins: max(cache.localWins, committed.localWins),
+            remoteWins: max(cache.remoteWins, committed.remoteWins)
+        )
+    }
+
     /// Baseline **locale immédiate** (cache uniquement, 0 réseau).
     /// À appeler au début de série / lancement match — ne bloque jamais le handshake.
     func seedSeriesBaselineFromCache(

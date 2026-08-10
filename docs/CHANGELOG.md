@@ -9,12 +9,15 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **93** (TestFlight).
+Build **94** (TestFlight).
 
-### Corrigé
-- **Freeze game over PvP** : H2H + Elo ne tournent plus **avant** l’anim des ronds (défaite) — déplacés après l’anim ; victoire différée d’une frame
-- (92) plus de storm CloudKit Elo ×50 ; (91) plus de fetch H2H en match live
-- Version marketing **5.9** (build **93**)
+### Ajouté
+- **H2H snapshot PvP** (2 ints sur le fil) au handshake : merge **max par joueur** (14–12 + 13–14 → 14–13 / 13–14) — event rare, 0 CloudKit, 0 impact pose
+- **Déco mid-match** : le restant enregistre win série + H2H (plus seulement Elo) ; abandon menu enregistre loss série + H2H
+
+### Conservé
+- Pas de fetchCloudSum en match / Elo ×N ; freezes game over (93)
+- Version marketing **5.9** (build **94**)
 
 ---
 

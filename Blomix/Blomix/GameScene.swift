@@ -12396,6 +12396,26 @@ final class GameScene: SKScene {
     private func blomixPvP_beginNewSeriesSession() {
         blomixPvP_resetSeriesState()
         blomixPvP_refreshSeriesNamePrefixes()
+        // Baseline H2H = cloud figé au début de série (affichage = baseline + série ensuite).
+        blomixPvP_captureH2HSeriesBaselineBestEffort()
+    }
+
+    /// Fetch cloud une fois pour figer la baseline cumul (best-effort, hors chemin critique).
+    private func blomixPvP_captureH2HSeriesBaselineBestEffort() {
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
+        let name = pvpOpponentDisplayName
+        Task { @MainActor in
+            await BlomixPvPH2HManager.shared.beginSeriesBaseline(
+                remoteGamePlayerID: remoteGameID,
+                remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+                displayName: name
+            )
+        }
     }
 
     private func blomixPvP_refreshSeriesNamePrefixes() {
@@ -12503,10 +12523,21 @@ final class GameScene: SKScene {
         let games = pvpSeriesGamesPlayed
         let localP = pvpSeriesLocalPrefix
         let remoteP = pvpSeriesRemotePrefix
-        let remoteID = pvpCoordinator?.remoteGamePlayerIDResolved ?? ""
-        let cachedH2H = remoteID.isEmpty
-            ? nil
-            : BlomixPvPH2HManager.shared.cachedTotals(against: remoteID)
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        // Cumul fin de série = baseline cloud + série (jamais écrasé par un refresh cloud).
+        let lockedH2H: BlomixPvPH2HTotals? = {
+            guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return nil }
+            return BlomixPvPH2HManager.shared.lockSeriesEndDisplay(
+                remoteGamePlayerID: remoteGameID,
+                remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+                seriesLocalWins: localW,
+                seriesRemoteWins: remoteW
+            )
+        }()
         let present: () -> Void = { [weak self] in
             guard let self else { return }
             guard let rootVC = self.modalRootViewController() else {
@@ -12519,7 +12550,7 @@ final class GameScene: SKScene {
                 localWins: localW,
                 remoteWins: remoteW,
                 gamesPlayed: games,
-                initialH2HTotals: cachedH2H
+                initialH2HTotals: lockedH2H
             )
             seriesVC.onDismiss = { [weak self] in
                 self?.blomixPvP_returnToHomeAfterMatch()
@@ -12527,18 +12558,7 @@ final class GameScene: SKScene {
             seriesVC.modalPresentationStyle = .overFullScreen
             seriesVC.modalTransitionStyle = .crossDissolve
             rootVC.present(seriesVC, animated: true)
-            // Refresh cloud best-effort (ne bloque pas la présentation).
-            // La réconciliation asymétrique évite de redescendre remoteWins si l’upload adverse traîne.
-            if !remoteID.isEmpty {
-                Task { @MainActor in
-                    print("[H2H] series-end refresh \(BlomixPvPH2HManager.shared.debugDumpCacheSummary())")
-                    let refreshed = await BlomixPvPH2HManager.shared.refreshTotals(against: remoteID)
-                    seriesVC.applyH2HTotals(refreshed)
-                    if let refreshed {
-                        print("[H2H] series-end applied \(refreshed.localWins)-\(refreshed.remoteWins)")
-                    }
-                }
-            }
+            // Flush cloud en arrière-plan uniquement — ne pas réécrire l’UI de fin.
         }
         if let intermediate {
             intermediate.dismiss(animated: true) { present() }
@@ -13195,10 +13215,20 @@ final class GameScene: SKScene {
         let seriesGames = pvpSeriesGamesPlayed
         let seriesLocalP = pvpSeriesLocalPrefix
         let seriesRemoteP = pvpSeriesRemotePrefix
-        let remoteID = pvpCoordinator?.remoteGamePlayerIDResolved ?? ""
-        let cachedH2H = remoteID.isEmpty
-            ? nil
-            : BlomixPvPH2HManager.shared.cachedTotals(against: remoteID)
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        let lockedH2H: BlomixPvPH2HTotals? = {
+            guard seriesEnd, !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return nil }
+            return BlomixPvPH2HManager.shared.lockSeriesEndDisplay(
+                remoteGamePlayerID: remoteGameID,
+                remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+                seriesLocalWins: seriesLocalW,
+                seriesRemoteWins: seriesRemoteW
+            )
+        }()
         if wasInGame {
             blomixPvP_finalizeEloIfNeeded(outcome: .win)
         }
@@ -13219,7 +13249,7 @@ final class GameScene: SKScene {
                     localWins: seriesLocalW,
                     remoteWins: seriesRemoteW,
                     gamesPlayed: seriesGames,
-                    initialH2HTotals: cachedH2H
+                    initialH2HTotals: lockedH2H
                 )
                 seriesVC.onDismiss = { [weak self] in
                     self?.unwindToStartScreen(restoreSave: true)
@@ -13227,16 +13257,6 @@ final class GameScene: SKScene {
                 seriesVC.modalPresentationStyle = .overFullScreen
                 seriesVC.modalTransitionStyle = .crossDissolve
                 rootVC.present(seriesVC, animated: true)
-                if !remoteID.isEmpty {
-                    Task { @MainActor in
-                        print("[H2H] series-end refresh \(BlomixPvPH2HManager.shared.debugDumpCacheSummary())")
-                        let refreshed = await BlomixPvPH2HManager.shared.refreshTotals(against: remoteID)
-                        seriesVC.applyH2HTotals(refreshed)
-                        if let refreshed {
-                            print("[H2H] series-end applied \(refreshed.localWins)-\(refreshed.remoteWins)")
-                        }
-                    }
-                }
             } else {
                 self.unwindToStartScreen(restoreSave: true)
             }

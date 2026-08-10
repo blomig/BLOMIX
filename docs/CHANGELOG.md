@@ -9,13 +9,15 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **87** (TestFlight).
+Build **88** (TestFlight).
 
 ### Modifié
-- **H2H vérité CloudKit** (86) : cumul affiché = compte cloud si fetch OK ; flush agressif ; plancher offline only
-- **H2H agrégation stable** (87) : dédup events par `clientEventId` ; queries `winnerID` + `pairKey` (known/pending) ; plus de somme aveugle multi-pairKey qui donnait 12-10 vs 10-14 ; filtre strict duo
-- **Console CloudKit** : ajouter index **Queryable** sur `winnerID` (recommandé) pour que les deux clients voient le même ensemble d’events
-- Version marketing **5.9** (build **87**)
+- **H2H modèle baseline + série** : au début de série, baseline = cloud figé ; affichage session / fin de série = **baseline + score de série** (plus d’écrasement cloud sur l’écran de fin) ; Elo pendant 15 min post-série = max(cloud, baseline+série) puis cloud pur une fois sync
+- Uploads cloud toujours winner-only en arrière-plan (flush agressif)
+- Version marketing **5.9** (build **88**)
+
+### Antérieur 5.9 (86–87)
+- CLOUD-TRUTH + dédup events multi-ID / `winnerID` Queryable
 
 ---
 

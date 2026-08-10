@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 87)  
+> **Version de référence** : 5.9 (build 88)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -54,14 +54,13 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | recordName | `h2h_{clientEventId}` (UUID) — **créateur = vainqueur** → WRITE OK |
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel` (`online`/`local`), `clientEventId`, `createdAt` |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
-| Cache local | Miroir du **dernier cloud OK** (multi-clés + alias) |
-| Pending upload | Wins vainqueur (`blomixPvPH2HPending_v1`) ; flush ×2 avant lecture ; **pas** ajouté au total affiché |
-| Plancher session | Secours **offline uniquement** (fetch CK KO) |
-| Réconciliation | **Fetch OK** → `CLOUD-TRUTH` = events **uniques** (dédup `clientEventId`) via `winnerID` + `pairKey` ; **fetch KO** → cache / plancher |
-| Agrégation | Plus de somme multi-pairKey ; filtre duo strict ; mémorise `knownPairKeys` |
-| UI | Elo + fin de série après refresh : total cloud ; Elo `X-Y` à gauche de Défier |
-| Diagnostic | Logs `cloud unique events=` / `CLOUD-TRUTH` / `OFFLINE` |
-| Déploiement | `pairKey` **Queryable** ; **`winnerID` Queryable** (fortement recommandé) ; `recordName` Queryable pour Console |
+| Baseline série | Au **début de série** : fetch cloud → `baseline` figée (`beginSeriesBaseline`) |
+| Affichage session | **baseline + score de série** (fin de série verrouillée, pas d’écrasement cloud) |
+| Grâce post-série | 15 min : Elo = max(cloud, baseline+série) jusqu’à sync cloud |
+| Elo hors grâce | Cloud pur (events uniques winnerID + pairKey) |
+| Upload | Winner-only + flush agressif en arrière-plan |
+| Diagnostic | Logs `series baseline set` / `series-end LOCK` / `CLOUD+SERIES` / `CLOUD-TRUTH` |
+| Déploiement | `pairKey` + **`winnerID` Queryable** recommandés en Production |
 
 ### PvP Local — robustesse de liaison mid-match
 

@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 89)  
+> **Version de référence** : 5.9 (build 90)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -54,13 +54,12 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | recordName | `h2h_{clientEventId}` (UUID) — **créateur = vainqueur** → WRITE OK |
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel` (`online`/`local`), `clientEventId`, `createdAt` |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
-| Baseline série | Au lancement match : **cache local only** (0 réseau) ; raffinement cloud **après handshake** uniquement |
-| Chemin critique PvP | **Aucun** await CloudKit H2H dans `beginPvP*` / handshake (build 89) |
-| Affichage session | **baseline + score de série** (fin de série verrouillée) |
-| Grâce post-série | 15 min : Elo = max(cloud, baseline+série) jusqu’à sync |
-| Elo hors grâce | Cloud pur (events uniques) |
-| Upload | Winner-only + flush en arrière-plan (hors handshake) |
-| Diagnostic | `series baseline seed cache` / `series baseline set` / `series-end LOCK` |
+| Baseline série | Lancement : cache local ; raffinement cloud **après handshake** (pas pendant l’appariement) |
+| Affichage session | **baseline + série** ; fin de série **LOCK** (pas d’écrasement cloud) |
+| Plancher durable | `committed floor` : max session verrouillé jusqu’à rattrapage cloud (survit kill app) |
+| Elo | max(cloud, live floor, committed floor) tant que cloud < session ; puis cloud pur |
+| Upload | Winner-only + flush multi-tentatives (fin de série / avant Elo) |
+| Diagnostic | `committed floor` / `CLOUD+FLOOR` / `series-end LOCK` / `pending flush` |
 | Déploiement | `pairKey` + `winnerID` Queryable recommandés |
 
 ### PvP Local — robustesse de liaison mid-match

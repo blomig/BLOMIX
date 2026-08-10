@@ -82,10 +82,14 @@ final class BlomixPvPH2HManager {
     private static let knownPairKeysKey = "blomixPvPH2HKnownPairKeys_v1"
     /// Série live : baseline cloud + deltas (affichage session).
     private static let liveSeriesKey = "blomixPvPH2HLiveSeries_v1"
-    /// Après fin de série : ne pas redescendre sous baseline+série pendant cette durée.
-    private static let seriesGraceDuration: TimeInterval = 15 * 60
+    /// Plancher **durable** : dernier cumul session verrouillé (baseline+série) jusqu’à rattrapage cloud.
+    /// Survit au kill app — évite 13-11 → 12-10 si upload encore absent.
+    private static let committedFloorKey = "blomixPvPH2HCommittedFloor_v1"
+    /// Après fin de série : ne pas redescendre sous baseline+série pendant cette durée (live series).
+    private static let seriesGraceDuration: TimeInterval = 24 * 3600
     /// Expire un plancher non rattrapé (évite inflation éternelle si bug d’enregistrement).
     private static let sessionFloorMaxAge: TimeInterval = 7 * 24 * 3600
+    private static let committedFloorMaxAge: TimeInterval = 7 * 24 * 3600
 
     private var isFlushing = false
     private var didRegisterLifecycle = false
@@ -251,11 +255,12 @@ final class BlomixPvPH2HManager {
         let displayed = ctx.displayedTotals
         saveLiveSeries(ctx)
         replaceTotals(displayed, underRemoteIDs: ctx.remoteIDs)
+        // Plancher durable jusqu’à ce que le cloud ait au moins ces totaux (kill app OK).
+        commitDisplayFloor(displayed, remoteIDs: ctx.remoteIDs)
         print("[H2H] series-end LOCK \(displayed.localWins)-\(displayed.remoteWins) = baseline \(ctx.baselineLocal)-\(ctx.baselineRemote) + série \(ctx.seriesLocal)-\(ctx.seriesRemote) grace=\(Int(Self.seriesGraceDuration))s")
-        flushPendingEventsBestEffort()
+        // Flush wins en arrière-plan (plusieurs tentatives) — ne bloque pas l’UI.
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            await self.flushPendingEventsAsync()
+            await self.flushPendingUntilEmptyOrAttempts(maxAttempts: 6)
         }
         return displayed
     }
@@ -386,17 +391,25 @@ final class BlomixPvPH2HManager {
 
         let previous = cachedTotals(againstRemoteIDs: remotes)
         let live = liveSeries(forRemoteIDs: remotes)
-        let seriesFloor = live.flatMap { $0.protectsDisplay ? $0.displayedTotals : nil }
+        let liveFloor = live.flatMap { $0.protectsDisplay ? $0.displayedTotals : nil }
+        let committed = committedFloor(forRemoteIDs: remotes)
+        // Plancher d’affichage = max(série live, cumul session verrouillé durable).
+        let seriesFloor: BlomixPvPH2HTotals? = {
+            switch (liveFloor, committed) {
+            case let (l?, c?):
+                return BlomixPvPH2HTotals(
+                    localWins: max(l.localWins, c.localWins),
+                    remoteWins: max(l.remoteWins, c.remoteWins)
+                )
+            case let (l?, nil): return l
+            case let (nil, c?): return c
+            default: return nil
+            }
+        }()
 
-        // Flush agressif (2 passes) pour pousser les wins avant lecture vérité cloud.
-        await flushPendingEventsAsync()
+        // Flush agressif pour pousser les wins avant lecture vérité cloud.
+        await flushPendingUntilEmptyOrAttempts(maxAttempts: 4)
         var pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
-        if pendingLeft > 0 {
-            print("[H2H] pending after flush#1: \(pendingLeft) — retry")
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            await flushPendingEventsAsync()
-            pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
-        }
         if pendingLeft > 0 {
             print("[H2H] pending still \(pendingLeft) — \(debugDumpPendingSummary())")
         }
@@ -406,13 +419,13 @@ final class BlomixPvPH2HManager {
             remotes: remotes,
             flushFirst: false
         )
-        // Re-essai si cloud sous le plancher de série (uploads en vol).
+        // Re-essai si cloud sous le plancher (uploads en vol).
         if let floor = seriesFloor, cloudBundle.querySucceeded {
             let c = cloudBundle.sum
             if c.localWins < floor.localWins || c.remoteWins < floor.remoteWins || pendingLeft > 0 {
-                print("[H2H] cloud \(c.localWins)-\(c.remoteWins) < series floor \(floor.localWins)-\(floor.remoteWins) — extra flush+query")
-                try? await Task.sleep(nanoseconds: 450_000_000)
-                await flushPendingEventsAsync()
+                print("[H2H] cloud \(c.localWins)-\(c.remoteWins) < floor \(floor.localWins)-\(floor.remoteWins) — extra flush+query")
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                await flushPendingUntilEmptyOrAttempts(maxAttempts: 3)
                 cloudBundle = await fetchCloudSum(
                     localIDs: localIDs,
                     remotes: remotes,
@@ -426,16 +439,17 @@ final class BlomixPvPH2HManager {
             let cloud = cloudBundle.sum
             let total: BlomixPvPH2HTotals
             if let floor = seriesFloor, floor.hasHistory {
-                // Grâce / série : ne jamais redescendre sous baseline+série.
+                // Ne jamais redescendre sous le cumul session verrouillé tant que le cloud n’a pas rattrapé.
                 total = BlomixPvPH2HTotals(
                     localWins: max(cloud.localWins, floor.localWins),
                     remoteWins: max(cloud.remoteWins, floor.remoteWins)
                 )
                 if cloud.localWins >= floor.localWins && cloud.remoteWins >= floor.remoteWins {
                     clearLiveSeries(forRemoteIDs: remotes)
-                    print("[H2H] reconcile CLOUD+SERIES synced \(total.localWins)-\(total.remoteWins) (grace cleared)")
+                    clearCommittedFloor(forRemoteIDs: remotes)
+                    print("[H2H] reconcile CLOUD+FLOOR synced \(total.localWins)-\(total.remoteWins) (floors cleared)")
                 } else {
-                    print("[H2H] reconcile CLOUD+SERIES floor \(floor.localWins)-\(floor.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins)")
+                    print("[H2H] reconcile CLOUD+FLOOR floor \(floor.localWins)-\(floor.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins) pending=\(pendingLeft)")
                 }
             } else {
                 total = cloud
@@ -450,10 +464,10 @@ final class BlomixPvPH2HManager {
             return total.hasHistory ? total : nil
         }
 
-        // ── Offline : série floor > cache ──
+        // ── Offline : floor > cache ──
         if let floor = seriesFloor, floor.hasHistory {
             replaceTotals(floor, underRemoteIDs: remotes)
-            print("[H2H] refresh OFFLINE series floor \(floor.localWins)-\(floor.remoteWins)")
+            print("[H2H] refresh OFFLINE floor \(floor.localWins)-\(floor.remoteWins)")
             return floor
         }
         if let previous, previous.hasHistory {
@@ -542,6 +556,8 @@ final class BlomixPvPH2HManager {
         let displayed = live.displayedTotals
         saveLiveSeries(live)
         replaceTotals(displayed, underRemoteIDs: remotes)
+        // Met à jour aussi le plancher durable pendant la série (au cas où l’app est tuée avant lock fin).
+        commitDisplayFloor(displayed, remoteIDs: remotes)
         return displayed
     }
 
@@ -553,7 +569,14 @@ final class BlomixPvPH2HManager {
                 return c
             }
         }
-        // Aussi une entrée expirée récemment ? non.
+        // Scan global : l’Elo peut présenter un hex alors que la série était sous A:_…
+        let expanded = Set(expandedRemoteIDs(remoteIDs))
+        for (_, c) in all where c.protectsDisplay || c.isActive {
+            let ctxIDs = Set(expandedRemoteIDs(c.remoteIDs) + [c.remoteKey])
+            if !ctxIDs.isDisjoint(with: expanded) {
+                return c
+            }
+        }
         for k in keys {
             if let c = all[k] { return c }
         }
@@ -562,9 +585,13 @@ final class BlomixPvPH2HManager {
 
     private func saveLiveSeries(_ ctx: LiveSeriesContext) {
         var all = loadLiveSeriesMap()
-        all[ctx.remoteKey] = ctx
-        for rid in ctx.remoteIDs {
-            all[rid] = ctx
+        var merged = ctx
+        // Union des IDs déjà connus pour ce contexte (alias Elo ultérieurs).
+        let extra = expandedRemoteIDs(ctx.remoteIDs)
+        merged.remoteIDs = Array(Set(ctx.remoteIDs + extra))
+        all[merged.remoteKey] = merged
+        for rid in merged.remoteIDs {
+            all[rid] = merged
         }
         if let data = try? JSONEncoder().encode(all) {
             UserDefaults.standard.set(data, forKey: Self.liveSeriesKey)
@@ -573,6 +600,10 @@ final class BlomixPvPH2HManager {
 
     private func clearLiveSeries(forRemoteIDs remoteIDs: [String]) {
         var all = loadLiveSeriesMap()
+        if let ctx = liveSeries(forRemoteIDs: remoteIDs) {
+            all.removeValue(forKey: ctx.remoteKey)
+            for rid in ctx.remoteIDs { all.removeValue(forKey: rid) }
+        }
         let keys = expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)]
         for k in keys { all.removeValue(forKey: k) }
         if all.isEmpty {
@@ -593,6 +624,107 @@ final class BlomixPvPH2HManager {
     private func debugDumpLiveSeries(_ remoteIDs: [String]) -> String {
         guard let l = liveSeries(forRemoteIDs: remoteIDs) else { return "live=nil" }
         return "live base \(l.baselineLocal)-\(l.baselineRemote) +s \(l.seriesLocal)-\(l.seriesRemote) active=\(l.isActive)"
+    }
+
+    // MARK: - Committed floor (durable until cloud catches up)
+
+    private struct CommittedFloor: Codable, Equatable {
+        var localWins: Int
+        var remoteWins: Int
+        var remoteIDs: [String]
+        var updatedAt: Date
+
+        var totals: BlomixPvPH2HTotals {
+            BlomixPvPH2HTotals(localWins: localWins, remoteWins: remoteWins)
+        }
+    }
+
+    private func commitDisplayFloor(_ totals: BlomixPvPH2HTotals, remoteIDs: [String]) {
+        guard totals.hasHistory else { return }
+        let remotes = expandedRemoteIDs(remoteIDs)
+        var all = loadCommittedFloors()
+        let key = sessionStorageKey(forRemoteIDs: remoteIDs)
+        let existing = committedFloor(forRemoteIDs: remotes)
+        let merged = BlomixPvPH2HTotals(
+            localWins: max(totals.localWins, existing?.localWins ?? 0),
+            remoteWins: max(totals.remoteWins, existing?.remoteWins ?? 0)
+        )
+        let floor = CommittedFloor(
+            localWins: merged.localWins,
+            remoteWins: merged.remoteWins,
+            remoteIDs: remotes,
+            updatedAt: Date()
+        )
+        all[key] = floor
+        for rid in remotes {
+            all[rid] = floor
+        }
+        saveCommittedFloors(all)
+        print("[H2H] committed floor \(merged.localWins)-\(merged.remoteWins) keys=\(remotes.count)")
+    }
+
+    private func committedFloor(forRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals? {
+        let all = loadCommittedFloors()
+        let now = Date()
+        let expanded = Set(expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)])
+        var best: CommittedFloor?
+        for (k, f) in all {
+            guard now.timeIntervalSince(f.updatedAt) <= Self.committedFloorMaxAge else { continue }
+            let fIDs = Set(expandedRemoteIDs(f.remoteIDs) + [k])
+            let hit = !fIDs.isDisjoint(with: expanded) || expanded.contains(k)
+            guard hit else { continue }
+            if let b = best {
+                if f.localWins + f.remoteWins > b.localWins + b.remoteWins { best = f }
+            } else {
+                best = f
+            }
+        }
+        return best?.totals
+    }
+
+    private func clearCommittedFloor(forRemoteIDs remoteIDs: [String]) {
+        var all = loadCommittedFloors()
+        let expanded = Set(expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)])
+        for (k, f) in all {
+            let fIDs = Set(expandedRemoteIDs(f.remoteIDs) + [k])
+            if !fIDs.isDisjoint(with: expanded) || expanded.contains(k) {
+                all.removeValue(forKey: k)
+            }
+        }
+        saveCommittedFloors(all)
+        print("[H2H] committed floor cleared")
+    }
+
+    private func loadCommittedFloors() -> [String: CommittedFloor] {
+        guard let data = UserDefaults.standard.data(forKey: Self.committedFloorKey),
+              let decoded = try? JSONDecoder().decode([String: CommittedFloor].self, from: data)
+        else { return [:] }
+        let now = Date()
+        return decoded.filter { now.timeIntervalSince($0.value.updatedAt) <= Self.committedFloorMaxAge }
+    }
+
+    private func saveCommittedFloors(_ map: [String: CommittedFloor]) {
+        if map.isEmpty {
+            UserDefaults.standard.removeObject(forKey: Self.committedFloorKey)
+            return
+        }
+        if let data = try? JSONEncoder().encode(map) {
+            UserDefaults.standard.set(data, forKey: Self.committedFloorKey)
+        }
+    }
+
+    /// Flush pending jusqu’à vide ou épuisement des tentatives.
+    func flushPendingUntilEmptyOrAttempts(maxAttempts: Int) async {
+        for attempt in 1...max(1, maxAttempts) {
+            await flushPendingEventsAsync()
+            let left = loadPending().count
+            if left == 0 {
+                if attempt > 1 { print("[H2H] pending flush empty after attempt \(attempt)") }
+                return
+            }
+            print("[H2H] pending flush attempt \(attempt)/\(maxAttempts) left=\(left)")
+            try? await Task.sleep(nanoseconds: 400_000_000)
+        }
     }
 
     // MARK: - Cloud fetch helper (dédup events)

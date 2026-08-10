@@ -9,15 +9,17 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **89** (TestFlight).
+Build **90** (TestFlight).
 
 ### Corrigé
-- **PvP lancement** : plus aucun fetch CloudKit H2H pendant `beginPvP` / handshake (cause timeouts / « préparation grille » / erreur de connexion en build 88)
-- Baseline H2H : seed **cache local** au début de série ; raffinement cloud **uniquement après handshake** (priority utility + délai)
+- **H2H persistance** : plancher **durable** (`committed floor`) après chaque manche / fin de série — survit au kill app ; l’Elo ne redescend plus à l’ancien cloud (ex. 13-11 → 12-10) tant que le cloud n’a pas rattrapé
+- Flush pending renforcé (plusieurs tentatives) en fin de série et avant lecture Elo
+- Lookup plancher live/commit par **alias multi-ID** (hex Elo vs `A:_` match)
+- (89) H2H hors chemin handshake PvP
 
-### Modifié (rappel 88)
-- Cumul = baseline + série en session ; fin de série verrouillée ; grâce Elo 15 min
-- Version marketing **5.9** (build **89**)
+### Modifié
+- Grâce live series portée à **24 h** ; committed floor max **7 j**
+- Version marketing **5.9** (build **90**)
 
 ---
 

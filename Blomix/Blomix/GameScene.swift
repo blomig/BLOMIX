@@ -12416,30 +12416,6 @@ final class GameScene: SKScene {
         )
     }
 
-    /// Raffine la baseline H2H via CloudKit **après** handshake (hors chemin d’appariement).
-    private func blomixPvP_refineH2HSeriesBaselineAfterHandshakeBestEffort() {
-        // Uniquement 1ʳᵉ manche de la série (pas chaque revanche).
-        guard pvpSeriesGamesPlayed == 0 else { return }
-        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
-        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
-            ?? remotePlayer?.gamePlayerID
-            ?? ""
-        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
-        guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
-        let name = pvpOpponentDisplayName
-        // priority utility : ne pas concurrencer le gameplay / timers de tour.
-        Task(priority: .utility) { @MainActor in
-            // Laisse une frame au board / overlay pour se stabiliser.
-            await Task.yield()
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            await BlomixPvPH2HManager.shared.beginSeriesBaseline(
-                remoteGamePlayerID: remoteGameID,
-                remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
-                displayName: name
-            )
-        }
-    }
-
     private func blomixPvP_refreshSeriesNamePrefixes() {
         let localName: String = {
             let n = GKLocalPlayer.local.displayName
@@ -12910,8 +12886,7 @@ final class GameScene: SKScene {
         }
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
         blomixPvP_refreshSeriesNamePrefixes()
-        // H2H baseline cloud : uniquement maintenant (match live), jamais pendant l’appariement.
-        blomixPvP_refineH2HSeriesBaselineAfterHandshakeBestEffort()
+        // H2H : aucun CloudKit ici — le match live ne doit jamais partager le MainActor avec fetchCloudSum.
         // Nouvelle manche (1ʳᵉ ou revanche) : autoriser un +1 série à la prochaine fin.
         pvpSeriesDidCountCurrentMatch = false
         if isStartScreen {

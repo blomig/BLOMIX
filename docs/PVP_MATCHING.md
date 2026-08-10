@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 90)  
+> **Version de référence** : 5.9 (build 91)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -54,12 +54,13 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | recordName | `h2h_{clientEventId}` (UUID) — **créateur = vainqueur** → WRITE OK |
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel` (`online`/`local`), `clientEventId`, `createdAt` |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
-| Baseline série | Lancement : cache local ; raffinement cloud **après handshake** (pas pendant l’appariement) |
-| Affichage session | **baseline + série** ; fin de série **LOCK** (pas d’écrasement cloud) |
-| Plancher durable | `committed floor` : max session verrouillé jusqu’à rattrapage cloud (survit kill app) |
-| Elo | max(cloud, live floor, committed floor) tant que cloud < session ; puis cloud pur |
-| Upload | Winner-only + flush multi-tentatives (fin de série / avant Elo) |
-| Diagnostic | `committed floor` / `CLOUD+FLOOR` / `series-end LOCK` / `pending flush` |
+| Baseline série | **Cache local only** au lancement (0 CloudKit) |
+| Pendant match live | **Interdit** : fetchCloudSum / flush multi / beginSeriesBaseline (freeze MainActor) |
+| Affichage session | **baseline + série** ; fin de série **LOCK** |
+| Plancher durable | `committed floor` jusqu’à rattrapage cloud |
+| Elo (hors partie) | Seul lieu du fetch cloud lourd ; max(cloud, floors) si besoin |
+| Upload | Winner-only + **1** flush best-effort fin de manche |
+| Diagnostic | `series baseline seed cache` / `series-end LOCK` / `CLOUD+FLOOR` |
 | Déploiement | `pairKey` + `winnerID` Queryable recommandés |
 
 ### PvP Local — robustesse de liaison mid-match

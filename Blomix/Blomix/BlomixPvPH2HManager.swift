@@ -21,16 +21,15 @@
 //  `teamPlayerID`, formats `A:_…` vs hex). Le cache est multi-clés + alias ;
 //  les queries cloud tentent les combinaisons d’IDs locaux/distants.
 //
-//  Modèle produit (v5.9 build 88+) — cumul H2H :
+//  Modèle produit (v5.9 build 91+) — cumul H2H **sans freeze gameplay** :
 //
-//  1) **Baseline** = dernier cloud stabilisé, figée au **début de série**.
-//  2) **Pendant / fin de série** : affiché = baseline + score de série (pas de
-//     refresh cloud qui écrase l’écran de fin).
-//  3) **Elo** : cloud pur hors grâce ; pendant la grâce post-série,
-//     max(cloud, baseline+série) jusqu’à sync (pas de redescente silencieuse).
-//  4) Uploads cloud (winner-only) en arrière-plan ; flush agressif avant lecture Elo.
+//  1) **Baseline** au lancement série = **cache local only** (0 réseau).
+//  2) **Pendant le match live** : **aucun** fetchCloudSum / flush multi / CloudKit H2H.
+//  3) **Fin de série** : LOCK baseline+série + committed floor ; flush pending **léger**.
+//  4) **Elo / hors partie** : seul endroit pour fetchCloudSum (agrégation cloud).
+//  5) Uploads winner-only : 1 flush best-effort en fin de manche, pas une rafale.
 //
-//  Agrégation cloud (87+) : dédup clientEventId ; winnerID + pairKey ; filtre duo.
+//  BlomixPvPH2HManager est @MainActor : tout CloudKit lourd pendant isGameActive = FREEZE.
 //
 
 import CloudKit
@@ -258,10 +257,8 @@ final class BlomixPvPH2HManager {
         // Plancher durable jusqu’à ce que le cloud ait au moins ces totaux (kill app OK).
         commitDisplayFloor(displayed, remoteIDs: ctx.remoteIDs)
         print("[H2H] series-end LOCK \(displayed.localWins)-\(displayed.remoteWins) = baseline \(ctx.baselineLocal)-\(ctx.baselineRemote) + série \(ctx.seriesLocal)-\(ctx.seriesRemote) grace=\(Int(Self.seriesGraceDuration))s")
-        // Flush wins en arrière-plan (plusieurs tentatives) — ne bloque pas l’UI.
-        Task { @MainActor in
-            await self.flushPendingUntilEmptyOrAttempts(maxAttempts: 6)
-        }
+        // Un seul flush best-effort (pas de boucle multi-secondes sur MainActor).
+        flushPendingEventsBestEffort()
         return displayed
     }
 
@@ -332,12 +329,8 @@ final class BlomixPvPH2HManager {
         )
         enqueuePending(event)
         print("[H2H] win queued event=\(event.clientEventId.prefix(12))… pair=\(String(pair.prefix(40)))…")
-        // Flush immédiat + second essai asynchrone (réduit les Elo ouverts trop tôt).
+        // Un seul flush async léger — pas de 2ᵉ passe qui reprend le MainActor en boucle.
         flushPendingEventsBestEffort()
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            await self.flushPendingEventsAsync()
-        }
     }
 
     /// Totaux en cache pour un ID distant (suit les alias).

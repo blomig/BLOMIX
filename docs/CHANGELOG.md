@@ -9,17 +9,16 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **90** (TestFlight).
+Build **91** (TestFlight).
 
-### Corrigé
-- **H2H persistance** : plancher **durable** (`committed floor`) après chaque manche / fin de série — survit au kill app ; l’Elo ne redescend plus à l’ancien cloud (ex. 13-11 → 12-10) tant que le cloud n’a pas rattrapé
-- Flush pending renforcé (plusieurs tentatives) en fin de série et avant lecture Elo
-- Lookup plancher live/commit par **alias multi-ID** (hex Elo vs `A:_` match)
-- (89) H2H hors chemin handshake PvP
+### Corrigé (P0 freeze)
+- **Plus aucun CloudKit H2H pendant le match live** : suppression du `beginSeriesBaseline` / `fetchCloudSum` post-handshake (cause des freezes MainActor bilatéraux)
+- Baseline série = **cache local only** jusqu’à l’Elo (seul lieu de fetch cloud lourd)
+- Flush fin de manche / fin de série : **1** best-effort (plus de boucles multi-secondes sur MainActor)
 
-### Modifié
-- Grâce live series portée à **24 h** ; committed floor max **7 j**
-- Version marketing **5.9** (build **90**)
+### Conservé
+- baseline+série, LOCK fin de série, committed floor, grâce Elo
+- Version marketing **5.9** (build **91**)
 
 ---
 

@@ -1367,7 +1367,9 @@ final class BlomixPvPResultViewController: UIViewController {
             onRematchAbandoned?()
         }
         stopRematchTimeout()
-        dismiss(animated: true) { self.onHome?() }
+        // Ne pas dismiss ici : GameScene enchaîne série-end **par-dessus** le résultat
+        // (évite flash grille/solo entre les deux overlays).
+        onHome?()
     }
 }
 

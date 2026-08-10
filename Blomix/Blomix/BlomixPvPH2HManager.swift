@@ -237,7 +237,9 @@ final class BlomixPvPH2HManager {
         }
 
         let remotes = expandedRemoteIDs(remoteIDs)
-        let base = cachedTotals(againstRemoteIDs: remotes) ?? .zero
+        // Toujours repartir du max(cache, committed) — pas d’un live series « mort » avec anciens Δ.
+        let base = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
+        // Nouvelle série : baseline propre, Δ à 0 (évite de rejouer les Δ de la série précédente).
         let ctx = LiveSeriesContext(
             remoteKey: sessionStorageKey(forRemoteIDs: remoteIDs),
             remoteIDs: remotes,
@@ -250,7 +252,7 @@ final class BlomixPvPH2HManager {
             updatedAt: Date()
         )
         saveLiveSeries(ctx)
-        print("[H2H] series baseline seed cache \(base.localWins)-\(base.remoteWins)")
+        print("[H2H] series baseline seed \(base.localWins)-\(base.remoteWins) (cache+committed max)")
     }
 
     /// Raffine la baseline via CloudKit. **Après handshake uniquement** (jamais pendant l’appariement).
@@ -323,32 +325,52 @@ final class BlomixPvPH2HManager {
         seriesRemoteWins: Int
     ) -> BlomixPvPH2HTotals {
         let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
-        var ctx = liveSeries(forRemoteIDs: remoteIDs) ?? LiveSeriesContext(
-            remoteKey: sessionStorageKey(forRemoteIDs: remoteIDs),
-            remoteIDs: expandedRemoteIDs(remoteIDs),
-            baselineLocal: cachedTotals(againstRemoteIDs: remoteIDs)?.localWins ?? 0,
-            baselineRemote: cachedTotals(againstRemoteIDs: remoteIDs)?.remoteWins ?? 0,
+        let remotes = expandedRemoteIDs(remoteIDs)
+        let live = liveSeries(forRemoteIDs: remoteIDs)
+        // Baseline = celle de la série live si dispo, sinon max cache/committed.
+        // Important : ne PAS faire baseline + seriesLocalWins si applyLive a déjà
+        // incrémenté les Δ (double comptage qui désynchronise les deux joueurs).
+        let baseline: BlomixPvPH2HTotals
+        let seriesL: Int
+        let seriesR: Int
+        if let live, live.isActive || (live.seriesLocal + live.seriesRemote > 0) {
+            baseline = BlomixPvPH2HTotals(localWins: live.baselineLocal, remoteWins: live.baselineRemote)
+            // Préférer les compteurs GameScene (vérité session) si cohérents avec live.
+            seriesL = max(0, seriesLocalWins)
+            seriesR = max(0, seriesRemoteWins)
+        } else {
+            baseline = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
+            seriesL = max(0, seriesLocalWins)
+            seriesR = max(0, seriesRemoteWins)
+        }
+        let displayed = BlomixPvPH2HTotals(
+            localWins: baseline.localWins + seriesL,
+            remoteWins: baseline.remoteWins + seriesR
+        )
+        // Aussi max avec le live.displayed déjà accumulé (évite de redescendre si décalage).
+        let liveDisp = live?.displayedTotals
+        let final = BlomixPvPH2HTotals(
+            localWins: max(displayed.localWins, liveDisp?.localWins ?? 0),
+            remoteWins: max(displayed.remoteWins, liveDisp?.remoteWins ?? 0)
+        )
+        let ctx = LiveSeriesContext(
+            remoteKey: sessionStorageKey(forRemoteIDs: remotes),
+            remoteIDs: remotes,
+            baselineLocal: final.localWins,
+            baselineRemote: final.remoteWins,
             seriesLocal: 0,
             seriesRemote: 0,
-            isActive: true,
-            graceUntil: nil,
+            isActive: false,
+            graceUntil: Date().addingTimeInterval(Self.seriesGraceDuration),
             updatedAt: Date()
         )
-        // Deltas = compteurs série GameScene (source de vérité session).
-        ctx.seriesLocal = max(0, seriesLocalWins)
-        ctx.seriesRemote = max(0, seriesRemoteWins)
-        ctx.isActive = false
-        ctx.graceUntil = Date().addingTimeInterval(Self.seriesGraceDuration)
-        ctx.updatedAt = Date()
-        let displayed = ctx.displayedTotals
+        // Après LOCK, le total figé devient la nouvelle baseline (Δ série absorbés).
         saveLiveSeries(ctx)
-        replaceTotals(displayed, underRemoteIDs: ctx.remoteIDs)
-        // Plancher durable jusqu’à ce que le cloud ait au moins ces totaux (kill app OK).
-        commitDisplayFloor(displayed, remoteIDs: ctx.remoteIDs)
-        print("[H2H] series-end LOCK \(displayed.localWins)-\(displayed.remoteWins) = baseline \(ctx.baselineLocal)-\(ctx.baselineRemote) + série \(ctx.seriesLocal)-\(ctx.seriesRemote) grace=\(Int(Self.seriesGraceDuration))s")
-        // Un seul flush best-effort (pas de boucle multi-secondes sur MainActor).
+        replaceTotals(final, underRemoteIDs: remotes)
+        commitDisplayFloor(final, remoteIDs: remotes)
+        print("[H2H] series-end LOCK \(final.localWins)-\(final.remoteWins) (base \(baseline.localWins)-\(baseline.remoteWins) + série \(seriesL)-\(seriesR))")
         flushPendingEventsBestEffort()
-        return displayed
+        return final
     }
 
     /// Enregistre le résultat d’une manche. Fournir **tous** les IDs distants connus

@@ -903,10 +903,13 @@ final class BlomixPvPMatchCoordinator: NSObject {
             break
 
         case .h2hSnapshot:
-            // Best-effort, non critique : pas d’ack obligatoire. Payload = 2 ints.
+            // Best-effort, non critique. Différé d’une frame pour ne pas geler le 1er drop.
             let peerOwn = env.h2hMyWins ?? 0
             let peerOurs = env.h2hTheirWins ?? 0
-            scene?.blomixPvP_applyRemoteH2HSnapshot(peerOwnWins: peerOwn, peerClaimsOurWins: peerOurs)
+            Task { @MainActor in
+                await Task.yield()
+                self.scene?.blomixPvP_applyRemoteH2HSnapshot(peerOwnWins: peerOwn, peerClaimsOurWins: peerOurs)
+            }
         }
     }
 
@@ -922,11 +925,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
         lastPeerAliveAt = Date()
         startHeartbeat()
         BlomixPvPLog.event("handshake_complete", ["host": "\(isHostSide)"])
-        // Snapshot H2H après handshake (1 message best-effort, hors chemin critique pose).
-        sendH2HSnapshotBestEffort()
+        // Snapshot H2H : **pas** ici (freeze 1er blox). Déféré via GameScene après boards ready.
     }
 
-    /// Envoie le cumul H2H local (2 entiers). Aucun CloudKit. Ignore si IDs inconnus.
+    /// Envoie le cumul H2H local (2 entiers). Aucun CloudKit. Appeler **après** que la grille soit jouable.
     func sendH2HSnapshotBestEffort() {
         guard didFinishHandshake else { return }
         let remoteGame = remoteGamePlayerIDResolved

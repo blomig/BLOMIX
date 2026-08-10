@@ -12904,11 +12904,8 @@ final class GameScene: SKScene {
         }
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
         blomixPvP_refreshSeriesNamePrefixes()
-        // H2H : aucun CloudKit ici. Snapshot max-merge déjà envoyé depuis le coordinator au handshake.
         // Nouvelle manche (1ʳᵉ ou revanche) : autoriser un +1 série à la prochaine fin.
         pvpSeriesDidCountCurrentMatch = false
-        // Renvoi best-effort du snapshot (si le 1er envoi coordinator était trop tôt / IDs incomplets).
-        pvpCoordinator?.sendH2HSnapshotBestEffort()
         if isStartScreen {
             childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
             isStartScreen = false
@@ -12935,6 +12932,17 @@ final class GameScene: SKScene {
         // Remet le label score à zéro visuellement (le modèle est déjà à 0 via resetSessionModelForNewMatch).
         if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
             scoreLabel.text = "0"
+        }
+
+        // Snapshot H2H max-merge : **après** que la grille soit jouable (évite freeze 1er blox).
+        // Uniquement en début de série (0 partie), pas à chaque revanche.
+        if pvpSeriesGamesPlayed == 0 {
+            Task { @MainActor in
+                await Task.yield()
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                guard self.pvpCoordinator?.isGameActive == true, !self.isGameOver else { return }
+                self.pvpCoordinator?.sendH2HSnapshotBestEffort()
+            }
         }
 
         if childNode(withName: Self.gridContainerName) == nil {
@@ -13136,8 +13144,16 @@ final class GameScene: SKScene {
         if let pvpLastEloResult {
             result.applyEloResult(pvpLastEloResult)
         }
-        result.onHome = { [weak self] in
-            self?.blomixPvP_endSeriesIfNeededThenReturnHome()
+        result.onHome = { [weak self, weak result] in
+            guard let self else { return }
+            // Rester sur l’écran résultat tant que l’écran série n’est pas prêt (pas de flash solo/grille).
+            if self.blomixPvP_shouldPresentSeriesEndOverlay {
+                self.blomixPvP_presentSeriesEndOverlayThenHome(afterDismissing: result)
+            } else {
+                result?.dismiss(animated: true) {
+                    self.blomixPvP_returnToHomeAfterMatch()
+                }
+            }
         }
         result.onRematch = { [weak self] in
             self?.pvpCoordinator?.localPlayerRequestedRematch()
@@ -13145,13 +13161,12 @@ final class GameScene: SKScene {
         result.onRematchAbandoned = { [weak self] in
             self?.pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
         }
-        result.onRematchTimeout = { [weak self] in
+        result.onRematchTimeout = { [weak self, weak result] in
             self?.pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
-            // Fin de boucle revanche → overlay série si ≥ 2 parties, sinon reste sur l’écran résultat.
+            // Fin de boucle revanche → overlay série sans flash grille.
             guard let self else { return }
             if self.blomixPvP_shouldPresentSeriesEndOverlay {
-                self.dismissPvPResultModalIfNeeded()
-                self.blomixPvP_presentSeriesEndOverlayThenHome()
+                self.blomixPvP_presentSeriesEndOverlayThenHome(afterDismissing: result)
             }
         }
         result.modalPresentationStyle = .overFullScreen

@@ -9,15 +9,16 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **94** (TestFlight).
+Build **95** (TestFlight).
 
-### Ajouté
-- **H2H snapshot PvP** (2 ints sur le fil) au handshake : merge **max par joueur** (14–12 + 13–14 → 14–13 / 13–14) — event rare, 0 CloudKit, 0 impact pose
-- **Déco mid-match** : le restant enregistre win série + H2H (plus seulement Elo) ; abandon menu enregistre loss série + H2H
+### Corrigé
+- **Freeze 1er blox** : snapshot H2H différé (~0,4 s après boards ready), plus au markHandshakeComplete
+- **Cumul qui se re-casse** : LOCK fin de série absorbe les Δ (baseline = total figé) ; seed nouvelle série = max(cache, committed) ; pas de double comptage baseline+série
+- **Flash solo/grille** : Accueil depuis résultat → enchaîne l’écran fin de série **sans** dismiss préalable (garde l’overlay résultat)
 
-### Conservé
-- Pas de fetchCloudSum en match / Elo ×N ; freezes game over (93)
-- Version marketing **5.9** (build **94**)
+### (94)
+- Snapshot max-merge + forfait déco compté
+- Version marketing **5.9** (build **95**)
 
 ---
 

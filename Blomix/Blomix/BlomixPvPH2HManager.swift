@@ -545,10 +545,16 @@ final class BlomixPvPH2HManager {
         }
         live.updatedAt = Date()
         let displayed = live.displayedTotals
+        // Une seule passe de persistance (évite 3× encode JSON UserDefaults d’affilée sur MainActor).
         saveLiveSeries(live)
         replaceTotals(displayed, underRemoteIDs: remotes)
-        // Met à jour aussi le plancher durable pendant la série (au cas où l’app est tuée avant lock fin).
-        commitDisplayFloor(displayed, remoteIDs: remotes)
+        // Committed floor : différé d’une frame pour ne pas empiler les writes au moment game over.
+        let floorTotals = displayed
+        let floorRemotes = remotes
+        Task { @MainActor in
+            await Task.yield()
+            self.commitDisplayFloor(floorTotals, remoteIDs: floorRemotes)
+        }
         return displayed
     }
 

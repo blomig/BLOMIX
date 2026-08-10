@@ -13053,8 +13053,8 @@ final class GameScene: SKScene {
 
     func blomixPvP_presentLocalDefeat() {
         guard pvpCoordinator != nil else { return }
-        blomixPvP_recordSeriesMatchOutcome(localWon: false)
-        blomixPvP_finalizeEloIfNeeded(outcome: .loss)
+        // D’abord l’anim (critique UI). H2H/Elo (UserDefaults + GC) **après**,
+        // sinon freeze MainActor entre la dernière pose et les ronds de game over.
         isGameOver = true
         isProcessing = true
         playMatchSound(.end)
@@ -13069,14 +13069,16 @@ final class GameScene: SKScene {
         let focusColumn = blockedColumns.randomElement() ?? GridLayout.columnCount / 2
         let focusPoint = scenePointCellCenter(row: GridLayout.bottomRowIndex, column: focusColumn)
         playGameOverFocusAnimation(at: focusPoint) { [weak self] in
-            self?.blomixPvP_showPvPResult(didWin: false)
+            guard let self else { return }
+            self.blomixPvP_recordSeriesMatchOutcome(localWon: false)
+            self.blomixPvP_finalizeEloIfNeeded(outcome: .loss)
+            self.blomixPvP_showPvPResult(didWin: false)
         }
     }
 
     func blomixPvP_presentRemoteVictory() {
         guard pvpCoordinator != nil else { return }
-        blomixPvP_recordSeriesMatchOutcome(localWon: true)
-        blomixPvP_finalizeEloIfNeeded(outcome: .win)
+        // Même principe : feedback immédiat, stats après.
         isGameOver = true
         isProcessing = true
         playMatchSound(.victory)
@@ -13085,7 +13087,13 @@ final class GameScene: SKScene {
             preview.isHidden = true
         }
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
-        blomixPvP_showPvPResult(didWin: true)
+        // Une frame pour laisser le son / hide preview s’afficher, puis H2H+Elo+résultat.
+        Task { @MainActor in
+            await Task.yield()
+            self.blomixPvP_recordSeriesMatchOutcome(localWon: true)
+            self.blomixPvP_finalizeEloIfNeeded(outcome: .win)
+            self.blomixPvP_showPvPResult(didWin: true)
+        }
     }
 
     private func blomixPvP_showPvPResult(didWin: Bool) {

@@ -9,17 +9,12 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [5.9] — 2026-08 (courant)
 
-Build **92** (TestFlight).
+Build **93** (TestFlight).
 
-### Corrigé (P0 freeze — cause racine)
-- **Elo** : suppression du prefetch `refreshTotals` × jusqu’à 50 joueurs (chacun = dizaines de queries CloudKit sur MainActor → chargement interminable + scroll figé)
-- **Elo H2H** : affichage **cache local only** (cumul session / committed floor) ; plus de `registerAliases` par ligne au chargement
-- **Match** : plus de flush CloudKit à chaque win (file pending seulement ; flush hors partie)
-- (91) plus de fetch post-handshake en match
-
-### Conservé
-- baseline+série, LOCK fin de série, committed floor
-- Version marketing **5.9** (build **92**)
+### Corrigé
+- **Freeze game over PvP** : H2H + Elo ne tournent plus **avant** l’anim des ronds (défaite) — déplacés après l’anim ; victoire différée d’une frame
+- (92) plus de storm CloudKit Elo ×50 ; (91) plus de fetch H2H en match live
+- Version marketing **5.9** (build **93**)
 
 ---
 

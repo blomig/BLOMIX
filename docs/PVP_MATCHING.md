@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 5.9 (build 95)  
+> **Version de référence** : 6.0 (build 101)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -38,14 +38,14 @@ Compteur **local only** (pas de message filaire) pendant une enchaîne de revanc
 | Reset | Chaque **nouveau** match (lobby / défi / local) — **pas** entre revanches |
 | +1 | Fin de partie validée (même chemins que résultat / Elo) |
 | HUD | 1ʳᵉ partie : « match contre… » ; **après lancement d’une revanche** : `ABC  X  ·  Y  DEF` (local à gauche) |
-| Fin de série | Accueil / cancel / timeout revanche / déco si **≥ 2** parties → overlay `BlomixPvPSeriesEndViewController` (thème Jour/Nuit) |
+| Fin de série | Accueil / cancel / timeout revanche / déco si **≥ 1** partie → overlay `BlomixPvPSeriesEndViewController` (thème Jour/Nuit) ; empilé sur l’écran résultat (pas de flash grille) |
 | Elo | Inchangé (1 update par partie) |
 | Écran résultat manche | Score **Série** affiché entre Elo et boutons Revanche / Accueil (`BlomixPvPResultViewController`) |
 | Overlay fin de série | **Série** en haut ; **Total historique** (H2H) **sous** le bouton OK |
 
 ### H2H long terme (total victoires, CloudKit)
 
-Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le gameplay).
+Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le gameplay **ni l’UI de fin de match**).
 
 | | |
 |---|---|
@@ -58,9 +58,12 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Snapshot H2H | Message `h2hSnapshot` : `h2hMyWins` / `h2hTheirWins` — max par joueur, 0 CloudKit |
 | Déco mid-match | Restant : série+H2H+Elo **win** ; abandon menu : série+H2H+Elo **loss** + `iLost` |
 | Pendant match | **0 CloudKit H2H** (pending en file) |
-| Fin de série | LOCK baseline+série + committed floor |
-| Elo | Cache local only (pas de prefetch cloud × N) |
-| Règle d’or | Jamais `fetchCloudSum` pendant match / scroll Elo |
+| Fin de série | LOCK baseline+série (totaux **en mémoire** pour l’UI) ; persist UserDefaults **différée** ; flush pending **après** present récap |
+| Alias IDs | Expansion **directe** plafonnée (**≤ 8** clés / adversaire) — pas de scan global de la map d’alias (évite freeze MainActor 20–25 s, `keys=82`) |
+| Elo fin de manche | UI = **cache local** (~0,35 s) puis boutons libres ; submit / refresh Game Center en fire-and-forget |
+| Déco pendant récap | Si `BlomixPvPSeriesEndViewController` déjà empilé : teardown réseau **sans** dismiss résultat (sinon iOS ferme le récap) |
+| Elo leaderboard | Cache local only hors partie (pas de prefetch cloud × N) |
+| Règle d’or | Jamais `fetchCloudSum` pendant match / scroll Elo ; jamais d’encode UserDefaults monstre sur le MainActor pendant l’écran score |
 
 ### PvP Local — robustesse de liaison mid-match
 

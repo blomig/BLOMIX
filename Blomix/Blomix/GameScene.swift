@@ -1251,6 +1251,14 @@ final class GameScene: SKScene {
     private var pvpLastEloResult: BlomixEloResult?
     /// Overlay de résultat actuellement présenté, pour mise à jour asynchrone de l’Elo.
     private weak var pvpPresentedResultViewController: BlomixPvPResultViewController?
+    /// Serpentard UIKit superposé au `SKView` pendant l'overlay de connexion PvP (« P vs P »).
+    private var pvpConnectingSearchBlocksView: BlomixPvPSearchBlocksView?
+    /// `true` seulement si une partie solo/Zen **en cours** a été sauvegardée en entrant en PvP.
+    /// Évite de relancer une vieille save (ou une grille de prep) après un match lancé depuis l'accueil.
+    private var restoreSoloAfterPvP = false
+    /// Snapshot mémoire figé à l'entrée PvP (ne doit jamais être écrasé par la grille prep vide).
+    /// Source de vérité pour la reprise post-match, en plus de UserDefaults.
+    private var pvpSuspendedSoloSave: BlomixSoloGameSave?
     /// Profondeur de remplissage connue de la grille adverse (0 = vide, 8 = jusqu'en bas).
     private var pvpRemoteBoardFillDepth: Int = 0
     private var pvpRemoteScore: Int = 0
@@ -1840,7 +1848,10 @@ final class GameScene: SKScene {
     }
 
     private func presentStartScreenOrRestoreSoloSave() {
-        if let save = BlomixSoloSaveManager.shared.load() {
+        // Préférer le snapshot figé à l'entrée PvP (évite une save UD écrasée par la grille prep).
+        let save = pvpSuspendedSoloSave ?? BlomixSoloSaveManager.shared.load()
+        pvpSuspendedSoloSave = nil
+        if let save {
             BlomixSoloSaveManager.shared.clear()
             isZenMode = save.isZenMode  // restauré avant restoreFromSoloSave pour isInStagedSoloMode
             restoreFromSoloSave(save)
@@ -2410,7 +2421,11 @@ final class GameScene: SKScene {
 
         cancelGhostPreview()
         // En mode tutoriel : on conserve la sauvegarde de la partie précédente (restaurée à la fin du tuto).
-        if !isTutorialMode { BlomixSoloSaveManager.shared.clear() }
+        if !isTutorialMode {
+            BlomixSoloSaveManager.shared.clear()
+            pvpSuspendedSoloSave = nil
+            restoreSoloAfterPvP = false
+        }
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
         layoutGameCenterStatusLabel()
@@ -2443,6 +2458,8 @@ final class GameScene: SKScene {
 
         cancelGhostPreview()
         BlomixSoloSaveManager.shared.clear()
+        pvpSuspendedSoloSave = nil
+        restoreSoloAfterPvP = false
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
         layoutGameCenterStatusLabel()
@@ -7670,7 +7687,8 @@ final class GameScene: SKScene {
     /// rang 0 = atterrissage ; rang 1 = voisins 8-connexes occupés ;
     /// rang 2 = 1 voisin occupé aléatoire par case du rang 1 ;
     /// rang 3 = 1 voisin occupé aléatoire par case du rang 2 ;
-    /// puis `resolveChains` ; +1 bombe **garanti** livré à l’arrivée des dots HUD (pas de son bombe dédié).
+    /// puis `resolveChains` ; +1 bombe **garanti** livré à l’arrivée des dots HUD.
+    /// Audio : `playBombxStain(rank:indexInRank:)` par case (pas `bomb.wav` / bombLoad).
     private func applyMagixEffect_bombx(at cell: GridAddress) {
         let chosenColorName = Self.colorPalette.randomElement() ?? "red"
         let chosenColor = Self.bloxSolidFillColor(colorName: chosenColorName)
@@ -7695,7 +7713,8 @@ final class GameScene: SKScene {
         }
 
         // Ordre d’animation : vagues de rang (progression de tâche).
-        let paintOrder: [GridAddress] = rank0 + rank1 + rank2 + rank3
+        let ranks: [[GridAddress]] = [rank0, rank1, rank2, rank3]
+        let paintOrder: [GridAddress] = ranks.flatMap { $0 }
         let paintedSet = Set(paintOrder)
 
         // État feedback bombe (dots → HUD).
@@ -7716,37 +7735,41 @@ final class GameScene: SKScene {
             return
         }
 
-        // ── 3. Animation séquentielle par rang.
+        // ── 3. Animation séquentielle par rang (SFX BOMBX calé sur chaque case / vague).
         let stepDelay: TimeInterval = 0.055
         var totalDelay: TimeInterval = 0
-        var stepIndex = 0
 
-        for addr in paintOrder {
-            let capturedAddr = addr
-            let capturedStep = stepIndex
-            let capturedDelay = totalDelay
-            run(SKAction.sequence([
-                SKAction.wait(forDuration: capturedDelay),
-                SKAction.run { [weak self] in
-                    guard let self else { return }
-                    BlomixProceduralSFX.shared.playCrosxPulse(ring: min(capturedStep, 6))
-                    self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColorName)
-                    let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
-                    container.childNode(withName: nodeName)?.removeFromParent()
-                    let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColorName))
-                    newSprite.name = nodeName
-                    newSprite.position = Self.gridContainerLocalCellCenter(
-                        row: capturedAddr.row, column: capturedAddr.col)
-                    newSprite.setScale(0.5)
-                    container.addChild(newSprite)
-                    newSprite.run(SKAction.sequence([
-                        SKAction.scale(to: 1.35, duration: 0.07),
-                        SKAction.scale(to: 1.00, duration: 0.05),
-                    ]))
-                },
-            ]))
-            totalDelay += stepDelay
-            stepIndex += 1
+        for (rank, cells) in ranks.enumerated() {
+            for (indexInRank, addr) in cells.enumerated() {
+                let capturedAddr = addr
+                let capturedRank = rank
+                let capturedIndexInRank = indexInRank
+                let capturedDelay = totalDelay
+                run(SKAction.sequence([
+                    SKAction.wait(forDuration: capturedDelay),
+                    SKAction.run { [weak self] in
+                        guard let self else { return }
+                        BlomixProceduralSFX.shared.playBombxStain(
+                            rank: capturedRank,
+                            indexInRank: capturedIndexInRank
+                        )
+                        self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColorName)
+                        let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
+                        container.childNode(withName: nodeName)?.removeFromParent()
+                        let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColorName))
+                        newSprite.name = nodeName
+                        newSprite.position = Self.gridContainerLocalCellCenter(
+                            row: capturedAddr.row, column: capturedAddr.col)
+                        newSprite.setScale(0.5)
+                        container.addChild(newSprite)
+                        newSprite.run(SKAction.sequence([
+                            SKAction.scale(to: 1.35, duration: 0.07),
+                            SKAction.scale(to: 1.00, duration: 0.05),
+                        ]))
+                    },
+                ]))
+                totalDelay += stepDelay
+            }
         }
 
         let paintEnd = totalDelay + 0.12
@@ -10532,16 +10555,16 @@ final class GameScene: SKScene {
         }
     }
 
-    private func saveCurrentSoloGameState() {
-        guard !isStartScreen, !isGameOver, pvpCoordinator == nil, !isTutorialMode, !isWindingDown else { return }
+    /// Construit un snapshot complet de la partie solo/Zen courante (après stabilisation).
+    /// - Returns: `nil` si l'état n'est plus jouable (ex. game over après flush mid-anim).
+    private func makeSoloGameSaveSnapshot() -> BlomixSoloGameSave? {
         let wasProcessing = isProcessing
         stabilizeLogicalStateForSoloSave()
-        guard !isGameOver else { return }
-        // Si on était en pleine anim, ou si le compact a réparé une grille illégale, resync visuel.
+        guard !isGameOver else { return nil }
         if wasProcessing {
             refreshVisualStateAfterSoloSaveStabilization()
         }
-        let save = BlomixSoloGameSave(
+        return BlomixSoloGameSave(
             version: BlomixSoloGameSave.currentVersion,
             grid: grid,
             currentBlock: currentBlock,
@@ -10563,6 +10586,16 @@ final class GameScene: SKScene {
             hintsRemaining: hintsRemaining,
             isZenMode: isZenMode
         )
+    }
+
+    private func saveCurrentSoloGameState() {
+        // Snapshot PvP déjà figé : ne jamais écraser (ex. willResignActive sur grille prep vide).
+        guard pvpSuspendedSoloSave == nil else { return }
+        // Pendant prep/handshake PvP (accueil quitté, coordinateur pas encore posé) : ne jamais
+        // écrire une save solo (sinon grille vide / état transitoire restauré après le match).
+        guard !isStartScreen, !isGameOver, pvpCoordinator == nil, !isTutorialMode, !isWindingDown,
+              !pvpMatchSetupInProgress else { return }
+        guard let save = makeSoloGameSaveSnapshot() else { return }
         BlomixSoloSaveManager.shared.save(save)
     }
 
@@ -10570,7 +10603,12 @@ final class GameScene: SKScene {
         // Sécurité : si un pendingTutorialStart traîne d'un chemin non consommé, on l'annule —
         // la restauration d'une sauvegarde prend la priorité sur le lancement différé du tutoriel.
         pendingTutorialStart = false
-        // Restauration de l'état logique
+        // Snapshot consommé : ne plus bloquer les futures saves solo.
+        pvpSuspendedSoloSave = nil
+        restoreSoloAfterPvP = false
+
+        // Restauration de l'état logique (tout le modèle jouable).
+        isZenMode = save.isZenMode
         grid = save.grid
         currentBlock = save.currentBlock
         blockAfterCurrent = save.blockAfterCurrent
@@ -10595,8 +10633,11 @@ final class GameScene: SKScene {
         shouldRunPostPlacementHooks = false
         isProcessing = false
         isInjectingBottomRandomLine = false
+        isTutorialMode = false
+        pvpMatchSetupInProgress = false
 
         // Répare les grilles illégales (saves prises mid-clear / mid-Magix) avant affichage.
+        // Ne doit pas vider une grille légale ; compact + resolve seulement.
         legalizeGridGravityAndResolveChains()
 
         // Score affiché = score logique après éventuelle résolution de cascades à la reprise.
@@ -10611,6 +10652,7 @@ final class GameScene: SKScene {
         setupScoreHUD()
         drawGrid()
         updatePreviewSprite()
+        refreshUpcomingQueueSlots()
         rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
 
@@ -12375,6 +12417,7 @@ final class GameScene: SKScene {
         pvpRemoteScore = 0
         blomixPvP_resetSeriesState()
         childNode(withName: Self.pvpConnectingOverlayName)?.removeFromParent()
+        blomixPvP_detachConnectingSearchBlocks(animated: false)
         childNode(withName: Self.hudPvPTurnTimerName)?.removeFromParent()
         childNode(withName: Self.hudPvPOpponentName)?.removeFromParent()
         childNode(withName: Self.pvpRemoteFillContainerName)?.removeFromParent()
@@ -12501,8 +12544,9 @@ final class GameScene: SKScene {
         )
     }
 
+    /// Récap série dès **1** partie terminée (plus seulement ≥ 2).
     private var blomixPvP_shouldPresentSeriesEndOverlay: Bool {
-        pvpSeriesGamesPlayed >= 2
+        pvpSeriesGamesPlayed >= 1
     }
 
     private func blomixPvP_refreshOpponentHudLabel() {
@@ -12522,7 +12566,7 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Fin de boucle revanche / retour accueil : overlay série si ≥ 2 parties, puis home.
+    /// Fin de boucle revanche / retour accueil : overlay série si ≥ 1 partie, puis home.
     private func blomixPvP_endSeriesIfNeededThenReturnHome() {
         if blomixPvP_shouldPresentSeriesEndOverlay {
             blomixPvP_presentSeriesEndOverlayThenHome()
@@ -12531,8 +12575,12 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Présente le récap série **par-dessus** l'écran résultat (ou le root), sans dismiss intermédiaire
+    /// — évite le flash de la grille SK entre les deux modales UIKit.
+    /// Serpent sur l'écran résultat pendant le lock H2H / build VC (feedback pendant l'attente).
+    /// - Parameter hostingFrom: VC encore visible (typiquement le résultat) qui présente le récap.
     private func blomixPvP_presentSeriesEndOverlayThenHome(
-        afterDismissing intermediate: UIViewController? = nil
+        hostingFrom intermediate: UIViewController? = nil
     ) {
         let localW = pvpSeriesLocalWins
         let remoteW = pvpSeriesRemoteWins
@@ -12544,42 +12592,51 @@ final class GameScene: SKScene {
             ?? remotePlayer?.gamePlayerID
             ?? ""
         let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
-        // Cumul fin de série = baseline cloud + série (jamais écrasé par un refresh cloud).
+
+        // Feedback immédiat sur l'écran d'avant (résultat).
+        (intermediate as? BlomixPvPResultViewController)?.beginSeriesEndLoadingChrome()
+
+        // Lock H2H = cache local **uniquement** (pas de flush CloudKit ici — ça bloquait l’UI ~10 s).
         let lockedH2H: BlomixPvPH2HTotals? = {
             guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return nil }
             return BlomixPvPH2HManager.shared.lockSeriesEndDisplay(
                 remoteGamePlayerID: remoteGameID,
                 remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
                 seriesLocalWins: localW,
-                seriesRemoteWins: remoteW
+                seriesRemoteWins: remoteW,
+                flushPending: false
             )
         }()
-        let present: () -> Void = { [weak self] in
-            guard let self else { return }
-            guard let rootVC = self.modalRootViewController() else {
-                self.blomixPvP_returnToHomeAfterMatch()
-                return
-            }
-            let seriesVC = BlomixPvPSeriesEndViewController(
-                localPrefix: localP,
-                remotePrefix: remoteP,
-                localWins: localW,
-                remoteWins: remoteW,
-                gamesPlayed: games,
-                initialH2HTotals: lockedH2H
-            )
-            seriesVC.onDismiss = { [weak self] in
-                self?.blomixPvP_returnToHomeAfterMatch()
-            }
-            seriesVC.modalPresentationStyle = .overFullScreen
-            seriesVC.modalTransitionStyle = .crossDissolve
-            rootVC.present(seriesVC, animated: true)
-            // Flush cloud en arrière-plan uniquement — ne pas réécrire l’UI de fin.
+
+        guard let rootVC = modalRootViewController() else {
+            // Pas d’UI : flush quand même pour ne pas perdre le pending.
+            BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
+            blomixPvP_returnToHomeAfterMatch()
+            return
         }
-        if let intermediate {
-            intermediate.dismiss(animated: true) { present() }
-        } else {
-            present()
+        let seriesVC = BlomixPvPSeriesEndViewController(
+            localPrefix: localP,
+            remotePrefix: remoteP,
+            localWins: localW,
+            remoteWins: remoteW,
+            gamesPlayed: games,
+            initialH2HTotals: lockedH2H
+        )
+        seriesVC.onDismiss = { [weak self] in
+            self?.blomixPvP_returnToHomeAfterMatch()
+        }
+        seriesVC.modalPresentationStyle = .overFullScreen
+        seriesVC.modalTransitionStyle = .crossDissolve
+        var presenter: UIViewController = intermediate ?? rootVC
+        while let next = presenter.presentedViewController {
+            presenter = next
+        }
+        if presenter.view.window == nil {
+            presenter = rootVC
+        }
+        // Present d’abord ; CloudKit **après** que le récap soit à l’écran.
+        presenter.present(seriesVC, animated: true) {
+            BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
         }
     }
 
@@ -12632,15 +12689,18 @@ final class GameScene: SKScene {
 
     /// Prépare la scène pour un nouveau match PvP (online ou local).
     private func preparePvPBoardForIncomingMatch(channel: String) {
+        // Snapshot solo **avant** tout teardown / grille vide (teardown remettait
+        // `pvpMatchSetupInProgress = false` et une 2ᵉ capture écrasait la save avec une grille vide).
+        blomixPvP_captureSoloSaveIfLeavingForMatch()
+
         // Setup incomplet (handshake qui mouline) : on abandonne l'ancien match et on prend le nouveau.
         if pvpMatchSetupInProgress || (pvpCoordinator != nil && pvpCoordinator?.isGameActive != true) {
             BlomixPvPLog.event("begin_pvp_replace_incomplete_setup", ["channel": channel])
-            blomixPvP_teardown()
+            blomixPvP_teardownPreservingSuspendedSolo()
         }
         BlomixPvPAutoSearcher.shared.stopSearching()
-        blomixPvP_teardown()
+        blomixPvP_teardownPreservingSuspendedSolo()
         pvpMatchSetupInProgress = true
-        saveCurrentSoloGameState()
         pvpNeedsDecadeLineAfterAttackInjection = false
         didFinalizePvPEloForCurrentMatch = false
         removeAllActions()
@@ -12654,14 +12714,57 @@ final class GameScene: SKScene {
         BlomixAvailablePlayersManager.shared.setActiveMatch(true)
     }
 
+    /// Teardown PvP sans perdre le snapshot solo suspendu (reprise post-match).
+    private func blomixPvP_teardownPreservingSuspendedSolo() {
+        let suspended = pvpSuspendedSoloSave
+        let shouldRestore = restoreSoloAfterPvP
+        blomixPvP_teardown()
+        pvpSuspendedSoloSave = suspended
+        restoreSoloAfterPvP = shouldRestore
+    }
+
+    /// Si une partie solo/Zen est en cours, la persiste (mémoire + UD) et mémorise la reprise post-PvP.
+    /// **Une seule capture** par session PvP : les appels suivants (après grille prep) sont no-op.
+    private func blomixPvP_captureSoloSaveIfLeavingForMatch() {
+        // Déjà figé pour ce PvP — ne jamais réécrire avec l'état prep (grille vide, isZenMode false…).
+        if pvpSuspendedSoloSave != nil {
+            restoreSoloAfterPvP = true
+            return
+        }
+        guard !isStartScreen, !isGameOver, !isTutorialMode,
+              pvpCoordinator == nil, !isWindingDown else {
+            // Accueil / hors partie active : ne pas auto-reprendre une save orpheline après le PvP.
+            restoreSoloAfterPvP = false
+            return
+        }
+        // Snapshot direct (ignore `pvpMatchSetupInProgress` : on capture volontairement ici).
+        guard let save = makeSoloGameSaveSnapshot() else {
+            restoreSoloAfterPvP = false
+            return
+        }
+        BlomixSoloSaveManager.shared.save(save)
+        pvpSuspendedSoloSave = save
+        restoreSoloAfterPvP = true
+        BlomixPvPLog.event("solo_save_suspended_for_pvp", [
+            "score": "\(save.score)",
+            "moves": "\(save.moveCount)",
+            "bombs": "\(save.bombCount)",
+            "zen": "\(save.isZenMode)",
+            "stage": "\(save.currentStageIndex)"
+        ])
+    }
+
     /// Masque l'accueil et affiche une grille vide + HUD minimal pendant la connexion PvP.
     /// Aligné sur le fix tutoriel : l'overlay de lancement ne doit pas flotter sur le menu.
     private func blomixPvP_presentPrepBoardLeavingHomeIfNeeded() {
-        if isStartScreen {
-            childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+        // Toujours retirer l'accueil (nœud + flag) — même si le flag était déjà faux
+        // (évite flash start screen sous l'overlay P vs P / après dismiss lobby).
+        let hadStartScreen = isStartScreen || childNode(withName: Self.startScreenOverlayName) != nil
+        childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+        if isStartScreen || hadStartScreen {
             isStartScreen = false
             layoutGameCenterStatusLabel()
-            hapticSoft()
+            if hadStartScreen { hapticSoft() }
         }
         isGameOver = false
         isProcessing = true // bloque les poses tant que le handshake n'est pas fini
@@ -12696,6 +12799,8 @@ final class GameScene: SKScene {
         // Toujours la grille sous l'overlay (accept défi avant match, ou beginPvP).
         blomixPvP_presentPrepBoardLeavingHomeIfNeeded()
         childNode(withName: Self.pvpConnectingOverlayName)?.removeFromParent()
+        // Retire un éventuel serpentard UIKit précédent (show peut être rappelé).
+        blomixPvP_detachConnectingSearchBlocks(animated: false)
 
         // Conteneur parent : retirer le conteneur supprime automatiquement tous les enfants.
         let container = SKNode()
@@ -12714,10 +12819,14 @@ final class GameScene: SKScene {
                           ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
         let pvpFillUIColor = pvpOrangeColor as UIColor
 
-        // ── En-tête "P vs P" — pop-in depuis le centre (aligné sur les transitions solo) ──
+        // Stack vertical : « P vs P » → serpent UIKit (centre) → phrases.
+        // Emprise serpent = 10×11 + 9×1 = 119 pt (scaleMode .resizeFill → 1 pt SK = 1 pt UIKit).
         let pvpFontSize: CGFloat = 72
-        let blockCenterY = size.height / 2 + 40
-        let labelY       = blockCenterY - pvpFontSize * 0.7 - phraseFontSize * 0.8
+        let snakeSide: CGFloat = 119
+        let stackGap: CGFloat = 20
+        let snakeCenterY = size.height / 2
+        let titleY = snakeCenterY + snakeSide / 2 + stackGap + pvpFontSize * 0.35
+        let labelY = snakeCenterY - snakeSide / 2 - stackGap - phraseFontSize * 0.5
 
         let pvpTitleNode = Self.makeTransitionPopInOutlinedLabel(
             text: "P vs P",
@@ -12725,7 +12834,7 @@ final class GameScene: SKScene {
             maxWidth: maxW,
             fillColor: pvpFillUIColor)
         pvpTitleNode.zPosition = 1
-        pvpTitleNode.position = CGPoint(x: centerX, y: blockCenterY)
+        pvpTitleNode.position = CGPoint(x: centerX, y: titleY)
         pvpTitleNode.setScale(0)
         pvpTitleNode.alpha = 0
         container.addChild(pvpTitleNode)
@@ -12734,6 +12843,9 @@ final class GameScene: SKScene {
             SKAction.wait(forDuration: 0),
             Self.makeTransitionCenterPopInAction(totalDuration: popIn),
         ]))
+
+        // Serpentard UIKit (même composant que lobby / classements).
+        blomixPvP_attachConnectingSearchBlocks()
 
         // ── Texte tournant (phrases d'attente) — pop-in depuis le centre ─────────
         let initialPhrase = BlomixL10n.pvpWaitingPhrases.filter { !$0.isEmpty }.first
@@ -12785,6 +12897,42 @@ final class GameScene: SKScene {
         label.run(SKAction.repeatForever(SKAction.sequence(steps)))
     }
 
+    /// Pose le serpentard d'attente sur le `SKView` (centre écran, entre titre et phrases).
+    private func blomixPvP_attachConnectingSearchBlocks() {
+        guard let skView = view else { return }
+        let blocks = BlomixPvPSearchBlocksView()
+        blocks.translatesAutoresizingMaskIntoConstraints = false
+        blocks.isUserInteractionEnabled = false
+        skView.addSubview(blocks)
+        NSLayoutConstraint.activate([
+            blocks.centerXAnchor.constraint(equalTo: skView.centerXAnchor),
+            blocks.centerYAnchor.constraint(equalTo: skView.centerYAnchor),
+        ])
+        blocks.alpha = 0
+        blocks.startAnimating()
+        UIView.animate(withDuration: 0.28, delay: 0.05, options: [.curveEaseOut]) {
+            blocks.alpha = 1
+        }
+        pvpConnectingSearchBlocksView = blocks
+    }
+
+    /// Retire le serpentard UIKit de l'overlay de connexion (tous les chemins hide/fade).
+    private func blomixPvP_detachConnectingSearchBlocks(animated: Bool) {
+        guard let blocks = pvpConnectingSearchBlocksView else { return }
+        pvpConnectingSearchBlocksView = nil
+        if animated {
+            blocks.stopAnimating(settle: true) {
+                blocks.removeFromSuperview()
+            }
+            UIView.animate(withDuration: 0.28, delay: 0, options: [.beginFromCurrentState, .curveEaseOut]) {
+                blocks.alpha = 0
+            }
+        } else {
+            blocks.stopAnimating(settle: false)
+            blocks.removeFromSuperview()
+        }
+    }
+
     // MARK: - Wrappers publics pour l'overlay PvP de préparation
 
     /// Affiche immédiatement l'overlay PvP (image + textes rotatifs) dès l'acceptation du défi,
@@ -12792,9 +12940,9 @@ final class GameScene: SKScene {
     /// Appelé depuis `GameViewController.acceptIncomingChallenge()`.
     func showPvPWaitingForMatchOverlay() {
         // Sauvegarde solo si on quitte une partie en cours pour le matchmaking (avant la grille vide).
-        if !isStartScreen, pvpCoordinator == nil, !isTutorialMode {
-            saveCurrentSoloGameState()
-        }
+        blomixPvP_captureSoloSaveIfLeavingForMatch()
+        // Bloque les saves background pendant l'attente matchmaking (grille prep).
+        pvpMatchSetupInProgress = true
         blomixPvP_showConnectingOverlayIfNeeded()
     }
 
@@ -12802,21 +12950,62 @@ final class GameScene: SKScene {
     /// Appelé depuis `GameViewController` quand le matchmaking échoue avant `beginPvPWithMatch`.
     func hidePvPWaitingForMatchOverlay() {
         blomixPvP_removeConnectingOverlay()
+        // Matchmaking abandonné avant coordinateur : sortir du mode prep (saves rebloquées à tort sinon)
+        // et revenir à l'accueil / solo capturé plutôt que de rester sur la grille vide.
+        if pvpCoordinator == nil, pvpMatchSetupInProgress {
+            pvpMatchSetupInProgress = false
+            isWindingDown = true
+            let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
+            isGameOver = false
+            isProcessing = false
+            isInjectingBottomRandomLine = false
+            resetSessionModelForNewMatch()
+            updateBombHUD()
+            if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
+                scoreLabel.text = "0"
+            }
+            drawGrid()
+            setGameplayNodesHidden(true)
+            if shouldRestore {
+                presentStartScreenOrRestoreSoloSave()
+            } else {
+                pvpSuspendedSoloSave = nil
+                restoreSoloAfterPvP = false
+                presentStartScreen()
+            }
+            isWindingDown = false
+        }
     }
 
     private func blomixPvP_removeConnectingOverlay() {
         childNode(withName: Self.pvpConnectingOverlayName)?.removeFromParent()
+        blomixPvP_detachConnectingSearchBlocks(animated: false)
     }
 
     /// Fait disparaître l'overlay de connexion en fondu, puis le retire.
-    /// Utilisé après la fin du handshake pour couvrir l'animation de fermeture du lobby VC (~0.3 s).
-    private func blomixPvP_fadeOutAndRemoveConnectingOverlay() {
-        guard let overlay = childNode(withName: Self.pvpConnectingOverlayName) else { return }
-        overlay.run(SKAction.sequence([
-            SKAction.wait(forDuration: 0.25),
-            SKAction.fadeOut(withDuration: 0.30),
-            SKAction.removeFromParent(),
-        ]))
+    /// - Parameter afterDelay: laisser le lobby UIKit se retirer d'abord (évite flash accueil).
+    private func blomixPvP_fadeOutAndRemoveConnectingOverlay(afterDelay delay: TimeInterval = 0.05) {
+        let hasOverlay = childNode(withName: Self.pvpConnectingOverlayName) != nil
+        let hasSnake = pvpConnectingSearchBlocksView != nil
+        guard hasOverlay || hasSnake else { return }
+
+        if let overlay = childNode(withName: Self.pvpConnectingOverlayName) {
+            overlay.run(SKAction.sequence([
+                SKAction.wait(forDuration: delay),
+                SKAction.fadeOut(withDuration: 0.30),
+                SKAction.removeFromParent(),
+            ]))
+        }
+        // Serpent UIKit : même timing approximatif (attente + fade).
+        if let blocks = pvpConnectingSearchBlocksView {
+            pvpConnectingSearchBlocksView = nil
+            UIView.animate(withDuration: 0.30, delay: delay, options: [.beginFromCurrentState, .curveEaseOut]) {
+                blocks.alpha = 0
+            } completion: { _ in
+                blocks.stopAnimating(settle: false)
+                blocks.removeFromSuperview()
+            }
+        }
     }
 
     func blomixPvP_refreshPendingAttackLinePreview() {
@@ -12894,23 +13083,16 @@ final class GameScene: SKScene {
 
     func blomixPvP_onHandshakeCompleteRestartBoard() {
         pvpMatchSetupInProgress = false
-        // L'overlay reste visible jusqu'à ce que l'animation de fermeture du lobby (~0.3 s)
-        // soit terminée, afin d'éviter le flash de l'écran d'accueil ou de la partie solo.
-        blomixPvP_fadeOutAndRemoveConnectingOverlay()
-        // Filet de sécurité : ferme tout modal UIKit encore ouvert (lobby, leaderboard…)
-        // qui n'aurait pas été fermé via la notification .blomixPvPBoardsReady.
-        if let rootVC = modalRootViewController(), rootVC.presentedViewController != nil {
-            rootVC.dismiss(animated: true)
-        }
+
+        // Couverture continue : retirer l'accueil **avant** tout, garder l'overlay « P vs P »
+        // opaque pendant dismiss lobby + prep grille (pas de flash menu).
+        childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+        isStartScreen = false
+
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
         blomixPvP_refreshSeriesNamePrefixes()
         // Nouvelle manche (1ʳᵉ ou revanche) : autoriser un +1 série à la prochaine fin.
         pvpSeriesDidCountCurrentMatch = false
-        if isStartScreen {
-            childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
-            isStartScreen = false
-            hapticSoft()
-        }
         if childNode(withName: Self.titleNodeName) == nil {
             addTopTitle()
         }
@@ -12973,9 +13155,23 @@ final class GameScene: SKScene {
                 userInfo: ["displayName": resolvedName, "gamePlayerID": gamePlayerID]
             )
         }
+        // Lobby se ferme via cette notif ; l'overlay SK reste opaque par-dessus la grille prep.
         NotificationCenter.default.post(name: .blomixPvPBoardsReady, object: nil)
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
         pvpCoordinator?.sceneBecameIdleForLocalTurn()
+
+        // Filet : dismiss toute modale restante (si la notif n'a pas suffi).
+        if let rootVC = modalRootViewController(), rootVC.presentedViewController != nil {
+            rootVC.dismiss(animated: true)
+        }
+        // Fade « P vs P » seulement après la fenêtre de dismiss lobby (~0,4 s),
+        // pour ne jamais coller l'accueil entre attente et partie.
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.40),
+            SKAction.run { [weak self] in
+                self?.blomixPvP_fadeOutAndRemoveConnectingOverlay(afterDelay: 0)
+            },
+        ]))
     }
 
     private func ensurePvPTurnCountdownLabelIfNeeded() {
@@ -13099,8 +13295,9 @@ final class GameScene: SKScene {
         playGameOverFocusAnimation(at: focusPoint) { [weak self] in
             guard let self else { return }
             self.blomixPvP_recordSeriesMatchOutcome(localWon: false)
-            self.blomixPvP_finalizeEloIfNeeded(outcome: .loss)
+            // Écran résultat + serpent d'abord ; Elo ensuite (MainActor libre pour le Timer).
             self.blomixPvP_showPvPResult(didWin: false)
+            self.blomixPvP_scheduleFinalizeEloAfterResultPresented(outcome: .loss)
         }
     }
 
@@ -13115,17 +13312,28 @@ final class GameScene: SKScene {
             preview.isHidden = true
         }
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
-        // Une frame pour laisser le son / hide preview s’afficher, puis H2H+Elo+résultat.
+        // Une frame pour laisser le son / hide preview s’afficher, puis H2H + résultat, Elo différé.
         Task { @MainActor in
             await Task.yield()
             self.blomixPvP_recordSeriesMatchOutcome(localWon: true)
-            self.blomixPvP_finalizeEloIfNeeded(outcome: .win)
             self.blomixPvP_showPvPResult(didWin: true)
+            self.blomixPvP_scheduleFinalizeEloAfterResultPresented(outcome: .win)
+        }
+    }
+
+    /// Lance la maj Elo **après** que l'écran résultat (et son serpent) soient à l'écran.
+    private func blomixPvP_scheduleFinalizeEloAfterResultPresented(outcome: BlomixPvPMatchOutcome) {
+        Task { @MainActor [weak self] in
+            // Une frame pour que `viewDidLoad` démarre le serpent.
+            await Task.yield()
+            self?.blomixPvP_finalizeEloIfNeeded(outcome: outcome)
         }
     }
 
     private func blomixPvP_showPvPResult(didWin: Bool) {
-        guard let rootVC = modalRootViewController() else { return }
+        guard let rootVC = modalRootViewController() else {
+            return
+        }
         // Score série session (déjà incrémenté avant cet écran) — affichage purement UI.
         let seriesText: String? = {
             guard pvpSeriesGamesPlayed >= 1 else { return nil }
@@ -13146,13 +13354,12 @@ final class GameScene: SKScene {
         }
         result.onHome = { [weak self, weak result] in
             guard let self else { return }
-            // Rester sur l’écran résultat tant que l’écran série n’est pas prêt (pas de flash solo/grille).
+            // Récap série empilé sur le résultat (pas de dismiss → pas de flash grille).
             if self.blomixPvP_shouldPresentSeriesEndOverlay {
-                self.blomixPvP_presentSeriesEndOverlayThenHome(afterDismissing: result)
+                self.blomixPvP_presentSeriesEndOverlayThenHome(hostingFrom: result)
             } else {
-                result?.dismiss(animated: true) {
-                    self.blomixPvP_returnToHomeAfterMatch()
-                }
+                // Prépare l'accueil sous la modale puis retire la pile.
+                self.blomixPvP_returnToHomeAfterMatch()
             }
         }
         result.onRematch = { [weak self] in
@@ -13166,7 +13373,7 @@ final class GameScene: SKScene {
             // Fin de boucle revanche → overlay série sans flash grille.
             guard let self else { return }
             if self.blomixPvP_shouldPresentSeriesEndOverlay {
-                self.blomixPvP_presentSeriesEndOverlayThenHome(afterDismissing: result)
+                self.blomixPvP_presentSeriesEndOverlayThenHome(hostingFrom: result)
             }
         }
         result.modalPresentationStyle = .overFullScreen
@@ -13192,9 +13399,11 @@ final class GameScene: SKScene {
         pvpSeriesHudActive = true
         blomixPvP_refreshOpponentHudLabel()
         pvpPresentedResultViewController?.markLaunchingRematch()
-        pvpPresentedResultViewController?.dismiss(animated: true)
-        pvpPresentedResultViewController = nil
+        // Overlay prep **avant** dismiss résultat — pas de trou vers l'accueil / la grille.
         blomixPvP_showConnectingOverlayIfNeeded()
+        let resultVC = pvpPresentedResultViewController
+        pvpPresentedResultViewController = nil
+        resultVC?.dismiss(animated: true)
     }
 
     private func blomixPvP_finalizeEloIfNeeded(outcome: BlomixPvPMatchOutcome) {
@@ -13202,33 +13411,57 @@ final class GameScene: SKScene {
         guard let coordinator = pvpCoordinator else { return }
 
         didFinalizePvPEloForCurrentMatch = true
-        Task { @MainActor in
-            do {
-                let result: BlomixEloResult
-                if let remotePlayer = coordinator.primaryRemotePlayer {
-                    result = try await BlomixEloManager.shared.finalizeLocalPlayerRating(
-                        outcome: outcome,
-                        against: remotePlayer
-                    )
-                } else if let remoteProfile = coordinator.remoteEloProfileForFinalize {
-                    // Match Local : profil adverse issu du handshake Multipeer.
-                    result = try await BlomixEloManager.shared.finalizeLocalPlayerRating(
-                        outcome: outcome,
-                        againstRemoteProfile: remoteProfile
-                    )
-                } else {
-                    print("[PvP Elo] Impossible de finaliser l’Elo : adversaire introuvable.")
-                    self.pvpLastEloResult = nil
-                    self.pvpPresentedResultViewController?.applyEloResult(nil)
-                    return
-                }
-                self.pvpLastEloResult = result
-                self.pvpPresentedResultViewController?.applyEloResult(result)
-            } catch {
-                // Offline : finalize a déjà mis le pending ; afficher nil ou dernier résultat local.
+
+        // Profil remote connu (Multipeer) ou défaut 800 le temps du GC online.
+        let remoteHint = coordinator.remoteEloProfileForFinalize
+            ?? BlomixEloProfile(
+                rating: BlomixEloManager.shared.defaultRating,
+                completedMatchCount: 0
+            )
+        let remotePlayer = coordinator.primaryRemotePlayer
+        let hasRemoteIdentity = coordinator.remoteEloProfileForFinalize != nil || remotePlayer != nil
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await Task.yield()
+
+            guard hasRemoteIdentity else {
+                print("[PvP Elo] Impossible de finaliser l’Elo : adversaire introuvable.")
                 self.pvpLastEloResult = nil
                 self.pvpPresentedResultViewController?.applyEloResult(nil)
-                print("[PvP Elo] Échec de finalisation Elo : \(error.localizedDescription)")
+                return
+            }
+
+            // ── Phase 1 : calcul cache **instantané** (0 Game Center) ──
+            let cacheResult = BlomixEloManager.shared.finalizeFromCacheOnly(
+                outcome: outcome,
+                remoteProfile: remoteHint
+            )
+
+            // Serpent visible un court instant, puis **déblocage UI** sans attendre le GC.
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            self.pvpLastEloResult = cacheResult
+            self.pvpPresentedResultViewController?.applyEloResult(cacheResult)
+
+            // ── Phase 2 : GC en arrière-plan — **ne bloque plus** l’écran résultat ──
+            // Fire-and-forget : refine éventuel des labels si l’écran est encore ouvert.
+            let remotePlayerForGC = remotePlayer
+            let remoteHintForGC = remoteHint
+            let outcomeForGC = outcome
+            Task { @MainActor [weak self] in
+                // Petit délai pour laisser le RunLoop digérer applyEloResult + taps.
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                guard let refined = try? await BlomixEloManager.shared.finalizeWithGameCenterRefresh(
+                    outcome: outcomeForGC,
+                    remotePlayer: remotePlayerForGC,
+                    remoteProfileHint: remoteHintForGC
+                ) else {
+                    return
+                }
+                guard let self else { return }
+                self.pvpLastEloResult = refined
+                // Mise à jour silencieuse si le joueur est encore sur le résultat.
+                self.pvpPresentedResultViewController?.applyEloResult(refined)
             }
         }
     }
@@ -13236,18 +13469,75 @@ final class GameScene: SKScene {
     private func blomixPvP_returnToHomeAfterMatch() {
         pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
         // isWindingDown bloque saveCurrentSoloGameState() dans la micro-fenêtre entre
-        // blomixPvP_teardown() (qui met pvpCoordinator = nil) et unwindToStartScreen()
-        // (qui pose lui-même isWindingDown = true). Sans cette protection, un
-        // willResignActiveNotification peut sauver un état PvP invalide (isZenMode:false,
-        // grille PvP) et écraser la save Zen correcte écrite lors du beginPvPWithMatch.
+        // teardown et présentation accueil / restore.
         isWindingDown = true
+        // Conserver le snapshot suspendu à travers le teardown.
+        let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
+        let suspended = pvpSuspendedSoloSave
+        pvpPresentedResultViewController = nil
         blomixPvP_teardown()
-        unwindToStartScreen(restoreSave: true)
+        pvpSuspendedSoloSave = suspended
+        restoreSoloAfterPvP = shouldRestore
+
+        // Préparer l'accueil (ou la reprise solo) **sous** les modales UIKit encore visibles,
+        // puis retirer toute la pile d'un coup — plus de flash grille entre résultat / série / menu.
+        removeAllActions()
+        childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
+        childNode(withName: Self.fallingSpriteName)?.removeFromParent()
+        for col in 0..<GridLayout.columnCount {
+            childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()
+        }
+        childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
+        childNode(withName: "pvpReconnectingOverlay")?.removeFromParent()
+        BlomixMusicPlayer.shared.resetToBase()
+
+        isGameOver = false
+        isProcessing = false
+        isInjectingBottomRandomLine = false
+        resetSessionModelForNewMatch()
+        updateBombHUD()
+        if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
+            scoreLabel.text = "0"
+        }
+        drawGrid()
+        setGameplayNodesHidden(true)
+
+        if shouldRestore {
+            // Restore direct depuis snapshot figé (grille, score, file, bombes, stage…).
+            presentStartScreenOrRestoreSoloSave()
+        } else {
+            pvpSuspendedSoloSave = nil
+            restoreSoloAfterPvP = false
+            presentStartScreen()
+        }
+
+        if let rootVC = modalRootViewController(), rootVC.presentedViewController != nil {
+            rootVC.dismiss(animated: true) { [weak self] in
+                self?.isWindingDown = false
+            }
+        } else {
+            isWindingDown = false
+        }
     }
 
     func blomixPvP_peerDisconnected() {
         guard pvpCoordinator != nil else { return }
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
+
+        // Récap série déjà à l’écran (empilé sur le résultat) : ne **pas** dismiss le résultat
+        // (sinon iOS ferme aussi le récap) ni re-present (→ « Attempt to present… already presenting »).
+        if blomixPvP_isSeriesEndPresented() {
+            BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
+            // Teardown réseau seulement ; l’UI reste sur le récap jusqu’à OK.
+            let suspended = pvpSuspendedSoloSave
+            let shouldRestore = restoreSoloAfterPvP
+            pvpPresentedResultViewController = nil
+            blomixPvP_teardown()
+            pvpSuspendedSoloSave = suspended
+            restoreSoloAfterPvP = shouldRestore
+            return
+        }
+
         let hadResultScreen = pvpPresentedResultViewController != nil
         let wasInGame = pvpCoordinator?.isGameActive == true && !isGameOver
         let remotePlayer = pvpCoordinator?.primaryRemotePlayer
@@ -13274,7 +13564,8 @@ final class GameScene: SKScene {
                 remoteGamePlayerID: remoteGameID.isEmpty ? remoteTeamID : remoteGameID,
                 remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
                 seriesLocalWins: seriesLocalW,
-                seriesRemoteWins: seriesRemoteW
+                seriesRemoteWins: seriesRemoteW,
+                flushPending: false
             )
         }()
         dismissPvPResultModalIfNeeded()
@@ -13285,7 +13576,13 @@ final class GameScene: SKScene {
             guard let self else { return }
             if seriesEnd {
                 guard let rootVC = self.modalRootViewController() else {
-                    self.unwindToStartScreen(restoreSave: true)
+                    BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
+                    self.blomixPvP_unwindPreferringCapturedSolo()
+                    return
+                }
+                // Si une présentation est déjà en cours, ne pas forcer un 2ᵉ present.
+                if rootVC.presentedViewController != nil {
+                    BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
                     return
                 }
                 let seriesVC = BlomixPvPSeriesEndViewController(
@@ -13297,15 +13594,29 @@ final class GameScene: SKScene {
                     initialH2HTotals: lockedH2H
                 )
                 seriesVC.onDismiss = { [weak self] in
-                    self?.unwindToStartScreen(restoreSave: true)
+                    self?.blomixPvP_returnToHomeAfterMatch()
                 }
                 seriesVC.modalPresentationStyle = .overFullScreen
                 seriesVC.modalTransitionStyle = .crossDissolve
-                rootVC.present(seriesVC, animated: true)
+                rootVC.present(seriesVC, animated: true) {
+                    BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
+                }
             } else {
-                self.unwindToStartScreen(restoreSave: true)
+                // Lock sans flush si wasInGame : pousser le pending avant de quitter.
+                BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
+                self.blomixPvP_unwindPreferringCapturedSolo()
             }
         }
+    }
+
+    /// `true` si le récap de série est déjà dans la pile modale (souvent empilé sur le résultat).
+    private func blomixPvP_isSeriesEndPresented() -> Bool {
+        var vc: UIViewController? = modalRootViewController()?.presentedViewController
+        while let current = vc {
+            if current is BlomixPvPSeriesEndViewController { return true }
+            vc = current.presentedViewController
+        }
+        return false
     }
 
     func blomixPvP_matchFailed(_ error: Error?, userMessage: String? = nil) {
@@ -13320,7 +13631,18 @@ final class GameScene: SKScene {
             connectionFailed: true,
             customMessage: userMessage
         ) { [weak self] in
-            self?.unwindToStartScreen(restoreSave: true)
+            self?.blomixPvP_unwindPreferringCapturedSolo()
+        }
+    }
+
+    /// Fin de flux PvP sans pile de modales résultat/série : restore solo **seulement** si capturé à l'entrée.
+    private func blomixPvP_unwindPreferringCapturedSolo() {
+        let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
+        // Ne pas clear `pvpSuspendedSoloSave` ici : `presentStartScreenOrRestoreSoloSave` le consomme.
+        restoreSoloAfterPvP = shouldRestore
+        unwindToStartScreen(restoreSave: shouldRestore)
+        if !shouldRestore {
+            pvpSuspendedSoloSave = nil
         }
     }
 

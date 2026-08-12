@@ -16,10 +16,13 @@ nonisolated struct BlomixPvPGKMatchBox: @unchecked Sendable {
 
 @MainActor
 final class BlomixPvPSearchBlocksView: UIView {
-    private let blockSize: CGFloat = 18
-    private let blockSpacing: CGFloat = 8
-    private let gridSize = 5           // 5×5
-    private let snakeLength = 9        // longueur max du serpent
+    /// Emprise visuelle ~119×119 (10×11 + 9×1).
+    private let blockSize: CGFloat = 11
+    private let blockSpacing: CGFloat = 1
+    private let gridSize = 10          // 10×10
+    private let snakeLength = 16       // longueur max du serpent
+    private let tickInterval: TimeInterval = 0.10
+    private let renderFadeDuration: TimeInterval = 0.10
 
     private var blockViews: [UIView] = []
     private var isAnimatingBlocks = false
@@ -38,8 +41,8 @@ final class BlomixPvPSearchBlocksView: UIView {
         for _ in 0..<(gridSize * gridSize) {
             let block = UIView()
             block.backgroundColor = .clear
-            block.layer.cornerRadius = 3
-            block.layer.borderWidth = 1
+            block.layer.cornerRadius = 0
+            block.layer.borderWidth = 0.5
             block.layer.borderColor = UIColor(white: 1, alpha: 0.18).cgColor
             block.alpha = 0
             addSubview(block)
@@ -69,13 +72,15 @@ final class BlomixPvPSearchBlocksView: UIView {
         guard !isAnimatingBlocks else { return }
         isAnimatingBlocks = true
         alpha = 1
+        isHidden = false
         snakePositions = []
         snakeColors = []
+        // 1er tick immédiat (avant le Timer).
         snakeTick()
-        let t = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.snakeTick()
-            }
+        // Timer déjà sur le RunLoop main : appeler snakeTick **directement**.
+        // Un `Task { @MainActor }` re-file derrière le travail GC/Elo et gèle le serpent.
+        let t = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { [weak self] _ in
+            self?.snakeTick()
         }
         RunLoop.main.add(t, forMode: .common)
         flickerTimer = t
@@ -168,7 +173,7 @@ final class BlomixPvPSearchBlocksView: UIView {
             uniqueKeysWithValues: snakePositions.enumerated()
                 .map { idx, pos in (pos.row * gridSize + pos.col, idx) }
         )
-        UIView.animate(withDuration: 0.15, delay: 0, options: [.beginFromCurrentState]) {
+        UIView.animate(withDuration: renderFadeDuration, delay: 0, options: [.beginFromCurrentState]) {
             for (i, block) in self.blockViews.enumerated() {
                 let row = i / self.gridSize; let col = i % self.gridSize
                 if let snakeIdx = snakeMap[row * self.gridSize + col] {
@@ -1099,6 +1104,10 @@ final class BlomixPvPResultViewController: UIViewController {
     private var rematchPhase: RematchButtonPhase = .idle
     private var rematchTimeoutTimer: Timer?
     private let rematchTimeoutSeconds: TimeInterval = 45
+    /// `false` tant que `applyEloResult` n'a pas été appelé (succès ou indispo).
+    private var eloSettled = false
+    /// Tap Accueil → récap série en cours : serpent maintenu, anti double-tap.
+    private var isTransitioningToSeriesEnd = false
 
     // MARK: - Sous-vues
 
@@ -1113,6 +1122,7 @@ final class BlomixPvPResultViewController: UIViewController {
     private let eloNewLabel = UILabel()
     private let seriesCaptionLabel = UILabel()
     private let seriesScoreLabel = UILabel()
+    private let eloLoadingSnakeView = BlomixPvPSearchBlocksView()
     private let homeButton = BlomixUIButton()
     private let rematchButton = BlomixUIButton()
 
@@ -1137,12 +1147,13 @@ final class BlomixPvPResultViewController: UIViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         stopRematchTimeout()
+        eloLoadingSnakeView.stopAnimating(settle: false)
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground.withAlphaComponent(BlomixAppearance.isDark ? 0.92 : 0.96)
-        addAmbientBlocksBackground()
+        // Ambient **après** le serpent : le chrome d'attente doit être prêt dès la 1ʳᵉ frame.
 
         titleLabel.text = didWin
             ? BlomixL10n.pvpResultVictoryAgainst(opponentName)
@@ -1165,22 +1176,25 @@ final class BlomixPvPResultViewController: UIViewController {
         eloCurrentLabel.textColor = BlomixAppearance.secondaryText
         eloCurrentLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
         eloCurrentLabel.textAlignment = .center
-        eloCurrentLabel.numberOfLines = 0
+        eloCurrentLabel.numberOfLines = 1
         eloCurrentLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(eloCurrentLabel)
 
-        eloDeltaLabel.text = BlomixL10n.pvpResultEloLoading
-        eloDeltaLabel.textColor = BlomixAppearance.secondaryText
+        // Texte loading par défaut ; écrasé si `applyEloResult` a déjà été appelé avant viewDidLoad.
+        if !eloSettled {
+            eloDeltaLabel.text = BlomixL10n.pvpResultEloLoading
+            eloDeltaLabel.textColor = BlomixAppearance.secondaryText
+        }
         eloDeltaLabel.font = FontTheme.gameFont(size: 18, weight: .semibold)
         eloDeltaLabel.textAlignment = .center
-        eloDeltaLabel.numberOfLines = 0
+        eloDeltaLabel.numberOfLines = 1
         eloDeltaLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(eloDeltaLabel)
 
         eloNewLabel.textColor = BlomixAppearance.secondaryText
         eloNewLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
         eloNewLabel.textAlignment = .center
-        eloNewLabel.numberOfLines = 0
+        eloNewLabel.numberOfLines = 1
         eloNewLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(eloNewLabel)
 
@@ -1202,6 +1216,10 @@ final class BlomixPvPResultViewController: UIViewController {
         seriesScoreLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(seriesScoreLabel)
 
+        eloLoadingSnakeView.translatesAutoresizingMaskIntoConstraints = false
+        eloLoadingSnakeView.isHidden = true
+        view.addSubview(eloLoadingSnakeView)
+
         homeButton.setTitle(BlomixL10n.pvpResultBackHome, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: homeButton)
         BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 14, left: 28, bottom: 14, right: 28), to: homeButton)
@@ -1214,9 +1232,15 @@ final class BlomixPvPResultViewController: UIViewController {
         rematchButton.addTarget(self, action: #selector(rematchTapped), for: .touchUpInside)
         view.addSubview(rematchButton)
         applyRematchButtonStyle()
+        applyHomeButtonStyle()
 
-        var constraints: [NSLayoutConstraint] = [
-            titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -60),
+        // Zone Elo à hauteurs min fixes → pas de saut quand current/new se remplissent.
+        // Boutons ancrés bas d'écran (stables, indépendants de la pile Elo).
+        let constraints: [NSLayoutConstraint] = [
+            eloLoadingSnakeView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            eloLoadingSnakeView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+
+            titleLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -72),
             titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
 
@@ -1227,14 +1251,17 @@ final class BlomixPvPResultViewController: UIViewController {
             eloCurrentLabel.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 20),
             eloCurrentLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             eloCurrentLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+            eloCurrentLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 20),
 
             eloDeltaLabel.topAnchor.constraint(equalTo: eloCurrentLabel.bottomAnchor, constant: 10),
             eloDeltaLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             eloDeltaLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+            eloDeltaLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 24),
 
             eloNewLabel.topAnchor.constraint(equalTo: eloDeltaLabel.bottomAnchor, constant: 10),
             eloNewLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
             eloNewLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+            eloNewLabel.heightAnchor.constraint(greaterThanOrEqualToConstant: 20),
 
             seriesCaptionLabel.topAnchor.constraint(equalTo: eloNewLabel.bottomAnchor, constant: showSeries ? 16 : 0),
             seriesCaptionLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 28),
@@ -1246,13 +1273,17 @@ final class BlomixPvPResultViewController: UIViewController {
             seriesScoreLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
             seriesScoreLabel.heightAnchor.constraint(equalToConstant: showSeries ? 24 : 0),
 
-            rematchButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            rematchButton.topAnchor.constraint(equalTo: seriesScoreLabel.bottomAnchor, constant: 28),
-
             homeButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            homeButton.topAnchor.constraint(equalTo: rematchButton.bottomAnchor, constant: 14),
+            homeButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -28),
+
+            rematchButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            rematchButton.bottomAnchor.constraint(equalTo: homeButton.topAnchor, constant: -14),
         ]
         NSLayoutConstraint.activate(constraints)
+
+        // Serpent d'attente **avant** le fond ambient (priorité 1ʳᵉ frame).
+        applyEloLoadingChrome(loading: !eloSettled)
+        addAmbientBlocksBackground()
     }
 
     // MARK: - Elo
@@ -1261,8 +1292,9 @@ final class BlomixPvPResultViewController: UIViewController {
         guard let result else {
             eloCurrentLabel.text = nil
             eloDeltaLabel.text = BlomixL10n.pvpResultEloUnavailable
-            eloDeltaLabel.textColor = UIColor(white: 0.78, alpha: 1)
+            eloDeltaLabel.textColor = BlomixAppearance.secondaryText
             eloNewLabel.text = nil
+            markEloSettled()
             return
         }
 
@@ -1273,6 +1305,48 @@ final class BlomixPvPResultViewController: UIViewController {
             ? UIColor(red: 0.36, green: 0.82, blue: 0.42, alpha: 1)
             : UIColor(red: 0.95, green: 0.62, blue: 0.22, alpha: 1)
         eloNewLabel.text = BlomixL10n.pvpResultEloNew(result.localNewRating)
+        markEloSettled()
+    }
+
+    private func markEloSettled() {
+        guard !eloSettled else {
+            if isViewLoaded { applyEloLoadingChrome(loading: false) }
+            return
+        }
+        eloSettled = true
+        if isViewLoaded {
+            applyEloLoadingChrome(loading: false)
+        }
+    }
+
+    /// Serpent haut d'écran + verrou Revanche pendant la maj Elo. Accueil reste cliquable.
+    private func applyEloLoadingChrome(loading: Bool) {
+        if loading {
+            eloLoadingSnakeView.isHidden = false
+            eloLoadingSnakeView.startAnimating()
+        } else {
+            // Ne pas couper le serpent s'il sert déjà de transition vers le récap série.
+            if !isTransitioningToSeriesEnd {
+                eloLoadingSnakeView.stopAnimating(settle: true) { [weak self] in
+                    self?.eloLoadingSnakeView.isHidden = true
+                }
+            }
+            // Un rematchRequest reçu pendant le loading n'a pas démarré le timeout.
+            startRematchTimeoutIfNeeded()
+        }
+        applyRematchButtonStyle()
+        applyHomeButtonStyle()
+    }
+
+    /// Pendant le calcul / present du récap série : serpent visible sur cet écran, Accueil locké.
+    func beginSeriesEndLoadingChrome() {
+        isTransitioningToSeriesEnd = true
+        eloLoadingSnakeView.isHidden = false
+        eloLoadingSnakeView.startAnimating()
+        homeButton.isEnabled = false
+        homeButton.alpha = 0.45
+        rematchButton.isEnabled = false
+        rematchButton.alpha = 0.55
     }
 
     // MARK: - Gestion de l'état Revanche
@@ -1282,7 +1356,8 @@ final class BlomixPvPResultViewController: UIViewController {
         switch rematchPhase {
         case .idle:
             rematchPhase = .remoteReady
-            startRematchTimeoutIfNeeded()
+            // Timeout seulement une fois Elo settled (sinon on mémorise l'état et on attend).
+            if eloSettled { startRematchTimeoutIfNeeded() }
         case .localWaiting:
             // Les deux ont demandé — le coordinateur lancera prepareForNextRound.
             break
@@ -1297,6 +1372,7 @@ final class BlomixPvPResultViewController: UIViewController {
         stopRematchTimeout()
         rematchPhase = .launching
         applyRematchButtonStyle()
+        applyHomeButtonStyle()
     }
 
     /// L'adversaire a quitté ou annulé la revanche.
@@ -1305,9 +1381,11 @@ final class BlomixPvPResultViewController: UIViewController {
         stopRematchTimeout()
         rematchPhase = .idle
         applyRematchButtonStyle()
+        applyHomeButtonStyle()
     }
 
     private func startRematchTimeoutIfNeeded() {
+        guard eloSettled else { return }
         guard rematchPhase == .localWaiting || rematchPhase == .remoteReady else { return }
         stopRematchTimeout()
         rematchTimeoutTimer = Timer.scheduledTimer(withTimeInterval: rematchTimeoutSeconds, repeats: false) { [weak self] _ in
@@ -1328,33 +1406,55 @@ final class BlomixPvPResultViewController: UIViewController {
     }
 
     private func applyRematchButtonStyle() {
+        // Titre selon la phase rematch (même pendant le lock Elo).
         switch rematchPhase {
         case .idle:
             rematchButton.setTitle(BlomixL10n.pvpResultRematchAsk, for: .normal)
-            rematchButton.isEnabled = true
-            rematchButton.alpha = 1
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: rematchButton)
         case .localWaiting:
             rematchButton.setTitle(BlomixL10n.pvpResultRematchWaiting, for: .normal)
-            rematchButton.isEnabled = false
-            rematchButton.alpha = 0.55
+            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: rematchButton)
         case .remoteReady:
             rematchButton.setTitle(BlomixL10n.pvpResultRematchOpponentReady, for: .normal)
-            rematchButton.isEnabled = true
-            rematchButton.alpha = 1
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: rematchButton)
         case .launching:
             rematchButton.setTitle(BlomixL10n.pvpResultRematchLaunching, for: .normal)
+            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: rematchButton)
+        }
+
+        // Lock pendant maj Elo : Revanche grisée / non cliquable. Accueil reste libre.
+        if !eloSettled {
             rematchButton.isEnabled = false
             rematchButton.alpha = 0.55
+            return
+        }
+
+        switch rematchPhase {
+        case .idle, .remoteReady:
+            rematchButton.isEnabled = true
+            rematchButton.alpha = 1
+        case .localWaiting, .launching:
+            rematchButton.isEnabled = false
+            rematchButton.alpha = 0.55
+        }
+    }
+
+    private func applyHomeButtonStyle() {
+        // Accueil cliquable sauf pendant le lancement de revanche (les deux ont confirmé).
+        if rematchPhase == .launching {
             homeButton.isEnabled = false
             homeButton.alpha = 0.4
+        } else {
+            homeButton.isEnabled = true
+            homeButton.alpha = 1
+            BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: homeButton)
         }
     }
 
     // MARK: - Actions
 
     @objc private func rematchTapped() {
+        guard eloSettled else { return }
         guard rematchPhase == .idle || rematchPhase == .remoteReady else { return }
         rematchPhase = .localWaiting
         applyRematchButtonStyle()
@@ -1363,10 +1463,13 @@ final class BlomixPvPResultViewController: UIViewController {
     }
 
     @objc private func homeTapped() {
+        guard !isTransitioningToSeriesEnd else { return }
         if rematchPhase == .localWaiting || rematchPhase == .remoteReady {
             onRematchAbandoned?()
         }
         stopRematchTimeout()
+        // Ne pas couper le serpent ici : le récap série peut l'utiliser pendant le chargement ;
+        // `returnToHome` dismiss la pile entière ensuite.
         // Ne pas dismiss ici : GameScene enchaîne série-end **par-dessus** le résultat
         // (évite flash grille/solo entre les deux overlays).
         onHome?()
@@ -1566,7 +1669,9 @@ final class BlomixPvPSeriesEndViewController: UIViewController {
     }
 
     @objc private func okTapped() {
-        dismiss(animated: true) { self.onDismiss?() }
+        // Le parent (`GameScene`) prépare l'accueil sous les modales puis dismiss la pile entière
+        // — éviter un dismiss local qui ferait réapparaître le résultat / la grille un instant.
+        onDismiss?()
     }
 }
 

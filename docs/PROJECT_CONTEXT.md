@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 5.9  
+> **Version de référence** : 6.0  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -227,7 +227,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Handshake RNG partagé (`helloSeed` + `protocolVersion`) ; file d’envoi + ack pour messages critiques
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
-- **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 2 parties (voir `PVP_MATCHING.md`)
+- **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
@@ -410,4 +410,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v5.9 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v6.0 — à maintenir lors des évolutions majeures.*

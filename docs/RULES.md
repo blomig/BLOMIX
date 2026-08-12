@@ -39,7 +39,7 @@ Blocs spéciaux rares (~**3 %** de probabilité cumulée) déclenchant un effet 
 | **COLORX** | O | Roulette de couleur : efface tous les blocs de la couleur choisie (score chaîne) |
 | **SAINTX** (cleanx) | ∞ | Efface toute la grille et laisse un Brix valant le nombre de cases supprimées (+200 pts bonus) |
 | **TWISTX** | X | Échange une couleur aléatoire ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
-| **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; dots colorés vers le **compteur de bombes** (en plus des dots score) puis **+1 bombe** à l’arrivée (garanti même sans clear, dots depuis la zone peinte). Sans son bombe dédié. Rareté ≈ SAINTX. **Solo / Zen** (pas de Magix en PvP) |
+| **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; dots colorés vers le **compteur de bombes** (en plus des dots score) puis **+1 bombe** à l’arrivée (garanti même sans clear, dots depuis la zone peinte). SFX tâche procédural par case (pas le son bombe de pose). Rareté ≈ SAINTX. **Solo / Zen** (pas de Magix en PvP) |
 
 ---
 

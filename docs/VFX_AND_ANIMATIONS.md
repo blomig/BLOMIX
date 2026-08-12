@@ -61,6 +61,7 @@ Synthèse PCM en mémoire (44,1 kHz, pool de 14 `AVAudioPlayerNode`). Volume mod
 |---|---|---|---|---|
 | `playChromaxTick(step, total)` | CHROMAX : chaque case transformée | 0,055 s | C5→C6 selon `step/total` | 0,55 |
 | `playCrosxPulse(ring)` | CROSSX : chaque anneau Manhattan | 0,075 s | 700 Hz / 1,07^ring | 0,50 |
+| `playBombxStain(rank, indexInRank)` | BOMBX : chaque case peinte (R0…R3) | 0,055–0,095 s | ~195→410 Hz selon rang ; tête de vague +20 % | 0,42–0,74 |
 | `playTwistxFlip(index)` | TWISTX : chaque case swappée | 0,038 s | 880 Hz (pair) / 660 Hz (impair) | 0,45 |
 | `playColorxRouletteClick(step)` | COLORX : étape roulette (0–4) | 0,055 s | 880→728 Hz (−38/step) | 0,60 |
 | `playColorxDissolvePop()` | COLORX : dissolution par bloc | 0,030 s | 340–480 Hz aléatoire | 0,40 |
@@ -69,6 +70,7 @@ Synthèse PCM en mémoire (44,1 kHz, pool de 14 `AVAudioPlayerNode`). Volume mod
 Staggers audio Magix alignés sur les animations visuelles :
 - CHROMAX : **0,08 s**/case
 - CROSSX : **0,06 s**/anneau
+- BOMBX : **0,055 s**/case (vagues R0→R3 ; R0 plus présent)
 - TWISTX : **0,04 s**/case
 - COLORX roulette : durées visuelles `[0,10, 0,15, 0,22, 0,30, 0,50]` s
 
@@ -415,6 +417,15 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 | **Timing** | stagger **0,04 s** ; scale pop 0,5→1,35→1,0 |
 | **Audio** | `playTwistxFlip(index)` |
 | **Suite** | `resolveChains()` |
+
+### 6.8 BOMBX
+
+| | |
+|---|---|
+| **Visuel** | Tâche 3 rangs sur cases occupées ; scale pop 0,5→1,35→1,0 par case |
+| **Timing** | **0,055 s**/case (R0→R1→R2→R3) + pause finale 0,12 s |
+| **Audio** | `playBombxStain(rank, indexInRank)` — R0 plus fort/long, pitch monte avec le rang ; pas `bomb.wav` / bombLoad |
+| **Suite** | `resolveChains()` ; dots couleur → HUD bombe (+1) |
 
 ---
 

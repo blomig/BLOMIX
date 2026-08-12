@@ -317,12 +317,15 @@ final class BlomixPvPH2HManager {
     /// Total affiché série = baseline + deltas de série (GameScene fait foi pour les deltas en fin).
     /// Fige la grâce post-série (Elo ne redescend pas tant que cloud n’a pas rattrapé).
     /// Ne lance **pas** de replace par le cloud.
+    /// - Parameter flushPending: si `false`, ne lance **pas** le flush CloudKit (UI récap d’abord ;
+    ///   appeler `flushPendingEventsBestEffort()` après le present). Défaut `true` pour les autres chemins.
     @discardableResult
     func lockSeriesEndDisplay(
         remoteGamePlayerID: String,
         remoteTeamPlayerID: String? = nil,
         seriesLocalWins: Int,
-        seriesRemoteWins: Int
+        seriesRemoteWins: Int,
+        flushPending: Bool = true
     ) -> BlomixPvPH2HTotals {
         let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
         let remotes = expandedRemoteIDs(remoteIDs)
@@ -353,9 +356,12 @@ final class BlomixPvPH2HManager {
             localWins: max(displayed.localWins, liveDisp?.localWins ?? 0),
             remoteWins: max(displayed.remoteWins, liveDisp?.remoteWins ?? 0)
         )
+        let indexIDs = Array(Set(Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""]) + remotes))
+            .prefix(Self.maxExpandedRemoteIDs)
+            .map { $0 }
         let ctx = LiveSeriesContext(
-            remoteKey: sessionStorageKey(forRemoteIDs: remotes),
-            remoteIDs: remotes,
+            remoteKey: sessionStorageKey(forRemoteIDs: indexIDs),
+            remoteIDs: indexIDs,
             baselineLocal: final.localWins,
             baselineRemote: final.remoteWins,
             seriesLocal: 0,
@@ -364,12 +370,20 @@ final class BlomixPvPH2HManager {
             graceUntil: Date().addingTimeInterval(Self.seriesGraceDuration),
             updatedAt: Date()
         )
-        // Après LOCK, le total figé devient la nouvelle baseline (Δ série absorbés).
-        saveLiveSeries(ctx)
-        replaceTotals(final, underRemoteIDs: remotes)
-        commitDisplayFloor(final, remoteIDs: remotes)
-        print("[H2H] series-end LOCK \(final.localWins)-\(final.remoteWins) (base \(baseline.localWins)-\(baseline.remoteWins) + série \(seriesL)-\(seriesR))")
-        flushPendingEventsBestEffort()
+        // Totaux **calculés en mémoire** tout de suite (UI récap).
+        // Persistance UserDefaults **différée** pour ne pas bloquer le present.
+        print("[H2H] series-end LOCK \(final.localWins)-\(final.remoteWins) (base \(baseline.localWins)-\(baseline.remoteWins) + série \(seriesL)-\(seriesR)) flush=\(flushPending) keys=\(indexIDs.count)")
+        let persistFinal = final
+        let persistCtx = ctx
+        let doFlush = flushPending
+        Task { @MainActor in
+            self.saveLiveSeries(persistCtx)
+            self.replaceTotals(persistFinal, underRemoteIDs: persistCtx.remoteIDs)
+            self.commitDisplayFloor(persistFinal, remoteIDs: persistCtx.remoteIDs)
+            if doFlush {
+                self.flushPendingEventsBestEffort()
+            }
+        }
         return final
     }
 
@@ -656,14 +670,18 @@ final class BlomixPvPH2HManager {
         }
         live.updatedAt = Date()
         let displayed = live.displayedTotals
-        // Une seule passe de persistance (évite 3× encode JSON UserDefaults d’affilée sur MainActor).
-        saveLiveSeries(live)
-        replaceTotals(displayed, underRemoteIDs: remotes)
-        // Committed floor : différé d’une frame pour ne pas empiler les writes au moment game over.
+        // Persistance **différée** : ne pas bloquer le MainActor pendant l’UI de fin de match
+        // (viewDidLoad résultat / serpent / present). Les totaux live restent en mémoire via saveLiveSeries.
         let floorTotals = displayed
-        let floorRemotes = remotes
+        let floorRemotes = Array(remotes.prefix(Self.maxExpandedRemoteIDs))
+        var liveToSave = live
+        liveToSave.remoteIDs = floorRemotes
+        // Live series = petit write immédiat (nécessaire pour le HUD série).
+        saveLiveSeries(liveToSave)
+        // Cache + floor : après un vrai délai pour laisser l’UI s’afficher (pas seulement yield).
         Task { @MainActor in
-            await Task.yield()
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            self.replaceTotals(floorTotals, underRemoteIDs: floorRemotes)
             self.commitDisplayFloor(floorTotals, remoteIDs: floorRemotes)
         }
         return displayed
@@ -694,9 +712,10 @@ final class BlomixPvPH2HManager {
     private func saveLiveSeries(_ ctx: LiveSeriesContext) {
         var all = loadLiveSeriesMap()
         var merged = ctx
-        // Union des IDs déjà connus pour ce contexte (alias Elo ultérieurs).
-        let extra = expandedRemoteIDs(ctx.remoteIDs)
-        merged.remoteIDs = Array(Set(ctx.remoteIDs + extra))
+        // Peu de clés d’indexation (plafond expansion) — pas de duplication ×82.
+        let indexIDs = Array(Set(Self.normalizedIDList(ctx.remoteIDs) + expandedRemoteIDs(ctx.remoteIDs)))
+            .prefix(Self.maxExpandedRemoteIDs)
+        merged.remoteIDs = Array(indexIDs)
         all[merged.remoteKey] = merged
         for rid in merged.remoteIDs {
             all[rid] = merged
@@ -749,9 +768,12 @@ final class BlomixPvPH2HManager {
 
     private func commitDisplayFloor(_ totals: BlomixPvPH2HTotals, remoteIDs: [String]) {
         guard totals.hasHistory else { return }
-        let remotes = expandedRemoteIDs(remoteIDs)
+        // Peu de clés : input normalisé + expansion plafonnée (jamais des dizaines).
+        let remotes = Array(Set(Self.normalizedIDList(remoteIDs) + expandedRemoteIDs(remoteIDs)))
+            .prefix(Self.maxExpandedRemoteIDs)
+            .map { $0 }
         var all = loadCommittedFloors()
-        let key = sessionStorageKey(forRemoteIDs: remoteIDs)
+        let key = sessionStorageKey(forRemoteIDs: Array(remotes))
         let existing = committedFloor(forRemoteIDs: remotes)
         let merged = BlomixPvPH2HTotals(
             localWins: max(totals.localWins, existing?.localWins ?? 0),
@@ -774,13 +796,12 @@ final class BlomixPvPH2HManager {
     private func committedFloor(forRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals? {
         let all = loadCommittedFloors()
         let now = Date()
-        let expanded = Set(expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)])
+        // Lookup O(clés connues) sans re-expand chaque floor via aliasRoot global.
+        let probe = Set(Self.normalizedIDList(remoteIDs) + expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)])
         var best: CommittedFloor?
-        for (k, f) in all {
+        for key in probe {
+            guard let f = all[key] else { continue }
             guard now.timeIntervalSince(f.updatedAt) <= Self.committedFloorMaxAge else { continue }
-            let fIDs = Set(expandedRemoteIDs(f.remoteIDs) + [k])
-            let hit = !fIDs.isDisjoint(with: expanded) || expanded.contains(k)
-            guard hit else { continue }
             if let b = best {
                 if f.localWins + f.remoteWins > b.localWins + b.remoteWins { best = f }
             } else {
@@ -1048,6 +1069,7 @@ final class BlomixPvPH2HManager {
     }
 
     /// Enregistre que plusieurs IDs désignent le même joueur (game ↔ team, Elo ↔ match).
+    /// Ne replie **que** les IDs fournis (+ leurs racines directes), pas toute la map d’alias.
     func registerAliases(_ ids: [String]) {
         let clean = Self.normalizedIDList(ids)
         guard clean.count >= 2 else {
@@ -1055,26 +1077,25 @@ final class BlomixPvPH2HManager {
             return
         }
         var map = loadAliases()
-        let roots = clean.map { Self.aliasRoot($0, map: map) }
+        let roots = Array(Set(clean.map { Self.aliasRoot($0, map: map) }))
         // Canonique = préférence match-like (A:_), sinon le plus petit lexico pour stabilité.
         let canonical = roots.max(by: { Self.idQueryPriority($0) < Self.idQueryPriority($1) })
             ?? roots.sorted()[0]
+        // Uniquement le petit ensemble concerné — pas un scan global de la map (évite de fusionner 80+ IDs).
         for id in clean {
             map[id] = canonical
-        }
-        // Replier les anciennes racines vers le nouveau canonique.
-        for (k, v) in map {
-            if roots.contains(v) || roots.contains(k) {
-                map[k] = canonical
-            }
         }
         for r in roots where r != canonical {
             map[r] = canonical
         }
+        // Clés qui pointaient **directement** vers une racine du groupe → canonique.
+        for (k, v) in map where roots.contains(v) {
+            map[k] = canonical
+        }
         saveAliases(map)
 
-        // Répliquer le meilleur cache sous toutes les clés du groupe (même total, pas de max artificiel).
-        let group = clean.flatMap { expandedRemoteIDs([$0]) }
+        // Répliquer le cache sous le petit groupe (ids + canonique), pas expanded monstre.
+        let group = Self.normalizedIDList(clean + [canonical])
         if let best = cachedTotals(againstRemoteIDs: group), best.hasHistory {
             replaceTotals(best, underRemoteIDs: group)
         }
@@ -1468,19 +1489,31 @@ final class BlomixPvPH2HManager {
         return out
     }
 
+    /// Plafond strict : un adversaire = game + team + quelques alias, jamais des dizaines de clés.
+    /// (Bug build ≤101 : scan global de la map d’alias → `keys=82` → freeze MainActor 20–25 s.)
+    private static let maxExpandedRemoteIDs = 8
+
+    /// IDs sous lesquels lire/écrire le cache pour un adversaire.
+    /// **Direct seulement** : id fourni, racine d’alias, clés qui mappent *directement* vers la racine.
+    /// Ne parcourt plus toute la map avec `aliasRoot` (O(n) × coût de chaîne → freeze UI).
     private func expandedRemoteIDs(_ remoteIDs: [String]) -> [String] {
         let map = loadAliases()
         var seen = Set<String>()
         var out: [String] = []
+        func append(_ s: String) {
+            guard Self.isUsablePlayerID(s), seen.insert(s).inserted else { return }
+            out.append(s)
+        }
         for id in Self.normalizedIDList(remoteIDs) {
             let root = Self.aliasRoot(id, map: map)
-            // Toutes les clés qui partagent cette racine + l’id lui-même.
-            let group = map.compactMap { k, v -> String? in
-                Self.aliasRoot(k, map: map) == root || Self.aliasRoot(v, map: map) == root ? k : nil
-            } + [id, root]
-            for g in group where seen.insert(g).inserted {
-                out.append(g)
+            append(id)
+            append(root)
+            // Alias directs uniquement (pas de fermeture transitive sur toute la map).
+            for (k, v) in map where v == root || v == id || k == root {
+                append(k)
+                if out.count >= Self.maxExpandedRemoteIDs { return out }
             }
+            if out.count >= Self.maxExpandedRemoteIDs { return out }
         }
         return out
     }

@@ -7,7 +7,31 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [5.9] — 2026-08 (courant)
+## [6.0] — 2026-08 (courant)
+
+Build **101** (TestFlight).
+
+### Ajouté
+- **Serpentard d’attente** (`BlomixPvPSearchBlocksView`) : grille **10×10**, blox 11 / gap 1, serpent long. 16, tick/fade 0,10 s — lobby, listes, classements, overlay « P vs P », écrans résultat
+- **BOMBX** : SFX procédural `playBombxStain` calé sur les vagues R0…R3
+
+### Modifié
+- **Overlay « P vs P »** : serpent UIKit bridge ; stack titre → serpent → phrases ; fade après dismiss lobby
+- **Écran résultat PvP** : serpent pendant attente ; Elo **cache local** (~0,35 s) puis boutons libres ; GC en fire-and-forget ; Revanche grisée, Accueil libre ; boutons ancrés bas d’écran
+- **Récap série** : dès **1** partie ; empilé sur le résultat ; present d’abord, flush CloudKit H2H après
+- **Reprise solo après PvP** : snapshot mémoire figé à l’entrée (grille, score, file, bombes, stage, Zen…)
+
+### Corrigé
+- **H2H freeze 20–25 s** en fin de match / Accueil→récap : expansion d’alias plafonnée (≤ 8), writes UserDefaults différées (plus de `keys=82` monstre sur MainActor)
+- **Récap qui rebondit** vers le résultat à la déco peer : pas de dismiss résultat si récap déjà empilé
+- **Grille solo vide** après PvP : une seule capture, non écrasée par la prep
+
+### Version
+- Marketing **6.0**, build **101**
+
+---
+
+## [5.9] — 2026-08
 
 Build **95** (TestFlight).
 

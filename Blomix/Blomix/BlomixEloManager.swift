@@ -289,6 +289,53 @@ final class BlomixEloManager {
         return try await finalizeWithProfiles(local: localProfile, remote: remoteProfile, outcome: outcome)
     }
 
+    /// Finalisation **instantanée** (cache local + profil remote fourni) — **0 Game Center**.
+    /// Persiste le cache et met le submit GC en pending. Pour l’UI résultat / serpent.
+    @discardableResult
+    func finalizeFromCacheOnly(
+        outcome: BlomixPvPMatchOutcome,
+        remoteProfile: BlomixEloProfile
+    ) -> BlomixEloResult {
+        let localProfile = cachedLocalProfileOrDefault()
+        let result = updatedRatings(localProfile: localProfile, remoteProfile: remoteProfile, outcome: outcome)
+        let newProfile = BlomixEloProfile(
+            rating: result.localNewRating,
+            completedMatchCount: result.localMatchCountAfter
+        )
+        persistLocalProfileCache(newProfile)
+        savePendingEloProfile(newProfile)
+        print("[PvP Elo] Cache-only finalize: \(result.debugSummary)")
+        return result
+    }
+
+    /// Rafraîchit via Game Center puis recalcule / soumet. Peut être long — appeler hors chemin UI critique.
+    @discardableResult
+    func finalizeWithGameCenterRefresh(
+        outcome: BlomixPvPMatchOutcome,
+        remotePlayer: GKPlayer?,
+        remoteProfileHint: BlomixEloProfile?
+    ) async throws -> BlomixEloResult {
+        let localProfile: BlomixEloProfile
+        if GKLocalPlayer.local.isAuthenticated {
+            localProfile = (try? await fetchLocalPlayerProfile()) ?? cachedLocalProfileOrDefault()
+        } else {
+            localProfile = cachedLocalProfileOrDefault()
+        }
+
+        let remoteProfile: BlomixEloProfile
+        if let remotePlayer, GKLocalPlayer.local.isAuthenticated {
+            remoteProfile = (try? await fetchProfile(for: remotePlayer))
+                ?? remoteProfileHint
+                ?? BlomixEloProfile(rating: defaultRating, completedMatchCount: 0)
+        } else if let remoteProfileHint {
+            remoteProfile = remoteProfileHint
+        } else {
+            remoteProfile = BlomixEloProfile(rating: defaultRating, completedMatchCount: 0)
+        }
+
+        return try await finalizeWithProfiles(local: localProfile, remote: remoteProfile, outcome: outcome)
+    }
+
     private func finalizeWithProfiles(
         local localProfile: BlomixEloProfile,
         remote remoteProfile: BlomixEloProfile,

@@ -13,6 +13,7 @@
 //    • BRIXED   — impact grave sur le flash initial
 //    • SAINTX   — nappe procédurale sur toute l'animation + blop final à l'atterrissage du Brix
 //    • SCRUMBLX — cliquets sourds synchronisés sur les crans de décalage par ligne
+//    • BOMBX    — tache par case, modulée par rang R0…R3 (stagger 0.055 s)
 //
 
 import AVFoundation
@@ -313,6 +314,45 @@ final class BlomixProceduralSFX: @unchecked Sendable {
             waveform: { time in
                 sin(2 * .pi * freq * time) * 0.70
               + sin(2 * .pi * freq * 3.0 * time) * 0.18
+            }
+        ) else { return }
+        play(buf)
+    }
+
+    // MARK: - BOMBX : tache par case (vagues R0…R3)
+
+    /// Un tick par case peinte, calé sur l’anim BOMBX (`stepDelay` 0,055 s).
+    /// - `rank` : 0 = atterrissage (plus présent), 1–3 = propagation de la tâche.
+    /// - `indexInRank` : 0 = première case de la vague (légère accentuation de tête de vague).
+    /// Timbre distinct de CROSSX / `bomb.wav` : « splash » coloré bas + clic, pas une explosion.
+    func playBombxStain(rank: Int, indexInRank: Int = 0) {
+        guard masterVol > 0 else { return }
+        let r = max(0, min(rank, 3))
+        // Pitch : grave en R0 → plus clair en R3 (propagation).
+        let baseFreq: Float = 195.0 * pow(1.28, Float(r))   // ~195 → 250 → 320 → 410 Hz
+        // Présence : R0 le plus fort ; tête de vague un peu plus marquée.
+        let rankGain: Float = [0.74, 0.60, 0.50, 0.42][r]
+        let headBoost: Float = (indexInRank == 0) ? 1.20 : 1.0
+        let gain = min(0.88, rankGain * headBoost)
+        // R0 un peu plus long (impact lisible), R3 plus sec.
+        let duration: Float = [0.095, 0.078, 0.065, 0.055][r]
+        let attack: Float   = [0.003, 0.003, 0.002, 0.002][r]
+        let release: Float  = duration * 0.55
+
+        guard let buf = makeBuffer(
+            duration: duration,
+            attack:   attack,
+            release:  release,
+            gain:     gain,
+            waveform: { time in
+                // Corps bas (tache) + harmonique + micro-bruit d’attaque.
+                let body = sin(2 * .pi * baseFreq * time) * 0.62
+                let harm = sin(2 * .pi * baseFreq * 2.15 * time) * 0.22
+                let click = sin(2 * .pi * baseFreq * 5.5 * time)
+                    * exp(-time * 90.0) * 0.28
+                let noise = (Float.random(in: -1...1))
+                    * exp(-time * 55.0) * 0.12
+                return body + harm + click + noise
             }
         ) else { return }
         play(buf)

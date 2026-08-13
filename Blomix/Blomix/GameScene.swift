@@ -809,6 +809,7 @@ final class GameScene: SKScene {
     private static let startScreenRankDiscSoloName       = "startScreenRankDiscSolo"
     private static let startScreenRankDiscAvgName        = "startScreenRankDiscAvg"
     private static let startScreenRankDiscZenName        = "startScreenRankDiscZen"
+    private static let startScreenRankDiscDuelName       = "startScreenRankDiscDuel"
     /// Suffixe ajouté au nom du disc pour nommer le SKLabelNode du rang (enfant direct de `discsContainer`).
     private static let rankDiscRankLabelSuffix           = "_rank"
     private static let rankDiscRankShadowSuffix          = "_rankShadow"
@@ -1823,6 +1824,22 @@ final class GameScene: SKScene {
         return container
     }
 
+    /// Souffle lent (dilate / revient) pour signaler que le badge est un bouton de classement.
+    private static func runStartScreenDiscBreath(on node: SKNode, phaseDelay: TimeInterval) {
+        node.removeAction(forKey: "rankDiscBreath")
+        node.setScale(1)
+        let up = SKAction.scale(to: 1.08, duration: 1.8)
+        up.timingMode = .easeInEaseOut
+        let down = SKAction.scale(to: 1.0, duration: 1.8)
+        down.timingMode = .easeInEaseOut
+        let breath = SKAction.repeatForever(SKAction.sequence([up, down]))
+        if phaseDelay > 0 {
+            node.run(.sequence([.wait(forDuration: phaseDelay), breath]), withKey: "rankDiscBreath")
+        } else {
+            node.run(breath, withKey: "rankDiscBreath")
+        }
+    }
+
     /// Calque texte `#rang` au-dessus du disque (sibling dans `discsContainer`, hors SKCropNode).
     private static func makeStartScreenDiscRankLabels(discName: String, at position: CGPoint, fontSize: CGFloat) -> (shadow: SKLabelNode, label: SKLabelNode) {
         let fontName = customUIFontPostScriptName
@@ -1840,7 +1857,8 @@ final class GameScene: SKScene {
         label.name = discName + rankDiscRankLabelSuffix
         label.fontName = fontName
         label.fontSize = fontSize
-        label.fontColor = BlomixAppearance.primaryTextSK
+        // Blanc dans les deux thèmes : le disque suit le skin, pas le chrome.
+        label.fontColor = .white
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .center
         label.position = position
@@ -1849,10 +1867,15 @@ final class GameScene: SKScene {
         return (shadow, label)
     }
 
+    /// Recherche récursive (`//name`) : les disques / `#rang` sont dans un wrapper de souffle.
+    private static func startScreenDescendant(named name: String, in root: SKNode) -> SKNode? {
+        root.childNode(withName: "//\(name)")
+    }
+
     private func applyStartScreenDiscRank(_ rank: Int, discName: String, in container: SKNode) {
         let text = "#\(rank)"
         for suffix in [Self.rankDiscRankLabelSuffix, Self.rankDiscRankShadowSuffix] {
-            guard let node = container.childNode(withName: discName + suffix) as? SKLabelNode else { continue }
+            guard let node = Self.startScreenDescendant(named: discName + suffix, in: container) as? SKLabelNode else { continue }
             node.text = text
             node.alpha = 1
         }
@@ -1962,47 +1985,23 @@ final class GameScene: SKScene {
         subtitle.zPosition = 1
         overlay.addChild(subtitle)
 
-        // ── Bande 2 : carte joueur (sans fond, espacement aéré) ───────────────────
+        // ── Bande 2 : nom joueur + 4 disques Arc. / Moy. / Zen / Duel ──────────
         let playerNameY = subtitle.position.y - 36
-        let eloRow = SKNode()
-        eloRow.name = Self.startScreenPlayerEloRowName
-        eloRow.position = CGPoint(x: cx, y: playerNameY)
-        eloRow.zPosition = 6
-        overlay.addChild(eloRow)
-
         let playerNameLabel = SKLabelNode(text: BlomixL10n.startScreenPlayerName(GKLocalPlayer.local.displayName.isEmpty ? BlomixL10n.startScreenPlayerUnknown : GKLocalPlayer.local.displayName))
         playerNameLabel.name = Self.startScreenPlayerNameLabelName
         playerNameLabel.fontName = Self.customUIFontPostScriptName
         playerNameLabel.fontSize = 12
         playerNameLabel.fontColor = BlomixAppearance.secondaryText
         playerNameLabel.horizontalAlignmentMode = .center
-        playerNameLabel.verticalAlignmentMode = .baseline
-        eloRow.addChild(playerNameLabel)
+        playerNameLabel.verticalAlignmentMode = .center
+        playerNameLabel.position = CGPoint(x: cx, y: playerNameY)
+        playerNameLabel.zPosition = 1
+        overlay.addChild(playerNameLabel)
 
-        let playerEloLabel = SKLabelNode(text: Self.startScreenEloDisplayText(rating: nil))
-        playerEloLabel.name = Self.startScreenPlayerEloLabelName
-        playerEloLabel.fontName = Self.customUIFontPostScriptName
-        playerEloLabel.fontSize = 12
-        playerEloLabel.fontColor = BlomixAppearance.secondaryText
-        playerEloLabel.horizontalAlignmentMode = .center
-        playerEloLabel.verticalAlignmentMode = .baseline
-        eloRow.addChild(playerEloLabel)
-
-        let eloChevron = SKLabelNode(text: "›")
-        eloChevron.name = Self.startScreenPlayerEloChevronName
-        eloChevron.fontName = UIFont.systemFont(ofSize: 12, weight: .regular).fontName
-        eloChevron.fontSize = 12
-        eloChevron.fontColor = BlomixAppearance.tertiaryText
-        eloChevron.horizontalAlignmentMode = .center
-        eloChevron.verticalAlignmentMode = .baseline
-        eloRow.addChild(eloChevron)
-        layoutStartScreenEloRow(in: overlay)
-
-        // Disques SOLO / MOY. / ZEN — visibles tout de suite ; le rang (#n) arrive après fetch GC.
-        let discDiameter: CGFloat = 56
-        let discGap: CGFloat = 12
+        let discDiameter: CGFloat = 52
+        let discGap: CGFloat = 10
         let discStep = discDiameter + discGap
-        let discCenterY = playerNameY - 58
+        let discCenterY = playerNameY - 56
 
         let discsContainer = SKNode()
         discsContainer.name = Self.startScreenRankDiscsContainerName
@@ -2011,39 +2010,29 @@ final class GameScene: SKScene {
         overlay.addChild(discsContainer)
 
         let rankFontSize: CGFloat = discDiameter * 0.30
+        let discSpecs: [(name: String, category: String, x: CGFloat, t: Float)] = [
+            (Self.startScreenRankDiscSoloName, BlomixL10n.rankDiscSolo, -1.5 * discStep, 0.00),
+            (Self.startScreenRankDiscAvgName,  BlomixL10n.rankDiscAvg,  -0.5 * discStep, 0.25),
+            (Self.startScreenRankDiscZenName,  BlomixL10n.rankDiscZen,   0.5 * discStep, 0.50),
+            (Self.startScreenRankDiscDuelName, BlomixL10n.rankDiscDuel,  1.5 * discStep, 0.75),
+        ]
+        for spec in discSpecs {
+            let wrapper = SKNode()
+            wrapper.position = CGPoint(x: spec.x, y: 0)
+            discsContainer.addChild(wrapper)
 
-        let soloDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscSoloName,
-                                             category: BlomixL10n.rankDiscSolo,
+            let disc = Self.makeRankDiscNode(name: spec.name,
+                                             category: spec.category,
                                              discDiameter: discDiameter,
-                                             timeOffset: 0.0)
-        soloDisc.position = CGPoint(x: -discStep, y: 0)
-        discsContainer.addChild(soloDisc)
-        let soloRank = Self.makeStartScreenDiscRankLabels(discName: Self.startScreenRankDiscSoloName,
-                                                          at: soloDisc.position, fontSize: rankFontSize)
-        discsContainer.addChild(soloRank.shadow)
-        discsContainer.addChild(soloRank.label)
-
-        let avgDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscAvgName,
-                                            category: BlomixL10n.rankDiscAvg,
-                                            discDiameter: discDiameter,
-                                            timeOffset: 0.33)
-        avgDisc.position = CGPoint(x: 0, y: 0)
-        discsContainer.addChild(avgDisc)
-        let avgRank = Self.makeStartScreenDiscRankLabels(discName: Self.startScreenRankDiscAvgName,
-                                                         at: avgDisc.position, fontSize: rankFontSize)
-        discsContainer.addChild(avgRank.shadow)
-        discsContainer.addChild(avgRank.label)
-
-        let zenDisc = Self.makeRankDiscNode(name: Self.startScreenRankDiscZenName,
-                                            category: BlomixL10n.rankDiscZen,
-                                            discDiameter: discDiameter,
-                                            timeOffset: 0.67)
-        zenDisc.position = CGPoint(x: discStep, y: 0)
-        discsContainer.addChild(zenDisc)
-        let zenRank = Self.makeStartScreenDiscRankLabels(discName: Self.startScreenRankDiscZenName,
-                                                         at: zenDisc.position, fontSize: rankFontSize)
-        discsContainer.addChild(zenRank.shadow)
-        discsContainer.addChild(zenRank.label)
+                                             timeOffset: spec.t)
+            disc.position = .zero
+            wrapper.addChild(disc)
+            let rank = Self.makeStartScreenDiscRankLabels(discName: spec.name,
+                                                          at: .zero, fontSize: rankFontSize)
+            wrapper.addChild(rank.shadow)
+            wrapper.addChild(rank.label)
+            Self.runStartScreenDiscBreath(on: wrapper, phaseDelay: TimeInterval(spec.t) * 1.8)
+        }
 
         // ── Rangée d'icônes : Réglages · Tutoriel · Thème · Partager · Crédits ─
         let discBottomExtent = discDiameter / 2 + 10
@@ -2240,9 +2229,9 @@ final class GameScene: SKScene {
 
         // Sous-titre + carte joueur : fade-in décalé.
         subtitle.alpha = 0
-        eloRow.alpha   = 0
+        playerNameLabel.alpha = 0
         subtitle.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.22)]))
-        eloRow.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.22)]))
+        playerNameLabel.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.22)]))
 
         iconRow.alpha = 0
         iconRow.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.20)]))
@@ -2369,7 +2358,7 @@ final class GameScene: SKScene {
         // Chaque timeOffset produit un source GLSL distinct → Metal doit compiler 3 programmes.
         // Les sprites sont hors-écran (alpha 0.01, position négative) mais rendus,
         // ce qui déclenche la compilation GPU avant l'affichage de l'écran d'accueil.
-        for (i, offset) in [Float(0.0), Float(0.33), Float(0.67)].enumerated() {
+        for (i, offset) in [Float(0.0), Float(0.25), Float(0.50), Float(0.75)].enumerated() {
             let w = SKSpriteNode(texture: Self.magixShaderBaseTexture,
                                  size: CGSize(width: 2, height: 2))
             w.shader    = Self.makeMagixPaletteShader(timeOffset: offset)
@@ -2697,7 +2686,7 @@ final class GameScene: SKScene {
     private func touchHitsStartScreenRankDisc(_ scenePoint: CGPoint, discName: String) -> Bool {
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
               let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName),
-              let disc = container.childNode(withName: discName) else { return false }
+              let disc = Self.startScreenDescendant(named: discName, in: container) else { return false }
         return sceneHitRectForGameOverButton(disc, minW: 54, minH: 80).contains(scenePoint)
     }
 
@@ -2832,55 +2821,22 @@ final class GameScene: SKScene {
 
     private func refreshStartScreenPlayerIdentityIfVisible() {
         guard isStartScreen else { return }
-        guard let overlay = childNode(withName: Self.startScreenOverlayName) else { return }
-        // Le nom est dans `eloRow` (ligne compressée 6.1), plus un enfant direct de l’overlay.
-        // Un lookup overlay-only faisait échouer tout le guard → Elo et #rangs jamais mis à jour.
-        guard let eloRow = overlay.childNode(withName: Self.startScreenPlayerEloRowName),
-              let playerNameLabel = eloRow.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode
-                ?? overlay.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode,
-              let playerEloLabel = eloRow.childNode(withName: Self.startScreenPlayerEloLabelName) as? SKLabelNode else {
+        guard let overlay = childNode(withName: Self.startScreenOverlayName),
+              let playerNameLabel = overlay.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode
+        else {
             refreshStartScreenRankDiscsIfVisible()
             return
         }
 
-        let displayName = GKLocalPlayer.local.displayName.isEmpty ? BlomixL10n.startScreenPlayerUnknown : GKLocalPlayer.local.displayName
+        let displayName = GKLocalPlayer.local.displayName.isEmpty
+            ? BlomixL10n.startScreenPlayerUnknown
+            : GKLocalPlayer.local.displayName
         playerNameLabel.text = BlomixL10n.startScreenPlayerName(displayName)
-        let cachedElo = BlomixEloManager.shared.cachedLocalProfileOrDefault().rating
-        playerEloLabel.text = Self.startScreenEloDisplayText(
-            rating: GKLocalPlayer.local.isAuthenticated ? cachedElo : nil
-        )
-        playerEloLabel.alpha = 1
-        eloRow.alpha = 1
-        layoutStartScreenEloRow(in: overlay)
-
+        playerNameLabel.alpha = 1
         refreshStartScreenRankDiscsIfVisible()
-
-        guard GKLocalPlayer.local.isAuthenticated else { return }
-        Task { @MainActor [weak self] in
-            do {
-                let elo = try await BlomixEloManager.shared.fetchLocalPlayerElo()
-                guard let self, self.isStartScreen else { return }
-                guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                      let eloRow = overlay.childNode(withName: Self.startScreenPlayerEloRowName),
-                      let eloLabel = eloRow.childNode(withName: Self.startScreenPlayerEloLabelName) as? SKLabelNode else { return }
-                eloLabel.text = Self.startScreenEloDisplayText(rating: elo)
-                eloLabel.alpha = 1
-                eloRow.alpha = 1
-                self.layoutStartScreenEloRow(in: overlay)
-            } catch {
-                guard let self, self.isStartScreen else { return }
-                guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                      let eloRow = overlay.childNode(withName: Self.startScreenPlayerEloRowName),
-                      let eloLabel = eloRow.childNode(withName: Self.startScreenPlayerEloLabelName) as? SKLabelNode else { return }
-                eloLabel.text = Self.startScreenEloDisplayText(rating: nil)
-                eloLabel.alpha = 1
-                eloRow.alpha = 1
-                self.layoutStartScreenEloRow(in: overlay)
-            }
-        }
     }
 
-    /// Fetche le rang du joueur sur les 3 leaderboards (SOLO, Moyenne, Zen).
+    /// Fetche le rang du joueur sur les 4 leaderboards (Arcade, Moyenne, Zen, Duel).
     /// Labels `#rang` = siblings dans `discsContainer` (z 200+, au-dessus du shader).
     private func refreshStartScreenRankDiscsIfVisible() {
         guard isStartScreen else { return }
@@ -2891,10 +2847,11 @@ final class GameScene: SKScene {
             (ScoreManager.mainLeaderboardID,    Self.startScreenRankDiscSoloName),
             (ScoreManager.averageLeaderboardID, Self.startScreenRankDiscAvgName),
             (ScoreManager.zenLeaderboardID,     Self.startScreenRankDiscZenName),
+            ("elotype",                         Self.startScreenRankDiscDuelName),
         ]
 
         for (_, discName) in specs {
-            container.childNode(withName: discName)?.alpha = 1
+            Self.startScreenDescendant(named: discName, in: container)?.alpha = 1
         }
 
         guard GKLocalPlayer.local.isAuthenticated else { return }
@@ -12432,7 +12389,7 @@ final class GameScene: SKScene {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .zenScore) }
                 return
             }
-            if touchHitsStartScreenPlayerEloRow(location) {
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscDuelName) {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .elo) }
                 return
             }
@@ -13102,7 +13059,7 @@ final class GameScene: SKScene {
         let labelY = snakeCenterY - snakeSide / 2 - stackGap - phraseFontSize * 0.5
 
         let pvpTitleNode = Self.makeTransitionPopInOutlinedLabel(
-            text: "P vs P",
+            text: BlomixL10n.startPvPButton,
             fontSize: pvpFontSize,
             maxWidth: maxW,
             fillColor: pvpFillUIColor)
@@ -13435,7 +13392,7 @@ final class GameScene: SKScene {
 
         // Filet : dismiss toute modale restante (si la notif n'a pas suffi).
         if let rootVC = modalRootViewController(), rootVC.presentedViewController != nil {
-            rootVC.dismiss(animated: true)
+            rootVC.dismiss(animated: false)
         }
         // Fade « P vs P » seulement après la fenêtre de dismiss lobby (~0,4 s),
         // pour ne jamais coller l'accueil entre attente et partie.

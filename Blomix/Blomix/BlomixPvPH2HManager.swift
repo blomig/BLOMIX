@@ -37,6 +37,10 @@ import Foundation
 import GameKit
 import UIKit
 
+extension Notification.Name {
+    static let blomixH2HCacheDidChange = Notification.Name("blomixH2HCacheDidChange")
+}
+
 // MARK: - Models
 
 struct BlomixPvPH2HTotals: Equatable, Sendable, Codable {
@@ -101,8 +105,10 @@ final class BlomixPvPH2HManager {
     private var homeReconcileTask: Task<Void, Never>?
     private var lastCloudReconcileAt: Date?
     private static let homeReconcileMinInterval: TimeInterval = 20
+    private static let lastOpponentPersistKey = "blomixPvPH2HLastOpponent_v1"
 
     private init() {
+        restorePersistedLastOpponent()
         registerLifecycleIfNeeded()
         migrateCacheV1IfNeeded()
         pruneEmptyCacheEntriesIfNeeded()
@@ -118,6 +124,8 @@ final class BlomixPvPH2HManager {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.flushPendingEventsBestEffort()
+                // Juge 1 duo hors écran Elo (sinon freeze serpent / scroll).
+                self?.scheduleHomeReconcileAfterReturnToMenu()
             }
         }
     }
@@ -209,18 +217,37 @@ final class BlomixPvPH2HManager {
         print("[H2H] peer max-merge \(ours.localWins)-\(ours.remoteWins) + peer claims us=\(peerClaimsOurWins) them=\(peerOwnWins) → \(merged.localWins)-\(merged.remoteWins)")
     }
 
-    /// Totaux à afficher : live series si protège, sinon committed max cache.
+    /// Une seule vérité d’affichage (récap, Duel, baseline série) : max(live, cache, plancher).
+    /// Jamais de lecture CloudKit. Ne redescend pas sous un cumul déjà connu.
+    func displayedTotalsForUI(
+        againstRemoteIDs remoteIDs: [String],
+        displayName: String? = nil
+    ) -> BlomixPvPH2HTotals {
+        migrateCacheV1IfNeeded()
+        if let displayName {
+            bridgeAliasesUsingDisplayName(displayName, eloIDs: remoteIDs)
+        }
+        registerAliases(remoteIDs)
+        return displayedTotalsPreferringLive(againstRemoteIDs: Self.normalizedIDList(remoteIDs))
+    }
+
+    /// Totaux à afficher : max(live protégé, cache, committed) — jamais le plus bas seul.
     private func displayedTotalsPreferringLive(againstRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals {
         let remotes = expandedRemoteIDs(remoteIDs)
-        if let live = liveSeries(forRemoteIDs: remotes), live.protectsDisplay {
-            return live.displayedTotals
-        }
         let cache = cachedTotals(againstRemoteIDs: remotes) ?? .zero
         let committed = committedFloor(forRemoteIDs: remotes) ?? .zero
-        return BlomixPvPH2HTotals(
+        var best = BlomixPvPH2HTotals(
             localWins: max(cache.localWins, committed.localWins),
             remoteWins: max(cache.remoteWins, committed.remoteWins)
         )
+        if let live = liveSeries(forRemoteIDs: remotes), live.protectsDisplay {
+            let d = live.displayedTotals
+            best = BlomixPvPH2HTotals(
+                localWins: max(best.localWins, d.localWins),
+                remoteWins: max(best.remoteWins, d.remoteWins)
+            )
+        }
+        return best
     }
 
     /// Mémorise le duo courant (IDs match) pour une lecture cloud **plus tard**, hors gameplay.
@@ -237,6 +264,57 @@ final class BlomixPvPH2HManager {
         if let displayName, !displayName.isEmpty {
             lastOpponentDisplayName = displayName
         }
+        persistLastOpponent()
+    }
+
+    private func persistLastOpponent() {
+        var payload: [String: String] = [:]
+        if !lastOpponentGameID.isEmpty { payload["g"] = lastOpponentGameID }
+        if !lastOpponentTeamID.isEmpty { payload["t"] = lastOpponentTeamID }
+        if let n = lastOpponentDisplayName, !n.isEmpty { payload["n"] = n }
+        UserDefaults.standard.set(payload, forKey: Self.lastOpponentPersistKey)
+    }
+
+    private func restorePersistedLastOpponent() {
+        guard let payload = UserDefaults.standard.dictionary(forKey: Self.lastOpponentPersistKey) as? [String: String] else { return }
+        lastOpponentGameID = payload["g"] ?? ""
+        lastOpponentTeamID = payload["t"] ?? ""
+        lastOpponentDisplayName = payload["n"]
+    }
+
+    static func lightLookupKey(forRemoteIDs ids: [String]) -> String {
+        normalizedIDList(ids).joined(separator: "|")
+    }
+
+    /// Lecture **légère** pour le tableau Elo : 1 decode cache + 1 live + 1 floor, puis lookups.
+    /// Pas d’alias, pas de CloudKit, pas d’écriture — safe dans `cellForRow` via précalcul.
+    func precomputedLightTotals(idGroups: [[String]]) -> [String: BlomixPvPH2HTotals] {
+        migrateCacheV1IfNeeded()
+        let cache = loadCacheV2()
+        let lives = loadLiveSeriesMap()
+        let floors = loadCommittedFloors()
+        var out: [String: BlomixPvPH2HTotals] = [:]
+        out.reserveCapacity(idGroups.count)
+        for ids in idGroups {
+            let keys = Self.normalizedIDList(ids)
+            guard !keys.isEmpty else { continue }
+            let mapKey = keys.joined(separator: "|")
+            var best = BlomixPvPH2HTotals.zero
+            for k in keys {
+                if let t = cache[k] {
+                    best = best.merging(t)
+                }
+                if let f = floors[k] {
+                    let ft = BlomixPvPH2HTotals(localWins: f.localWins, remoteWins: f.remoteWins)
+                    if ft.hasHistory { best = best.merging(ft) }
+                }
+                if let live = lives[k], live.protectsDisplay {
+                    best = best.merging(live.displayedTotals)
+                }
+            }
+            if best.hasHistory { out[mapKey] = best }
+        }
+        return out
     }
 
     /// Juge CloudKit **1 duo** (dernier adversaire), après overlays PvP fermés / accueil.
@@ -410,31 +488,29 @@ final class BlomixPvPH2HManager {
         let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
         let remotes = expandedRemoteIDs(remoteIDs)
         let live = liveSeries(forRemoteIDs: remoteIDs)
-        // Baseline = celle de la série live si dispo, sinon max cache/committed.
-        // Important : ne PAS faire baseline + seriesLocalWins si applyLive a déjà
-        // incrémenté les Δ (double comptage qui désynchronise les deux joueurs).
-        let baseline: BlomixPvPH2HTotals
-        let seriesL: Int
-        let seriesR: Int
-        if let live, live.isActive || (live.seriesLocal + live.seriesRemote > 0) {
-            baseline = BlomixPvPH2HTotals(localWins: live.baselineLocal, remoteWins: live.baselineRemote)
-            // Préférer les compteurs GameScene (vérité session) si cohérents avec live.
-            seriesL = max(0, seriesLocalWins)
-            seriesR = max(0, seriesRemoteWins)
-        } else {
-            baseline = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
-            seriesL = max(0, seriesLocalWins)
-            seriesR = max(0, seriesRemoteWins)
-        }
-        let displayed = BlomixPvPH2HTotals(
-            localWins: baseline.localWins + seriesL,
-            remoteWins: baseline.remoteWins + seriesR
-        )
-        // Aussi max avec le live.displayed déjà accumulé (évite de redescendre si décalage).
+        let known = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
+        let seriesL = max(0, seriesLocalWins)
+        let seriesR = max(0, seriesRemoteWins)
         let liveDisp = live?.displayedTotals
-        let final = BlomixPvPH2HTotals(
-            localWins: max(displayed.localWins, liveDisp?.localWins ?? 0),
-            remoteWins: max(displayed.remoteWins, liveDisp?.remoteWins ?? 0)
+        let final: BlomixPvPH2HTotals
+        if let live, let liveDisp,
+           known.localWins == liveDisp.localWins,
+           known.remoteWins == liveDisp.remoteWins {
+            // Cache / live déjà = baseline + Δ : ne pas rajouter la série.
+            final = known
+        } else {
+            let hist = BlomixPvPH2HTotals(
+                localWins: max(known.localWins, live?.baselineLocal ?? 0),
+                remoteWins: max(known.remoteWins, live?.baselineRemote ?? 0)
+            )
+            final = BlomixPvPH2HTotals(
+                localWins: hist.localWins + seriesL,
+                remoteWins: hist.remoteWins + seriesR
+            )
+        }
+        let baseline = BlomixPvPH2HTotals(
+            localWins: max(0, final.localWins - seriesL),
+            remoteWins: max(0, final.remoteWins - seriesR)
         )
         let indexIDs = Array(Set(Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""]) + remotes))
             .prefix(Self.maxExpandedRemoteIDs)
@@ -659,12 +735,28 @@ final class BlomixPvPH2HManager {
                         print("[H2H] reconcile CLOUD+FLOOR floor \(floor.localWins)-\(floor.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins) pending=\(pendingLeft)")
                     }
                 }
+            } else if let prev = previous, prev.hasHistory {
+                // Pas de live/committed trouvé : quand même ne pas écraser 34–34 par un cloud 28–30.
+                let cloudGames = cloud.localWins + cloud.remoteWins
+                let prevGames = prev.localWins + prev.remoteWins
+                let cloudLooksComplete = cloud.hasHistory && cloudGames + 2 >= prevGames
+                if pendingLeft == 0, cloudLooksComplete {
+                    total = cloud
+                    print("[H2H] reconcile CLOUD-JUDGE (no floor) \(total.localWins)-\(total.remoteWins) prev \(prev.localWins)-\(prev.remoteWins)")
+                } else {
+                    total = BlomixPvPH2HTotals(
+                        localWins: max(cloud.localWins, prev.localWins),
+                        remoteWins: max(cloud.remoteWins, prev.remoteWins)
+                    )
+                    print("[H2H] reconcile CLOUD+CACHE prev \(prev.localWins)-\(prev.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins)")
+                }
             } else {
                 total = cloud
                 print("[H2H] reconcile CLOUD-TRUTH \(total.localWins)-\(total.remoteWins) prev \(previous.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
             }
             if total.hasHistory {
                 replaceTotals(total, underRemoteIDs: remotes)
+                NotificationCenter.default.post(name: .blomixH2HCacheDidChange, object: nil)
             } else if seriesFloor == nil {
                 clearTotals(underRemoteIDs: remotes)
             }

@@ -11,11 +11,11 @@
 
 /* Welcome & gameplay */
 "game.tagline" = "Chain blocks. Beat the pressure.";
-"start.button" = "Solo";
+"start.button" = "Arcade";
 "start.settings" = "Settings";
 "start.credits" = "Credits";
 "start.zen" = "Zen";
-"start.pvp" = "P vs P";
+"start.pvp" = "Duel";
 "start.player_unknown" = "Unknown player";
 "start.player_name_format" = "Player: %@";
 "start.player_elo_format" = "Elo rating: %lld";
@@ -88,7 +88,7 @@
 "game_over.replay" = "Play again";
 "game_over.record_title" = "Personal best!";
 "game_over.record_score_format" = "%lld pts";
-"game_over.record_rank_solo_format" = "You are now ranked #%lld in Solo";
+"game_over.record_rank_solo_format" = "You are now ranked #%lld in Arcade";
 "game_over.record_rank_zen_format" = "You are now ranked #%lld in Zen";
 "game_over.leaderboard" = "View leaderboard";
 "game_over.personal_best" = "New personal best!";
@@ -128,8 +128,8 @@
 "leaderboard.top_count_format" = "Top %lld";
 "leaderboard.points_format" = "%lld pts";
 "leaderboard.elo_format" = "Elo %lld";
-"leaderboard.main_tab" = "Solo";
-"leaderboard.elo_tab" = "Elo";
+"leaderboard.main_tab" = "Arc.";
+"leaderboard.elo_tab" = "Duel";
 "leaderboard.avg_tab" = "Moy.";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.avg_format" = "avg. %lld pts";
@@ -252,9 +252,10 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "stage.overlay.multiplier_format" = "Points × %lld";
 
 /* Rank discs (start screen) */
-"rank_disc.solo" = "SOLO";
+"rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "AVG.";
 "rank_disc.zen" = "ZEN";
+"rank_disc.duel" = "DUEL";
 
 /* HUD captions */
 "hud.time_caption" = "TIME";

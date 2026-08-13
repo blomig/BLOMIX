@@ -11,11 +11,11 @@
 
 /* Welcome & gameplay */
 "game.tagline" = "Ketten. Druck. Keine Werbung.";
-"start.button" = "Solo";
+"start.button" = "Arcade";
 "start.settings" = "Einstellungen";
 "start.credits" = "Credits";
 "start.zen" = "Zen";
-"start.pvp" = "P vs P";
+"start.pvp" = "Duell";
 "start.player_unknown" = "Unbekannter Spieler";
 "start.player_name_format" = "Spieler: %@";
 "start.player_elo_format" = "Elo-Wertung: %lld";
@@ -88,7 +88,7 @@
 "game_over.replay" = "Nochmal";
 "game_over.record_title" = "Persönlicher Rekord!";
 "game_over.record_score_format" = "%lld Pkt.";
-"game_over.record_rank_solo_format" = "Du bist jetzt #%lld in Solo";
+"game_over.record_rank_solo_format" = "Du bist jetzt #%lld in Arcade";
 "game_over.record_rank_zen_format" = "Du bist jetzt #%lld in Zen";
 "game_over.leaderboard" = "Bestenliste";
 "game_over.personal_best" = "Neuer persönlicher Rekord!";
@@ -128,8 +128,8 @@
 "leaderboard.top_count_format" = "Top %lld";
 "leaderboard.points_format" = "%lld Pkt.";
 "leaderboard.elo_format" = "Elo %lld";
-"leaderboard.main_tab" = "Solo";
-"leaderboard.elo_tab" = "Elo";
+"leaderboard.main_tab" = "Arc.";
+"leaderboard.elo_tab" = "Duell";
 "leaderboard.avg_tab" = "Ø";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.avg_format" = "Ø %lld Pkt.";
@@ -252,9 +252,10 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "stage.overlay.multiplier_format" = "Punkte × %lld";
 
 /* Rank discs (start screen) */
-"rank_disc.solo" = "SOLO";
+"rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "Ø";
 "rank_disc.zen" = "ZEN";
+"rank_disc.duel" = "DUELL";
 
 /* HUD captions */
 "hud.time_caption" = "ZEIT";

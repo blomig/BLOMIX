@@ -1034,9 +1034,9 @@ final class BlomixPvPLobbyViewController: UIViewController {
         availVC.modalTransitionStyle = .crossDissolve
         availVC.onMatch = { [weak self] match in
             guard let self else { return }
-            self.presentingViewController?.dismiss(animated: false) {
-                self.onMatch?(match)
-            }
+            // Grille / overlay P vs P d’abord (sous le modal), puis fermeture — pas de flash accueil.
+            self.onMatch?(match)
+            self.presentingViewController?.dismiss(animated: false)
         }
         present(availVC, animated: true)
     }
@@ -1091,9 +1091,8 @@ final class BlomixPvPLobbyViewController: UIViewController {
         recentVC.onMatch = { [weak self] match in
             guard let self else { return }
             // Dismiss the whole stack (lobby + recentVC) then start the game.
-            self.presentingViewController?.dismiss(animated: false) {
-                self.onMatch?(match)
-            }
+            self.onMatch?(match)
+            self.presentingViewController?.dismiss(animated: false)
         }
         present(recentVC, animated: true)
     }

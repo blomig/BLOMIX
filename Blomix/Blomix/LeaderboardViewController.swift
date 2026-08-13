@@ -115,6 +115,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     /// Cache des GKPlayer de l'onglet Elo, indexés par gamePlayerID.
     /// Évite tout appel à `GKPlayer.loadPlayers(forIdentifiers:)` (source de l'erreur 5005).
     private var eloGKPlayers: [String: GKPlayer] = [:]
+    /// H2H précalculé une fois (clé = IDs joints). `cellForRow` = lookup O(1), 0 UserDefaults.
+    private var eloH2HByLookupKey: [String: BlomixPvPH2HTotals] = [:]
 
     // MARK: - État invitation sortante
     private var pendingInviteMatch: GKMatch?
@@ -136,7 +138,19 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
         selectedLeaderboardKind = leaderboardKind(for: initialTab)
         setupUI()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleH2HCacheDidChange),
+            name: .blomixH2HCacheDidChange,
+            object: nil
+        )
         loadLeaderboard()
+    }
+
+    @objc private func handleH2HCacheDidChange() {
+        guard selectedLeaderboardKind == .elo, !rows.isEmpty else { return }
+        applyLocalH2HCacheToEloRows(rows)
+        tableView.reloadData()
     }
 
     private func leaderboardKind(for tab: InitialTab) -> LeaderboardKind {
@@ -595,13 +609,12 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
             guard selectedLeaderboardKind == .elo else { return }
             eloGKPlayers = playerMap
+            applyLocalH2HCacheToEloRows(rows)
             setLoading(false)
             self.rows = rows
             statusLabel.text = rows.isEmpty
                 ? BlomixL10n.leaderboardEmpty
                 : BlomixL10n.leaderboardTopCount(rows.count)
-            // H2H : cache local only (jamais fetchCloudSum × N joueurs — freeze MainActor).
-            applyLocalH2HCacheToEloRows(rows)
         } catch {
             guard selectedLeaderboardKind == .elo else { return }
             setLoading(false)
@@ -729,33 +742,24 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                             gameCount: count
                         )
                     }
+                    if selectedKind == .elo {
+                        vc.applyLocalH2HCacheToEloRows(mapped)
+                    }
                     vc.setLoading(false)
                     vc.rows = mapped
                     vc.statusLabel.text = mapped.isEmpty
                         ? BlomixL10n.leaderboardEmpty
                         : BlomixL10n.leaderboardTopCount(mapped.count)
-                    // Elo H2H : cache local only (voir applyLocalH2HCacheToEloRows).
-                    if selectedKind == .elo {
-                        vc.applyLocalH2HCacheToEloRows(mapped)
-                    }
                 }
             }
         }
     }
 
-    /// Affiche les cumuls H2H depuis le **cache local** uniquement.
-    /// **Interdit** : `refreshTotals` / `fetchCloudSum` par ligne (×50 joueurs = freeze total MainActor).
+    /// H2H Elo : **un** decode cache, puis lookups. Zéro CloudKit, zéro flush, zéro reload après.
     private func applyLocalH2HCacheToEloRows(_ rows: [LeaderboardRow]) {
-        // Lecture cache pure (sync, légère). Pas de CloudKit, pas de boucle async.
-        // Flush pending une fois, en arrière-plan, sans bloquer l’UI du tableau.
-        BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
-        print("[H2H Elo] local-cache only for \(rows.count) rows (no cloud prefetch)")
-        // Filet : 1 duo (dernier adversaire), si pas déjà recalé à l’accueil.
-        Task { @MainActor [weak self] in
-            await BlomixPvPH2HManager.shared.reconcileRememberedOpponentForEloDisplay()
-            guard let self, self.selectedLeaderboardKind == .elo else { return }
-            self.tableView.reloadData()
-        }
+        eloH2HByLookupKey = BlomixPvPH2HManager.shared.precomputedLightTotals(
+            idGroups: rows.map(\.h2hLookupIDs)
+        )
     }
 
     // MARK: - UITableViewDataSource
@@ -773,10 +777,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
         let h2hForRow: BlomixPvPH2HTotals? = {
             guard selectedLeaderboardKind == .elo, !row.isLocalPlayer else { return nil }
-            return BlomixPvPH2HManager.shared.cachedTotals(
-                againstRemoteIDs: row.h2hLookupIDs,
-                displayName: row.playerName
-            )
+            let key = BlomixPvPH2HManager.lightLookupKey(forRemoteIDs: row.h2hLookupIDs)
+            return eloH2HByLookupKey[key]
         }()
 
         var content = UIListContentConfiguration.subtitleCell()
@@ -1017,12 +1019,9 @@ extension LeaderboardViewController: GKMatchDelegate {
                 GKMatchmaker.shared().finishMatchmaking(for: box.match)
                 // Si le parent dismiss déjà (acceptation d’une bannière croisée), ne pas
                 // relancer un 2ᵉ dismiss — cause classique de crash UIKit.
-                if self.isBeingDismissed || self.presentingViewController == nil {
-                    self.onMatch?(box.match)
-                } else {
-                    self.dismiss(animated: true) {
-                        self.onMatch?(box.match)
-                    }
+                self.onMatch?(box.match)
+                if !self.isBeingDismissed, self.presentingViewController != nil {
+                    self.dismiss(animated: false)
                 }
             }
         }

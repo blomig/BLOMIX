@@ -228,7 +228,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
-- **H2H** : 0 CloudKit en match / fin de manche ; juge 1 duo au retour accueil (cloud = vérité si pending vides)
+- **H2H** : 0 CloudKit en match / récap ; une vérité d’affichage (`displayedTotalsForUI`) ; juge 1 duo au retour accueil sans écraser un cumul plus haut par une query partielle
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
@@ -312,7 +312,8 @@ Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`)
-- Solo **pleine largeur** (hero skin) ; PvP + Zen en paire
+- Arcade **pleine largeur** (hero skin) ; Duel + Zen en paire
+- 4 disques de rang : Arc. / Moy. / Zen / Duel
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) — pas de liens ; `credits.txt` legacy non branché UI

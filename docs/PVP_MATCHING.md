@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.1 (build 105)  
+> **Version de référence** : 6.1 (build 107)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -58,12 +58,12 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Snapshot H2H | Message `h2hSnapshot` : `h2hMyWins` / `h2hTheirWins` — max par joueur, 0 CloudKit |
 | Déco mid-match | Restant : série+H2H+Elo **win** ; abandon menu : série+H2H+Elo **loss** + `iLost` |
 | Pendant match | **0 CloudKit H2H** (pending en file) |
-| Fin de série | LOCK baseline+série (totaux **en mémoire** pour l’UI) ; persist UserDefaults **différée** ; flush pending **après** present récap — **pas** de lecture cloud |
-| Retour accueil | **1 duo** : lecture cloud après overlays. Si pending vides et somme cloud ≈ plancher (±2) → **le cloud l’emporte** (corrige un +1 fantôme). Sinon max(cloud, plancher) (upload en vol ou query partielle). |
+| Fin de série | LOCK = max(cache, plancher, live) + série session ; **0** CloudKit. Même fonction que le Duel (`displayedTotalsForUI`). |
+| Retour accueil | **1 duo** : lecture cloud après overlays. Cloud n’écrase un cumul connu que s’il est plausible (±2 manches). Query partielle (28–30 vs 34–34) → on garde le max. |
 | Alias IDs | Expansion **directe** plafonnée (**≤ 8** clés / adversaire) — pas de scan global de la map d’alias (évite freeze MainActor 20–25 s, `keys=82`) |
 | Elo fin de manche | UI = **cache local** (~0,35 s) puis boutons libres ; submit / refresh Game Center en fire-and-forget |
 | Déco pendant récap | Si `BlomixPvPSeriesEndViewController` déjà empilé : teardown réseau **sans** dismiss résultat (sinon iOS ferme le récap) |
-| Elo leaderboard | Cache local pour toutes les lignes ; filet cloud **1 duo** (dernier adversaire) si pas déjà recalé à l’accueil (intervalle 20 s) |
+| Elo leaderboard | `displayedTotalsForUI` (même max que le récap) ; filet cloud **1 duo** si pas déjà recalé (20 s) |
 | Règle d’or | Jamais `fetchCloudSum` pendant match / fin de manche / scroll Elo × N ; jamais d’encode UserDefaults monstre sur le MainActor pendant l’écran score |
 
 ### PvP Local — robustesse de liaison mid-match

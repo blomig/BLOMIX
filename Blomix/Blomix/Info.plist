@@ -35,7 +35,7 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSGKFriendListUsageDescription</key>
-	<string>Blomix uses your Game Center friends list so you can invite a friend to PvP.</string>
+	<string>Blomix uses your Game Center friends list so you can invite a friend to a Duel.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>BLOMIX uses the local network to find and play nearby opponents without Internet.</string>
 	<key>NSBonjourServices</key>

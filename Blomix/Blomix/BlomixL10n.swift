@@ -262,7 +262,7 @@ enum BlomixL10n {
 
     // MARK: - Multijoueur PvP
 
-    static var startPvPButton: String { tr("start.pvp", comment: "Start screen — P vs P") }
+    static var startPvPButton: String { tr("start.pvp", comment: "Start screen — Duel") }
     static var pvpLobbyTitle: String { tr("pvp.lobby_title", comment: "PvP lobby title") }
     static var pvpLobbyPlayFriend: String { tr("pvp.lobby_play_friend", comment: "PvP lobby — invite friend") }
     static var pvpLobbyInvitePlayers: String { tr("pvp.lobby_invite_players", comment: "PvP lobby — invite players") }
@@ -485,9 +485,10 @@ enum BlomixL10n {
         String(format: tr("share.gameover.record_zen_format", comment: "Game over new Zen PB share; %@ = score"), score)
     }
 
-    static var rankDiscSolo: String { tr("rank_disc.solo", comment: "Start screen rank disc — solo leaderboard") }
+    static var rankDiscSolo: String { tr("rank_disc.solo", comment: "Start screen rank disc — Arcade leaderboard") }
     static var rankDiscAvg: String { tr("rank_disc.avg", comment: "Start screen rank disc — average score") }
     static var rankDiscZen: String { tr("rank_disc.zen", comment: "Start screen rank disc — zen mode") }
+    static var rankDiscDuel: String { tr("rank_disc.duel", comment: "Start screen rank disc — Duel / Elo") }
 
     // MARK: - Tutoriel interactif
     static var menuTutorial: String { tr("menu.tutorial", comment: "Tutorial button on home screen and overflow menu") }

@@ -560,7 +560,7 @@ Pipeline unique pour **stage solo**, **intro Zen**, **tutoriel** (intro / fin) e
 |---|---|---|
 | Stage / Zen | préfixe **34 pt**, titre **76 pt**, infos **26 pt** | Header groupé + 0–2 lignes |
 | Tutoriel | titre **48 pt**, sous-titre **26 pt** | 2 lignes pop-in (stagger) |
-| PvP prep | titre **72 pt**, phrases **22 pt** | « P vs P » + rotation l10n |
+| PvP prep | titre **72 pt**, phrases **22 pt** | « Duel » + rotation l10n |
 
 Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlinedLabelText` dans `GameScene.swift`.
 
@@ -590,15 +590,14 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 | Zone | Contenu |
 |---|---|
 | Branding | `BLOMIX` + tagline (`titleY = 86 %` hauteur) |
-| Carte joueur | Nom GC, ligne Elo + chevron `›` (→ onglet Elo), 3 disques SOLO / MOY. / ZEN |
+| Carte joueur | Nom GC, 4 disques ARC. / MOY. / ZEN / DUEL |
 | Liens utilitaires | Rangée d’icônes SF (Réglages, Tutoriel, thème, Partager, Crédits) |
-| Zone de jeu | Bouton hero **Solo** pleine largeur, puis **PvP** et **Zen** côte à côte |
+| Zone de jeu | Bouton hero **Arcade** pleine largeur, puis **Duel** et **Zen** côte à côte |
 | Tip | Ancré en bas (`10 %` hauteur) |
 
 **Interactions**
 
-- Disque → `LeaderboardViewController` (onglet Solo / Moy. / Zen)
-- Ligne Elo → classement onglet Elo
+- Disque → `LeaderboardViewController` (onglet Arc. / Moy. / Zen / Duel)
 - Liens → Réglages / Tutoriel / Crédits (`BlomixPlainTextModalViewController` + `credits.txt`)
 
 | Effet | Paramètres |
@@ -606,7 +605,7 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 | Tips rotation | toutes les **5 s**, fade swap texte |
 | Titre slot machine | cycle **2,0 s**, ease custom |
 | Boutons jeu | stagger PvP+Zen **0,22 s**, Solo **0,35 s** (dernier) ; slide **16 pt**, scale 1,15→1,0, fade **0,12 s** |
-| Disques rang | visibles immédiatement ; `#rang` rempli async après fetch GC |
+| Disques rang | visibles immédiatement ; `#rang` blanc (Sombre et Clair) rempli async après fetch GC ; souffle scale **1,0↔1,08** en **1,8 s**/phase, `easeInEaseOut`, décalage selon `timeOffset` |
 | Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
 
 **Bouton Solo hero** (`applyHeroAccent`)

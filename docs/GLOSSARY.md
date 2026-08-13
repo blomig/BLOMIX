@@ -78,9 +78,9 @@
 
 | Mode | Code / flag | Particularités |
 |---|---|---|
-| **Solo stagé** | Mode par défaut | Timer par coup, 6 stages, lignes entrantes, bombes |
+| **Arcade** (solo stagé) | Mode par défaut | Timer par coup, 6 stages, lignes entrantes, bombes |
 | **Zen** | `isZenMode` | Pas de timer, pas de stages, classement dédié |
-| **PvP** | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
+| **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
 | **Tutoriel** | `tutorialBlockQueue` | Séquence scriptée au premier lancement |
 
 ---
@@ -94,7 +94,9 @@
 | **Bonus SAINTX** | +200 pts en plus du score des cases effacées |
 | **Milestone** | Seuils HUD 100 / 1000 (animation score) |
 | **Best score** | Record personnel (Game Center + local) |
-| **Elo** | Classement compétitif PvP (`BlomixEloManager`) |
+| **Elo** | Classement compétitif Duel (`BlomixEloManager`) |
+| **Arcade** | Mode solo stagé (UI ; code : mode défaut / `isInStagedSoloMode`) |
+| **Duel** | Mode 1v1 (UI ; code : PvP) |
 
 ---
 

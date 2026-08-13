@@ -117,7 +117,7 @@ Exemples :
 
 Si plusieurs composantes indépendantes existent dans la même vague, elles partagent le même `chainSeriesLevel`.
 
-En **mode solo stagé**, tous les points sont multipliés par le multiplicateur du stage courant (×1 à ×6).
+En **Arcade**, tous les points sont multipliés par le multiplicateur du stage courant (×1 à ×6).
 
 ### Brix
 
@@ -177,7 +177,7 @@ Taper à nouveau l'icône bombe **annule** le mode et restitue la bombe au stock
 
 ## 9. Modes de jeu
 
-### Solo stagé (défaut)
+### Arcade (défaut)
 
 Partie infinie avec **timer par coup** et **multiplicateur de score** progressif :
 

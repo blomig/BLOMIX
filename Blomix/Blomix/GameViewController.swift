@@ -302,14 +302,14 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         GKMatchmaker.shared().cancel()
         // Ferme automatiquement tout modal ouvert (lobby, classement, réglages…)
         // avant de basculer en partie PvP. Un seul dismiss : un 2ᵉ canal (Elo) ne doit pas en lancer un autre.
+        // Overlay / grille de prép **avant** le dismiss (sinon une frame d’accueil).
+        launchPvPMatch(match)
         if presentedViewController != nil, !isBeingDismissed {
-            dismiss(animated: true) { [weak self] in
-                self?.launchPvPMatch(match)
+            dismiss(animated: false) { [weak self] in
                 self?.isLaunchingIncomingPvP = false
                 self?.launchingPvPMatch = nil
             }
         } else {
-            launchPvPMatch(match)
             isLaunchingIncomingPvP = false
             launchingPvPMatch = nil
         }
@@ -405,15 +405,12 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         request.maxPlayers  = 2
         request.playerGroup = playerGroup
 
-        // Affiche immédiatement l'overlay PvP (image + textes rotatifs) dès l'acceptation,
-        // avant même que GKMatchmaker ait trouvé le match — évite les secondes de blanc.
-        // On ferme d'abord tout modal ouvert (la bannière est une UIView, pas un modal,
-        // mais l'écran de classement ou de réglages pourrait être présenté).
-        if presentedViewController != nil {
-            dismiss(animated: false)
-        }
+        // Overlay P vs P d’abord (sous les modales), puis fermeture — pas de flash accueil.
         if let scene = spriteKitView?.scene as? GameScene {
             scene.showPvPWaitingForMatchOverlay()
+        }
+        if presentedViewController != nil {
+            dismiss(animated: false)
         }
 
         // Timer de sécurité : annule tout si le challenger ne se connecte pas dans 60 s.

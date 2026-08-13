@@ -11,11 +11,11 @@
 
 /* Welcome & gameplay */
 "game.tagline" = "Catene. Pressione. Zero pub.";
-"start.button" = "Solo";
+"start.button" = "Arcade";
 "start.settings" = "Impostazioni";
 "start.credits" = "Crediti";
 "start.zen" = "Zen";
-"start.pvp" = "P vs P";
+"start.pvp" = "Duello";
 "start.player_unknown" = "Giocatore sconosciuto";
 "start.player_name_format" = "Giocatore: %@";
 "start.player_elo_format" = "Elo: %lld";
@@ -88,7 +88,7 @@
 "game_over.replay" = "Rigioca";
 "game_over.record_title" = "Record personale!";
 "game_over.record_score_format" = "%lld pti";
-"game_over.record_rank_solo_format" = "Ora sei #%lld in Solo";
+"game_over.record_rank_solo_format" = "Ora sei #%lld in Arcade";
 "game_over.record_rank_zen_format" = "Ora sei #%lld in Zen";
 "game_over.leaderboard" = "Classifica";
 "game_over.personal_best" = "Nuovo record personale!";
@@ -126,8 +126,8 @@
 "leaderboard.top_count_format" = "Top %lld";
 "leaderboard.points_format" = "%lld pt";
 "leaderboard.elo_format" = "Elo %lld";
-"leaderboard.main_tab" = "Solo";
-"leaderboard.elo_tab" = "Elo";
+"leaderboard.main_tab" = "Arc.";
+"leaderboard.elo_tab" = "Duello";
 "leaderboard.avg_tab" = "Med.";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.avg_format" = "med. %lld pt";
@@ -245,9 +245,10 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "stage.overlay.timer_format" = "%lld s per mossa";
 "stage.overlay.multiplier_format" = "Punti × %lld";
 
-"rank_disc.solo" = "SOLO";
+"rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "MED.";
 "rank_disc.zen" = "ZEN";
+"rank_disc.duel" = "DUELLO";
 
 "hud.time_caption" = "TEMPO";
 "hud.line_caption" = "LINEA";

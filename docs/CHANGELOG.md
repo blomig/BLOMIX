@@ -9,6 +9,13 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [6.1] — 2026-08 (courant)
 
+Build **107** (TestFlight).
+
+### Modifié (106)
+- Lexique joueur : **Arcade** (badge / onglet **Arc.**) à la place de Solo ; **Duel** à la place de P vs P
+- Accueil : plus de ligne Elo ; **4ᵉ disque** Duel (rang Elo) à droite de Zen
+- Overlay de connexion et onglet classement : **Duel**
+
 Build **105** (TestFlight).
 
 ### Ajouté
@@ -37,11 +44,13 @@ Build **105** (TestFlight).
 - **PvP invitations croisées** (bannière Récents + défi Elo) : un seul lancement de match, `targetPlayerID` sur l’Elo, pas de double dismiss
 - **PvP défi (103)** : le 2ᵉ `beginPvP` (poll roster / delegate) ne `disconnect` plus le même `GKMatch` — plus de « Connexion perdue » ~10 s après l’overlay de préparation
 - **H2H** : lecture CloudKit d’un seul duo après retour à l’accueil ; **105** : le cloud l’emporte si plus de pending et lecture plausible (plus de 34–33 vs 34–34 bloqué par le plancher)
+- **H2H (106)** : une vérité d’affichage (récap = Duel = max live/cache/plancher) ; un cloud 28–30 n’écrase plus un 34–34 ; lancement Duel pose l’overlay P vs P avant de fermer les modales (plus de flash accueil)
+- **H2H Elo** : plus de CloudKit / alias par cellule (serpent + scroll figés) ; précalcul O(1) ; juge 1 duo au foreground, pas à l’ouverture Duel ; dernier adversaire persisté (le perdant rattrape 34–35 après relance)
 - **Défi CloudKit** : Refuser ne réaffiche plus la bannière 8 s plus tard ; badge « En match » lit `inMatch` en Int64
 - **Accueil** : Elo et rangs des disques (#n) de nouveau après connexion Game Center (lookup du nom dans la ligne compressée)
 
 ### Version
-- Marketing **6.1**, build **105**
+- Marketing **6.1**, build **107**
 
 ---
 

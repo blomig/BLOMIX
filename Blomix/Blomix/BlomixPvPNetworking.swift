@@ -252,6 +252,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
     /// `true` si le match utilise Multipeer (Local) plutôt que GameKit.
     var isLocalMatch: Bool { localSession != nil }
 
+    /// Même instance `GKMatch` déjà attachée (poll roster / `didChange` rejouent `beginPvP`).
+    func isBoundTo(gkMatch other: GKMatch) -> Bool {
+        match === other
+    }
+
     private var incomingAttackLines: [QueuedAttackLine] = []
     private var nextIncomingAttackLineID: Int = 1
     /// Dernier attackId reçu (anti-doublon).

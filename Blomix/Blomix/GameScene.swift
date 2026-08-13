@@ -12913,19 +12913,20 @@ final class GameScene: SKScene {
 
     /// Appelé depuis le lobby Game Center une fois le `GKMatch` prêt.
     func beginPvPWithMatch(_ match: GKMatch) {
-        // Si une partie est déjà en cours (handshake terminé), on ignore le nouveau match
-        // et on le raccroche proprement pour éviter un double-coordinator / FastSyncTransportError.
-        if let active = pvpCoordinator, active.isGameActive {
-            BlomixPvPLog.event("begin_pvp_ignored", ["reason": "game_active"])
-            match.disconnect()
-            return
-        }
-        // Course Récents + Elo : le premier lancement gagne ; remplacer mid-setup
-        // détruisait le GKMatch accepté et crashait (double dismiss / FastSync).
-        if pvpMatchSetupInProgress {
-            BlomixPvPLog.event("begin_pvp_ignored", ["reason": "setup_in_progress"])
-            match.disconnect()
-            return
+        if let coord = pvpCoordinator {
+            // Poll roster / delegate rejouent souvent le même GKMatch : ne PAS disconnect
+            // (103 coupait le défi légitime → overlay puis « Connexion perdue » ~10 s).
+            if coord.isBoundTo(gkMatch: match) {
+                BlomixPvPLog.event("begin_pvp_ignored", ["reason": "same_match"])
+                return
+            }
+            // Partie déjà handshake : un 2ᵉ canal (Elo) ne remplace pas.
+            if coord.isGameActive {
+                BlomixPvPLog.event("begin_pvp_ignored", ["reason": "game_active"])
+                match.disconnect()
+                return
+            }
+            // Handshake incomplet + autre match : preparePvPBoard remplace comme avant 103.
         }
         preparePvPBoardForIncomingMatch(channel: "gk")
         pvpCoordinator = BlomixPvPMatchCoordinator(match: match)

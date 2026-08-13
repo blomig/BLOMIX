@@ -98,6 +98,7 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     private var outgoingInviteSafetyTimer: Timer?
     /// Un seul lancement PvP à la fois (évite double dismiss classement + double `beginPvP` si bannière et Elo courent ensemble).
     private var isLaunchingIncomingPvP = false
+    private var launchingPvPMatch: GKMatch?
     /// Timer d'annulation pour le matchmaking d'un défi CloudKit accepté.
     private var challengeMatchCancelTimer: Timer?
     /// Match CloudKit en attente de connexion P2P complète (même pattern que le côté challenger).
@@ -287,11 +288,16 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
 
     private func beginPvPMatchOrQueueIfNeeded(_ match: GKMatch) {
         if isLaunchingIncomingPvP {
+            if launchingPvPMatch === match {
+                BlomixPvPLog.event("gvc_begin_pvp_ignored", ["reason": "same_match_launching"])
+                return
+            }
             BlomixPvPLog.event("gvc_begin_pvp_ignored", ["reason": "already_launching"])
             match.disconnect()
             return
         }
         isLaunchingIncomingPvP = true
+        launchingPvPMatch = match
         // Annule toute recherche en cours (cas : lobby ouvert en auto-search au moment de l'acceptation).
         GKMatchmaker.shared().cancel()
         // Ferme automatiquement tout modal ouvert (lobby, classement, réglages…)
@@ -300,10 +306,12 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
             dismiss(animated: true) { [weak self] in
                 self?.launchPvPMatch(match)
                 self?.isLaunchingIncomingPvP = false
+                self?.launchingPvPMatch = nil
             }
         } else {
             launchPvPMatch(match)
             isLaunchingIncomingPvP = false
+            launchingPvPMatch = nil
         }
     }
 

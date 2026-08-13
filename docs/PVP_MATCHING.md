@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.1 (build 103)  
+> **Version de référence** : 6.1 (build 104)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -485,7 +485,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | **PVP-22** | Local Multipeer : « Reconnexion… » sans jamais se reconnecter | ✅ Corrigé (5.6) — discovery live + rebuild `MCSession` + force reset silence + grace 45 s |
 | **PVP-23** | Refus Mode A = snooze 8 s (relique `chal_*`) | ✅ Corrigé — verrou jusqu’à disparition du `chfrom_*` ; pas de raz au `didBecomeActive` |
 | **PVP-24** | `inMatch as? Int` (clone PVP-4) | ✅ Corrigé — `intFromRecord` |
-| **PVP-25** | Invitation croisée Récents inbound + Elo outbound → crash | ✅ Corrigé — `targetPlayerID` Elo, un seul dismiss, premier `beginPvP` gagne |
+| **PVP-25** | Invitation croisée Récents inbound + Elo outbound → crash | ✅ Corrigé — `targetPlayerID` Elo, un seul dismiss ; même `GKMatch` rejoué = no-op (pas de `disconnect`) |
 | **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé — lecture cloud 1 duo après retour accueil (+ filet Elo) |
 
 ### Protocole filaire (résumé robustesse)

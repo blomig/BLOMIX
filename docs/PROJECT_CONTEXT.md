@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.0  
+> **Version de référence** : 6.1  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -228,6 +228,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
+- **H2H** : 0 CloudKit en match / fin de manche ; juge 1 duo au retour accueil (`PVP_MATCHING.md`)
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
@@ -271,8 +272,7 @@ Contraintes : bombe verrouillée jusqu'à l'étape ; Brix/Magix absents des lign
 
 - Lookahead 3 niveaux (P0, P1, P2) : 512 simulations max
 - `evalEnabled = true`, `realtimeFeedbackEnabled = false`
-- 5 hints par partie (`hintsRemaining`)
-- Stats fin de partie : **justesse** % (ex-optimalité), pire coup (`worstMistakeSnapshot`)
+- Stats fin de partie : **justesse** % , pire coup (`worstMistakeSnapshot`) — plus de hint en cours de partie (v6.1)
 
 Voir [EVAL.md](EVAL.md).
 
@@ -305,12 +305,14 @@ Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
 
 | Lien | Action |
 |---|---|
-| **Réglages** | `SettingsViewController` (modal plein écran) |
-| **Tutoriel** | relance le tutoriel interactif |
-| **Crédits** | `BlomixCreditsViewController` (cartes par section) |
+| **Réglages** | icône `gearshape.fill` → `SettingsViewController` |
+| **Tutoriel** | icône `book.fill` → partie guidée |
+| **Thème** | soleil / lune |
+| **Partager** | `paperplane.fill` |
+| **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
-- Séparateurs « · » en police **système** (la police jeu ne dessine pas toujours le glyphe)
-- Libellés en police **joueur** + couleurs `BlomixAppearance` (lien / séparateur)
+- Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`)
+- Solo **pleine largeur** (hero skin) ; PvP + Zen en paire
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) — pas de liens ; `credits.txt` legacy non branché UI
@@ -331,12 +333,12 @@ Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
 
 ### Police (`BlomixTypography`)
 
-| Nom | PostScript |
-|---|---|
-| Bitcount *(défaut)* | `BitcountGridSingleInk-Regular` |
-| Google Sans | `GoogleSans-Regular` |
-| Dyna Puff | `DynaPuff-Regular` |
-| Alfa Slab One | `AlfaSlabOne-Regular` |
+Deux visages figés (plus de picker joueur) :
+
+| Rôle | Police | Usage |
+|---|---|---|
+| Display / grille | Changa One | Titres, gros score, overlays, record, Brix, Magix, COMBO, `+N` |
+| Chrome | Nunito Regular / Medium / SemiBold | Micro-captions / corps / chips |
 
 ### Skins couleur
 
@@ -349,7 +351,7 @@ Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
 - Compteur LIGNE x/10 (gauche)
 - Timer stage ou PvP (droite)
 - File P1/P2, icône bombe + compteur
-- Bouton hint (?), menu hamburger
+- Menu hamburger (Accueil / Scores / Réglages) — pause le timer Solo tant qu’il est ouvert
 
 ### Chips boutons
 

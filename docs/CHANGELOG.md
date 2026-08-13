@@ -7,7 +7,44 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.0] — 2026-08 (courant)
+## [6.1] — 2026-08 (courant)
+
+Build **103** (TestFlight).
+
+### Ajouté
+- **Rejouer** sur le game over Solo / Zen (même mode, sans passer par l’accueil)
+- **Écran record personnel** (titre + score + rang GC si dispo, OK → game over)
+- Thème Sombre / Clair dans **Réglages**
+- Interrupteur chrome custom « OK pour être défié » (lobby)
+
+### Modifié
+- Accueil compressé : nom + Elo sur une ligne, rangée d’icônes SF, Solo pleine largeur
+- Slot-machine du titre uniquement à froid (splash)
+- Menu ☰ : Accueil · Scores · Réglages ; pause du timer Solo (reprise du reste)
+- Lobby : hero **Joueurs disponibles**, En ligne + Local sur l’écran, plus de bouton Adversaires récents
+- Tutoriel uniquement depuis l’accueil
+- Typo figée : Changa (display + grille) / Nunito (chrome : Regular / Medium / SemiBold)
+- LIGNE Zen alignée sur Solo (haut gauche)
+- Pulse du badge de stage au passage de palier
+- Launch storyboard noir ; ambiants plus calmes sur les écrans texte
+
+### Retiré
+- Picker de polices (Alfa Slab, Dyna Puff hors jeu)
+- Hint UI / ghost hint (l’analyse et le pire coup restent)
+- Overlay tutoriel paginé du chemin joueur
+
+### Corrigé
+- **PvP invitations croisées** (bannière Récents + défi Elo) : un seul lancement de match, `targetPlayerID` sur l’Elo, pas de double dismiss
+- **H2H** : lecture CloudKit d’un seul duo (dernier adversaire) après retour à l’accueil — plus en fin de manche ; filet à l’ouverture de l’onglet Elo
+- **Défi CloudKit** : Refuser ne réaffiche plus la bannière 8 s plus tard ; badge « En match » lit `inMatch` en Int64
+- **Accueil** : Elo et rangs des disques (#n) de nouveau après connexion Game Center (lookup du nom dans la ligne compressée)
+
+### Version
+- Marketing **6.1**, build **103**
+
+---
+
+## [6.0] — 2026-08
 
 Build **101** (TestFlight).
 

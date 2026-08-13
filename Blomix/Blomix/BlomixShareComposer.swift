@@ -205,7 +205,7 @@ enum BlomixShareComposer {
                         BlomixSkinCatalog.shared.priksUIColor().setFill()
                         path.fill()
                         let digit = "\(n)" as NSString
-                        let dFont = titleUIFont(size: cell * 0.42)
+                        let dFont = BlomixTypography.displayFont(size: cell * 0.42)
                         let dAttrs: [NSAttributedString.Key: Any] = [
                             .font: dFont,
                             .foregroundColor: BlomixSkinCatalog.shared.priksDigitUIColor(),
@@ -296,7 +296,7 @@ enum BlomixShareComposer {
     // MARK: - Private helpers
 
     private static func titleUIFont(size: CGFloat) -> UIFont {
-        BlomixTypography.uiFont(size: size, weight: .regular)
+        BlomixTypography.displayFont(size: size, weight: .regular)
     }
 
     private static func magixSymbol(_ kind: MagixKind) -> String {

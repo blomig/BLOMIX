@@ -68,10 +68,10 @@
 	</dict>
 	<key>UIAppFonts</key>
 	<array>
-		<string>BitcountGridSingleInk-Variable.ttf</string>
 		<string>GoogleSans-Regular.ttf</string>
-		<string>DynaPuff-Regular.ttf</string>
-		<string>AlfaSlabOne-Regular.ttf</string>
+		<string>Nunito-Regular.ttf</string>
+		<string>Nunito-Medium.ttf</string>
+		<string>Nunito-SemiBold.ttf</string>
 		<string>ChangaOne-Italic.ttf</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>

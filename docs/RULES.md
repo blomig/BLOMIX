@@ -215,9 +215,9 @@ Via **Game Center** :
 
 ---
 
-## 10. Aide (Hint)
+## 10. Analyse des coups
 
-**5 hints** par partie. Le bouton **?** affiche la colonne optimale calculée par le moteur d'analyse (lookahead 3 niveaux). L'indicateur disparaît après 2,5 s.
+En fin de partie Solo / Zen, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie.
 
 ---
 

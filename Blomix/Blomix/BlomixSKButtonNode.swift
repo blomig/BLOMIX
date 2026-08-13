@@ -113,7 +113,10 @@ final class BlomixSKButtonNode: SKNode {
         // ── Libellé centré ────────────────────────────────────────────────────
         let label = SKLabelNode(text: text)
         label.name                    = labelName
-        label.fontName                = BlomixTypography.shared.spriteKitFontName
+        label.fontName                = BlomixTypography.chromePostScriptName(
+            size: resolvedFontSize,
+            weight: .semibold
+        )
         label.fontSize                = resolvedFontSize
         label.fontColor               = BlomixAppearance.chipTitleSK
         label.horizontalAlignmentMode = .center
@@ -215,7 +218,7 @@ final class BlomixSKButtonNode: SKNode {
     /// Calcule la taille minimale nécessaire pour afficher `text` à `fontSize`
     /// avec les marges standard (`padH` / `padV`), sans dépasser `maxWidth`.
     static func fittingSize(for text: String, fontSize: CGFloat, maxWidth: CGFloat = .greatestFiniteMagnitude) -> CGSize {
-        let font = BlomixTypography.uiFont(size: fontSize, weight: .regular)
+        let font = BlomixTypography.chromeFont(size: fontSize, weight: .semibold)
         let measured = (text as NSString).size(withAttributes: [.font: font])
         let w = min(maxWidth, ceil(measured.width)  + padH * 2)
         let h = ceil(measured.height) + padV * 2
@@ -225,7 +228,7 @@ final class BlomixSKButtonNode: SKNode {
     /// Calcule la taille commune pour un ensemble de libellés (la plus grande),
     /// sans dépasser `maxWidth`. Utile pour aligner plusieurs boutons de même largeur.
     static func unifiedSize(for texts: [String], fontSize: CGFloat, maxWidth: CGFloat = .greatestFiniteMagnitude) -> CGSize {
-        let font = BlomixTypography.uiFont(size: fontSize, weight: .regular)
+        let font = BlomixTypography.chromeFont(size: fontSize, weight: .semibold)
         var maxW: CGFloat = 0
         var maxH: CGFloat = 0
         for t in texts {

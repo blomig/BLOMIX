@@ -85,6 +85,11 @@
 "game_over.focus_title" = "GAME OVER";
 "game_over.score_format" = "SCORE %lld";
 "game_over.restart" = "HOME";
+"game_over.replay" = "Play again";
+"game_over.record_title" = "Personal best!";
+"game_over.record_score_format" = "%lld pts";
+"game_over.record_rank_solo_format" = "You are now ranked #%lld in Solo";
+"game_over.record_rank_zen_format" = "You are now ranked #%lld in Zen";
 "game_over.leaderboard" = "View leaderboard";
 "game_over.personal_best" = "New personal best!";
 "hud.best_score_title" = "BEST";
@@ -133,6 +138,9 @@
 /* Settings */
 "settings.title" = "Settings";
 "settings.section_sound" = "Sound";
+"settings.section_appearance" = "Appearance";
+"settings.appearance.dark" = "Dark";
+"settings.appearance.light" = "Light";
 "settings.section_font" = "Font";
 "settings.section_colors" = "Colors";
 "settings.adjust_sounds" = "Adjust Sounds";
@@ -336,7 +344,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "credits.section.code.title" = "Code";
 "credits.section.code.body" = "Grok.com & Cursor.com\nA big up to Max for his help!";
 "credits.section.fonts.title" = "Fonts";
-"credits.section.fonts.body" = "Google Fonts\nPetr van Blokland — Bitcount Grid Single\nGoogle — Google Sans\nToshi Omagari, Jennifer Daniel — DynaPuff\nJM Solé — Alfa Slab One\nEduardo Tunni — Changa One";
+"credits.section.fonts.body" = "Google Fonts\nEduardo Tunni — Changa One\nVernon Adams, Cyreal, Jacques Le Bailly — Nunito";
 "credits.section.sounds.title" = "Sounds";
 "credits.section.sounds.body" = "Freesound.org, vocalremover.org/pitch, pitchchanger.io\nThanks to: HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux";
 "credits.section.music.title" = "Music";

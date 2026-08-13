@@ -330,14 +330,16 @@ enum BlomixAppearance {
 
     // MARK: - SF Symbol helper (toggle accueil)
 
-    /// Texture soleil (mode sombre → propose Clair) ou lune (mode clair → propose Sombre).
-    /// Rasterisée via UIGraphics (comme l'icône menu) : un SF Symbol brut en SKTexture
-    /// apparaît souvent noir/invisible selon le chemin de rendu SpriteKit.
-    static func appearanceToggleTexture(pointSize: CGFloat = 22, canvasSide: CGFloat = 32) -> SKTexture {
-        let symbolName = isDark ? "sun.max.fill" : "moon.fill"
+    /// Rasterise un SF Symbol monochrome (teinte `primaryText`) pour SpriteKit.
+    /// Même pipeline que le toggle soleil / lune : un SF Symbol brut est souvent noir/invisible.
+    static func chromeSymbolTexture(
+        systemName: String,
+        pointSize: CGFloat = 22,
+        canvasSide: CGFloat = 32
+    ) -> SKTexture {
         let glyph = primaryText
         let config = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .medium)
-        let base = UIImage(systemName: symbolName, withConfiguration: config)
+        let base = UIImage(systemName: systemName, withConfiguration: config)
             ?? UIImage(systemName: "circle.fill", withConfiguration: config)
             ?? UIImage()
         let sym = base.withTintColor(glyph, renderingMode: .alwaysOriginal)
@@ -345,10 +347,8 @@ enum BlomixAppearance {
         let imgSize = CGSize(width: canvasSide, height: canvasSide)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
-        // Évite UIScreen.main hors MainActor (Swift 6) ; 3× suffit pour l'icône HUD.
         format.scale = 3
         let flat = UIGraphicsImageRenderer(size: imgSize, format: format).image { _ in
-            // Centrer le glyphe dans le canvas.
             let aspect = sym.size.width / max(sym.size.height, 1)
             let drawH = canvasSide * 0.78
             let drawW = drawH * aspect
@@ -363,6 +363,15 @@ enum BlomixAppearance {
         let tex = SKTexture(image: flat)
         tex.filteringMode = .linear
         return tex
+    }
+
+    /// Texture soleil (mode sombre → propose Clair) ou lune (mode clair → propose Sombre).
+    static func appearanceToggleTexture(pointSize: CGFloat = 22, canvasSide: CGFloat = 32) -> SKTexture {
+        chromeSymbolTexture(
+            systemName: isDark ? "sun.max.fill" : "moon.fill",
+            pointSize: pointSize,
+            canvasSide: canvasSide
+        )
     }
 
     /// Icône partage accueil : avion en papier plein, discret (même teinte que soleil/lune).

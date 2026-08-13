@@ -94,6 +94,13 @@ final class BlomixPvPH2HManager {
     private var didRegisterLifecycle = false
     private var didMigrateCache = false
     private var didPruneEmpty = false
+    /// Dernier adversaire PvP (1 duo) — réconciliation cloud après retour accueil / filet Elo.
+    private var lastOpponentGameID: String = ""
+    private var lastOpponentTeamID: String = ""
+    private var lastOpponentDisplayName: String?
+    private var homeReconcileTask: Task<Void, Never>?
+    private var lastCloudReconcileAt: Date?
+    private static let homeReconcileMinInterval: TimeInterval = 20
 
     private init() {
         registerLifecycleIfNeeded()
@@ -214,6 +221,79 @@ final class BlomixPvPH2HManager {
             localWins: max(cache.localWins, committed.localWins),
             remoteWins: max(cache.remoteWins, committed.remoteWins)
         )
+    }
+
+    /// Mémorise le duo courant (IDs match) pour une lecture cloud **plus tard**, hors gameplay.
+    func rememberOpponentForReconcile(
+        remoteGamePlayerID: String,
+        remoteTeamPlayerID: String? = nil,
+        displayName: String? = nil
+    ) {
+        let game = remoteGamePlayerID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let team = (remoteTeamPlayerID ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !game.isEmpty || !team.isEmpty else { return }
+        lastOpponentGameID = game
+        lastOpponentTeamID = team
+        if let displayName, !displayName.isEmpty {
+            lastOpponentDisplayName = displayName
+        }
+    }
+
+    /// Juge CloudKit **1 duo** (dernier adversaire), après overlays PvP fermés / accueil.
+    /// Ne bloque pas l’UI : délai de pose puis `refreshTotals`. 0 effet si un match a repris.
+    func scheduleHomeReconcileAfterReturnToMenu() {
+        let game = lastOpponentGameID
+        let team = lastOpponentTeamID
+        let name = lastOpponentDisplayName
+        guard !game.isEmpty || !team.isEmpty else { return }
+        homeReconcileTask?.cancel()
+        homeReconcileTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 900_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.performRememberedOpponentReconcile(
+                remoteGamePlayerID: game,
+                remoteTeamPlayerID: team.isEmpty ? nil : team,
+                displayName: name,
+                reason: "home"
+            )
+        }
+    }
+
+    /// Filet classement Elo : même duo, si pas déjà recalé récemment. N’itère pas les lignes.
+    func reconcileRememberedOpponentForEloDisplay() async {
+        let game = lastOpponentGameID
+        let team = lastOpponentTeamID
+        guard !game.isEmpty || !team.isEmpty else { return }
+        await performRememberedOpponentReconcile(
+            remoteGamePlayerID: game,
+            remoteTeamPlayerID: team.isEmpty ? nil : team,
+            displayName: lastOpponentDisplayName,
+            reason: "elo"
+        )
+    }
+
+    private func performRememberedOpponentReconcile(
+        remoteGamePlayerID: String,
+        remoteTeamPlayerID: String?,
+        displayName: String?,
+        reason: String
+    ) async {
+        guard !BlomixAvailablePlayersManager.shared.isInActiveMatch else {
+            print("[H2H] reconcile skip (\(reason)) — match actif")
+            return
+        }
+        if let last = lastCloudReconcileAt,
+           Date().timeIntervalSince(last) < Self.homeReconcileMinInterval {
+            print("[H2H] reconcile skip (\(reason)) — déjà fait il y a \(Int(Date().timeIntervalSince(last)))s")
+            return
+        }
+        lastCloudReconcileAt = Date()
+        print("[H2H] reconcile start (\(reason)) remote=\(debugID(remoteGamePlayerID))")
+        _ = await refreshTotals(
+            againstRemoteIDs: [remoteGamePlayerID, remoteTeamPlayerID ?? ""],
+            displayName: displayName
+        )
+        print("[H2H] reconcile done (\(reason))")
     }
 
     /// Baseline **locale immédiate** (cache uniquement, 0 réseau).
@@ -1203,7 +1283,7 @@ final class BlomixPvPH2HManager {
         let keys = expandedRemoteIDs(remoteIDs)
         var best: SessionFloorState?
         for k in keys {
-            guard var s = all[k] else { continue }
+            guard let s = all[k] else { continue }
             if Date().timeIntervalSince(s.updatedAt) > Self.sessionFloorMaxAge {
                 continue
             }

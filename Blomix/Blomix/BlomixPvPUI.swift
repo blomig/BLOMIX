@@ -80,7 +80,11 @@ final class BlomixPvPSearchBlocksView: UIView {
         // Timer déjà sur le RunLoop main : appeler snakeTick **directement**.
         // Un `Task { @MainActor }` re-file derrière le travail GC/Elo et gèle le serpent.
         let t = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { [weak self] _ in
-            self?.snakeTick()
+            // Timer sur RunLoop.main : hop synchrone, sans `Task { @MainActor }`
+            // (ce dernier passait derrière GC/Elo et gelait le serpent).
+            MainActor.assumeIsolated {
+                self?.snakeTick()
+            }
         }
         RunLoop.main.add(t, forMode: .common)
         flickerTimer = t
@@ -259,10 +263,14 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
     // MARK: - Mode choice UI
     private let modeStackView        = UIStackView()
+    /// Statut dispo + compteur : sous la pile, hors du centre (ne décale pas les boutons).
+    private let modeFooterStack      = UIStackView()
     private let modeQuickButton      = BlomixUIButton()
-    private let modeRecentButton     = BlomixUIButton()
+    private let modeLocalButton      = BlomixUIButton()
     private let modeAvailableButton  = BlomixUIButton()
-    private let modeAvailableToggle  = BlomixUIButton()
+    private let availabilityRow      = UIStackView()
+    private let availabilityLabel    = UILabel()
+    private let availabilitySwitch   = BlomixChromeSwitch()
     /// Statut du save CloudKit — affiché sous le toggle (debug / feedback joueur).
     private let availabilityStatusLabel = UILabel()
     /// Compteur du nombre de joueurs actuellement en recherche — affiché sous les boutons.
@@ -377,40 +385,45 @@ final class BlomixPvPLobbyViewController: UIViewController {
             closeButton.isEnabled = true
             statusLabel.text = ""
             searchBlocksView.stopAnimating(settle: false)
-            modeStackView.isHidden = false
+            setModeChoiceChromeHidden(false)
             queryAndDisplayPlayerActivity()
         case .searching:
             modeActivityLabel.text = ""
-            modeStackView.isHidden = true
+            setModeChoiceChromeHidden(true)
             closeButton.alpha = 1
             closeButton.isEnabled = true
             statusLabel.text = BlomixL10n.pvpLobbyStatusSearching
             hintLabel.text = BlomixL10n.pvpLobbySearchHint
             searchBlocksView.startAnimating()
         case .matchFound(let name):
-            modeStackView.isHidden = true
+            setModeChoiceChromeHidden(true)
             closeButton.alpha = 0.45
             closeButton.isEnabled = false
             statusLabel.text = BlomixL10n.pvpLobbyOpponentFound(name)
         case .preparingBoards:
-            modeStackView.isHidden = true
+            setModeChoiceChromeHidden(true)
             closeButton.alpha = 0.45
             closeButton.isEnabled = false
             hintLabel.text = BlomixL10n.pvpLobbyPreparingBoards
             searchBlocksView.startAnimating()
             startBoardsPreparationWatchdog()
         case .failed(let message):
-            modeStackView.isHidden = true
+            setModeChoiceChromeHidden(true)
             closeButton.alpha = 1
             closeButton.isEnabled = true
             statusLabel.text = message
             searchBlocksView.stopAnimating(settle: true)
             cancelBoardsPreparationWatchdog()
         case .cancelled:
-            modeStackView.isHidden = true
+            setModeChoiceChromeHidden(true)
             searchBlocksView.stopAnimating(settle: false)
             cancelBoardsPreparationWatchdog()
         }
+    }
+
+    private func setModeChoiceChromeHidden(_ hidden: Bool) {
+        modeStackView.isHidden = hidden
+        modeFooterStack.isHidden = hidden
     }
 
     // MARK: - Watchdog préparation des grilles
@@ -750,14 +763,14 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
         view.addSubview(searchBlocksView)
 
-        statusLabel.textColor = UIColor(white: 0.78, alpha: 1)
+        statusLabel.textColor = BlomixAppearance.secondaryText
         statusLabel.font = FontTheme.gameFont(size: 18, weight: .regular)
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(statusLabel)
 
-        hintLabel.textColor = UIColor(white: 0.58, alpha: 1)
+        hintLabel.textColor = BlomixAppearance.tertiaryText
         hintLabel.font = FontTheme.gameFont(size: 12, weight: .regular)
         hintLabel.textAlignment = .center
         hintLabel.numberOfLines = 0
@@ -767,24 +780,38 @@ final class BlomixPvPLobbyViewController: UIViewController {
         // Mode choice buttons — hint label intégré au-dessus des boutons
         let modeHintLabel = UILabel()
         modeHintLabel.text = BlomixL10n.pvpModeChoiceHint
-        modeHintLabel.textColor = UIColor(white: 0.65, alpha: 1)
+        modeHintLabel.textColor = BlomixAppearance.secondaryText
         modeHintLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
         modeHintLabel.textAlignment = .center
         modeHintLabel.numberOfLines = 0
 
-        for (btn, title) in [(modeQuickButton,     BlomixL10n.pvpModeQuickDesc),
-                             (modeRecentButton,    BlomixL10n.pvpModeRecentDesc),
-                             (modeAvailableButton, BlomixL10n.pvpModeAvailableDesc),
-                             (modeAvailableToggle, BlomixL10n.pvpAvailableToggleLabel)] {
+        func styleModeButton(_ btn: UIButton, title: String, hero: Bool) {
             btn.setTitle(title, for: .normal)
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
             BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 14, left: 24, bottom: 14, right: 24), to: btn)
-            btn.titleLabel?.font = FontTheme.gameFont(size: 17, weight: .semibold)
+            btn.titleLabel?.font = FontTheme.gameFont(size: hero ? 19 : 17, weight: .semibold)
         }
-        modeQuickButton.addTarget(self, action: #selector(modeQuickTapped), for: .touchUpInside)
-        modeRecentButton.addTarget(self, action: #selector(modeRecentTapped), for: .touchUpInside)
+        styleModeButton(modeAvailableButton, title: BlomixL10n.pvpModeAvailableDesc, hero: true)
+        let heroAccent = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "blue")
+            ?? UIColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 1)
+        modeAvailableButton.layer.borderWidth = 2
+        modeAvailableButton.layer.borderColor = heroAccent.cgColor
+        styleModeButton(modeQuickButton, title: BlomixL10n.pvpQuickMatchOnlineTitle, hero: false)
+        styleModeButton(modeLocalButton, title: BlomixL10n.pvpQuickMatchLocalTitle, hero: false)
         modeAvailableButton.addTarget(self, action: #selector(modeAvailableTapped), for: .touchUpInside)
-        modeAvailableToggle.addTarget(self, action: #selector(modeAvailableToggleTapped), for: .touchUpInside)
+        modeQuickButton.addTarget(self, action: #selector(modeQuickTapped), for: .touchUpInside)
+        modeLocalButton.addTarget(self, action: #selector(modeLocalTapped), for: .touchUpInside)
+
+        availabilityLabel.text = BlomixL10n.pvpAvailableToggleLabel
+        availabilityLabel.textColor = BlomixAppearance.primaryText
+        availabilityLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
+        availabilityLabel.numberOfLines = 2
+        availabilitySwitch.addTarget(self, action: #selector(modeAvailableToggleTapped), for: .valueChanged)
+        availabilityRow.axis = .horizontal
+        availabilityRow.alignment = .center
+        availabilityRow.spacing = 12
+        availabilityRow.addArrangedSubview(availabilityLabel)
+        availabilityRow.addArrangedSubview(availabilitySwitch)
 
         // Message d'attente / compteur joueurs actifs (sous les boutons)
         modeActivityLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
@@ -798,24 +825,31 @@ final class BlomixPvPLobbyViewController: UIViewController {
         modeStackView.alignment = .fill
         modeStackView.addArrangedSubview(modeHintLabel)
         modeStackView.setCustomSpacing(24, after: modeHintLabel)
-        modeStackView.addArrangedSubview(modeQuickButton)
-        modeStackView.addArrangedSubview(modeRecentButton)
         modeStackView.addArrangedSubview(modeAvailableButton)
-        modeStackView.addArrangedSubview(modeAvailableToggle)
-        modeStackView.setCustomSpacing(6, after: modeAvailableToggle)
+        let pair = UIStackView(arrangedSubviews: [modeQuickButton, modeLocalButton])
+        pair.axis = .horizontal
+        pair.spacing = 12
+        pair.distribution = .fillEqually
+        modeStackView.addArrangedSubview(pair)
+        modeStackView.addArrangedSubview(availabilityRow)
+        modeStackView.translatesAutoresizingMaskIntoConstraints = false
+        modeStackView.isHidden = true
+        view.addSubview(modeStackView)
 
         availabilityStatusLabel.font = FontTheme.gameFont(size: 12, weight: .regular)
         availabilityStatusLabel.textAlignment = .center
         availabilityStatusLabel.numberOfLines = 0
         availabilityStatusLabel.textColor = BlomixAppearance.tertiaryText
         availabilityStatusLabel.text = ""
-        modeStackView.addArrangedSubview(availabilityStatusLabel)
-        modeStackView.setCustomSpacing(20, after: availabilityStatusLabel)
 
-        modeStackView.addArrangedSubview(modeActivityLabel)
-        modeStackView.translatesAutoresizingMaskIntoConstraints = false
-        modeStackView.isHidden = true
-        view.addSubview(modeStackView)
+        modeFooterStack.axis = .vertical
+        modeFooterStack.alignment = .fill
+        modeFooterStack.spacing = 8
+        modeFooterStack.addArrangedSubview(availabilityStatusLabel)
+        modeFooterStack.addArrangedSubview(modeActivityLabel)
+        modeFooterStack.translatesAutoresizingMaskIntoConstraints = false
+        modeFooterStack.isHidden = true
+        view.addSubview(modeFooterStack)
 
         NSLayoutConstraint.activate([
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
@@ -835,10 +869,14 @@ final class BlomixPvPLobbyViewController: UIViewController {
             hintLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -26),
             hintLabel.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 14),
 
-            // Buttons centered, below title — independent of searchBlocksView
+            // Boutons centrés — le footer (statut / activité) s'affiche dessous sans les déplacer.
             modeStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
             modeStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32),
             modeStackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+
+            modeFooterStack.leadingAnchor.constraint(equalTo: modeStackView.leadingAnchor),
+            modeFooterStack.trailingAnchor.constraint(equalTo: modeStackView.trailingAnchor),
+            modeFooterStack.topAnchor.constraint(equalTo: modeStackView.bottomAnchor, constant: 10),
         ])
     }
 
@@ -853,8 +891,19 @@ final class BlomixPvPLobbyViewController: UIViewController {
         view.window ?? view
     }
 
-    /// Partie rapide → choix Local (Multipeer) / En ligne (Game Center) — style BLOMIX.
+    /// En ligne — matchmaking Game Center (plus de dialogue intermédiaire).
     @objc private func modeQuickTapped() {
+        BlomixPvPLog.event("lobby_quick_match_online")
+        beginMatchSearch()
+    }
+
+    /// Local — Multipeer (Bluetooth / Wi‑Fi).
+    @objc private func modeLocalTapped() {
+        beginLocalMatchSearch()
+    }
+
+    /// Ancien dialogue Partie rapide (conservé hors chemin 6.1).
+    @objc private func modeQuickTappedLegacy() {
         BlomixPvPLog.event("lobby_quick_match_menu")
         BlomixInAppDialogView.presentChoices(
             in: dialogHostView,
@@ -993,7 +1042,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
     }
 
     @objc private func modeAvailableToggleTapped() {
-        let nowActive = !BlomixAvailablePlayersManager.shared.isAvailableForChallenge
+        let nowActive = availabilitySwitch.isOn
         BlomixAvailablePlayersManager.shared.isAvailableForChallenge = nowActive
         // La notification blomixAvailabilityChanged déclenchera updateAvailableToggleAppearance().
         if nowActive {
@@ -1016,35 +1065,12 @@ final class BlomixPvPLobbyViewController: UIViewController {
     private func updateAvailableToggleAppearance() {
         let active = BlomixAvailablePlayersManager.shared.isAvailableForChallenge
         let green  = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
-
-        modeAvailableToggle.viewWithTag(9902)?.removeFromSuperview()
+        if availabilitySwitch.isOn != active {
+            availabilitySwitch.isOn = active
+        }
+        availabilitySwitch.refreshChrome()
 
         if active {
-            modeAvailableToggle.layer.borderColor = green.cgColor
-            modeAvailableToggle.layer.borderWidth = 1.5
-            modeAvailableToggle.setTitleColor(green, for: .normal)
-
-            let dotSize: CGFloat = 10
-            let dot = UIView()
-            dot.tag = 9902
-            dot.backgroundColor = green
-            dot.layer.cornerRadius = dotSize / 2
-            dot.isUserInteractionEnabled = false
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            modeAvailableToggle.addSubview(dot)
-            NSLayoutConstraint.activate([
-                dot.widthAnchor.constraint(equalToConstant: dotSize),
-                dot.heightAnchor.constraint(equalToConstant: dotSize),
-                dot.centerYAnchor.constraint(equalTo: modeAvailableToggle.centerYAnchor),
-                dot.trailingAnchor.constraint(equalTo: modeAvailableToggle.trailingAnchor, constant: -16),
-            ])
-            UIView.animate(withDuration: 0.65, delay: 0,
-                           options: [.repeat, .autoreverse, .allowUserInteraction],
-                           animations: { dot.alpha = 0.25 })
-
-            // Afficher immédiatement le nom du joueur sous le toggle (synchrone, pas besoin
-            // d'attendre le résultat CloudKit). Évite la label vide après cold start ou
-            // retour en foreground si la notification CloudKit a été émise avant la VC.
             if availabilityStatusLabel.text?.isEmpty != false {
                 let player = GKLocalPlayer.local
                 if player.isAuthenticated {
@@ -1054,9 +1080,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
                 }
             }
         } else {
-            modeAvailableToggle.layer.borderColor = BlomixUIDestinationButtonStyle.borderColor.cgColor
-            modeAvailableToggle.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
-            modeAvailableToggle.setTitleColor(BlomixAppearance.primaryText, for: .normal)
             setAvailabilityStatus("", color: .clear)
         }
     }
@@ -1160,7 +1183,7 @@ final class BlomixPvPResultViewController: UIViewController {
             : BlomixL10n.pvpResultDefeatAgainst(opponentName)
         subtitleLabel.text = didWin ? BlomixL10n.pvpResultWinSubtitle : BlomixL10n.pvpResultLoseSubtitle
         titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = FontTheme.gameFont(size: 28, weight: .semibold)
+        titleLabel.font = BlomixTypography.displayFont(size: 28, weight: .semibold)
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 0
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -1838,7 +1861,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
 
         view.addSubview(searchBlocksView)
 
-        statusLabel.textColor = UIColor(white: 0.78, alpha: 1)
+        statusLabel.textColor = BlomixAppearance.secondaryText
         statusLabel.font = FontTheme.gameFont(size: 18, weight: .regular)
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
@@ -2930,7 +2953,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         view.addSubview(searchBlocksView)
 
-        statusLabel.textColor = UIColor(white: 0.78, alpha: 1)
+        statusLabel.textColor = BlomixAppearance.secondaryText
         statusLabel.font = FontTheme.gameFont(size: 18, weight: .regular)
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0

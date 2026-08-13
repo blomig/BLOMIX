@@ -2,40 +2,27 @@
 //  BlomixTypography.swift
 //  Blomix
 //
-//  Gestion centralisée de la police choisie par le joueur.
+//  Typo figée v6.1 — deux visages, plus de picker joueur.
+//    display / grille : Changa One
+//    chrome           : Nunito
+//      Regular   — micro-captions (< 13 pt)
+//      Medium    — corps (réglages, HUD, lobby)
+//      SemiBold  — chips / boutons
 //
 
 import Foundation
 import UIKit
 
-extension Notification.Name {
-    static let blomixFontDidChange = Notification.Name("blomixFontDidChange")
-}
-
-enum BlomixFontChoice: String, CaseIterable, Sendable {
-    case bitcount
-    case googleSans
-    case dynaPuff
-    case alfaSlabOne
-    case changaOne
+enum BlomixTypeRole: Sendable {
+    case display
+    case chrome
+    case grid
 
     var postScriptName: String {
         switch self {
-        case .bitcount:    return "BitcountGridSingleInk-Regular"
-        case .googleSans:  return "GoogleSans-Regular"
-        case .dynaPuff:    return "DynaPuff-Regular"
-        case .alfaSlabOne: return "AlfaSlabOne-Regular"
-        case .changaOne:   return "ChangaOne"
-        }
-    }
-
-    var fileName: String {
-        switch self {
-        case .bitcount:    return "BitcountGridSingleInk-Variable.ttf"
-        case .googleSans:  return "GoogleSans-Regular.ttf"
-        case .dynaPuff:    return "DynaPuff-Regular.ttf"
-        case .alfaSlabOne: return "AlfaSlabOne-Regular.ttf"
-        case .changaOne:   return "ChangaOne-Regular.ttf"
+        case .display: return "ChangaOne"
+        case .chrome:  return "Nunito-Medium"
+        case .grid:    return "ChangaOne"
         }
     }
 }
@@ -44,48 +31,58 @@ enum BlomixFontChoice: String, CaseIterable, Sendable {
 final class BlomixTypography {
     static let shared = BlomixTypography()
 
-    private enum Persistence {
-        static let selectedFontIDKey = "BlomixSelectedFontID"
-    }
-
     private init() {}
 
-    func allChoices() -> [BlomixFontChoice] {
-        BlomixFontChoice.allCases
+    static func fontName(_ role: BlomixTypeRole) -> String {
+        role.postScriptName
     }
 
-    var selectedFontChoice: BlomixFontChoice {
-        get {
-            let raw = UserDefaults.standard.string(forKey: Persistence.selectedFontIDKey)
-            // Première install (aucune clé) : Changa One. Préférence joueur déjà enregistrée : inchangée.
-            return raw.flatMap(BlomixFontChoice.init(rawValue:)) ?? .changaOne
-        }
-        set {
-            guard selectedFontChoice != newValue else { return }
-            UserDefaults.standard.set(newValue.rawValue, forKey: Persistence.selectedFontIDKey)
-            NotificationCenter.default.post(name: .blomixFontDidChange, object: nil)
-        }
+    var displayFontName: String { BlomixTypeRole.display.postScriptName }
+    var chromeFontName: String { BlomixTypeRole.chrome.postScriptName }
+    var gridFontName: String { BlomixTypeRole.grid.postScriptName }
+
+    /// Alias historique → chrome Medium (corps).
+    var spriteKitFontName: String { chromeFontName }
+
+    /// PostScript Nunito selon taille / graisse.
+    static func chromePostScriptName(size: CGFloat, weight: UIFont.Weight = .regular) -> String {
+        if size < 13 { return "Nunito-Regular" }
+        if weight >= .semibold { return "Nunito-SemiBold" }
+        return "Nunito-Medium"
     }
 
-    var spriteKitFontName: String {
-        selectedFontChoice.postScriptName
+    func uiFont(role: BlomixTypeRole, size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        let name: String
+        switch role {
+        case .chrome:
+            name = Self.chromePostScriptName(size: size, weight: weight)
+        case .display, .grid:
+            name = role.postScriptName
+        }
+        return UIFont(name: name, size: size) ?? .systemFont(ofSize: size, weight: weight)
     }
 
     func uiFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
-        UIFont(name: spriteKitFontName, size: size) ?? .systemFont(ofSize: size, weight: weight)
+        uiFont(role: .chrome, size: size, weight: weight)
     }
 
-    func fontDisplayName(for choice: BlomixFontChoice) -> String {
-        switch choice {
-        case .bitcount:    return BlomixL10n.settingsFontNameBitcount
-        case .googleSans:  return BlomixL10n.settingsFontNameGoogleSans
-        case .dynaPuff:    return BlomixL10n.settingsFontNameDynaPuff
-        case .alfaSlabOne: return BlomixL10n.settingsFontNameAlfaSlabOne
-        case .changaOne:   return BlomixL10n.settingsFontNameChangaOne
-        }
+    static func uiFont(role: BlomixTypeRole, size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        shared.uiFont(role: role, size: size, weight: weight)
     }
 
     static func uiFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
         shared.uiFont(size: size, weight: weight)
+    }
+
+    static func displayFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        uiFont(role: .display, size: size, weight: weight)
+    }
+
+    static func chromeFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        uiFont(role: .chrome, size: size, weight: weight)
+    }
+
+    static func gridFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        uiFont(role: .grid, size: size, weight: weight)
     }
 }

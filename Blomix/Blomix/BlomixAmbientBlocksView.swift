@@ -13,6 +13,15 @@ import UIKit
 @MainActor
 final class BlomixAmbientBlocksView: UIView {
 
+    enum Density {
+        /// Accueil / GO / record / lobby.
+        case high
+        /// Réglages / crédits / classements (moins de bruit sur le texte).
+        case low
+    }
+
+    var density: Density = .high
+
     /// Aligné sur SpriteKit (`GameScene.spawnAmbientBlock`) : max 18 pt, min = max/2.
     private let blockSizeMax: CGFloat = 18
     private var blockSizeMin: CGFloat { blockSizeMax / 2 }
@@ -44,8 +53,11 @@ final class BlomixAmbientBlocksView: UIView {
 
     private func scheduleNextSpawn() {
         spawnTimer?.invalidate()
-        // Densité ×2 vs historique 0,25…2,0 s (aligné sur le même facteur côté SpriteKit).
-        let delay = Double.random(in: 0.125...1.0)
+        let delay: Double
+        switch density {
+        case .high: delay = Double.random(in: 0.125...1.0)
+        case .low:  delay = Double.random(in: 0.55...2.2)
+        }
         spawnTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, self.window != nil else { return }
@@ -97,8 +109,9 @@ final class BlomixAmbientBlocksView: UIView {
 
 /// Convenience : insère un `BlomixAmbientBlocksView` en fond de vue (index 0).
 extension UIViewController {
-    func addAmbientBlocksBackground() {
+    func addAmbientBlocksBackground(density: BlomixAmbientBlocksView.Density = .high) {
         let bg = BlomixAmbientBlocksView()
+        bg.density = density
         bg.translatesAutoresizingMaskIntoConstraints = false
         view.insertSubview(bg, at: 0)
         NSLayoutConstraint.activate([

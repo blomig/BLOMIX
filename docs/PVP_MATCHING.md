@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.0 (build 101)  
+> **Version de référence** : 6.1 (build 103)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -58,12 +58,13 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Snapshot H2H | Message `h2hSnapshot` : `h2hMyWins` / `h2hTheirWins` — max par joueur, 0 CloudKit |
 | Déco mid-match | Restant : série+H2H+Elo **win** ; abandon menu : série+H2H+Elo **loss** + `iLost` |
 | Pendant match | **0 CloudKit H2H** (pending en file) |
-| Fin de série | LOCK baseline+série (totaux **en mémoire** pour l’UI) ; persist UserDefaults **différée** ; flush pending **après** present récap |
+| Fin de série | LOCK baseline+série (totaux **en mémoire** pour l’UI) ; persist UserDefaults **différée** ; flush pending **après** present récap — **pas** de lecture cloud |
+| Retour accueil | **1 duo** (dernier adversaire) : `scheduleHomeReconcileAfterReturnToMenu` après fermeture des overlays (~0,9 s). Juge `refreshTotals` / `fetchCloudSum`. |
 | Alias IDs | Expansion **directe** plafonnée (**≤ 8** clés / adversaire) — pas de scan global de la map d’alias (évite freeze MainActor 20–25 s, `keys=82`) |
 | Elo fin de manche | UI = **cache local** (~0,35 s) puis boutons libres ; submit / refresh Game Center en fire-and-forget |
 | Déco pendant récap | Si `BlomixPvPSeriesEndViewController` déjà empilé : teardown réseau **sans** dismiss résultat (sinon iOS ferme le récap) |
-| Elo leaderboard | Cache local only hors partie (pas de prefetch cloud × N) |
-| Règle d’or | Jamais `fetchCloudSum` pendant match / scroll Elo ; jamais d’encode UserDefaults monstre sur le MainActor pendant l’écran score |
+| Elo leaderboard | Cache local pour toutes les lignes ; filet cloud **1 duo** (dernier adversaire) si pas déjà recalé à l’accueil (intervalle 20 s) |
+| Règle d’or | Jamais `fetchCloudSum` pendant match / fin de manche / scroll Elo × N ; jamais d’encode UserDefaults monstre sur le MainActor pendant l’écran score |
 
 ### PvP Local — robustesse de liaison mid-match
 
@@ -252,7 +253,9 @@ acceptIncomingChallenge()
 **Refus :**
 ```
 declineIncomingChallenge()
-  → suppressChallengeWithDelay()  // delete + verrou 8 s sur lastNotifiedChallengerID
+  → suppressChallengeWithDelay()
+       // pas de delete (chfrom_* = record du challenger)
+       // lastNotified conservé jusqu’à expiration / clearOutgoingChallenge
 ```
 
 ### Diagramme de séquence (mode A)
@@ -385,7 +388,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | « Invitation envoyée » mais l'autre ne voit rien | `createChallenge` échoué | `[Available] challenge create error:` |
 | Les deux se voient, rien ne se passe | Attente d'une notif **Game Center** (mode A n'en envoie pas) | Pas de log d'erreur |
 | Défi manqué pendant quelques secondes | App en arrière-plan (`willResignActive` arrête le poll) | Reprise au retour foreground |
-| Re-défi immédiat après refus ignoré | `suppressChallengeWithDelay` 8 s | Normal si < 8 s |
+| Re-défi du même adversaire après refus | Verrou `lastNotified` jusqu’à expiration du `chfrom_*` | Normal tant que le record vit (≤ 90 s) |
 | Re-défi du même adversaire sans refus | `lastNotifiedChallengerID` encore actif | Record `chal_*` non expiré |
 | Partie précédente terminée bizarrement | `isInActiveMatch` resté à `true` | Poll jamais relancé |
 | Acceptation mais match impossible | `eloRating` lu `as? Int` alors que CloudKit renvoie `Int64` → `playerGroup = 0` | Match échoue **après** bannière |
@@ -480,6 +483,10 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | **PVP-20** | Attaques sans id filaire | ✅ Corrigé — `attackId` anti-doublon |
 | **PVP-21** | `isInActiveMatch` collant post-crash | ✅ Corrigé — reset au `didBecomeActive` si pas de coordinateur |
 | **PVP-22** | Local Multipeer : « Reconnexion… » sans jamais se reconnecter | ✅ Corrigé (5.6) — discovery live + rebuild `MCSession` + force reset silence + grace 45 s |
+| **PVP-23** | Refus Mode A = snooze 8 s (relique `chal_*`) | ✅ Corrigé — verrou jusqu’à disparition du `chfrom_*` ; pas de raz au `didBecomeActive` |
+| **PVP-24** | `inMatch as? Int` (clone PVP-4) | ✅ Corrigé — `intFromRecord` |
+| **PVP-25** | Invitation croisée Récents inbound + Elo outbound → crash | ✅ Corrigé — `targetPlayerID` Elo, un seul dismiss, premier `beginPvP` gagne |
+| **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé — lecture cloud 1 duo après retour accueil (+ filet Elo) |
 
 ### Protocole filaire (résumé robustesse)
 
@@ -508,6 +515,7 @@ Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 | `GameViewController.swift` | Réception défis CloudKit + invites GK |
 | `LeaderboardViewController.swift` | Défis depuis classement Elo |
 | `BlomixPvPNetworking.swift` | Auto-searcher, coordinateur in-match (GK + local) |
+| `BlomixPvPH2HManager.swift` | H2H CloudKit, cache, juge 1 duo au retour accueil |
 | `GameScene.swift` | `setup()`, `setActiveMatch`, lancement PvP |
 
 ---

@@ -132,7 +132,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground
-        addAmbientBlocksBackground()
+        addAmbientBlocksBackground(density: .low)
 
         selectedLeaderboardKind = leaderboardKind(for: initialTab)
         setupUI()
@@ -750,7 +750,12 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         // Flush pending une fois, en arrière-plan, sans bloquer l’UI du tableau.
         BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
         print("[H2H Elo] local-cache only for \(rows.count) rows (no cloud prefetch)")
-        // Pas de reloadData forcé : cellForRow lit déjà le cache.
+        // Filet : 1 duo (dernier adversaire), si pas déjà recalé à l’accueil.
+        Task { @MainActor [weak self] in
+            await BlomixPvPH2HManager.shared.reconcileRememberedOpponentForEloDisplay()
+            guard let self, self.selectedLeaderboardKind == .elo else { return }
+            self.tableView.reloadData()
+        }
     }
 
     // MARK: - UITableViewDataSource
@@ -873,11 +878,11 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         let player = eloGKPlayers[row.gamePlayerID]
             ?? (!row.teamPlayerID.isEmpty ? eloGKPlayers[row.teamPlayerID] : nil)
         guard let player else { return }
-        showInviteOverlay(playerName: row.playerName)
+        showInviteOverlay(playerName: row.playerName, targetPlayerID: player.gamePlayerID)
         sendInvitation(to: player)
     }
 
-    private func showInviteOverlay(playerName: String) {
+    private func showInviteOverlay(playerName: String, targetPlayerID: String) {
         applyInviteOverlayAppearance()
         inviteStatusLabel.text = BlomixL10n.pvpRecentInviteSent(playerName)
         inviteHintLabel.text   = BlomixL10n.pvpRecentInviteHint
@@ -889,7 +894,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         NotificationCenter.default.post(
             name: .blomixPvPOutgoingInviteStateChanged,
             object: nil,
-            userInfo: ["active": true]
+            userInfo: ["active": true, "targetPlayerID": targetPlayerID]
         )
     }
 
@@ -1010,8 +1015,14 @@ extension LeaderboardViewController: GKMatchDelegate {
                 self.pendingInviteMatch = nil
                 self.hideInviteOverlay()
                 GKMatchmaker.shared().finishMatchmaking(for: box.match)
-                self.dismiss(animated: true) {
+                // Si le parent dismiss déjà (acceptation d’une bannière croisée), ne pas
+                // relancer un 2ᵉ dismiss — cause classique de crash UIKit.
+                if self.isBeingDismissed || self.presentingViewController == nil {
                     self.onMatch?(box.match)
+                } else {
+                    self.dismiss(animated: true) {
+                        self.onMatch?(box.match)
+                    }
                 }
             }
         }
@@ -1068,7 +1079,7 @@ final class BlomixPlainTextModalViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground
-        addAmbientBlocksBackground()
+        addAmbientBlocksBackground(density: .low)
 
         titleLabel.text = screenTitle
         titleLabel.textColor = BlomixAppearance.primaryText
@@ -1198,8 +1209,6 @@ final class BlomixGridSoundSlider: UIView {
     private let segmentCount = 10
     private let segmentGap: CGFloat = 2
     private let segmentHeight: CGFloat = 6
-    private let trackDim = UIColor(white: 0.2, alpha: 1)
-    private let trackFill = UIColor(red: CGFloat(0xAD) / 255, green: CGFloat(0xAD) / 255, blue: CGFloat(0xAD) / 255, alpha: 1)
 
     private var segmentViews: [UIView] = []
     private let thumb = UIView()
@@ -1209,7 +1218,7 @@ final class BlomixGridSoundSlider: UIView {
         backgroundColor = .clear
         for _ in 0..<segmentCount {
             let v = UIView()
-            v.backgroundColor = trackDim
+            v.backgroundColor = BlomixAppearance.progressTrack
             v.layer.cornerRadius = 1
             addSubview(v)
             segmentViews.append(v)
@@ -1217,7 +1226,7 @@ final class BlomixGridSoundSlider: UIView {
         thumb.backgroundColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange") ?? blomixSettingsHexUIColor("#F4A261") ?? .orange
         thumb.layer.cornerRadius = 4
         thumb.layer.borderWidth = 1
-        thumb.layer.borderColor = UIColor(white: 1, alpha: 0.35).cgColor
+        thumb.layer.borderColor = BlomixAppearance.chipBorder.cgColor
         addSubview(thumb)
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -1263,9 +1272,16 @@ final class BlomixGridSoundSlider: UIView {
 
     private func updateSegmentFill() {
         let filled = Int(round(CGFloat(value) * CGFloat(segmentCount)))
+        let fill = BlomixAppearance.progressFill
+        let dim = BlomixAppearance.progressTrack
         for (i, v) in segmentViews.enumerated() {
-            v.backgroundColor = i < filled ? trackFill : trackDim
+            v.backgroundColor = i < filled ? fill : dim
         }
+    }
+
+    func refreshChrome() {
+        thumb.layer.borderColor = BlomixAppearance.chipBorder.cgColor
+        updateSegmentFill()
     }
 
     private func valueFromSceneX(_ x: CGFloat) -> Float {
@@ -1308,7 +1324,7 @@ private final class RelativeSoundMixRowView: UIView {
         backgroundColor = BlomixAppearance.panelFill
         layer.cornerRadius = 8
         layer.borderWidth = 0.5
-        layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
+        layer.borderColor = BlomixAppearance.chipBorder.cgColor
         directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
 
         titleLabel.text = BlomixL10n.settingsSoundName(forSoundNamed: soundName)
@@ -1378,7 +1394,7 @@ final class SoundMixSettingsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground
-        addAmbientBlocksBackground()
+        addAmbientBlocksBackground(density: .low)
 
         titleLabel.text = BlomixL10n.settingsSoundMixTitle
         titleLabel.textColor = BlomixAppearance.primaryText
@@ -1451,8 +1467,8 @@ private final class BlomixMasterVolumeRowView: UIView {
         backgroundColor = BlomixAppearance.panelFill
         layer.cornerRadius = 8
         layer.borderWidth = 0.5
-        layer.borderColor = UIColor(white: 0.32, alpha: 1).cgColor
-        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+        layer.borderColor = BlomixAppearance.chipBorder.cgColor
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
 
         titleLabel.textColor = BlomixAppearance.primaryText
         titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
@@ -1466,7 +1482,7 @@ private final class BlomixMasterVolumeRowView: UIView {
             self?.updatePercent(value)
             self?.onValueChange?(value)
         }
-        slider.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        slider.heightAnchor.constraint(equalToConstant: 36).isActive = true
 
         let headerStack = UIStackView(arrangedSubviews: [titleLabel, percentLabel])
         headerStack.axis = .horizontal
@@ -1476,7 +1492,7 @@ private final class BlomixMasterVolumeRowView: UIView {
 
         let stack = UIStackView(arrangedSubviews: [headerStack, slider])
         stack.axis = .vertical
-        stack.spacing = 10
+        stack.spacing = 6
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
 
@@ -1495,6 +1511,14 @@ private final class BlomixMasterVolumeRowView: UIView {
         titleLabel.text = title
         slider.value = value
         updatePercent(value)
+    }
+
+    func refreshChrome() {
+        backgroundColor = BlomixAppearance.panelFill
+        layer.borderColor = BlomixAppearance.chipBorder.cgColor
+        titleLabel.textColor = BlomixAppearance.primaryText
+        percentLabel.textColor = BlomixAppearance.secondaryText
+        slider.refreshChrome()
     }
 
     private func updatePercent(_ value: Float) {
@@ -1521,9 +1545,9 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     private let soundsVolumeRow   = BlomixMasterVolumeRowView()
     private let musicVolumeRow    = BlomixMasterVolumeRowView()
     private let soundSectionLabel = UILabel()
-    private let fontSectionLabel = UILabel()
+    private let appearanceSectionLabel = UILabel()
     private let colorsSectionLabel = UILabel()
-    private let fontStack = UIStackView()
+    private let appearanceStack = UIStackView()
     private let skinsStack = UIStackView()
     private var persoPickerSlot: BlomixPersoColorSlot?
     private var persoPickerSkinId: String = BlomixSkinCatalog.persoSkinId
@@ -1531,11 +1555,11 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground
-        addAmbientBlocksBackground()
+        addAmbientBlocksBackground(density: .low)
 
         titleLabel.text = BlomixL10n.settingsTitle
         titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        titleLabel.font = BlomixTypography.displayFont(size: 28, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
@@ -1576,13 +1600,14 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         }
         contentStack.addArrangedSubview(musicVolumeRow)
 
-        configureSectionHeading(fontSectionLabel, text: BlomixL10n.settingsFontSection)
-        contentStack.addArrangedSubview(fontSectionLabel)
+        configureSectionHeading(appearanceSectionLabel, text: BlomixL10n.settingsAppearanceSection)
+        contentStack.addArrangedSubview(appearanceSectionLabel)
 
-        fontStack.axis = .vertical
-        fontStack.spacing = 10
-        contentStack.addArrangedSubview(fontStack)
-        rebuildFontRows()
+        appearanceStack.axis = .horizontal
+        appearanceStack.spacing = 10
+        appearanceStack.distribution = .fillEqually
+        contentStack.addArrangedSubview(appearanceStack)
+        rebuildAppearanceRow()
 
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         contentStack.addArrangedSubview(colorsSectionLabel)
@@ -1620,28 +1645,62 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     }
 
     private func refreshTypography() {
-        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        titleLabel.font = BlomixTypography.displayFont(size: 28, weight: .bold)
+        titleLabel.textColor = BlomixAppearance.primaryText
+        view.backgroundColor = BlomixAppearance.sceneBackground
         configureSectionHeading(soundSectionLabel, text: BlomixL10n.settingsSoundSection)
-        configureSectionHeading(fontSectionLabel, text: BlomixL10n.settingsFontSection)
+        configureSectionHeading(appearanceSectionLabel, text: BlomixL10n.settingsAppearanceSection)
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
     }
 
-    private func rebuildFontRows() {
-        fontStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let selected = BlomixTypography.shared.selectedFontChoice
-        for choice in BlomixTypography.shared.allChoices() {
-            let row = FontChoiceRowView(
-                choice: choice,
-                isSelected: choice == selected,
-                onSelect: { [weak self] selectedChoice in
-                    BlomixTypography.shared.selectedFontChoice = selectedChoice
-                    self?.refreshTypography()
-                    self?.rebuildFontRows()
-                    self?.rebuildSkinRows()
-                }
-            )
-            fontStack.addArrangedSubview(row)
+    private func rebuildAppearanceRow() {
+        appearanceStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        appearanceStack.addArrangedSubview(makeAppearanceChip(
+            title: BlomixL10n.settingsAppearanceDark,
+            selected: BlomixAppearance.isDark,
+            action: #selector(selectDarkAppearance)
+        ))
+        appearanceStack.addArrangedSubview(makeAppearanceChip(
+            title: BlomixL10n.settingsAppearanceLight,
+            selected: BlomixAppearance.isLight,
+            action: #selector(selectLightAppearance)
+        ))
+    }
+
+    private func makeAppearanceChip(title: String, selected: Bool, action: Selector) -> UIButton {
+        let btn = BlomixUIButton()
+        btn.setTitle(title, for: .normal)
+        BlomixUIDestinationButtonStyle.apply(to: btn, fontSize: 16, weight: .medium)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16), to: btn)
+        if selected {
+            btn.layer.borderWidth = 1.5
+            btn.layer.borderColor = BlomixAppearance.primaryText.cgColor
+        }
+        btn.addTarget(self, action: action, for: .touchUpInside)
+        return btn
+    }
+
+    @objc private func selectDarkAppearance() {
+        applyAppearanceMode(.dark)
+    }
+
+    @objc private func selectLightAppearance() {
+        applyAppearanceMode(.light)
+    }
+
+    private func applyAppearanceMode(_ mode: BlomixAppearanceMode) {
+        guard BlomixAppearance.mode != mode else { return }
+        BlomixAppearance.mode = mode
+        refreshTypography()
+        rebuildAppearanceRow()
+        rebuildSkinRows()
+        soundsVolumeRow.refreshChrome()
+        musicVolumeRow.refreshChrome()
+        if let gameVC = presentingViewController as? GameViewController {
+            gameVC.applyBlomixAppearanceChrome()
+        } else {
+            view.window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
         }
     }
 
@@ -1892,66 +1951,4 @@ private final class SkinChoiceRowView: UIView {
     }
 }
 
-@MainActor
-private final class FontChoiceRowView: UIView {
 
-    private let choice: BlomixFontChoice
-    private let onSelect: (BlomixFontChoice) -> Void
-    private let radio = UIImageView()
-    private let nameLabel = UILabel()
-    private let previewLabel = UILabel()
-
-    init(choice: BlomixFontChoice, isSelected: Bool, onSelect: @escaping (BlomixFontChoice) -> Void) {
-        self.choice = choice
-        self.onSelect = onSelect
-        super.init(frame: .zero)
-
-        translatesAutoresizingMaskIntoConstraints = false
-        layer.cornerRadius = 8
-        layer.borderWidth = isSelected ? 1.5 : 0.5
-        layer.borderColor = (isSelected ? BlomixAppearance.primaryText : BlomixAppearance.chipBorder).cgColor
-        backgroundColor = BlomixAppearance.panelFill
-
-        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
-        radio.image = UIImage(systemName: isSelected ? "largecircle.fill.circle" : "circle", withConfiguration: config)
-        radio.tintColor = BlomixAppearance.tertiaryText
-        radio.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(radio)
-
-        nameLabel.text = BlomixTypography.shared.fontDisplayName(for: choice)
-        nameLabel.textColor = BlomixAppearance.primaryText
-        nameLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(nameLabel)
-
-        previewLabel.text = BlomixL10n.settingsFontPreview
-        previewLabel.textColor = BlomixAppearance.secondaryText
-        previewLabel.font = UIFont(name: choice.postScriptName, size: 15) ?? .systemFont(ofSize: 15, weight: .regular)
-        previewLabel.textAlignment = .right
-        previewLabel.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(previewLabel)
-
-        NSLayoutConstraint.activate([
-            heightAnchor.constraint(greaterThanOrEqualToConstant: 56),
-            radio.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            radio.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            nameLabel.leadingAnchor.constraint(equalTo: radio.trailingAnchor, constant: 10),
-            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-
-            previewLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-            previewLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            previewLabel.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 10),
-        ])
-
-        let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
-        addGestureRecognizer(tap)
-        isUserInteractionEnabled = true
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:)") }
-
-    @objc private func tapped() {
-        onSelect(choice)
-    }
-}

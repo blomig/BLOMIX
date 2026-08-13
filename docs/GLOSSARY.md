@@ -70,7 +70,7 @@
 | **Toucher un Brix** | 8-connexité avec un Brix pendant une vague → compteur −1 (max 1/vague) |
 | **Stage** | Palier solo (1–6) avec timer et multiplicateur de score croissant |
 | **Multiplicateur** | Bonus de score lié au stage atteint |
-| **Hint** | Suggestion de colonne optimale (5 par partie, `BlomixMoveAnalyzer`) |
+| **Justesse / pire coup** | Qualité des placements en fin de partie (`BlomixMoveAnalyzer`) — plus de hint en jeu (v6.1) |
 
 ---
 

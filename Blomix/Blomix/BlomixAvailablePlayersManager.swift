@@ -191,7 +191,8 @@ final class BlomixAvailablePlayersManager {
 
     private func startChallengePolling() {
         stopChallengePolling()
-        lastNotifiedChallengerID = nil
+        // Ne pas raz lastNotified : didBecomeActive relance ce poll et réaffichait
+        // le même défi après un refus (le record chfrom_* appartient au challenger).
         // Premier poll immédiat, puis toutes les 4 s.
         Task { @MainActor [weak self] in self?.pollForIncomingChallenge() }
         let t = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
@@ -261,20 +262,14 @@ final class BlomixAvailablePlayersManager {
         lastNotifiedChallengerID = nil
     }
 
-    /// Supprime le record de défi sortant local puis remet lastNotifiedChallengerID à nil après un délai.
-    /// Laisse passer au moins 2 cycles de poll le temps que CloudKit propage la suppression,
-    /// évitant la boucle "déclin → poll → nouvelle bannière".
+    /// Refuse un défi entrant sans pouvoir delete `chfrom_*` (le défié n’est pas créateur).
+    /// On garde `lastNotifiedChallengerID` jusqu’à ce que le poll ne voie plus le record
+    /// (timeout 90 s côté challenger, ou `clearOutgoingChallenge`).
     func suppressChallengeWithDelay(challengedGamePlayerID: String) {
         _ = challengedGamePlayerID
         challengeSuppressTimer?.invalidate()
-        let t = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.lastNotifiedChallengerID = nil
-                self?.challengeSuppressTimer = nil
-            }
-        }
-        RunLoop.main.add(t, forMode: .common)
-        challengeSuppressTimer = t
+        challengeSuppressTimer = nil
+        // lastNotified reste posé — le `else` de pollForIncomingChallenge le raz quand le défi expire.
     }
 
     // MARK: - Publish / Unpublish
@@ -517,7 +512,7 @@ final class BlomixAvailablePlayersManager {
                 if let hb = record["lastHeartbeat"] as? Date, hb < cutoff { continue }
                 let name    = record["displayName"] as? String ?? "?"
                 let elo     = Self.intFromRecord(record, key: "eloRating")
-                let inMatch = (record["inMatch"] as? Int ?? 0) != 0
+                let inMatch = (Self.intFromRecord(record, key: "inMatch") ?? 0) != 0
                 players.append(BlomixAvailablePlayer(gamePlayerID: gameID,
                                                      displayName: name,
                                                      eloRating: elo,

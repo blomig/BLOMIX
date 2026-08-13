@@ -504,11 +504,9 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 *Désactivé* (`realtimeFeedbackEnabled = false`). Si activé :
 - `!!` vert, `?` orange-rouge, font 22 pt, montée 22 pt en 0,55 s
 
-### 8.7 Hint ghost (`showHintGhost`)
+### 8.7 Hint ghost
 
-- α 0,60, clignotement 0,60↔0,20, cycle **0,45 s**/phase
-- Reste jusqu'au prochain coup
-- 5 hints/partie
+*Retiré en v6.1* (bouton et ghost). L’analyse alimente uniquement le récap / pire coup.
 
 ---
 
@@ -593,7 +591,7 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 |---|---|
 | Branding | `BLOMIX` + tagline (`titleY = 86 %` hauteur) |
 | Carte joueur | Nom GC, ligne Elo + chevron `›` (→ onglet Elo), 3 disques SOLO / MOY. / ZEN |
-| Liens utilitaires | « Réglages · Tutoriel · Crédits » (séparateur « · » en police système) |
+| Liens utilitaires | Rangée d’icônes SF (Réglages, Tutoriel, thème, Partager, Crédits) |
 | Zone de jeu | Bouton hero **Solo** pleine largeur, puis **PvP** et **Zen** côte à côte |
 | Tip | Ancré en bas (`10 %` hauteur) |
 

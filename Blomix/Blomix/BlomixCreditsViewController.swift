@@ -25,7 +25,7 @@ final class BlomixCreditsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground
-        addAmbientBlocksBackground()
+        addAmbientBlocksBackground(density: .low)
         buildChrome()
         buildContent()
     }
@@ -89,7 +89,7 @@ final class BlomixCreditsViewController: UIViewController {
         let title = UILabel()
         title.text = "BLOMIX"
         title.textColor = BlomixAppearance.primaryText
-        title.font = BlomixTypography.uiFont(size: 34, weight: .bold)
+        title.font = BlomixTypography.displayFont(size: 34, weight: .bold)
         title.textAlignment = .center
         title.numberOfLines = 1
 

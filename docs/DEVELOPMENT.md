@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 6.0  
+> **Version de référence** : 6.1  
 > **Dernière mise à jour** : août 2026
 
 ---
@@ -30,8 +30,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 6.0 |
-| `CURRENT_PROJECT_VERSION` | 101 |
+| `MARKETING_VERSION` | 6.1 |
+| `CURRENT_PROJECT_VERSION` | 103 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |

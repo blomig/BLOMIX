@@ -96,6 +96,8 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     private var outgoingInviteTargetPlayerID: String?
     /// Timer de sécurité : remet outgoingInviteActive à false si un chemin d'erreur l'a oublié.
     private var outgoingInviteSafetyTimer: Timer?
+    /// Un seul lancement PvP à la fois (évite double dismiss classement + double `beginPvP` si bannière et Elo courent ensemble).
+    private var isLaunchingIncomingPvP = false
     /// Timer d'annulation pour le matchmaking d'un défi CloudKit accepté.
     private var challengeMatchCancelTimer: Timer?
     /// Match CloudKit en attente de connexion P2P complète (même pattern que le côté challenger).
@@ -284,16 +286,24 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     }
 
     private func beginPvPMatchOrQueueIfNeeded(_ match: GKMatch) {
+        if isLaunchingIncomingPvP {
+            BlomixPvPLog.event("gvc_begin_pvp_ignored", ["reason": "already_launching"])
+            match.disconnect()
+            return
+        }
+        isLaunchingIncomingPvP = true
         // Annule toute recherche en cours (cas : lobby ouvert en auto-search au moment de l'acceptation).
         GKMatchmaker.shared().cancel()
         // Ferme automatiquement tout modal ouvert (lobby, classement, réglages…)
-        // avant de basculer en partie PvP.
-        if presentedViewController != nil {
+        // avant de basculer en partie PvP. Un seul dismiss : un 2ᵉ canal (Elo) ne doit pas en lancer un autre.
+        if presentedViewController != nil, !isBeingDismissed {
             dismiss(animated: true) { [weak self] in
                 self?.launchPvPMatch(match)
+                self?.isLaunchingIncomingPvP = false
             }
         } else {
             launchPvPMatch(match)
+            isLaunchingIncomingPvP = false
         }
     }
 
@@ -494,7 +504,7 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     private func declineIncomingChallenge() {
         guard GKLocalPlayer.local.isAuthenticated else { return }
         let localGameID = GKLocalPlayer.local.gamePlayerID
-        // Supprime le record et remet le tracker à nil après 8 s (anti-rebond CloudKit).
+        // Pas de delete CloudKit (chfrom_* appartient au challenger). Verrou jusqu’à expiration.
         BlomixAvailablePlayersManager.shared.suppressChallengeWithDelay(
             challengedGamePlayerID: localGameID)
     }
@@ -554,6 +564,15 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
     }
 
     private func showInviteBanner(inviterName: String, match: GKMatch) {
+        let targetView: UIView = view.window ?? view
+        if targetView.subviews.contains(where: { $0 is BlomixPvPInviteBannerView }) {
+            BlomixPvPLog.event("invite_banner_ignored", ["reason": "already_visible"])
+            match.disconnect()
+            return
+        }
+        // Laisse la place à l’acceptation : un handshake auto-search incomplet serait sinon
+        // en concurrence avec ce match (course Récents + Elo / FastSyncTransportError).
+        (spriteKitView?.scene as? GameScene)?.blomixPvP_abandonIncompleteSetupForIncomingInvite()
         let banner = BlomixPvPInviteBannerView()
         banner.configure(inviterName: inviterName)
         banner.onAccept = { [weak self] in
@@ -562,8 +581,6 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         banner.onDecline = {
             match.disconnect()
         }
-        // Affiche dans la fenêtre pour passer au-dessus de tous les modaux éventuels.
-        let targetView: UIView = view.window ?? view
         let safeTop = targetView.safeAreaInsets.top
         banner.show(in: targetView, safeAreaTop: safeTop)
     }

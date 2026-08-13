@@ -765,6 +765,9 @@ final class GameScene: SKScene {
     private static let gameOverScoreLabelName = "gameOverScoreLabel"
     private static let gameOverDimBackgroundName = "gameOverDimBackground"
     private static let gameOverRestartLabelName = "gameOverRestartLabel"
+    private static let gameOverReplayLabelName = "gameOverReplayLabel"
+    private static let gameOverRecordOverlayName = "gameOverRecordOverlay"
+    private static let gameOverRecordOkName = "gameOverRecordOk"
     private static let gameOverLeaderboardLabelName = "gameOverLeaderboardLabel"
     private static let gameOverPersonalBestLabelName = "gameOverPersonalBestLabel"
     private static let gameOverWorstMoveButtonName = "gameOverWorstMoveButton"
@@ -828,6 +831,7 @@ final class GameScene: SKScene {
     private static let startScreenTutorialLinkName = "startScreenTutorialLink"
     private static let startScreenCreditsLinkName = "startScreenCreditsLink"
     private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
+    private static let startScreenIconRowName = "startScreenIconRow"
     private static let startScreenShareChipName = "startScreenShareChip"
     private static let startScreenShareLabelName = "startScreenShareLabel"
     private static let gameOverShareLabelName = "gameOverShareLabel"
@@ -842,8 +846,12 @@ final class GameScene: SKScene {
     private static let pvpRemoteFillSegPrefix      = "pvpRemoteFillSeg_"
     private static let pvpRemoteScoreLabelName     = "pvpRemoteScoreLabel"
 
-    /// Nom PostScript courant de la police choisie par le joueur.
-    private static var customUIFontPostScriptName: String { BlomixTypography.shared.spriteKitFontName }
+    /// Typo v6.1 : display + grille (Changa) / chrome (Google Sans).
+    private static var displayFontName: String { BlomixTypography.fontName(.display) }
+    private static var chromeFontName: String { BlomixTypography.fontName(.chrome) }
+    private static var gridFontName: String { BlomixTypography.fontName(.grid) }
+    /// Alias chrome — la majorité des labels HUD / menus SpriteKit.
+    private static var customUIFontPostScriptName: String { chromeFontName }
     private static let gameOverQuotesFileBaseName = "gameover_quotes"
     private static let tipsOfDayFileBaseName = "tips_of_day"
     private static let startScreenTipContainerName = "startScreenTipContainer"
@@ -1359,7 +1367,9 @@ final class GameScene: SKScene {
     nonisolated(unsafe) private var gameCenterAuthObserver: NSObjectProtocol?
     /// Rafraîchit grille / previews quand le skin couleur change (réglages).
     nonisolated(unsafe) private var skinChangeObserver: NSObjectProtocol?
-    /// Rafraîchit la typographie globale visible dès que le joueur change de police.
+    /// Recolore tout le chrome visible (Sombre / Clair), y compris depuis Réglages en partie.
+    nonisolated(unsafe) private var appearanceChangeObserver: NSObjectProtocol?
+    /// Ancien observer picker de police (v6.1 : typo figée, plus de notification).
     nonisolated(unsafe) private var fontChangeObserver: NSObjectProtocol?
     /// Son de tap pour les boutons UIKit (`BlomixUIButton`).
     nonisolated(unsafe) private var uiButtonTapObserver: NSObjectProtocol?
@@ -1373,6 +1383,9 @@ final class GameScene: SKScene {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = skinChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = appearanceChangeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = fontChangeObserver {
@@ -1450,7 +1463,12 @@ final class GameScene: SKScene {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.replayStartScreenIfNeeded()
+                guard let self else { return }
+                if self.isStartScreen {
+                    self.replayStartScreenIfNeeded()
+                } else {
+                    self.resumeStageTimerForChrome()
+                }
             }
         }
         BlomixAvailablePlayersManager.shared.setup()
@@ -1475,6 +1493,7 @@ final class GameScene: SKScene {
         refreshGameCenterStatusLabelText()
         registerGameCenterAuthObserverIfNeeded()
         registerSkinChangeObserverIfNeeded()
+        registerAppearanceChangeObserverIfNeeded()
         registerFontChangeObserverIfNeeded()
 
         if let inputView = view as? BlomixSKView {
@@ -1597,7 +1616,7 @@ final class GameScene: SKScene {
 
     /// Largeur et hauteur communes : le plus long des libellés (à `fontSize`) + marges, sans dépasser l’écran.
     private static func startScreenUnifiedChipSize(texts: [String], fontSize: CGFloat, maxOuterWidth: CGFloat) -> CGSize {
-        let font = BlomixTypography.uiFont(size: fontSize, weight: .regular)
+        let font = BlomixTypography.chromeFont(size: fontSize, weight: .semibold)
         var maxTW: CGFloat = 0
         var maxTH: CGFloat = 0
         for t in texts {
@@ -1610,7 +1629,7 @@ final class GameScene: SKScene {
         return CGSize(width: max(w, 88), height: max(h, 40))
     }
 
-    /// Délègue à `BlomixSKButtonNode` : fond arrondi #232323 + bordure + libellé blanc Bitcount.
+    /// Délègue à `BlomixSKButtonNode` : chip chrome, libellé Nunito SemiBold.
     private func makeStartScreenButtonChip(chipName: String, labelName: String, text: String, chipSize: CGSize, fontSize: CGFloat) -> BlomixSKButtonNode {
         BlomixSKButtonNode(name: chipName, labelName: labelName, text: text, size: chipSize, fontSize: fontSize)
     }
@@ -1637,41 +1656,66 @@ final class GameScene: SKScene {
         return bloxSolidFillColor(forNormalizedKey: "blue") ?? SKColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 1)
     }
 
-    /// Centre le libellé Elo et le chevron `›` dans la rangée cliquable.
+    /// Centre nom + Elo + chevron `›` sur une seule **baseline** (évite le léger décrochage SpriteKit).
     private func layoutStartScreenEloRow(in overlay: SKNode) {
         guard let row = overlay.childNode(withName: Self.startScreenPlayerEloRowName),
+              let nameLabel = row.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode
+                ?? overlay.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode,
               let eloLabel = row.childNode(withName: Self.startScreenPlayerEloLabelName) as? SKLabelNode,
               let chevron = row.childNode(withName: Self.startScreenPlayerEloChevronName) as? SKLabelNode,
-              let text = eloLabel.text else { return }
-        let font = UIFont(name: Self.customUIFontPostScriptName, size: eloLabel.fontSize)
-            ?? UIFont.systemFont(ofSize: eloLabel.fontSize)
-        let eloW = (text as NSString).size(withAttributes: [.font: font]).width
-        let chevW = ("›" as NSString).size(withAttributes: [.font: UIFont.systemFont(ofSize: eloLabel.fontSize)]).width
-        let gap: CGFloat = 3
-        let totalW = eloW + gap + chevW
-        eloLabel.position = CGPoint(x: -totalW / 2 + eloW / 2, y: 0)
-        chevron.position = CGPoint(x: eloLabel.position.x + eloW / 2 + gap + chevW / 2, y: 0)
+              let nameText = nameLabel.text,
+              let eloText = eloLabel.text else { return }
+
+        nameLabel.verticalAlignmentMode = .baseline
+        eloLabel.verticalAlignmentMode = .baseline
+        chevron.verticalAlignmentMode = .baseline
+
+        let chromeFont = UIFont(name: Self.chromeFontName, size: nameLabel.fontSize)
+            ?? UIFont.systemFont(ofSize: nameLabel.fontSize)
+        let nameW = (nameText as NSString).size(withAttributes: [.font: chromeFont]).width
+        let eloW = (eloText as NSString).size(withAttributes: [.font: chromeFont]).width
+        let chevFont = UIFont.systemFont(ofSize: chevron.fontSize)
+        let chevW = ("›" as NSString).size(withAttributes: [.font: chevFont]).width
+        let innerGap: CGFloat = 4
+        let pairGap: CGFloat = 12
+        let totalW = nameW + pairGap + eloW + innerGap + chevW
+
+        var x = -totalW / 2
+        nameLabel.position = CGPoint(x: x + nameW / 2, y: 0)
+        x += nameW + pairGap
+        eloLabel.position = CGPoint(x: x + eloW / 2, y: 0)
+        x += eloW + innerGap
+        chevron.position = CGPoint(x: x + chevW / 2, y: 0)
+
+        row.position.x = size.width / 2
     }
 
-    /// Icône soleil / lune pour basculer Sombre ↔ Clair (uniquement sur l'accueil).
-    private func makeStartScreenAppearanceToggleNode() -> SKNode {
+    /// Icône chrome accueil (SF Symbol, même pipeline que soleil / lune).
+    private func makeStartScreenChromeIcon(name: String, systemName: String) -> SKNode {
         let hitSide: CGFloat = 48
         let iconSide: CGFloat = 30
         let container = SKNode()
-        container.name = Self.startScreenAppearanceToggleName
+        container.name = name
 
-        // Zone de hit invisible, confortable au doigt.
         let hit = SKSpriteNode(color: .clear, size: CGSize(width: hitSide, height: hitSide))
         hit.zPosition = 0
         container.addChild(hit)
 
         let icon = SKSpriteNode(
-            texture: BlomixAppearance.appearanceToggleTexture(pointSize: 22, canvasSide: iconSide)
+            texture: BlomixAppearance.chromeSymbolTexture(systemName: systemName, pointSize: 20, canvasSide: iconSide)
         )
         icon.size = CGSize(width: iconSide, height: iconSide)
         icon.zPosition = 1
         container.addChild(icon)
         return container
+    }
+
+    /// Icône soleil / lune pour basculer Sombre ↔ Clair.
+    private func makeStartScreenAppearanceToggleNode() -> SKNode {
+        makeStartScreenChromeIcon(
+            name: Self.startScreenAppearanceToggleName,
+            systemName: BlomixAppearance.isDark ? "sun.max.fill" : "moon.fill"
+        )
     }
 
     /// Chip « Partager » : icône avion en papier custom + libellé (secondaire, pas hero).
@@ -1847,7 +1891,7 @@ final class GameScene: SKScene {
         return r.insetBy(dx: -edgeSlop, dy: -edgeSlop)
     }
 
-    private func presentStartScreenOrRestoreSoloSave() {
+    private func presentStartScreenOrRestoreSoloSave(playIntro: Bool = false) {
         // Préférer le snapshot figé à l'entrée PvP (évite une save UD écrasée par la grille prep).
         let save = pvpSuspendedSoloSave ?? BlomixSoloSaveManager.shared.load()
         pvpSuspendedSoloSave = nil
@@ -1856,7 +1900,7 @@ final class GameScene: SKScene {
             isZenMode = save.isZenMode  // restauré avant restoreFromSoloSave pour isInStagedSoloMode
             restoreFromSoloSave(save)
         } else {
-            presentStartScreen()
+            presentStartScreen(playIntro: playIntro)
         }
     }
 
@@ -1867,8 +1911,9 @@ final class GameScene: SKScene {
         presentStartScreen()
     }
 
-    /// Fond noir plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
-    private func presentStartScreen() {
+    /// Fond scène plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
+    /// `playIntro` : slot-machine uniquement à froid (splash). Retours GO / ☰ : entrée courte.
+    private func presentStartScreen(playIntro: Bool = false) {
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
 
         isStartScreen = true
@@ -1897,7 +1942,7 @@ final class GameScene: SKScene {
         let titleY: CGFloat = size.height * 0.86
         let title = SKLabelNode(text: "BLOMIX")
         title.name = Self.startScreenTitleLabelName
-        title.fontName = Self.customUIFontPostScriptName
+        title.fontName = Self.displayFontName
         title.fontSize = 40
         title.fontColor = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
@@ -1918,24 +1963,21 @@ final class GameScene: SKScene {
         overlay.addChild(subtitle)
 
         // ── Bande 2 : carte joueur (sans fond, espacement aéré) ───────────────────
-        let playerNameY = subtitle.position.y - 28
+        let playerNameY = subtitle.position.y - 36
+        let eloRow = SKNode()
+        eloRow.name = Self.startScreenPlayerEloRowName
+        eloRow.position = CGPoint(x: cx, y: playerNameY)
+        eloRow.zPosition = 6
+        overlay.addChild(eloRow)
+
         let playerNameLabel = SKLabelNode(text: BlomixL10n.startScreenPlayerName(GKLocalPlayer.local.displayName.isEmpty ? BlomixL10n.startScreenPlayerUnknown : GKLocalPlayer.local.displayName))
         playerNameLabel.name = Self.startScreenPlayerNameLabelName
         playerNameLabel.fontName = Self.customUIFontPostScriptName
         playerNameLabel.fontSize = 12
         playerNameLabel.fontColor = BlomixAppearance.secondaryText
         playerNameLabel.horizontalAlignmentMode = .center
-        playerNameLabel.verticalAlignmentMode = .center
-        playerNameLabel.position = CGPoint(x: cx, y: playerNameY)
-        playerNameLabel.zPosition = 1
-        overlay.addChild(playerNameLabel)
-
-        let eloRowY = playerNameY - 22
-        let eloRow = SKNode()
-        eloRow.name = Self.startScreenPlayerEloRowName
-        eloRow.position = CGPoint(x: cx, y: eloRowY)
-        eloRow.zPosition = 6
-        overlay.addChild(eloRow)
+        playerNameLabel.verticalAlignmentMode = .baseline
+        eloRow.addChild(playerNameLabel)
 
         let playerEloLabel = SKLabelNode(text: Self.startScreenEloDisplayText(rating: nil))
         playerEloLabel.name = Self.startScreenPlayerEloLabelName
@@ -1943,24 +1985,24 @@ final class GameScene: SKScene {
         playerEloLabel.fontSize = 12
         playerEloLabel.fontColor = BlomixAppearance.secondaryText
         playerEloLabel.horizontalAlignmentMode = .center
-        playerEloLabel.verticalAlignmentMode = .center
+        playerEloLabel.verticalAlignmentMode = .baseline
         eloRow.addChild(playerEloLabel)
 
         let eloChevron = SKLabelNode(text: "›")
         eloChevron.name = Self.startScreenPlayerEloChevronName
-        eloChevron.fontName = UIFont.systemFont(ofSize: 13, weight: .regular).fontName
-        eloChevron.fontSize = 14
+        eloChevron.fontName = UIFont.systemFont(ofSize: 12, weight: .regular).fontName
+        eloChevron.fontSize = 12
         eloChevron.fontColor = BlomixAppearance.tertiaryText
         eloChevron.horizontalAlignmentMode = .center
-        eloChevron.verticalAlignmentMode = .center
+        eloChevron.verticalAlignmentMode = .baseline
         eloRow.addChild(eloChevron)
         layoutStartScreenEloRow(in: overlay)
 
         // Disques SOLO / MOY. / ZEN — visibles tout de suite ; le rang (#n) arrive après fetch GC.
-        let discDiameter: CGFloat = 60
-        let discGap: CGFloat = 14
+        let discDiameter: CGFloat = 56
+        let discGap: CGFloat = 12
         let discStep = discDiameter + discGap
-        let discCenterY = eloRowY - 58
+        let discCenterY = playerNameY - 58
 
         let discsContainer = SKNode()
         discsContainer.name = Self.startScreenRankDiscsContainerName
@@ -2003,47 +2045,54 @@ final class GameScene: SKScene {
         discsContainer.addChild(zenRank.shadow)
         discsContainer.addChild(zenRank.label)
 
-        // ── Bande utilitaire : liens texte Réglages · Tutoriel · Crédits ──────────
-        let discBottomExtent = discDiameter / 2 + 18
-        let utilityLinksY = discCenterY - discBottomExtent - 44
-        let utilityLinks = makeStartScreenUtilityLinks(fontSize: 13)
-        utilityLinks.position = CGPoint(x: cx, y: utilityLinksY)
-        utilityLinks.zPosition = 2
-        overlay.addChild(utilityLinks)
+        // ── Rangée d'icônes : Réglages · Tutoriel · Thème · Partager · Crédits ─
+        let discBottomExtent = discDiameter / 2 + 10
+        let iconRowY = discCenterY - discBottomExtent - 36
+        let iconRow = SKNode()
+        iconRow.name = Self.startScreenIconRowName
+        iconRow.position = CGPoint(x: cx, y: iconRowY)
+        iconRow.zPosition = 2
+        overlay.addChild(iconRow)
 
-        // ── Toggle apparence Sombre / Clair (icône) ─────────────────────────────
-        let appearanceToggleY = utilityLinksY - 36
+        let settingsIcon = makeStartScreenChromeIcon(name: Self.startScreenSettingsLinkName, systemName: "gearshape.fill")
+        let tutorialIcon = makeStartScreenChromeIcon(name: Self.startScreenTutorialLinkName, systemName: "book.fill")
         let appearanceToggle = makeStartScreenAppearanceToggleNode()
-        appearanceToggle.position = CGPoint(x: cx, y: appearanceToggleY)
-        appearanceToggle.zPosition = 2
-        overlay.addChild(appearanceToggle)
+        let shareIcon = makeStartScreenChromeIcon(name: Self.startScreenShareChipName, systemName: "paperplane.fill")
+        let creditsIcon = makeStartScreenChromeIcon(name: Self.startScreenCreditsLinkName, systemName: "info.circle.fill")
+        let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, creditsIcon]
+        let iconStep: CGFloat = 52
+        let iconRowWidth = CGFloat(iconItems.count - 1) * iconStep
+        for (i, icon) in iconItems.enumerated() {
+            icon.position = CGPoint(x: -iconRowWidth / 2 + CGFloat(i) * iconStep, y: 0)
+            iconRow.addChild(icon)
+        }
 
-        // ── Partager (chip icône + texte, sous le toggle) ───────────────────────
-        let shareChip = makeStartScreenShareChip()
-        let shareChipH = shareChip.calculateAccumulatedFrame().height
-        let shareChipY = appearanceToggleY - 22 - max(shareChipH, 40) / 2
-        shareChip.position = CGPoint(x: cx, y: shareChipY)
-        shareChip.zPosition = 2
-        overlay.addChild(shareChip)
-
-        // ── Bande 3 : boutons de jeu (hero Solo + PvP/Zen côte à côte) ───────────
-        let maxChipOuter = size.width - 32
-        let playBandW = maxChipOuter / 2
+        // ── Bande jeu : Solo pleine largeur + PvP / Zen ────────────────────────
+        let maxChipOuter = size.width - 48
         let chipFont = BlomixUIDestinationButtonStyle.navigationTitleFontSize
-        let modeChipTitles = [BlomixL10n.startButton, BlomixL10n.startPvPButton, BlomixL10n.zenButton]
-        let modeChipSize = Self.startScreenUnifiedChipSize(texts: modeChipTitles, fontSize: chipFont, maxOuterWidth: playBandW)
-        let hChip = modeChipSize.height
-        let heroH = hChip * 1.28
-        let heroFont = chipFont * 1.12
-        let heroSize = CGSize(width: playBandW, height: heroH)
-
-        // Espace sous le chip Partager (réduit vs. ancien drop 100 sous le seul toggle).
-        let playBandDrop: CGFloat = 72
-        let heroY = shareChipY - max(shareChipH, 40) / 2 - 28 - heroH / 2 - playBandDrop
         let pairGap: CGFloat = 12
-        let pairChipW = (playBandW - pairGap) / 2
+        let pairChipW = (maxChipOuter - pairGap) / 2
+        let modeChipSize = Self.startScreenUnifiedChipSize(
+            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton],
+            fontSize: chipFont,
+            maxOuterWidth: pairChipW
+        )
+        let hChip = modeChipSize.height
+        let heroH = hChip * 1.22
+        let heroFont = chipFont * 1.12
+        let heroSize = CGSize(width: maxChipOuter, height: heroH)
         let pairChipSize = CGSize(width: pairChipW, height: hChip)
-        let secondaryRowY = heroY - heroH / 2 - 16 - hChip / 2
+
+        // Bande jeu ancrée depuis le bas (pouce) : laisse de l'air sous les icônes.
+        let tipAnchorY = size.height * 0.10
+        let pairFromTip: CGFloat = 64
+        var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2
+        var heroY = secondaryRowY + hChip / 2 + 18 + heroH / 2
+        let iconClearance = iconRowY - 32
+        if heroY + heroH / 2 > iconClearance {
+            heroY = iconClearance - heroH / 2
+            secondaryRowY = heroY - heroH / 2 - 16 - hChip / 2
+        }
 
         let startChip = makeStartScreenButtonChip(
             chipName: Self.startScreenStartChipName,
@@ -2136,81 +2185,72 @@ final class GameScene: SKScene {
 
         // ── Animations d'entrée ──────────────────────────────────────────────────
 
-        // Titre BLOMIX : effet slot machine — chaque lettre défile à travers des caractères
-        // aléatoires avant de se stabiliser sur la bonne, en cascade de gauche à droite.
-        // Chaque lettre reçoit une couleur unique tirée du skin actif du joueur.
-        title.alpha = 0
         title.setScale(1)
-        let slotCorrect    = Array("BLOMIX")
-        let slotAlphabet   = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-        let slotSeqLen     = 32
-        let slotDuration: TimeInterval = 2.0
-        let slotSettleAt: [Double]     = [0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
-        let slotTotalSteps = Double(slotSeqLen - 1)
-        // Séquences aléatoires pré-générées — différentes à chaque apparition.
-        let slotSeqs: [[Character]] = slotCorrect.map { _ in
-            (0..<slotSeqLen).map { _ in slotAlphabet.randomElement()! }
-        }
-        // Palette mélangée : 1 couleur skin unique par lettre (couleur finale après settle).
-        let slotPaletteKeys = ["blue", "red", "purple", "yellow", "green", "orange"].shuffled()
-        let slotColors: [UIColor] = slotPaletteKeys.prefix(slotCorrect.count).map { key in
-            Self.bloxSolidFillColor(forNormalizedKey: key) ?? .white
-        }
-        // Séquences de couleurs aléatoires — changent en même temps que les caractères.
-        let slotColorSeqs: [[UIColor]] = slotCorrect.map { _ in
-            (0..<slotSeqLen).map { _ in slotColors.randomElement()! }
-        }
-        let slotUIFont = UIFont(name: Self.customUIFontPostScriptName, size: 40)
-                      ?? UIFont.systemFont(ofSize: 40)
-        title.run(SKAction.customAction(withDuration: slotDuration) { node, elapsed in
-            guard let label = node as? SKLabelNode else { return }
-            // Fade-in rapide sur les 130 premières ms.
-            label.alpha = CGFloat(min(Double(elapsed) / 0.13, 1.0))
-            let t = Double(elapsed) / slotDuration
-            let attrStr = NSMutableAttributedString()
-            for i in 0..<slotCorrect.count {
-                let sp = slotSettleAt[i]
-                let char: Character
-                let color: UIColor
-                if t >= sp {
-                    // Lettre et couleur stabilisées.
-                    char  = slotCorrect[i]
-                    color = slotColors[i]
-                } else {
-                    // Ease-out quadratique : caractère et couleur changent ensemble.
-                    let stepIdx = min(Int(slotTotalSteps * (1.0 - pow(1.0 - t / sp, 2.0))), slotSeqLen - 1)
-                    char  = slotSeqs[i][stepIdx]
-                    color = slotColorSeqs[i][stepIdx]
-                }
-                attrStr.append(NSAttributedString(
-                    string: String(char),
-                    attributes: [.foregroundColor: color, .font: slotUIFont]
-                ))
+        if playIntro {
+            // Titre BLOMIX : slot machine — chaque lettre défile puis se stabilise.
+            title.alpha = 0
+            let slotCorrect    = Array("BLOMIX")
+            let slotAlphabet   = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            let slotSeqLen     = 32
+            let slotDuration: TimeInterval = 2.0
+            let slotSettleAt: [Double]     = [0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+            let slotTotalSteps = Double(slotSeqLen - 1)
+            let slotSeqs: [[Character]] = slotCorrect.map { _ in
+                (0..<slotSeqLen).map { _ in slotAlphabet.randomElement()! }
             }
-            label.attributedText = attrStr
-        })
+            let slotPaletteKeys = ["blue", "red", "purple", "yellow", "green", "orange"].shuffled()
+            let slotColors: [UIColor] = slotPaletteKeys.prefix(slotCorrect.count).map { key in
+                Self.bloxSolidFillColor(forNormalizedKey: key) ?? .white
+            }
+            let slotColorSeqs: [[UIColor]] = slotCorrect.map { _ in
+                (0..<slotSeqLen).map { _ in slotColors.randomElement()! }
+            }
+            let slotUIFont = UIFont(name: Self.displayFontName, size: 40)
+                          ?? UIFont.systemFont(ofSize: 40)
+            title.run(SKAction.customAction(withDuration: slotDuration) { node, elapsed in
+                guard let label = node as? SKLabelNode else { return }
+                label.alpha = CGFloat(min(Double(elapsed) / 0.13, 1.0))
+                let t = Double(elapsed) / slotDuration
+                let attrStr = NSMutableAttributedString()
+                for i in 0..<slotCorrect.count {
+                    let sp = slotSettleAt[i]
+                    let char: Character
+                    let color: UIColor
+                    if t >= sp {
+                        char  = slotCorrect[i]
+                        color = slotColors[i]
+                    } else {
+                        let stepIdx = min(Int(slotTotalSteps * (1.0 - pow(1.0 - t / sp, 2.0))), slotSeqLen - 1)
+                        char  = slotSeqs[i][stepIdx]
+                        color = slotColorSeqs[i][stepIdx]
+                    }
+                    attrStr.append(NSAttributedString(
+                        string: String(char),
+                        attributes: [.foregroundColor: color, .font: slotUIFont]
+                    ))
+                }
+                label.attributedText = attrStr
+            })
+        } else {
+            title.alpha = 1
+            title.fontName = Self.displayFontName
+            title.fontColor = BlomixAppearance.primaryTextSK
+            title.text = "BLOMIX"
+        }
 
         // Sous-titre + carte joueur : fade-in décalé.
-        subtitle.alpha        = 0
-        playerNameLabel.alpha = 0
-        eloRow.alpha          = 0
+        subtitle.alpha = 0
+        eloRow.alpha   = 0
         subtitle.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.22)]))
-        playerNameLabel.run(.sequence([.wait(forDuration: 0.23), .fadeIn(withDuration: 0.22)]))
-        eloRow.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.22)]))
+        eloRow.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.22)]))
 
-        utilityLinks.alpha = 0
-        utilityLinks.run(.sequence([.wait(forDuration: 0.32), .fadeIn(withDuration: 0.22)]))
-
-        appearanceToggle.alpha = 0
-        appearanceToggle.run(.sequence([.wait(forDuration: 0.36), .fadeIn(withDuration: 0.22)]))
-
-        shareChip.alpha = 0
-        runStartScreenGameChipEntrance(on: shareChip, delay: 0.30)
+        iconRow.alpha = 0
+        iconRow.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.20)]))
 
         // Boutons de jeu : stagger PvP+Zen puis Solo en conclusion.
-        runStartScreenGameChipEntrance(on: pvpChip, delay: 0.22)
-        runStartScreenGameChipEntrance(on: zenChip, delay: 0.22)
-        runStartScreenGameChipEntrance(on: startChip, delay: 0.35)
+        runStartScreenGameChipEntrance(on: pvpChip, delay: playIntro ? 0.22 : 0.06)
+        runStartScreenGameChipEntrance(on: zenChip, delay: playIntro ? 0.22 : 0.06)
+        runStartScreenGameChipEntrance(on: startChip, delay: playIntro ? 0.35 : 0.10)
 
         // Si le joueur avait cliqué "Tutoriel" depuis une partie en cours, on le lance maintenant.
         if pendingTutorialStart {
@@ -2345,7 +2385,7 @@ final class GameScene: SKScene {
         guard logo.texture != nil else {
             overlay.removeFromParent()
             restoreAppearanceChromeAfterStudioSplash()
-            presentStartScreenOrRestoreSoloSave()
+            presentStartScreenOrRestoreSoloSave(playIntro: true)
             return
         }
 
@@ -2403,7 +2443,7 @@ final class GameScene: SKScene {
                 overlay?.removeFromParent()
                 // Réappliquer le thème (Clair/Sombre) juste avant l'accueil.
                 self?.restoreAppearanceChromeAfterStudioSplash()
-                self?.presentStartScreenOrRestoreSoloSave()
+                self?.presentStartScreenOrRestoreSoloSave(playIntro: true)
             },
         ])
         logo.run(sequence)
@@ -2599,14 +2639,11 @@ final class GameScene: SKScene {
     }
 
     private func touchHitsStartScreenAppearanceToggle(_ scenePoint: CGPoint) -> Bool {
-        guard let overlay = childNode(withName: Self.startScreenOverlayName),
-              let toggle = overlay.childNode(withName: Self.startScreenAppearanceToggleName) else { return false }
-        let local = overlay.convert(scenePoint, to: toggle)
-        return abs(local.x) <= 22 && abs(local.y) <= 22
+        touchHitsStartScreenUtilityLink(named: Self.startScreenAppearanceToggleName, scenePoint: scenePoint)
     }
 
     private func touchHitsStartScreenShareButton(_ scenePoint: CGPoint) -> Bool {
-        sceneHitRectForStartScreenChip(named: Self.startScreenShareChipName).contains(scenePoint)
+        touchHitsStartScreenUtilityLink(named: Self.startScreenShareChipName, scenePoint: scenePoint)
     }
 
     private func toggleAppearanceFromStartScreen() {
@@ -2626,15 +2663,23 @@ final class GameScene: SKScene {
 
     private func touchHitsStartScreenUtilityLink(named linkName: String, scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
-              let container = overlay.childNode(withName: Self.startScreenUtilityLinksContainerName),
-              let link = container.childNode(withName: linkName) as? SKLabelNode else { return false }
-        return sceneHitRect(for: link, minWidth: 72, minHeight: 36, padding: 10).contains(scenePoint)
+              let iconRow = overlay.childNode(withName: Self.startScreenIconRowName),
+              let icon = iconRow.childNode(withName: linkName) else { return false }
+        return sceneHitRectForGameOverButton(icon, minW: 48, minH: 48).contains(scenePoint)
     }
 
     private func touchHitsStartScreenPlayerEloRow(_ scenePoint: CGPoint) -> Bool {
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
               let row = overlay.childNode(withName: Self.startScreenPlayerEloRowName) else { return false }
-        return sceneHitRectForGameOverButton(row, minW: 200, minH: 36).contains(scenePoint)
+        if let elo = row.childNode(withName: Self.startScreenPlayerEloLabelName),
+           sceneHitRectForGameOverButton(elo, minW: 80, minH: 36).contains(scenePoint) {
+            return true
+        }
+        if let chevron = row.childNode(withName: Self.startScreenPlayerEloChevronName),
+           sceneHitRectForGameOverButton(chevron, minW: 36, minH: 36).contains(scenePoint) {
+            return true
+        }
+        return false
     }
 
     private func touchHitsStartScreenZenButton(_ scenePoint: CGPoint) -> Bool {
@@ -2654,6 +2699,18 @@ final class GameScene: SKScene {
               let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName),
               let disc = container.childNode(withName: discName) else { return false }
         return sceneHitRectForGameOverButton(disc, minW: 54, minH: 80).contains(scenePoint)
+    }
+
+    private func touchHitsGameOverReplayButton(_ scenePoint: CGPoint) -> Bool {
+        guard let overlay = childNode(withName: Self.gameOverOverlayName),
+              let node = overlay.childNode(withName: Self.gameOverReplayLabelName) else { return false }
+        return sceneHitRectForGameOverButton(node).contains(scenePoint)
+    }
+
+    private func touchHitsGameOverRecordOk(_ scenePoint: CGPoint) -> Bool {
+        guard let overlay = childNode(withName: Self.gameOverRecordOverlayName),
+              let node = overlay.childNode(withName: Self.gameOverRecordOkName) else { return false }
+        return sceneHitRectForGameOverButton(node).contains(scenePoint)
     }
 
     private func touchHitsGameOverRestartButton(_ scenePoint: CGPoint) -> Bool {
@@ -2776,16 +2833,27 @@ final class GameScene: SKScene {
     private func refreshStartScreenPlayerIdentityIfVisible() {
         guard isStartScreen else { return }
         guard let overlay = childNode(withName: Self.startScreenOverlayName) else { return }
+        // Le nom est dans `eloRow` (ligne compressée 6.1), plus un enfant direct de l’overlay.
+        // Un lookup overlay-only faisait échouer tout le guard → Elo et #rangs jamais mis à jour.
         guard let eloRow = overlay.childNode(withName: Self.startScreenPlayerEloRowName),
-              let playerNameLabel = overlay.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode,
-              let playerEloLabel = eloRow.childNode(withName: Self.startScreenPlayerEloLabelName) as? SKLabelNode else { return }
+              let playerNameLabel = eloRow.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode
+                ?? overlay.childNode(withName: Self.startScreenPlayerNameLabelName) as? SKLabelNode,
+              let playerEloLabel = eloRow.childNode(withName: Self.startScreenPlayerEloLabelName) as? SKLabelNode else {
+            refreshStartScreenRankDiscsIfVisible()
+            return
+        }
 
         let displayName = GKLocalPlayer.local.displayName.isEmpty ? BlomixL10n.startScreenPlayerUnknown : GKLocalPlayer.local.displayName
         playerNameLabel.text = BlomixL10n.startScreenPlayerName(displayName)
-        playerEloLabel.text = Self.startScreenEloDisplayText(rating: nil)
+        let cachedElo = BlomixEloManager.shared.cachedLocalProfileOrDefault().rating
+        playerEloLabel.text = Self.startScreenEloDisplayText(
+            rating: GKLocalPlayer.local.isAuthenticated ? cachedElo : nil
+        )
         playerEloLabel.alpha = 1
         eloRow.alpha = 1
         layoutStartScreenEloRow(in: overlay)
+
+        refreshStartScreenRankDiscsIfVisible()
 
         guard GKLocalPlayer.local.isAuthenticated else { return }
         Task { @MainActor [weak self] in
@@ -2810,7 +2878,6 @@ final class GameScene: SKScene {
                 self.layoutStartScreenEloRow(in: overlay)
             }
         }
-        refreshStartScreenRankDiscsIfVisible()
     }
 
     /// Fetche le rang du joueur sur les 3 leaderboards (SOLO, Moyenne, Zen).
@@ -2876,16 +2943,68 @@ final class GameScene: SKScene {
     }
 
     private func registerFontChangeObserverIfNeeded() {
-        guard fontChangeObserver == nil else { return }
-        fontChangeObserver = NotificationCenter.default.addObserver(
-            forName: .blomixFontDidChange,
+        // v6.1 : plus de picker police, plus de `.blomixFontDidChange`.
+    }
+
+    private func registerAppearanceChangeObserverIfNeeded() {
+        guard appearanceChangeObserver == nil else { return }
+        appearanceChangeObserver = NotificationCenter.default.addObserver(
+            forName: .blomixAppearanceDidChange,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.applyTypographyChangeToVisibleScene()
+                self?.applyAppearanceToVisibleScene()
             }
         }
+    }
+
+    /// Recolore le chrome visible après un flip Sombre / Clair (accueil ou Réglages en partie).
+    /// Même résultat que le toggle accueil : fond, HUD, ☰ (texture), grille, file.
+    private func applyAppearanceToVisibleScene() {
+        refreshFullscreenBackgroundColor()
+        if let vc = view?.window?.rootViewController as? GameViewController {
+            vc.applyBlomixAppearanceChrome()
+        } else {
+            view?.backgroundColor = BlomixAppearance.sceneBackground
+            view?.superview?.backgroundColor = BlomixAppearance.sceneBackground
+        }
+
+        if isStartScreen {
+            presentStartScreen(playIntro: false)
+            return
+        }
+        if isGameOver { return }
+
+        let menuWasOpen = gameOverflowMenuDropdownIsOpen()
+        rebuildGameOverflowMenu()
+        if menuWasOpen {
+            childNode(withName: Self.bottomMenuContainerName)?
+                .childNode(withName: Self.hudGameMenuDropdownName)?.isHidden = false
+        }
+
+        addTopTitle()
+        setupScoreHUD()
+        if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
+            scoreLabel.text = "\(score)"
+        }
+        setupBombHUD()
+        drawGrid()
+        updatePreviewSprite()
+        refreshUpcomingQueueSlots()
+        updateBombHUD()
+        refreshProgressHUDBars()
+        ensurePvPTurnCountdownLabelIfNeeded()
+        ensurePvPOpponentLabelIfNeeded()
+        layoutScoreLabel()
+        layoutBombHUD()
+        layoutPvPTurnCountdownIfNeeded()
+        layoutGameOverflowMenuIfNeeded()
+        layoutGameCenterStatusLabel()
+        refreshGameCenterStatusLabelText()
+        updateStageTimerHUD()
+        refreshStageBadge()
+        refreshBestScoreHUDIfNeeded()
     }
 
     private func applyTypographyChangeToVisibleScene() {
@@ -3273,7 +3392,7 @@ final class GameScene: SKScene {
 
         let title = SKLabelNode(text: BlomixL10n.gameOverTitle)
         title.name = Self.gameOverTitleLabelName
-        title.fontName = Self.customUIFontPostScriptName
+        title.fontName = Self.displayFontName
         title.fontSize = 32
         title.fontColor = BlomixAppearance.gameOverPrimaryTextSK
         title.horizontalAlignmentMode = .center
@@ -3289,7 +3408,7 @@ final class GameScene: SKScene {
 
         let scoreLine = SKLabelNode(text: BlomixL10n.gameOverScore(finalScore))
         scoreLine.name = Self.gameOverScoreLabelName
-        scoreLine.fontName = Self.customUIFontPostScriptName
+        scoreLine.fontName = Self.displayFontName
         scoreLine.fontSize = 36
         scoreLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
         scoreLine.horizontalAlignmentMode = .center
@@ -3304,37 +3423,61 @@ final class GameScene: SKScene {
         ]))
 
         let goButtonFontSize = BlomixUIDestinationButtonStyle.navigationTitleFontSize
-        let goButtonSize = BlomixSKButtonNode.unifiedSize(
-            for: [BlomixL10n.gameOverRestart, BlomixL10n.gameOverLeaderboard, BlomixL10n.shareButton],
+        let heroWidth = size.width - 48
+        let secondaryTexts = [BlomixL10n.gameOverRestart, BlomixL10n.gameOverLeaderboard, BlomixL10n.shareButton]
+        let secondarySize = BlomixSKButtonNode.unifiedSize(
+            for: secondaryTexts,
             fontSize: goButtonFontSize,
-            maxWidth: size.width - 48
+            maxWidth: (heroWidth - 10) / 2
         )
-        let restartY = size.height / 2 - 64 - analysisPanelShift
-        let leaderboardY = restartY - goButtonSize.height - 10
-        let shareY = leaderboardY - goButtonSize.height - 10
+        let replaySize = CGSize(width: heroWidth, height: secondarySize.height * 1.22)
+        let homeSize = CGSize(width: heroWidth, height: secondarySize.height)
+        let replayY = size.height / 2 - 64 - analysisPanelShift
+        let homeY = replayY - replaySize.height / 2 - 12 - homeSize.height / 2
+        let rowY = homeY - homeSize.height / 2 - 12 - secondarySize.height / 2
+        let shareY = rowY
+
+        let replay = BlomixSKButtonNode(
+            name: Self.gameOverReplayLabelName,
+            text: BlomixL10n.gameOverReplay,
+            size: replaySize,
+            fontSize: goButtonFontSize * 1.12
+        )
+        let heroAccent = Self.startScreenHeroAccentColor()
+        replay.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
+        replay.position = CGPoint(x: size.width / 2, y: replayY)
+        replay.alpha = 0
+        replay.zPosition = 10
+        overlay.addChild(replay)
+        replay.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.32),
+            SKAction.fadeIn(withDuration: 0.2),
+        ]))
 
         let restart = BlomixSKButtonNode(
             name: Self.gameOverRestartLabelName,
             text: BlomixL10n.gameOverRestart,
-            size: goButtonSize,
+            size: homeSize,
             fontSize: goButtonFontSize
         )
-        restart.position = CGPoint(x: size.width / 2, y: restartY)
+        restart.position = CGPoint(x: size.width / 2, y: homeY)
         restart.alpha = 0
         restart.zPosition = 10
         overlay.addChild(restart)
         restart.run(SKAction.sequence([
-            SKAction.wait(forDuration: 0.35),
+            SKAction.wait(forDuration: 0.38),
             SKAction.fadeIn(withDuration: 0.2),
         ]))
 
+        let pairW = (heroWidth - 10) / 2
+        let pairSize = CGSize(width: pairW, height: secondarySize.height)
         let leaderboard = BlomixSKButtonNode(
             name: Self.gameOverLeaderboardLabelName,
             text: BlomixL10n.gameOverLeaderboard,
-            size: goButtonSize,
+            size: pairSize,
             fontSize: goButtonFontSize
         )
-        leaderboard.position = CGPoint(x: size.width / 2, y: leaderboardY)
+        leaderboard.position = CGPoint(x: size.width / 2 - pairW / 2 - 5, y: rowY)
         leaderboard.alpha = 0
         leaderboard.zPosition = 10
         overlay.addChild(leaderboard)
@@ -3346,10 +3489,10 @@ final class GameScene: SKScene {
         let share = BlomixSKButtonNode(
             name: Self.gameOverShareLabelName,
             text: BlomixL10n.shareButton,
-            size: goButtonSize,
+            size: pairSize,
             fontSize: goButtonFontSize
         )
-        share.position = CGPoint(x: size.width / 2, y: shareY)
+        share.position = CGPoint(x: size.width / 2 + pairW / 2 + 5, y: rowY)
         share.alpha = 0
         share.zPosition = 10
         overlay.addChild(share)
@@ -3358,25 +3501,39 @@ final class GameScene: SKScene {
             SKAction.fadeIn(withDuration: 0.22),
         ]))
 
+        // ── Bouton "Voir ton pire coup" (avant la citation) ────────────────────
+        var lastButtonsBottomY = shareY - homeSize.height / 2
+        if BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil {
+            let worstBtn = BlomixSKButtonNode(
+                name:     Self.gameOverWorstMoveButtonName,
+                text:     BlomixL10n.gameOverViewWorstMove,
+                size:     homeSize,
+                fontSize: goButtonFontSize
+            )
+            let worstY = shareY - homeSize.height - 10
+            worstBtn.position = CGPoint(x: size.width / 2, y: worstY)
+            worstBtn.alpha    = 0
+            worstBtn.zPosition = 10
+            overlay.addChild(worstBtn)
+            worstBtn.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.50),
+                SKAction.fadeIn(withDuration: 0.22),
+            ]))
+            lastButtonsBottomY = worstY - homeSize.height / 2
+        }
+
         let quote = randomGameOverQuote()
         let quoteMaxChars = max(18, Int((size.width - 40) / 11))
         let wrapped = Self.wrapQuoteForGameOver(quote.text, maxCharsPerLine: quoteMaxChars, maxLines: 4)
-
-        // Décalage citations : bouton Partager toujours présent + éventuellement « pire coup ».
-        let shareBtnShift = goButtonSize.height + 12
-        let worstMoveBtnShift: CGFloat = (BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil)
-            ? goButtonSize.height + 12
-            : 0
-        let quoteExtraShift = shareBtnShift + worstMoveBtnShift
+        let firstLineY = lastButtonsBottomY - 28
 
         if !wrapped.isEmpty {
-            let lineHeight: CGFloat = 24
-            let firstLineY = size.height / 2 - 162 - analysisPanelShift - quoteExtraShift
+            let lineHeight: CGFloat = 22
             for (index, line) in wrapped.enumerated() {
                 let quoteLine = SKLabelNode(text: line)
                 quoteLine.name = index == 0 ? Self.gameOverQuoteLine1LabelName : Self.gameOverQuoteLine2LabelName
                 quoteLine.fontName = Self.customUIFontPostScriptName
-                quoteLine.fontSize = 20
+                quoteLine.fontSize = 16
                 quoteLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
                 quoteLine.horizontalAlignmentMode = .center
                 quoteLine.verticalAlignmentMode = .center
@@ -3394,12 +3551,14 @@ final class GameScene: SKScene {
         let author = SKLabelNode(text: "- \(quote.author)")
         author.name = Self.gameOverQuoteAuthorLabelName
         author.fontName = Self.customUIFontPostScriptName
-        author.fontSize = 18
+        author.fontSize = 14
         author.fontColor = BlomixAppearance.gameOverSecondaryTextSK
         author.horizontalAlignmentMode = .center
         author.verticalAlignmentMode = .center
-        let authorY = size.height / 2 - 162 - CGFloat(max(1, wrapped.count)) * 24 - 10 - analysisPanelShift - quoteExtraShift
-        author.position = CGPoint(x: size.width / 2, y: authorY)
+        author.position = CGPoint(
+            x: size.width / 2,
+            y: firstLineY - CGFloat(max(1, wrapped.count)) * 22 - 8
+        )
         author.alpha = 0
         author.zPosition = 10
         overlay.addChild(author)
@@ -3407,26 +3566,6 @@ final class GameScene: SKScene {
             SKAction.wait(forDuration: 0.72),
             SKAction.fadeIn(withDuration: 0.24),
         ]))
-
-        // ── Bouton "Voir ton pire coup" ──────────────────────────────────────────
-        // Toujours affiché si le système d'analyse a capturé au moins un coup.
-        if BlomixMoveAnalyzer.evalEnabled && worstMistakeSnapshot != nil {
-            let worstBtn = BlomixSKButtonNode(
-                name:     Self.gameOverWorstMoveButtonName,
-                text:     BlomixL10n.gameOverViewWorstMove,
-                size:     goButtonSize,
-                fontSize: goButtonFontSize
-            )
-            worstBtn.position = CGPoint(x: size.width / 2,
-                                        y: shareY - goButtonSize.height - 10)
-            worstBtn.alpha    = 0
-            worstBtn.zPosition = 10
-            overlay.addChild(worstBtn)
-            worstBtn.run(SKAction.sequence([
-                SKAction.wait(forDuration: 0.50),
-                SKAction.fadeIn(withDuration: 0.22),
-            ]))
-        }
 
         // Pré-rendu carte de partage (thème + skin actuels).
         refreshGameOverShareCard()
@@ -3449,21 +3588,113 @@ final class GameScene: SKScene {
             if isNewPB {
                 self.gameOverShareIsNewPB = true
                 self.refreshGameOverShareCard()
+                self.presentPersonalBestOverlay(score: finalScore)
             }
-            guard isNewPB,
-                  let overlay = self.childNode(withName: Self.gameOverOverlayName) else { return }
-            let personalBest = SKLabelNode(text: BlomixL10n.gameOverPersonalBest)
-            personalBest.name = Self.gameOverPersonalBestLabelName
-            personalBest.fontName = Self.customUIFontPostScriptName
-            personalBest.fontSize = 14
-            personalBest.fontColor = BlomixAppearance.gameOverPrimaryTextSK
-            personalBest.horizontalAlignmentMode = .center
-            personalBest.verticalAlignmentMode = .center
-            personalBest.position = CGPoint(x: self.size.width / 2, y: self.size.height / 2 - 30)
-            personalBest.alpha = 0
-            personalBest.zPosition = 10
-            overlay.addChild(personalBest)
-            personalBest.run(SKAction.fadeIn(withDuration: 0.22))
+        }
+    }
+
+    /// Overlay record perso (famille résultat PvP). OK → game over 6.1 dessous.
+    private func presentPersonalBestOverlay(score: Int) {
+        childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
+        let overlay = SKNode()
+        overlay.name = Self.gameOverRecordOverlayName
+        overlay.zPosition = 250
+        addChild(overlay)
+
+        let dim = SKSpriteNode(color: BlomixAppearance.gameOverDimColorSK, size: size)
+        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        dim.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.alpha = BlomixAppearance.gameOverDimAlpha
+        overlay.addChild(dim)
+
+        let ambient = SKNode()
+        ambient.name = "gameOverRecordAmbient"
+        ambient.zPosition = 0.5
+        overlay.addChild(ambient)
+        startAmbientBlocksAnimation(
+            in: overlay,
+            containerName: "gameOverRecordAmbient",
+            actionKey: "gameOverRecordAmbientSpawn"
+        )
+
+        let cx = size.width / 2
+        let cy = size.height / 2 + 24
+
+        let title = SKLabelNode(text: BlomixL10n.gameOverRecordTitle)
+        title.fontName = Self.displayFontName
+        title.fontSize = 32
+        title.fontColor = BlomixAppearance.gameOverPrimaryTextSK
+        title.horizontalAlignmentMode = .center
+        title.verticalAlignmentMode = .center
+        title.position = CGPoint(x: cx, y: cy + 48)
+        title.zPosition = 10
+        overlay.addChild(title)
+
+        let scoreLine = SKLabelNode(text: BlomixL10n.gameOverRecordScore(score))
+        scoreLine.fontName = Self.displayFontName
+        scoreLine.fontSize = 36
+        scoreLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
+        scoreLine.horizontalAlignmentMode = .center
+        scoreLine.verticalAlignmentMode = .center
+        scoreLine.position = CGPoint(x: cx, y: cy)
+        scoreLine.zPosition = 10
+        overlay.addChild(scoreLine)
+
+        let rankLine = SKLabelNode(text: "")
+        rankLine.name = "gameOverRecordRank"
+        rankLine.fontName = Self.chromeFontName
+        rankLine.fontSize = 16
+        rankLine.fontColor = BlomixAppearance.gameOverSecondaryTextSK
+        rankLine.horizontalAlignmentMode = .center
+        rankLine.verticalAlignmentMode = .center
+        rankLine.position = CGPoint(x: cx, y: cy - 40)
+        rankLine.zPosition = 10
+        rankLine.alpha = 0
+        overlay.addChild(rankLine)
+
+        let okSize = BlomixSKButtonNode.fittingSize(for: BlomixL10n.ok, fontSize: 17, maxWidth: size.width - 80)
+        let ok = BlomixSKButtonNode(
+            name: Self.gameOverRecordOkName,
+            text: BlomixL10n.ok,
+            size: CGSize(width: max(okSize.width, 160), height: max(okSize.height, 44)),
+            fontSize: 17
+        )
+        ok.position = CGPoint(x: cx, y: size.height * 0.22)
+        ok.zPosition = 10
+        overlay.addChild(ok)
+
+        let boardID = isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
+        ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: boardID) { [weak self] rank in
+            guard let self, let rank,
+                  let overlay = self.childNode(withName: Self.gameOverRecordOverlayName),
+                  let label = overlay.childNode(withName: "gameOverRecordRank") as? SKLabelNode
+            else { return }
+            label.text = self.isZenMode
+                ? BlomixL10n.gameOverRecordRankZen(rank)
+                : BlomixL10n.gameOverRecordRankSolo(rank)
+            label.run(.fadeIn(withDuration: 0.22))
+        }
+    }
+
+    private func dismissPersonalBestOverlay() {
+        childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
+    }
+
+    private func replayFromGameOver() {
+        guard isGameOver else { return }
+        let keepZen = isZenMode
+        childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
+        childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
+        isGameOver = false
+        isProcessing = false
+        isStageTimerPausedForChrome = false
+        stopStageTimer()
+        BlomixMusicPlayer.shared.resetToBase()
+        isStartScreen = true
+        if keepZen {
+            beginZenModeFromStartScreen()
+        } else {
+            beginNewMatchFromStartScreen()
         }
     }
 
@@ -3606,7 +3837,7 @@ final class GameScene: SKScene {
                     bg.fillColor   = Self.priksSolidFillColor()
                     bg.strokeColor = .clear
                     let nLbl = SKLabelNode(text: "\(n)")
-                    nLbl.fontName               = Self.customUIFontPostScriptName
+                    nLbl.fontName               = Self.gridFontName
                     nLbl.fontSize               = cellSize * 0.45
                     nLbl.fontColor              = .white
                     nLbl.verticalAlignmentMode  = .center
@@ -3673,7 +3904,7 @@ final class GameScene: SKScene {
                     lc.fillColor   = Self.priksSolidFillColor()
                     lc.strokeColor = .clear
                     let nl = SKLabelNode(text: "\(n)")
-                    nl.fontName               = Self.customUIFontPostScriptName
+                    nl.fontName               = Self.gridFontName
                     nl.fontSize               = pendingLineH * 0.55
                     nl.fontColor              = .white
                     nl.verticalAlignmentMode  = .center
@@ -3733,7 +3964,7 @@ final class GameScene: SKScene {
                 cell.fillColor   = Self.priksSolidFillColor()
                 cell.strokeColor = .clear
                 let nl = SKLabelNode(text: "\(n)")
-                nl.fontName               = Self.customUIFontPostScriptName
+                nl.fontName               = Self.gridFontName
                 nl.fontSize               = sz * 0.45
                 nl.fontColor              = .white
                 nl.verticalAlignmentMode  = .center
@@ -5021,7 +5252,7 @@ final class GameScene: SKScene {
     private func spawnFloatingScorePopup(points: Int, at scenePoint: CGPoint, dotColor: SKColor? = nil, onTransferArrival: @escaping () -> Void) {
         let accent = dotColor ?? BlomixAppearance.floatingScoreAccentSK
         let text = SKLabelNode(text: "+\(points)")
-        text.fontName = Self.customUIFontPostScriptName
+        text.fontName = Self.gridFontName
         text.fontSize = 62
         text.fontColor = accent
         text.horizontalAlignmentMode = .center
@@ -5068,7 +5299,7 @@ final class GameScene: SKScene {
         container.zPosition = 37        // au-dessus du "+N" (zPos 35)
         addChild(container)
 
-        let font = Self.customUIFontPostScriptName
+        let font = Self.gridFontName
         let fSize: CGFloat = 62
         let lineSpacing: CGFloat = 56
 
@@ -5533,7 +5764,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.ligneValueName)?.removeFromParent()
         let label = SKLabelNode(text: "0")
         label.name = Self.scoreHudLabelName
-        label.fontName = Self.customUIFontPostScriptName
+        label.fontName = Self.displayFontName
         label.fontSize = 52
         label.fontColor = BlomixAppearance.primaryTextSK
         label.horizontalAlignmentMode = .center
@@ -5627,35 +5858,19 @@ final class GameScene: SKScene {
         // Compteur LIGNE
         // Mode normal : en haut à gauche (symétrique de TEMPS à droite).
         // Mode Zen    : en bas à gauche, LIGNE aligné en haut avec l'icône bombe.
-        if isZenMode {
-            let bandY  = sceneYCenterForBombAndUpcomingBand()
-            let leftX  = gridAreaCenter.x - half
-            // Alignement : haut texte "LIGNE" (centre + ½ hauteur ≈ 7 pts) == haut icône bombe (bandY + 18).
-            // → centre LIGNE = bandY + 18 − 7 = bandY + 11
-            let ligneCaptionY = bandY + 11
-            if let ligneCaption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode {
-                ligneCaption.fontSize = 14
-                ligneCaption.position = CGPoint(x: leftX, y: ligneCaptionY)
-            }
-            if let ligneValue = childNode(withName: Self.ligneValueName) as? SKLabelNode {
-                ligneValue.fontSize = 14
-                ligneValue.position = CGPoint(x: leftX, y: ligneCaptionY - 14)
-            }
-        } else {
-            if let ligneCaption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode {
-                ligneCaption.fontSize = 14
-                ligneCaption.position = CGPoint(
-                    x: gridAreaCenter.x - half,
-                    y: label.position.y + 11
-                )
-            }
-            if let ligneValue = childNode(withName: Self.ligneValueName) as? SKLabelNode {
-                ligneValue.fontSize = 14
-                ligneValue.position = CGPoint(
-                    x: gridAreaCenter.x - half,
-                    y: label.position.y - 11
-                )
-            }
+        if let ligneCaption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode {
+            ligneCaption.fontSize = 14
+            ligneCaption.position = CGPoint(
+                x: gridAreaCenter.x - half,
+                y: label.position.y + 11
+            )
+        }
+        if let ligneValue = childNode(withName: Self.ligneValueName) as? SKLabelNode {
+            ligneValue.fontSize = 14
+            ligneValue.position = CGPoint(
+                x: gridAreaCenter.x - half,
+                y: label.position.y - 11
+            )
         }
     }
 
@@ -5773,9 +5988,7 @@ final class GameScene: SKScene {
         let entries: [(text: String, name: String)] = [
             (BlomixL10n.menuNewGame, Self.bottomMenuNewGameName),
             (BlomixL10n.menuScores, Self.bottomMenuScoresName),
-            (BlomixL10n.menuTutorial, Self.bottomMenuRulesName),
             (BlomixL10n.menuSettings, Self.bottomMenuSettingsName),
-            (BlomixL10n.menuMultiplayer, Self.bottomMenuMultiplayerName),
         ]
         let panelH = CGFloat(entries.count) * rowH + 20
         let panel = SKSpriteNode(color: BlomixAppearance.panelFillTranslucent, size: CGSize(width: panelW, height: panelH))
@@ -5821,9 +6034,7 @@ final class GameScene: SKScene {
         let names = [
             Self.bottomMenuNewGameName,
             Self.bottomMenuScoresName,
-            Self.bottomMenuRulesName,
             Self.bottomMenuSettingsName,
-            Self.bottomMenuMultiplayerName,
         ]
         let panelH = CGFloat(names.count) * rowH + 20
         if let panel = dropdown.childNode(withName: Self.hudGameMenuPanelName) as? SKSpriteNode {
@@ -5848,15 +6059,21 @@ final class GameScene: SKScene {
         return !drop.isHidden
     }
 
-    private func closeGameOverflowMenu() {
+    private func closeGameOverflowMenu(resumeTimer: Bool = true) {
         childNode(withName: Self.bottomMenuContainerName)?
             .childNode(withName: Self.hudGameMenuDropdownName)?.isHidden = true
+        if resumeTimer { resumeStageTimerForChrome() }
     }
 
     private func toggleGameOverflowMenu() {
         guard let drop = childNode(withName: Self.bottomMenuContainerName)?
             .childNode(withName: Self.hudGameMenuDropdownName) else { return }
         drop.isHidden.toggle()
+        if drop.isHidden {
+            resumeStageTimerForChrome()
+        } else {
+            pauseStageTimerForChrome()
+        }
     }
 
     private func sceneHitRect(forMenuNode node: SKNode, padding: CGFloat = 10) -> CGRect {
@@ -6710,7 +6927,7 @@ final class GameScene: SKScene {
         sprite.childNode(withName: symbolLabelName)?.removeFromParent()
         let sym = SKLabelNode(text: MagixRules.symbol(for: kind))
         sym.name                     = symbolLabelName
-        sym.fontName                 = customUIFontPostScriptName
+        sym.fontName                 = gridFontName
         sym.fontSize                 = size.height * 0.69
         sym.fontColor                = .black
         sym.horizontalAlignmentMode  = .center
@@ -6870,7 +7087,7 @@ final class GameScene: SKScene {
     /// sur le même modèle que les popups COMBO.
     private func spawnMagixNamePopup(name: String, at position: CGPoint) {
         let lbl = SKLabelNode(text: name)
-        lbl.fontName   = Self.customUIFontPostScriptName
+        lbl.fontName   = Self.gridFontName
         lbl.fontSize   = 22
         lbl.fontColor  = BlomixAppearance.floatingScoreAccentSK
         lbl.horizontalAlignmentMode = .center
@@ -7242,7 +7459,7 @@ final class GameScene: SKScene {
                     cleanxSprite.color            = Self.priksSolidFillColor()
                     cleanxSprite.colorBlendFactor = 1
                     let digitNode = SKLabelNode(text: "\(max(1, clearedCount))")
-                    digitNode.fontName                = Self.customUIFontPostScriptName
+                    digitNode.fontName                = Self.gridFontName
                     digitNode.fontSize                = clearedCount >= 10 ? 13 : 18
                     digitNode.fontColor               = Self.priksDigitLabelColor()
                     digitNode.horizontalAlignmentMode = .center
@@ -8406,7 +8623,7 @@ final class GameScene: SKScene {
             sprite.size = innerSize
             let digit = SKLabelNode(text: "\(value)")
             digit.name = Self.queueSlotPriksDigitName
-            digit.fontName = Self.customUIFontPostScriptName
+            digit.fontName = Self.gridFontName
             digit.fontSize = priksFont
             digit.fontColor = Self.priksDigitLabelColor()
             digit.horizontalAlignmentMode = .center
@@ -9312,7 +9529,7 @@ final class GameScene: SKScene {
             preview.color = Self.priksSolidFillColor()
             let digit = SKLabelNode(text: "\(value)")
             digit.name = Self.previewPriksDigitName
-            digit.fontName = Self.customUIFontPostScriptName
+            digit.fontName = Self.gridFontName
             digit.fontSize = 19
             digit.fontColor = Self.priksDigitLabelColor()
             digit.horizontalAlignmentMode = .center
@@ -9469,7 +9686,7 @@ final class GameScene: SKScene {
         let titleY = size.height - titleLiftFromTop - GridLayout.cellPoints
         let title = SKLabelNode(text: "BLOMIX")
         title.name = Self.titleNodeName
-        title.fontName = Self.customUIFontPostScriptName
+        title.fontName = Self.displayFontName
         title.fontSize = 36
         title.fontColor = BlomixAppearance.primaryTextSK
         title.horizontalAlignmentMode = .center
@@ -9809,7 +10026,7 @@ final class GameScene: SKScene {
             let s = SKSpriteNode(color: priksSolidFillColor(), size: size)
             s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             let digit = SKLabelNode(text: "\(value)")
-            digit.fontName = customUIFontPostScriptName
+            digit.fontName = gridFontName
             // Réduction automatique de la taille de police pour les valeurs à 2 chiffres (≥10).
             digit.fontSize = value >= 10 ? priksDigitFontSize * 0.72 : priksDigitFontSize
             digit.fontColor = Self.priksDigitLabelColor()
@@ -9827,7 +10044,7 @@ final class GameScene: SKScene {
             s.colorBlendFactor = 1
             s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             let sym = SKLabelNode(text: MagixRules.symbol(for: kind))
-            sym.fontName                = customUIFontPostScriptName
+            sym.fontName                = gridFontName
             sym.fontSize                = size.height * 0.69
             sym.fontColor               = .black
             sym.horizontalAlignmentMode = .center
@@ -11009,6 +11226,8 @@ final class GameScene: SKScene {
 
     private var currentStageIndex: Int = 0
     private var stageTimerSecondsRemaining: Int = 32
+    /// Pause chrome (☰ / modales) : le reste de secondes est conservé.
+    private var isStageTimerPausedForChrome = false
 
     private var isInStagedSoloMode: Bool { pvpCoordinator == nil && !isTutorialMode && !isZenMode }
 
@@ -11064,7 +11283,7 @@ final class GameScene: SKScene {
         guard childNode(withName: Self.stageBadgeNodeName) == nil else { return }
         let badge = SKLabelNode()
         badge.name                   = Self.stageBadgeNodeName
-        badge.fontName               = Self.customUIFontPostScriptName
+        badge.fontName               = Self.displayFontName
         badge.fontSize               = 18
         badge.fontColor              = BlomixAppearance.primaryTextSK
         badge.horizontalAlignmentMode = .center
@@ -11086,8 +11305,24 @@ final class GameScene: SKScene {
     private func refreshStageBadge() {
         guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKLabelNode else { return }
         let lv = currentStageConfig.levelText
-        badge.text     = lv == "Ultimate" ? "L★" : "L\(lv)"
+        let nextText = lv == "Ultimate" ? "L★" : "L\(lv)"
+        let changed = badge.text != nextText
+        badge.text     = nextText
         badge.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
+        if changed, !badge.isHidden {
+            badge.removeAction(forKey: "stageBadgePulse")
+            badge.setScale(1)
+            let pulse = SKAction.sequence([
+                SKAction.group([
+                    SKAction.scale(to: 1.35, duration: 0.16),
+                    SKAction.fadeAlpha(to: 1, duration: 0.08),
+                ]),
+                SKAction.scale(to: 0.92, duration: 0.10),
+                SKAction.scale(to: 1.0, duration: 0.12),
+            ])
+            pulse.timingMode = .easeInEaseOut
+            badge.run(pulse, withKey: "stageBadgePulse")
+        }
     }
 
     // MARK: - Stage timer
@@ -11114,6 +11349,35 @@ final class GameScene: SKScene {
 
     func stopStageTimer() {
         removeAction(forKey: Self.stageTimerActionKey)
+    }
+
+    private func pauseStageTimerForChrome() {
+        guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
+        stopStageTimer()
+        isStageTimerPausedForChrome = true
+    }
+
+    private func resumeStageTimerForChrome() {
+        guard isStageTimerPausedForChrome else { return }
+        isStageTimerPausedForChrome = false
+        guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
+        resumeStageTimerKeepingRemaining()
+    }
+
+    /// Reprend le décompte sur les secondes restantes (ne pas appeler `restartStageTimer`).
+    private func resumeStageTimerKeepingRemaining() {
+        guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
+        removeAction(forKey: Self.stageTimerActionKey)
+        updateStageTimerHUD()
+        let seq = SKAction.sequence([
+            SKAction.wait(forDuration: 1.0),
+            SKAction.run { [weak self] in self?.stageTimerTick() },
+            SKAction.repeatForever(SKAction.sequence([
+                SKAction.wait(forDuration: 1.0),
+                SKAction.run { [weak self] in self?.stageTimerTick() },
+            ])),
+        ])
+        run(seq, withKey: Self.stageTimerActionKey)
     }
 
     private func stageTimerTick() {
@@ -11241,7 +11505,7 @@ final class GameScene: SKScene {
         foreground: UIColor,
         outlineWidth: CGFloat = 0
     ) -> [NSAttributedString.Key: Any] {
-        let uiFont = UIFont(name: customUIFontPostScriptName, size: fontSize)
+        let uiFont = UIFont(name: displayFontName, size: fontSize)
                   ?? UIFont.boldSystemFont(ofSize: fontSize)
         let para = NSMutableParagraphStyle()
         para.alignment = .center
@@ -12208,6 +12472,16 @@ final class GameScene: SKScene {
                 childNode(withName: Self.worstMistakeOverlayName)?.removeFromParent()
                 return
             }
+            if childNode(withName: Self.gameOverRecordOverlayName) != nil {
+                if touchHitsGameOverRecordOk(location) {
+                    pendingButtonAction = { [weak self] in self?.dismissPersonalBestOverlay() }
+                }
+                return
+            }
+            if touchHitsGameOverReplayButton(location) {
+                pendingButtonAction = { [weak self] in self?.replayFromGameOver() }
+                return
+            }
             if touchHitsGameOverRestartButton(location) {
                 pendingButtonAction = { [weak self] in self?.returnToStartScreenFromGameOver() }
                 return
@@ -12234,39 +12508,13 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsOverflowMenuItem(named: Self.bottomMenuScoresName, scenePoint: location) {
-                closeGameOverflowMenu()
+                closeGameOverflowMenu(resumeTimer: false)
                 pendingButtonAction = { [weak self] in self?.showLeaderboard() }
                 return
             }
-            if touchHitsOverflowMenuItem(named: Self.bottomMenuRulesName, scenePoint: location) {
-                closeGameOverflowMenu()
-                pendingButtonAction = { [weak self] in
-                    guard let self else { return }
-                    if !self.isStartScreen {
-                        if self.pvpCoordinator != nil {
-                            // En PvP : on ne peut pas lancer le tutoriel sans casser la session réseau.
-                            // On affiche le tutoriel paginé (lecture seule) à la place.
-                            self.showRules()
-                        } else {
-                            // Solo : sauvegarder AVANT que unwindToStartScreen ne réinitialise le modèle.
-                            self.saveCurrentSoloGameState()
-                            self.pendingTutorialStart = true
-                            self.unwindToStartScreen()
-                        }
-                    } else {
-                        self.startTutorialGameWithIntro()
-                    }
-                }
-                return
-            }
             if touchHitsOverflowMenuItem(named: Self.bottomMenuSettingsName, scenePoint: location) {
-                closeGameOverflowMenu()
+                closeGameOverflowMenu(resumeTimer: false)
                 pendingButtonAction = { [weak self] in self?.showSettings() }
-                return
-            }
-            if touchHitsOverflowMenuItem(named: Self.bottomMenuMultiplayerName, scenePoint: location) {
-                closeGameOverflowMenu()
-                pendingButtonAction = { [weak self] in self?.showPvPLobby() }
                 return
             }
             if touchHitsGameMenuIcon(scenePoint: location) {
@@ -12454,6 +12702,11 @@ final class GameScene: SKScene {
             ?? ""
         let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
         guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
+        BlomixPvPH2HManager.shared.rememberOpponentForReconcile(
+            remoteGamePlayerID: remoteGameID.isEmpty ? remoteTeamID : remoteGameID,
+            remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+            displayName: pvpOpponentDisplayName
+        )
         BlomixPvPH2HManager.shared.seedSeriesBaselineFromCache(
             remoteGamePlayerID: remoteGameID,
             remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
@@ -12532,6 +12785,11 @@ final class GameScene: SKScene {
             return
         }
         let channel = pvpCoordinator?.h2hChannelLabel ?? "online"
+        BlomixPvPH2HManager.shared.rememberOpponentForReconcile(
+            remoteGamePlayerID: remoteGameID.isEmpty ? remoteTeamID : remoteGameID,
+            remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+            displayName: pvpOpponentDisplayName
+        )
         // Clé stable par manche de la série (évite double event cloud si fin de match rejouée).
         let matchEventKey = "\(channel)|g\(pvpSeriesGamesPlayed)|\(remoteGameID)|\(remoteTeamID)"
         // Enregistrer game + team : le classement Elo ne renvoie pas toujours le même ID que le match.
@@ -12662,6 +12920,13 @@ final class GameScene: SKScene {
             match.disconnect()
             return
         }
+        // Course Récents + Elo : le premier lancement gagne ; remplacer mid-setup
+        // détruisait le GKMatch accepté et crashait (double dismiss / FastSync).
+        if pvpMatchSetupInProgress {
+            BlomixPvPLog.event("begin_pvp_ignored", ["reason": "setup_in_progress"])
+            match.disconnect()
+            return
+        }
         preparePvPBoardForIncomingMatch(channel: "gk")
         pvpCoordinator = BlomixPvPMatchCoordinator(match: match)
         pvpOpponentDisplayName = match.players.first?.displayName ?? BlomixL10n.pvpUnknownOpponent
@@ -12712,6 +12977,13 @@ final class GameScene: SKScene {
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
         blomixPvP_presentPrepBoardLeavingHomeIfNeeded()
         BlomixAvailablePlayersManager.shared.setActiveMatch(true)
+    }
+
+    /// Bannière d’invitation GK : abandonne un handshake auto-search incomplet pour laisser place au match accepté.
+    func blomixPvP_abandonIncompleteSetupForIncomingInvite() {
+        guard pvpMatchSetupInProgress, pvpCoordinator?.isGameActive != true else { return }
+        BlomixPvPLog.event("pvp_abandon_incomplete_for_invite")
+        blomixPvP_teardownPreservingSuspendedSolo()
     }
 
     /// Teardown PvP sans perdre le snapshot solo suspendu (reprise post-match).
@@ -13468,6 +13740,7 @@ final class GameScene: SKScene {
 
     private func blomixPvP_returnToHomeAfterMatch() {
         pvpCoordinator?.cancelRematchFlowAndNotifyPeer()
+        blomixPvP_rememberOpponentThenScheduleHomeReconcile()
         // isWindingDown bloque saveCurrentSoloGameState() dans la micro-fenêtre entre
         // teardown et présentation accueil / restore.
         isWindingDown = true
@@ -13514,10 +13787,27 @@ final class GameScene: SKScene {
         if let rootVC = modalRootViewController(), rootVC.presentedViewController != nil {
             rootVC.dismiss(animated: true) { [weak self] in
                 self?.isWindingDown = false
+                BlomixPvPH2HManager.shared.scheduleHomeReconcileAfterReturnToMenu()
             }
         } else {
             isWindingDown = false
+            BlomixPvPH2HManager.shared.scheduleHomeReconcileAfterReturnToMenu()
         }
+    }
+
+    /// IDs encore dispo avant teardown — le juge cloud tourne après fermeture des overlays.
+    private func blomixPvP_rememberOpponentThenScheduleHomeReconcile() {
+        let remotePlayer = pvpCoordinator?.primaryRemotePlayer
+        let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
+            ?? remotePlayer?.gamePlayerID
+            ?? ""
+        let remoteTeamID = remotePlayer?.teamPlayerID ?? ""
+        guard !remoteGameID.isEmpty || !remoteTeamID.isEmpty else { return }
+        BlomixPvPH2HManager.shared.rememberOpponentForReconcile(
+            remoteGamePlayerID: remoteGameID.isEmpty ? remoteTeamID : remoteGameID,
+            remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
+            displayName: pvpOpponentDisplayName
+        )
     }
 
     func blomixPvP_peerDisconnected() {
@@ -13527,8 +13817,10 @@ final class GameScene: SKScene {
         // Récap série déjà à l’écran (empilé sur le résultat) : ne **pas** dismiss le résultat
         // (sinon iOS ferme aussi le récap) ni re-present (→ « Attempt to present… already presenting »).
         if blomixPvP_isSeriesEndPresented() {
+            blomixPvP_rememberOpponentThenScheduleHomeReconcile()
             BlomixPvPH2HManager.shared.flushPendingEventsBestEffort()
             // Teardown réseau seulement ; l’UI reste sur le récap jusqu’à OK.
+            // Réconciliation cloud au tap OK → returnToHome (overlays fermés).
             let suspended = pvpSuspendedSoloSave
             let shouldRestore = restoreSoloAfterPvP
             pvpPresentedResultViewController = nil
@@ -13540,6 +13832,7 @@ final class GameScene: SKScene {
 
         let hadResultScreen = pvpPresentedResultViewController != nil
         let wasInGame = pvpCoordinator?.isGameActive == true && !isGameOver
+        blomixPvP_rememberOpponentThenScheduleHomeReconcile()
         let remotePlayer = pvpCoordinator?.primaryRemotePlayer
         let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
             ?? remotePlayer?.gamePlayerID
@@ -13622,6 +13915,7 @@ final class GameScene: SKScene {
     func blomixPvP_matchFailed(_ error: Error?, userMessage: String? = nil) {
         guard pvpCoordinator != nil else { return }
         _ = error
+        blomixPvP_rememberOpponentThenScheduleHomeReconcile()
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
         dismissPvPResultModalIfNeeded()
         isWindingDown = true
@@ -13637,6 +13931,7 @@ final class GameScene: SKScene {
 
     /// Fin de flux PvP sans pile de modales résultat/série : restore solo **seulement** si capturé à l'entrée.
     private func blomixPvP_unwindPreferringCapturedSolo() {
+        BlomixPvPH2HManager.shared.scheduleHomeReconcileAfterReturnToMenu()
         let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
         // Ne pas clear `pvpSuspendedSoloSave` ici : `presentStartScreenOrRestoreSoloSave` le consomme.
         restoreSoloAfterPvP = shouldRestore

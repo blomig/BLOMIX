@@ -7,7 +7,7 @@
 
 ## Vue d'ensemble
 
-La fonction d'évaluation attribue un **score de position** à une grille stable (après résolution de toutes les cascades). Ce score alimente un **lookahead à 3 niveaux** pour choisir la meilleure colonne (hints) et évaluer la qualité des coups du joueur.
+La fonction d'évaluation attribue un **score de position** à une grille stable (après résolution de toutes les cascades). Ce score alimente un **lookahead à 3 niveaux** pour évaluer la qualité des coups du joueur (récap et pire coup en fin de partie).
 
 Un score **plus élevé** = position **meilleure**.  
 La plupart des termes sont des **pénalités** (négatifs) ; les termes positifs récompensent les structures favorables.

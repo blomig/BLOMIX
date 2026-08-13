@@ -86,19 +86,19 @@ enum BlomixUIDestinationButtonStyle {
     /// Taille unique pour tous les boutons de navigation (« Fermer », etc.) + pastilles SpriteKit.
     static let navigationTitleFontSize: CGFloat = 17
 
-    static func titleFont(size: CGFloat, weight: UIFont.Weight = .medium) -> UIFont {
-        BlomixTypography.uiFont(size: size, weight: weight)
+    static func titleFont(size: CGFloat, weight: UIFont.Weight = .semibold) -> UIFont {
+        BlomixTypography.chromeFont(size: size, weight: .semibold)
     }
 
     // MARK: - Application du style
 
     /// Même style que le bouton Fermer : `navigationTitleFontSize` + poids au choix.
-    static func applyNavigationButtonStyle(to button: UIButton, weight: UIFont.Weight = .medium) {
+    static func applyNavigationButtonStyle(to button: UIButton, weight: UIFont.Weight = .semibold) {
         apply(to: button, fontSize: navigationTitleFontSize, weight: weight)
     }
 
     /// Texte / fond / bordure selon le thème chrome courant.
-    static func apply(to button: UIButton, fontSize: CGFloat, weight: UIFont.Weight = .medium, cornerRadius: CGFloat = -1) {
+    static func apply(to button: UIButton, fontSize: CGFloat, weight: UIFont.Weight = .semibold, cornerRadius: CGFloat = -1) {
         let cr = cornerRadius >= 0 ? cornerRadius : Self.cornerRadius
         // Style classique (layer / backgroundColor) : pas de UIButton.Configuration.
         button.configuration = nil
@@ -332,5 +332,97 @@ class BlomixUIButton: UIButton {
             self.layer.shadowOpacity = BlomixUIDestinationButtonStyle.shadowOpacity
             self.layer.shadowOffset  = BlomixUIDestinationButtonStyle.shadowOffset
         }
+    }
+}
+
+// MARK: - Interrupteur chrome BLOMIX (pas UISwitch système)
+
+/// Piste + pastille, tokens `BlomixAppearance`, press + haptique light.
+@MainActor
+final class BlomixChromeSwitch: UIControl {
+
+    var isOn: Bool = false {
+        didSet { guard oldValue != isOn else { return }; applyState(animated: true) }
+    }
+
+    private let track = UIView()
+    private let knob = UIView()
+    private var knobLeading: NSLayoutConstraint?
+    private static let haptic = UIImpactFeedbackGenerator(style: .light)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setup()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    private func setup() {
+        translatesAutoresizingMaskIntoConstraints = false
+        track.isUserInteractionEnabled = false
+        knob.isUserInteractionEnabled = false
+        track.translatesAutoresizingMaskIntoConstraints = false
+        knob.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(track)
+        addSubview(knob)
+
+        let leading = knob.leadingAnchor.constraint(equalTo: track.leadingAnchor, constant: 3)
+        knobLeading = leading
+
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: 52),
+            heightAnchor.constraint(equalToConstant: 32),
+            track.leadingAnchor.constraint(equalTo: leadingAnchor),
+            track.trailingAnchor.constraint(equalTo: trailingAnchor),
+            track.topAnchor.constraint(equalTo: topAnchor),
+            track.bottomAnchor.constraint(equalTo: bottomAnchor),
+            knob.centerYAnchor.constraint(equalTo: track.centerYAnchor),
+            knob.widthAnchor.constraint(equalToConstant: 26),
+            knob.heightAnchor.constraint(equalToConstant: 26),
+            leading,
+        ])
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+        addGestureRecognizer(tap)
+        applyState(animated: false)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        track.layer.cornerRadius = bounds.height / 2
+        knob.layer.cornerRadius = 13
+    }
+
+    @objc private func tapped() {
+        isOn.toggle()
+        Self.haptic.impactOccurred()
+        Self.haptic.prepare()
+        sendActions(for: .valueChanged)
+    }
+
+    private func applyState(animated: Bool) {
+        let onColor = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+        let changes = {
+            self.track.backgroundColor = self.isOn
+                ? onColor.withAlphaComponent(BlomixAppearance.isDark ? 0.85 : 0.90)
+                : BlomixAppearance.chipFill
+            self.track.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
+            self.track.layer.borderColor = self.isOn
+                ? onColor.cgColor
+                : BlomixAppearance.chipBorder.cgColor
+            self.knob.backgroundColor = BlomixAppearance.primaryText
+            let travel = self.track.bounds.width - 26 - 6
+            self.knobLeading?.constant = self.isOn ? max(3, travel) : 3
+            self.layoutIfNeeded()
+        }
+        if animated {
+            UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseInOut], animations: changes)
+        } else {
+            changes()
+        }
+    }
+
+    func refreshChrome() {
+        applyState(animated: false)
     }
 }

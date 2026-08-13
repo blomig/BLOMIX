@@ -85,6 +85,11 @@
 "game_over.focus_title" = "GAME OVER";
 "game_over.score_format" = "PUNTUACIÓN %lld";
 "game_over.restart" = "INICIO";
+"game_over.replay" = "Rejugar";
+"game_over.record_title" = "¡Récord personal!";
+"game_over.record_score_format" = "%lld pts";
+"game_over.record_rank_solo_format" = "Ahora eres el #%lld en Solo";
+"game_over.record_rank_zen_format" = "Ahora eres el #%lld en Zen";
 "game_over.leaderboard" = "Ver clasificación";
 "game_over.personal_best" = "¡Nuevo récord personal!";
 "hud.best_score_title" = "RÉCORD";
@@ -130,6 +135,9 @@
 
 "settings.title" = "Ajustes";
 "settings.section_sound" = "Sonido";
+"settings.section_appearance" = "Apariencia";
+"settings.appearance.dark" = "Oscuro";
+"settings.appearance.light" = "Claro";
 "settings.section_font" = "Fuente";
 "settings.section_colors" = "Colores";
 "settings.adjust_sounds" = "Ajustar sonidos";
@@ -324,7 +332,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "credits.section.code.title" = "Código";
 "credits.section.code.body" = "Grok.com & Cursor.com\nUn gran gracias a Max por su ayuda.";
 "credits.section.fonts.title" = "Fuentes";
-"credits.section.fonts.body" = "Google Fonts\nPetr van Blokland — Bitcount Grid Single\nGoogle — Google Sans\nToshi Omagari, Jennifer Daniel — DynaPuff\nJM Solé — Alfa Slab One\nEduardo Tunni — Changa One";
+"credits.section.fonts.body" = "Google Fonts\nEduardo Tunni — Changa One\nVernon Adams, Cyreal, Jacques Le Bailly — Nunito";
 "credits.section.sounds.title" = "Sonidos";
 "credits.section.sounds.body" = "Freesound.org, vocalremover.org/pitch, pitchchanger.io\nGracias a: HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux";
 "credits.section.music.title" = "Música";

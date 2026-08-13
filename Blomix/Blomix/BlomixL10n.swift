@@ -55,7 +55,18 @@ enum BlomixL10n {
     static func gameOverScore(_ score: Int) -> String {
         String(format: tr("game_over.score_format", comment: "Game over score line; %lld = points"), score)
     }
-    static var gameOverRestart: String { tr("game_over.restart", comment: "Game over button") }
+    static var gameOverRestart: String { tr("game_over.restart", comment: "Game over — back home") }
+    static var gameOverReplay: String { tr("game_over.replay", comment: "Game over — play again same mode") }
+    static var gameOverRecordTitle: String { tr("game_over.record_title", comment: "Personal best overlay title") }
+    static func gameOverRecordScore(_ score: Int) -> String {
+        String(format: tr("game_over.record_score_format", comment: "Personal best score; %lld = points"), score)
+    }
+    static func gameOverRecordRankSolo(_ rank: Int) -> String {
+        String(format: tr("game_over.record_rank_solo_format", comment: "New solo rank; %lld = rank"), rank)
+    }
+    static func gameOverRecordRankZen(_ rank: Int) -> String {
+        String(format: tr("game_over.record_rank_zen_format", comment: "New zen rank; %lld = rank"), rank)
+    }
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
     static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under placement-quality % on game over (justesse / placement)") }
@@ -189,7 +200,10 @@ enum BlomixL10n {
 
     static var settingsTitle: String { tr("settings.title", comment: "Settings screen title") }
     static var settingsSoundSection: String         { tr("settings.section_sound",       comment: "Settings section heading") }
-    static var settingsFontSection: String           { tr("settings.section_font",        comment: "Settings section heading") }
+    static var settingsAppearanceSection: String     { tr("settings.section_appearance",  comment: "Settings section heading — chrome theme") }
+    static var settingsAppearanceDark: String        { tr("settings.appearance.dark",     comment: "Dark chrome theme") }
+    static var settingsAppearanceLight: String       { tr("settings.appearance.light",    comment: "Light chrome theme") }
+    static var settingsFontSection: String           { tr("settings.section_font",        comment: "Settings section heading (legacy)") }
     static var settingsColorsSection: String         { tr("settings.section_colors",      comment: "Settings section heading") }
     static var settingsAdjustSounds: String          { tr("settings.adjust_sounds",       comment: "Settings button to open sound mix screen") }
     static var settingsSoundsSliderLabel: String     { tr("settings.sounds_slider_label", comment: "Label above the master SFX volume slider") }

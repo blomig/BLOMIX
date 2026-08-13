@@ -85,6 +85,11 @@
 "game_over.focus_title" = "GAME OVER";
 "game_over.score_format" = "PUNTEGGIO %lld";
 "game_over.restart" = "HOME";
+"game_over.replay" = "Rigioca";
+"game_over.record_title" = "Record personale!";
+"game_over.record_score_format" = "%lld pti";
+"game_over.record_rank_solo_format" = "Ora sei #%lld in Solo";
+"game_over.record_rank_zen_format" = "Ora sei #%lld in Zen";
 "game_over.leaderboard" = "Classifica";
 "game_over.personal_best" = "Nuovo record personale!";
 "hud.best_score_title" = "RECORD";
@@ -130,6 +135,9 @@
 
 "settings.title" = "Impostazioni";
 "settings.section_sound" = "Suono";
+"settings.section_appearance" = "Aspetto";
+"settings.appearance.dark" = "Scuro";
+"settings.appearance.light" = "Chiaro";
 "settings.section_font" = "Font";
 "settings.section_colors" = "Colori";
 "settings.adjust_sounds" = "Regola suoni";
@@ -324,7 +332,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "credits.section.code.title" = "Codice";
 "credits.section.code.body" = "Grok.com & Cursor.com\nUn grande grazie a Max per il suo aiuto.";
 "credits.section.fonts.title" = "Font";
-"credits.section.fonts.body" = "Google Fonts\nPetr van Blokland — Bitcount Grid Single\nGoogle — Google Sans\nToshi Omagari, Jennifer Daniel — DynaPuff\nJM Solé — Alfa Slab One\nEduardo Tunni — Changa One";
+"credits.section.fonts.body" = "Google Fonts\nEduardo Tunni — Changa One\nVernon Adams, Cyreal, Jacques Le Bailly — Nunito";
 "credits.section.sounds.title" = "Suoni";
 "credits.section.sounds.body" = "Freesound.org, vocalremover.org/pitch, pitchchanger.io\nGrazie a: HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux";
 "credits.section.music.title" = "Musica";

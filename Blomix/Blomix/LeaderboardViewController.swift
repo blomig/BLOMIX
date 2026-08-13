@@ -758,7 +758,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     /// H2H Elo : **un** decode cache, puis lookups. Zéro CloudKit, zéro flush, zéro reload après.
     private func applyLocalH2HCacheToEloRows(_ rows: [LeaderboardRow]) {
         eloH2HByLookupKey = BlomixPvPH2HManager.shared.precomputedLightTotals(
-            idGroups: rows.map(\.h2hLookupIDs)
+            idGroups: rows.map(\.h2hLookupIDs),
+            displayNames: rows.map(\.playerName)
         )
     }
 

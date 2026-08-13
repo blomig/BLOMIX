@@ -9,7 +9,12 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [6.1] — 2026-08 (courant)
 
-Build **107** (TestFlight).
+Build **108** (TestFlight).
+
+### Corrigé (108)
+- **Duel / accueil** : plus de reprise Arcade fantôme (grille de prép sauvée) ; Duel depuis le menu → retour accueil
+- **Classement Duel** : `X - Y` rétabli (précalcul 1 fois + alias en mémoire, 0 CloudKit au scroll)
+- **H2H** : même lecture récap / Duel ; juge cloud hors tableau
 
 ### Modifié (106)
 - Lexique joueur : **Arcade** (badge / onglet **Arc.**) à la place de Solo ; **Duel** à la place de P vs P
@@ -50,7 +55,7 @@ Build **105** (TestFlight).
 - **Accueil** : Elo et rangs des disques (#n) de nouveau après connexion Game Center (lookup du nom dans la ligne compressée)
 
 ### Version
-- Marketing **6.1**, build **107**
+- Marketing **6.1**, build **108**
 
 ---
 

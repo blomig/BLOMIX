@@ -286,28 +286,39 @@ final class BlomixPvPH2HManager {
         normalizedIDList(ids).joined(separator: "|")
     }
 
-    /// Lecture **légère** pour le tableau Elo : 1 decode cache + 1 live + 1 floor, puis lookups.
-    /// Pas d’alias, pas de CloudKit, pas d’écriture — safe dans `cellForRow` via précalcul.
-    func precomputedLightTotals(idGroups: [[String]]) -> [String: BlomixPvPH2HTotals] {
+    /// Lecture **légère** pour le tableau Elo : 1 decode cache/live/floor/alias, puis lookups.
+    /// Alias **en mémoire uniquement** (pas d’écriture). 0 CloudKit.
+    func precomputedLightTotals(idGroups: [[String]], displayNames: [String] = []) -> [String: BlomixPvPH2HTotals] {
         migrateCacheV1IfNeeded()
         let cache = loadCacheV2()
         let lives = loadLiveSeriesMap()
         let floors = loadCommittedFloors()
+        let aliases = loadAliases()
+        let lastKeys = Set(Self.normalizedIDList([lastOpponentGameID, lastOpponentTeamID]))
+        let lastName = lastOpponentDisplayName?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         var out: [String: BlomixPvPH2HTotals] = [:]
         out.reserveCapacity(idGroups.count)
-        for ids in idGroups {
-            let keys = Self.normalizedIDList(ids)
+        for (index, ids) in idGroups.enumerated() {
+            var keys = Set(Self.normalizedIDList(ids))
             guard !keys.isEmpty else { continue }
-            let mapKey = keys.joined(separator: "|")
+            let mapKey = Self.lightLookupKey(forRemoteIDs: ids)
+            for id in Array(keys) {
+                keys.insert(Self.aliasRoot(id, map: aliases))
+            }
+            if !lastKeys.isEmpty, !keys.isDisjoint(with: lastKeys) {
+                keys.formUnion(lastKeys)
+            }
+            if !lastName.isEmpty, index < displayNames.count {
+                let rowName = displayNames[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !rowName.isEmpty, rowName.caseInsensitiveCompare(lastName) == .orderedSame {
+                    keys.formUnion(lastKeys)
+                }
+            }
             var best = BlomixPvPH2HTotals.zero
             for k in keys {
-                if let t = cache[k] {
-                    best = best.merging(t)
-                }
-                if let f = floors[k] {
-                    let ft = BlomixPvPH2HTotals(localWins: f.localWins, remoteWins: f.remoteWins)
-                    if ft.hasHistory { best = best.merging(ft) }
-                }
+                if let t = cache[k] { best = best.merging(t) }
+                if let f = floors[k], f.totals.hasHistory { best = best.merging(f.totals) }
                 if let live = lives[k], live.protectsDisplay {
                     best = best.merging(live.displayedTotals)
                 }

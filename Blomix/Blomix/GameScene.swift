@@ -1268,6 +1268,8 @@ final class GameScene: SKScene {
     /// Snapshot mémoire figé à l'entrée PvP (ne doit jamais être écrasé par la grille prep vide).
     /// Source de vérité pour la reprise post-match, en plus de UserDefaults.
     private var pvpSuspendedSoloSave: BlomixSoloGameSave?
+    /// `true` si le Duel a été lancé depuis l'accueil (pas une Arcade/Zen en cours).
+    private var pvpEnteredFromHome = false
     /// Profondeur de remplissage connue de la grille adverse (0 = vide, 8 = jusqu'en bas).
     private var pvpRemoteBoardFillDepth: Int = 0
     private var pvpRemoteScore: Int = 0
@@ -12948,33 +12950,37 @@ final class GameScene: SKScene {
     private func blomixPvP_teardownPreservingSuspendedSolo() {
         let suspended = pvpSuspendedSoloSave
         let shouldRestore = restoreSoloAfterPvP
+        let fromHome = pvpEnteredFromHome
         blomixPvP_teardown()
         pvpSuspendedSoloSave = suspended
         restoreSoloAfterPvP = shouldRestore
+        pvpEnteredFromHome = fromHome
     }
 
-    /// Si une partie solo/Zen est en cours, la persiste (mémoire + UD) et mémorise la reprise post-PvP.
-    /// **Une seule capture** par session PvP : les appels suivants (après grille prep) sont no-op.
+    /// Capture une Arcade/Zen **en cours** avant la grille de prép. Jamais depuis l'accueil, jamais après prep.
     private func blomixPvP_captureSoloSaveIfLeavingForMatch() {
-        // Déjà figé pour ce PvP — ne jamais réécrire avec l'état prep (grille vide, isZenMode false…).
-        if pvpSuspendedSoloSave != nil {
-            restoreSoloAfterPvP = true
+        if pvpMatchSetupInProgress { return }
+        if pvpSuspendedSoloSave != nil { return }
+
+        if isStartScreen {
+            pvpEnteredFromHome = true
+            restoreSoloAfterPvP = false
+            BlomixPvPLog.event("pvp_enter_from_home")
             return
         }
-        guard !isStartScreen, !isGameOver, !isTutorialMode,
-              pvpCoordinator == nil, !isWindingDown else {
-            // Accueil / hors partie active : ne pas auto-reprendre une save orpheline après le PvP.
+
+        guard !isGameOver, !isTutorialMode, pvpCoordinator == nil, !isWindingDown else {
             restoreSoloAfterPvP = false
             return
         }
-        // Snapshot direct (ignore `pvpMatchSetupInProgress` : on capture volontairement ici).
         guard let save = makeSoloGameSaveSnapshot() else {
             restoreSoloAfterPvP = false
             return
         }
-        BlomixSoloSaveManager.shared.save(save)
+        pvpEnteredFromHome = false
         pvpSuspendedSoloSave = save
         restoreSoloAfterPvP = true
+        BlomixSoloSaveManager.shared.save(save)
         BlomixPvPLog.event("solo_save_suspended_for_pvp", [
             "score": "\(save.score)",
             "moves": "\(save.moveCount)",
@@ -12982,6 +12988,21 @@ final class GameScene: SKScene {
             "zen": "\(save.isZenMode)",
             "stage": "\(save.currentStageIndex)"
         ])
+    }
+
+    /// Accueil si le Duel partait du menu ; Arcade uniquement si une vraie partie était en cours.
+    private func blomixPvP_exitToHomeOrArcade() {
+        let restoreArcade = restoreSoloAfterPvP && !pvpEnteredFromHome && pvpSuspendedSoloSave != nil
+        let suspended = pvpSuspendedSoloSave
+        pvpSuspendedSoloSave = nil
+        restoreSoloAfterPvP = false
+        pvpEnteredFromHome = false
+        if restoreArcade, let save = suspended {
+            isZenMode = save.isZenMode
+            restoreFromSoloSave(save)
+        } else {
+            presentStartScreen()
+        }
     }
 
     /// Masque l'accueil et affiche une grille vide + HUD minimal pendant la connexion PvP.
@@ -13185,7 +13206,6 @@ final class GameScene: SKScene {
         if pvpCoordinator == nil, pvpMatchSetupInProgress {
             pvpMatchSetupInProgress = false
             isWindingDown = true
-            let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
             isGameOver = false
             isProcessing = false
             isInjectingBottomRandomLine = false
@@ -13196,13 +13216,7 @@ final class GameScene: SKScene {
             }
             drawGrid()
             setGameplayNodesHidden(true)
-            if shouldRestore {
-                presentStartScreenOrRestoreSoloSave()
-            } else {
-                pvpSuspendedSoloSave = nil
-                restoreSoloAfterPvP = false
-                presentStartScreen()
-            }
+            blomixPvP_exitToHomeOrArcade()
             isWindingDown = false
         }
     }
@@ -13702,13 +13716,14 @@ final class GameScene: SKScene {
         // isWindingDown bloque saveCurrentSoloGameState() dans la micro-fenêtre entre
         // teardown et présentation accueil / restore.
         isWindingDown = true
-        // Conserver le snapshot suspendu à travers le teardown.
-        let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
+        let fromHome = pvpEnteredFromHome
+        let shouldRestore = restoreSoloAfterPvP
         let suspended = pvpSuspendedSoloSave
         pvpPresentedResultViewController = nil
         blomixPvP_teardown()
         pvpSuspendedSoloSave = suspended
         restoreSoloAfterPvP = shouldRestore
+        pvpEnteredFromHome = fromHome
 
         // Préparer l'accueil (ou la reprise solo) **sous** les modales UIKit encore visibles,
         // puis retirer toute la pile d'un coup — plus de flash grille entre résultat / série / menu.
@@ -13733,14 +13748,7 @@ final class GameScene: SKScene {
         drawGrid()
         setGameplayNodesHidden(true)
 
-        if shouldRestore {
-            // Restore direct depuis snapshot figé (grille, score, file, bombes, stage…).
-            presentStartScreenOrRestoreSoloSave()
-        } else {
-            pvpSuspendedSoloSave = nil
-            restoreSoloAfterPvP = false
-            presentStartScreen()
-        }
+        blomixPvP_exitToHomeOrArcade()
 
         if let rootVC = modalRootViewController(), rootVC.presentedViewController != nil {
             rootVC.dismiss(animated: true) { [weak self] in
@@ -13781,10 +13789,12 @@ final class GameScene: SKScene {
             // Réconciliation cloud au tap OK → returnToHome (overlays fermés).
             let suspended = pvpSuspendedSoloSave
             let shouldRestore = restoreSoloAfterPvP
+            let fromHome = pvpEnteredFromHome
             pvpPresentedResultViewController = nil
             blomixPvP_teardown()
             pvpSuspendedSoloSave = suspended
             restoreSoloAfterPvP = shouldRestore
+            pvpEnteredFromHome = fromHome
             return
         }
 
@@ -13821,7 +13831,13 @@ final class GameScene: SKScene {
         }()
         dismissPvPResultModalIfNeeded()
         isWindingDown = true
+        let suspended = pvpSuspendedSoloSave
+        let shouldRestore = restoreSoloAfterPvP
+        let fromHome = pvpEnteredFromHome
         blomixPvP_teardown()
+        pvpSuspendedSoloSave = suspended
+        restoreSoloAfterPvP = shouldRestore
+        pvpEnteredFromHome = fromHome
         let showWinMessage = wasInGame && !hadResultScreen
         showPvPDisconnectOverlay(wasInGame: showWinMessage, neutralLeave: hadResultScreen) { [weak self] in
             guard let self else { return }
@@ -13877,7 +13893,13 @@ final class GameScene: SKScene {
         NotificationCenter.default.post(name: .blomixPvPPreparationFailed, object: nil)
         dismissPvPResultModalIfNeeded()
         isWindingDown = true
+        let suspended = pvpSuspendedSoloSave
+        let shouldRestore = restoreSoloAfterPvP
+        let fromHome = pvpEnteredFromHome
         blomixPvP_teardown()
+        pvpSuspendedSoloSave = suspended
+        restoreSoloAfterPvP = shouldRestore
+        pvpEnteredFromHome = fromHome
         showPvPDisconnectOverlay(
             wasInGame: false,
             connectionFailed: true,
@@ -13890,13 +13912,13 @@ final class GameScene: SKScene {
     /// Fin de flux PvP sans pile de modales résultat/série : restore solo **seulement** si capturé à l'entrée.
     private func blomixPvP_unwindPreferringCapturedSolo() {
         BlomixPvPH2HManager.shared.scheduleHomeReconcileAfterReturnToMenu()
-        let shouldRestore = restoreSoloAfterPvP || (pvpSuspendedSoloSave != nil)
-        // Ne pas clear `pvpSuspendedSoloSave` ici : `presentStartScreenOrRestoreSoloSave` le consomme.
-        restoreSoloAfterPvP = shouldRestore
-        unwindToStartScreen(restoreSave: shouldRestore)
-        if !shouldRestore {
+        let restoreArcade = restoreSoloAfterPvP && !pvpEnteredFromHome && pvpSuspendedSoloSave != nil
+        if !restoreArcade {
             pvpSuspendedSoloSave = nil
+            restoreSoloAfterPvP = false
+            pvpEnteredFromHome = false
         }
+        unwindToStartScreen(restoreSave: restoreArcade)
     }
 
     /// Overlay léger « Reconnexion… » pendant la grace déco mid-game (4 s) — panneau style BLOMIX.

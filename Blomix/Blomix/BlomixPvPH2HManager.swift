@@ -635,17 +635,29 @@ final class BlomixPvPH2HManager {
             let cloud = cloudBundle.sum
             let total: BlomixPvPH2HTotals
             if let floor = seriesFloor, floor.hasHistory {
-                // Ne jamais redescendre sous le cumul session verrouillé tant que le cloud n’a pas rattrapé.
-                total = BlomixPvPH2HTotals(
-                    localWins: max(cloud.localWins, floor.localWins),
-                    remoteWins: max(cloud.remoteWins, floor.remoteWins)
-                )
-                if cloud.localWins >= floor.localWins && cloud.remoteWins >= floor.remoteWins {
+                let cloudGames = cloud.localWins + cloud.remoteWins
+                let floorGames = floor.localWins + floor.remoteWins
+                // Query vide / autre pairKey : 1–0 vs 34–34. Ne pas effacer l’historique.
+                let cloudLooksComplete = cloud.hasHistory && cloudGames + 2 >= floorGames
+                if pendingLeft == 0, cloudLooksComplete {
+                    // Juge : pending vides + cloud plausible → le cloud a raison (corrige un +1 fantôme).
+                    total = cloud
                     clearLiveSeries(forRemoteIDs: remotes)
                     clearCommittedFloor(forRemoteIDs: remotes)
-                    print("[H2H] reconcile CLOUD+FLOOR synced \(total.localWins)-\(total.remoteWins) (floors cleared)")
+                    print("[H2H] reconcile CLOUD-JUDGE \(total.localWins)-\(total.remoteWins) (was floor \(floor.localWins)-\(floor.remoteWins))")
                 } else {
-                    print("[H2H] reconcile CLOUD+FLOOR floor \(floor.localWins)-\(floor.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins) pending=\(pendingLeft)")
+                    // Uploads encore en vol, ou lecture partielle : ne pas redescendre.
+                    total = BlomixPvPH2HTotals(
+                        localWins: max(cloud.localWins, floor.localWins),
+                        remoteWins: max(cloud.remoteWins, floor.remoteWins)
+                    )
+                    if cloud.localWins >= floor.localWins && cloud.remoteWins >= floor.remoteWins {
+                        clearLiveSeries(forRemoteIDs: remotes)
+                        clearCommittedFloor(forRemoteIDs: remotes)
+                        print("[H2H] reconcile CLOUD+FLOOR synced \(total.localWins)-\(total.remoteWins) (floors cleared)")
+                    } else {
+                        print("[H2H] reconcile CLOUD+FLOOR floor \(floor.localWins)-\(floor.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins) pending=\(pendingLeft)")
+                    }
                 }
             } else {
                 total = cloud

@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [6.1] — 2026-08 (courant)
 
-Build **104** (TestFlight).
+Build **105** (TestFlight).
 
 ### Ajouté
 - **Rejouer** sur le game over Solo / Zen (même mode, sans passer par l’accueil)
@@ -36,12 +36,12 @@ Build **104** (TestFlight).
 ### Corrigé
 - **PvP invitations croisées** (bannière Récents + défi Elo) : un seul lancement de match, `targetPlayerID` sur l’Elo, pas de double dismiss
 - **PvP défi (103)** : le 2ᵉ `beginPvP` (poll roster / delegate) ne `disconnect` plus le même `GKMatch` — plus de « Connexion perdue » ~10 s après l’overlay de préparation
-- **H2H** : lecture CloudKit d’un seul duo (dernier adversaire) après retour à l’accueil — plus en fin de manche ; filet à l’ouverture de l’onglet Elo
+- **H2H** : lecture CloudKit d’un seul duo après retour à l’accueil ; **105** : le cloud l’emporte si plus de pending et lecture plausible (plus de 34–33 vs 34–34 bloqué par le plancher)
 - **Défi CloudKit** : Refuser ne réaffiche plus la bannière 8 s plus tard ; badge « En match » lit `inMatch` en Int64
 - **Accueil** : Elo et rangs des disques (#n) de nouveau après connexion Game Center (lookup du nom dans la ligne compressée)
 
 ### Version
-- Marketing **6.1**, build **104**
+- Marketing **6.1**, build **105**
 
 ---
 

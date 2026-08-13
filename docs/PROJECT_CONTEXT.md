@@ -228,7 +228,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
-- **H2H** : 0 CloudKit en match / fin de manche ; juge 1 duo au retour accueil (`PVP_MATCHING.md`)
+- **H2H** : 0 CloudKit en match / fin de manche ; juge 1 duo au retour accueil (cloud = vérité si pending vides)
 - Attaque : `score / 50` → ligne chez l'adverse
 - Timer tour : 10 s
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**

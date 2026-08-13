@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.1 (build 104)  
+> **Version de référence** : 6.1 (build 105)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -59,7 +59,7 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Déco mid-match | Restant : série+H2H+Elo **win** ; abandon menu : série+H2H+Elo **loss** + `iLost` |
 | Pendant match | **0 CloudKit H2H** (pending en file) |
 | Fin de série | LOCK baseline+série (totaux **en mémoire** pour l’UI) ; persist UserDefaults **différée** ; flush pending **après** present récap — **pas** de lecture cloud |
-| Retour accueil | **1 duo** (dernier adversaire) : `scheduleHomeReconcileAfterReturnToMenu` après fermeture des overlays (~0,9 s). Juge `refreshTotals` / `fetchCloudSum`. |
+| Retour accueil | **1 duo** : lecture cloud après overlays. Si pending vides et somme cloud ≈ plancher (±2) → **le cloud l’emporte** (corrige un +1 fantôme). Sinon max(cloud, plancher) (upload en vol ou query partielle). |
 | Alias IDs | Expansion **directe** plafonnée (**≤ 8** clés / adversaire) — pas de scan global de la map d’alias (évite freeze MainActor 20–25 s, `keys=82`) |
 | Elo fin de manche | UI = **cache local** (~0,35 s) puis boutons libres ; submit / refresh Game Center en fire-and-forget |
 | Déco pendant récap | Si `BlomixPvPSeriesEndViewController` déjà empilé : teardown réseau **sans** dismiss résultat (sinon iOS ferme le récap) |
@@ -486,7 +486,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | **PVP-23** | Refus Mode A = snooze 8 s (relique `chal_*`) | ✅ Corrigé — verrou jusqu’à disparition du `chfrom_*` ; pas de raz au `didBecomeActive` |
 | **PVP-24** | `inMatch as? Int` (clone PVP-4) | ✅ Corrigé — `intFromRecord` |
 | **PVP-25** | Invitation croisée Récents inbound + Elo outbound → crash | ✅ Corrigé — `targetPlayerID` Elo, un seul dismiss ; même `GKMatch` rejoué = no-op (pas de `disconnect`) |
-| **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé — lecture cloud 1 duo après retour accueil (+ filet Elo) |
+| **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé (105) — accueil : cloud = vérité si pending vides et lecture plausible |
 
 ### Protocole filaire (résumé robustesse)
 

@@ -756,6 +756,18 @@ final class GameScene: SKScene {
     private static let hudTimerCaptionName   = "hudTimerCaption"
     private static let ligneCaptionName = "hudLigneCaption"
     private static let ligneValueName   = "hudLigneValue"
+    /// 4 puces 2×2 à droite de LIGNE / X/10 (file de lignes imminentes).
+    private static let lignePipsContainerName = "hudLignePips"
+    private static func lignePipName(_ index: Int) -> String { "hudLignePip\(index)" }
+    /// Duel : barre continue à droite du gros score (mètre 0…50). HUD seul.
+    private static let attackPileContainerName = "hudAttackPile"
+    private static let attackPileBodyName = "hudAttackPileBody"
+    private static let attackPileTrackName = "hudAttackPileTrack"
+    private static let attackPileCropName = "hudAttackPileCrop"
+    private static let attackPileFillName = "hudAttackPileFill"
+    private static let attackPileWidthActionKey = "attackPileWidth"
+    private static let attackPileSegmentCount = 5
+    private static let attackPilePeakWidthScale: CGFloat = 1.20
     private static let scorePulseActionKey = "scorePulse"
     private static let scoreRollActionKey  = "scoreRoll"
     private static let pvpMilestoneScoreFlashKey = "pvpMilestoneFlash"
@@ -1205,6 +1217,12 @@ final class GameScene: SKScene {
     private var scoreRollStart: Int = 0
     /// Cible courante de l'animation rolling ; mise à jour à chaque incrément pendant la montée.
     private var scoreRollTarget: Int = 0
+    /// Mètre Duel affiché (0…50), indépendant du total interne.
+    private var attackPileDisplayMeter: CGFloat = 0
+    /// Décennie dont le fill avance (pulse largeur). Nil hors roll.
+    private var attackPileHotIndex: Int? = nil
+    /// Taille intérieure de la barre (largeur × hauteur utile 0…50).
+    private var attackPileInnerSize: CGSize = .zero
     /// Meilleur score affiché dans le HUD (fallback local immédiat, Game Center si disponible).
     private var hudBestScoreValue: Int = 0
     /// Ignore les retours asynchrones obsolètes lors des rafraîchissements du record.
@@ -1252,6 +1270,10 @@ final class GameScene: SKScene {
     private var pvpMatchSetupInProgress = false
     /// Après une ligne d’attaque PvP, la ligne « tous les 10 coups » doit encore partir le même cycle si elle était due.
     private var pvpNeedsDecadeLineAfterAttackInjection = false
+    /// Duel : la preview décennie était déjà en tête (file d’attaques encore vide). Les attaques s’ajoutent derrière.
+    private var pvpDecadePreviewQueuedAheadOfAttacks = false
+    /// Identité de la bande tremblotante affichée (évite de reconstruire si la 1ʳᵉ ligne n’a pas changé).
+    private var pvpBottomPreviewToken: String?
     /// Empêche de recalculer / resoumettre l’Elo plusieurs fois pour la même partie PvP.
     private var didFinalizePvPEloForCurrentMatch = false
     /// Nom affiché de l’adversaire courant pour le HUD et le résultat de match.
@@ -1329,7 +1351,7 @@ final class GameScene: SKScene {
         case freePlay         // Pas d'overlay ; 2 drops libres avant la bombe
         case bombIntro        // Overlay 4 : animation bombe, attendre bomb drop
         case bombCelebration  // Overlay 4b : "Super ! Tu sais tout !" (auto-dismiss → magixIntro)
-        case magixIntro       // Overlay 5  : les 3 blocs MAGIX + "Il y a encore des surprises…" (tap ou 3 s → sortie)
+        case magixIntro       // Overlay 5  : tous les Magix + "Il y a encore des surprises…" (tap ou 3 s → sortie)
     }
 
     private static let tutorialOverlayName      = "tutoStepOverlay"
@@ -1541,6 +1563,8 @@ final class GameScene: SKScene {
         displayedScore = 0
         scoreRollStart  = 0
         scoreRollTarget = 0
+        attackPileDisplayMeter = 0
+        attackPileHotIndex = nil
         gameOverFinalScore = 0
         gameOverShareGrid = []
         gameOverShareIsNewPB = false
@@ -1551,6 +1575,8 @@ final class GameScene: SKScene {
         pendingBottomLineBloopaSoundPlayedAtMoveCount = nil
         pvpIncomingAttackPreviewSoundPlayedForID = nil
         pvpNeedsDecadeLineAfterAttackInjection = false
+        pvpDecadePreviewQueuedAheadOfAttacks = false
+        pvpBottomPreviewToken = nil
         analyzerGeneration    &+= 1          // invalide tout résultat encore en vol
         analyzerLookAhead = nil
         analyzerPendingQuality = nil
@@ -2546,6 +2572,8 @@ final class GameScene: SKScene {
         // Compteur LIGNE
         childNode(withName: Self.ligneCaptionName)?.isHidden = hidden
         childNode(withName: Self.ligneValueName)?.isHidden = hidden
+        childNode(withName: Self.lignePipsContainerName)?.isHidden = hidden
+        childNode(withName: Self.attackPileContainerName)?.isHidden = hidden || pvpCoordinator == nil
         childNode(withName: Self.bottomLinePreviewStripName)?.isHidden = hidden
         childNode(withName: Self.bottomMenuContainerName)?.isHidden = hidden
         if let stageLbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode {
@@ -2944,9 +2972,7 @@ final class GameScene: SKScene {
 
         addTopTitle()
         setupScoreHUD()
-        if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
-            scoreLabel.text = "\(score)"
-        }
+        applyScoreHudText(forTotal: score)
         setupBombHUD()
         drawGrid()
         updatePreviewSprite()
@@ -2994,6 +3020,7 @@ final class GameScene: SKScene {
         applyCurrentTypographyToLabelNodes(in: self)
         addTopTitle()
         setupScoreHUD()
+        applyScoreHudText(forTotal: displayedScore)
         setupBombHUD()
         drawGrid()
         updatePreviewSprite()
@@ -4611,9 +4638,25 @@ final class GameScene: SKScene {
                 moveCount += 1
                 refreshLigneCounterHUD()
                 let decade = moveCount > 0 && moveCount % 10 == 0
+                // Décennie déjà en tête (preview 9/10 avant les attaques) : elle part avant les attaques.
+                let decadeFirst = pvpDecadePreviewQueuedAheadOfAttacks
+                    && (decade || pvpNeedsDecadeLineAfterAttackInjection)
+                if decadeFirst {
+                    pvpDecadePreviewQueuedAheadOfAttacks = false
+                    pvpNeedsDecadeLineAfterAttackInjection = false
+                    switch addRandomLinePushingGridUp() {
+                    case .animating:
+                        return
+                    case .gameOver:
+                        return
+                    case .didNotRun:
+                        break
+                    }
+                }
                 // Ligne de décennie différée (clash attaque + décennie au bloc précédent)
                 if pvpNeedsDecadeLineAfterAttackInjection {
                     pvpNeedsDecadeLineAfterAttackInjection = false
+                    pvpDecadePreviewQueuedAheadOfAttacks = false
                     switch addRandomLinePushingGridUp() {
                     case .animating:
                         if decade { pvpNeedsDecadeLineAfterAttackInjection = true }
@@ -4628,7 +4671,7 @@ final class GameScene: SKScene {
                     nextBottomLine = atk
                     switch addRandomLinePushingGridUp() {
                     case .animating:
-                        if decade { pvpNeedsDecadeLineAfterAttackInjection = true }
+                        if decade && !decadeFirst { pvpNeedsDecadeLineAfterAttackInjection = true }
                         return
                     case .gameOver:
                         return
@@ -4636,7 +4679,7 @@ final class GameScene: SKScene {
                         break
                     }
                 }
-                if decade {
+                if decade && !decadeFirst {
                     switch addRandomLinePushingGridUp() {
                     case .animating:
                         return
@@ -5120,12 +5163,14 @@ final class GameScene: SKScene {
         let thousandBefore = (scoreBefore / 1000) * 1000
         let hundredAfter   = (score      / 100)  * 100
         let hundredBefore  = (scoreBefore / 100)  * 100
-        if thousandAfter > thousandBefore, thousandAfter > 0 {
-            lastScoreHundredMilestone = thousandAfter
-            pendingMilestoneExplosion = .thousand
-        } else if hundredAfter > hundredBefore, hundredAfter > 0 {
-            lastScoreHundredMilestone = hundredAfter
-            pendingMilestoneExplosion = .hundred
+        if pvpCoordinator == nil {
+            if thousandAfter > thousandBefore, thousandAfter > 0 {
+                lastScoreHundredMilestone = thousandAfter
+                pendingMilestoneExplosion = .thousand
+            } else if hundredAfter > hundredBefore, hundredAfter > 0 {
+                lastScoreHundredMilestone = hundredAfter
+                pendingMilestoneExplosion = .hundred
+            }
         }
         if score > hudBestScoreValue {
             applyBestScoreHUDValue(score, isLiveBeat: true)
@@ -5142,6 +5187,49 @@ final class GameScene: SKScene {
         applyDisplayedScoreIncrement(points: multipliedPoints, chainMultiplier: chainMultiplier)
     }
 
+    /// Duel : le HUD montre `score % 50` (0…49). Le total interne ne change pas.
+    private func hudDisplayedScoreValue(forTotal total: Int) -> Int {
+        pvpCoordinator == nil ? total : max(0, total % 50)
+    }
+
+    private func applyScoreHudText(forTotal total: Int) {
+        guard let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
+        label.removeAction(forKey: Self.scoreRollActionKey)
+        label.text = "\(hudDisplayedScoreValue(forTotal: total))"
+        if pvpCoordinator != nil {
+            applyDuelHudMeter(CGFloat(hudDisplayedScoreValue(forTotal: total)), animateHot: false)
+        }
+    }
+
+    /// Chiffre + pile Duel (0…50). `animateHot` : élargit la case dont le fill avance.
+    private func applyDuelHudMeter(_ meter: CGFloat, animateHot: Bool) {
+        if pvpCoordinator != nil {
+            ensureAttackPileIfNeeded()
+            if attackPileInnerSize == .zero {
+                layoutAttackPile()
+            }
+        }
+        let clamped = min(50, max(0, meter))
+        attackPileDisplayMeter = clamped
+        if let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
+            label.text = "\(Int(clamped.rounded(.towardZero)))"
+        }
+        applyAttackPileMeter(clamped)
+        if animateHot {
+            let hot: Int?
+            if clamped <= 0.001 {
+                hot = nil
+            } else if clamped >= 50 {
+                hot = Self.attackPileSegmentCount - 1
+            } else {
+                hot = min(Self.attackPileSegmentCount - 1, Int(clamped / 10))
+            }
+            setAttackPileHotIndex(hot)
+        } else {
+            resetAttackPileWidths()
+        }
+    }
+
     private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil) {
         guard points > 0 else { return }
         displayedScore += points
@@ -5149,50 +5237,99 @@ final class GameScene: SKScene {
         guard let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
 
         // Déclenche l'explosion de milestone en même temps que le début du rolling counter.
-        switch pendingMilestoneExplosion {
-        case .thousand: spawnScoreThousandExplosion()
-        case .hundred:  spawnScoreMilestoneExplosion()
-        case .none:     break
+        // Duel : pas de 100/1000 — le chiffre HUD n’est plus le total.
+        if pvpCoordinator == nil {
+            switch pendingMilestoneExplosion {
+            case .thousand: spawnScoreThousandExplosion()
+            case .hundred:  spawnScoreMilestoneExplosion()
+            case .none:     break
+            }
         }
         pendingMilestoneExplosion = .none
 
         // ── Rolling counter ──────────────────────────────────────────────────────
-        // Repart de la valeur *actuellement affichée* (mid-animation si une montée
-        // est déjà en cours) vers le nouveau target.  Chaque incrément relance
-        // l'animation depuis là où le texte en est, donnant un effet de "chasse".
-        scoreRollStart  = Int(label.text ?? "0") ?? 0
-        scoreRollTarget = displayedScore
-        let gain = max(1, scoreRollTarget - scoreRollStart)
-        let rollDuration = min(0.60, 0.40 + Double(gain) / 2000.0 * 0.20)
-
-        label.removeAction(forKey: Self.scoreRollActionKey)
-        let roll = SKAction.customAction(withDuration: rollDuration) { [weak self] node, elapsed in
-            guard let self, let lbl = node as? SKLabelNode else { return }
-            let t = min(1, CGFloat(elapsed) / CGFloat(rollDuration))
-            // Ease-out cubique : démarre vite, finit en douceur.
-            let eased = 1 - pow(1 - t, 3)
-            let shown = Int(CGFloat(self.scoreRollStart) + eased * CGFloat(self.scoreRollTarget - self.scoreRollStart))
-            lbl.text = "\(shown)"
+        // Solo : total. Duel : mètre 0…50 (chiffre + pile, même horloge).
+        func makeScoreRollAction(duration: TimeInterval, duel: Bool) -> SKAction {
+            SKAction.customAction(withDuration: duration) { [weak self] node, elapsed in
+                guard let self, duration > 0 else { return }
+                let t = min(1, CGFloat(elapsed) / CGFloat(duration))
+                let eased = 1 - pow(1 - t, 3)
+                let shown = CGFloat(self.scoreRollStart) + eased * CGFloat(self.scoreRollTarget - self.scoreRollStart)
+                if duel {
+                    self.applyDuelHudMeter(shown, animateHot: true)
+                } else if let lbl = node as? SKLabelNode {
+                    lbl.text = "\(Int(shown))"
+                }
+            }
         }
-        label.run(roll, withKey: Self.scoreRollActionKey)
 
-        // ── Flash couleur de chaîne → retour au blanc ────────────────────────────
-        // Déclenché uniquement quand les dots viennent d'une chaîne colorée.
+        let rollDuration: TimeInterval
+        label.removeAction(forKey: Self.scoreRollActionKey)
+        if pvpCoordinator != nil {
+            let previousTotal = displayedScore - points
+            let didSend = previousTotal / 50 < score / 50
+            let fromMeter = min(50, max(0, Int(attackPileDisplayMeter.rounded(.towardZero))))
+            let remainder = score % 50
+            if didSend {
+                scoreRollStart = fromMeter
+                scoreRollTarget = 50
+                rollDuration = 0.22
+                let snap = SKAction.run { [weak self] in
+                    self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
+                }
+                label.run(
+                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true), snap]),
+                    withKey: Self.scoreRollActionKey
+                )
+            } else if fromMeter >= remainder {
+                rollDuration = 0
+                scoreRollStart = remainder
+                scoreRollTarget = remainder
+                applyDuelHudMeter(CGFloat(remainder), animateHot: false)
+            } else {
+                scoreRollStart = fromMeter
+                scoreRollTarget = remainder
+                let gain = max(1, remainder - fromMeter)
+                rollDuration = min(0.45, 0.22 + Double(gain) / 50.0 * 0.18)
+                let settle = SKAction.run { [weak self] in
+                    self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
+                }
+                label.run(
+                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true), settle]),
+                    withKey: Self.scoreRollActionKey
+                )
+            }
+        } else {
+            scoreRollStart  = Int(label.text ?? "0") ?? 0
+            scoreRollTarget = displayedScore
+            let gain = max(1, scoreRollTarget - scoreRollStart)
+            rollDuration = min(0.60, 0.40 + Double(gain) / 2000.0 * 0.20)
+            label.run(makeScoreRollAction(duration: rollDuration, duel: false), withKey: Self.scoreRollActionKey)
+        }
+
+        // ── Flash couleur de chaîne → repos primaryText (chiffre + pile) ─────────
         if let scoreColor {
-            var cr: CGFloat = 0, cg: CGFloat = 0, cb: CGFloat = 0, ca: CGFloat = 0
-            scoreColor.getRed(&cr, green: &cg, blue: &cb, alpha: &ca)
+            applyScoreAndPileAccent(scoreColor)
             label.removeAction(forKey: "scoreColorFlash")
-            label.fontColor = scoreColor
-            // Retour au blanc après le rolling counter.
-            let fadeBack = SKAction.customAction(withDuration: 0.30) { node, elapsed in
-                guard let lbl = node as? SKLabelNode else { return }
+            let rest = BlomixAppearance.primaryTextSK
+            var sr: CGFloat = 0, sg: CGFloat = 0, sb: CGFloat = 0, sa: CGFloat = 0
+            var er: CGFloat = 0, eg: CGFloat = 0, eb: CGFloat = 0, ea: CGFloat = 0
+            scoreColor.getRed(&sr, green: &sg, blue: &sb, alpha: &sa)
+            rest.getRed(&er, green: &eg, blue: &eb, alpha: &ea)
+            let fadeBack = SKAction.customAction(withDuration: 0.30) { [weak self] _, elapsed in
+                guard let self else { return }
                 let t = min(1, CGFloat(elapsed) / 0.30)
-                lbl.fontColor = SKColor(red: cr + (1-cr)*t, green: cg + (1-cg)*t, blue: cb + (1-cb)*t, alpha: 1)
+                self.applyScoreAndPileAccent(SKColor(
+                    red: sr + (er - sr) * t,
+                    green: sg + (eg - sg) * t,
+                    blue: sb + (eb - sb) * t,
+                    alpha: 1
+                ))
             }
             label.run(SKAction.sequence([
                 SKAction.wait(forDuration: rollDuration),
                 fadeBack,
-                SKAction.run { label.fontColor = BlomixAppearance.primaryTextSK },
+                SKAction.run { [weak self] in self?.applyScoreAndPileAccent(BlomixAppearance.primaryTextSK) },
             ]), withKey: "scoreColorFlash")
         }
 
@@ -5721,6 +5858,8 @@ final class GameScene: SKScene {
         childNode(withName: Self.bombeValueName)?.removeFromParent()
         childNode(withName: Self.ligneCaptionName)?.removeFromParent()
         childNode(withName: Self.ligneValueName)?.removeFromParent()
+        childNode(withName: Self.lignePipsContainerName)?.removeFromParent()
+        childNode(withName: Self.attackPileContainerName)?.removeFromParent()
         let label = SKLabelNode(text: "0")
         label.name = Self.scoreHudLabelName
         label.fontName = Self.displayFontName
@@ -5779,6 +5918,8 @@ final class GameScene: SKScene {
         ligneValueLabel.zPosition = 12
         addChild(ligneValueLabel)
 
+        ensureLignePipsIfNeeded()
+
         layoutScoreLabel()
         refreshBestScoreHUDIfNeeded()
         // Le label timer de stage n’est pas détruit ci-dessus : le resynchroniser au modèle
@@ -5830,6 +5971,293 @@ final class GameScene: SKScene {
                 x: gridAreaCenter.x - half,
                 y: label.position.y - 11
             )
+        }
+        layoutLignePips()
+        layoutAttackPile()
+    }
+
+    private func ensureLignePipsIfNeeded() {
+        if childNode(withName: Self.lignePipsContainerName) != nil { return }
+        let container = SKNode()
+        container.name = Self.lignePipsContainerName
+        container.zPosition = 12
+        for i in 0..<4 {
+            let pip = SKShapeNode(circleOfRadius: 3)
+            pip.name = Self.lignePipName(i)
+            pip.lineWidth = 1
+            pip.glowWidth = 0
+            container.addChild(pip)
+        }
+        addChild(container)
+        applyLignePipChrome(litCount: 0)
+    }
+
+    /// Haut du 2×2 calé sur LIGNE. Puces à demi-taille : on ne prend pas toute la hauteur LIGNE+X/10.
+    private func layoutLignePips() {
+        ensureLignePipsIfNeeded()
+        guard let caption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode,
+              let value = childNode(withName: Self.ligneValueName) as? SKLabelNode,
+              let container = childNode(withName: Self.lignePipsContainerName) else { return }
+
+        let fontSize = caption.fontSize
+        let font = UIFont(name: Self.customUIFontPostScriptName, size: fontSize)
+            ?? UIFont.systemFont(ofSize: fontSize)
+        let capText = caption.text ?? BlomixL10n.hudLineCaption
+        let valText = value.text ?? "0/10"
+        let capW = (capText as NSString).size(withAttributes: [.font: font]).width
+        let valW = (valText as NSString).size(withAttributes: [.font: font]).width
+        let textW = max(capW, valW)
+
+        let halfGlyph = fontSize * 0.5
+        let topY = caption.position.y + halfGlyph
+        let botY = value.position.y - halfGlyph
+        let fullH = max(topY - botY, 16)
+        let innerGap: CGFloat = max(1, fullH * 0.06)
+        let pip = max(2, (fullH - innerGap) / 4)
+        let clusterH = pip * 2 + innerGap
+        let clusterW = clusterH
+        let inset: CGFloat = 8
+        container.position = CGPoint(
+            x: caption.position.x + textW + inset + clusterW / 2,
+            y: topY - clusterH / 2
+        )
+
+        let step = (pip + innerGap) / 2
+        let offsets: [CGPoint] = [
+            CGPoint(x: -step, y:  step),
+            CGPoint(x:  step, y:  step),
+            CGPoint(x: -step, y: -step),
+            CGPoint(x:  step, y: -step),
+        ]
+        for i in 0..<4 {
+            guard let pipNode = container.childNode(withName: Self.lignePipName(i)) as? SKShapeNode else { continue }
+            pipNode.position = offsets[i]
+            let path = CGPath(ellipseIn: CGRect(x: -pip / 2, y: -pip / 2, width: pip, height: pip), transform: nil)
+            pipNode.path = path
+        }
+        if !isStartScreen {
+            applyLignePipChrome(litCount: pendingIncomingLinePipCount())
+        }
+    }
+
+    /// Lignes encore en file (pas celle qui vient de partir du bas).
+    private func pendingIncomingLinePipCount() -> Int {
+        var n = pvpCoordinator?.incomingAttackLineCount ?? 0
+        let decadeWaiting = !isInjectingBottomRandomLine
+            && (moveCount % 10 == 9 || pvpNeedsDecadeLineAfterAttackInjection)
+        if decadeWaiting { n += 1 }
+        return min(4, max(0, n))
+    }
+
+    private func applyLignePipChrome(litCount: Int) {
+        guard let container = childNode(withName: Self.lignePipsContainerName) else { return }
+        let idleFill = BlomixAppearance.sceneBackgroundSK
+        let stroke = SKColor(white: 0.55, alpha: 1)
+        let litFill = SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
+        for i in 0..<4 {
+            guard let pip = container.childNode(withName: Self.lignePipName(i)) as? SKShapeNode else { continue }
+            let on = i < litCount
+            pip.fillColor = on ? litFill : idleFill
+            pip.strokeColor = stroke
+        }
+    }
+
+    private func refreshLignePipsHUD() {
+        guard !isStartScreen else {
+            childNode(withName: Self.lignePipsContainerName)?.isHidden = true
+            return
+        }
+        ensureLignePipsIfNeeded()
+        layoutLignePips()
+        childNode(withName: Self.lignePipsContainerName)?.isHidden = false
+        applyLignePipChrome(litCount: pendingIncomingLinePipCount())
+    }
+
+    /// Texture 1×1 : un sprite coloré sans texture + `yScale` fuit hors du puits (bande infinie).
+    private static let attackPileFillTexture: SKTexture = {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = 1
+        let img = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1), format: format).image { _ in
+            UIColor.white.setFill()
+            UIBezierPath(rect: CGRect(x: 0, y: 0, width: 1, height: 1)).fill()
+        }
+        return SKTexture(image: img)
+    }()
+
+    private func ensureAttackPileIfNeeded() {
+        guard pvpCoordinator != nil else { return }
+        if let existing = childNode(withName: Self.attackPileContainerName) {
+            if existing.childNode(withName: Self.attackPileBodyName) != nil { return }
+            existing.removeFromParent()
+        }
+        let container = SKNode()
+        container.name = Self.attackPileContainerName
+        container.zPosition = 12
+
+        let body = SKNode()
+        body.name = Self.attackPileBodyName
+        container.addChild(body)
+
+        let track = SKShapeNode()
+        track.name = Self.attackPileTrackName
+        track.lineWidth = 1
+        track.glowWidth = 0
+        body.addChild(track)
+
+        let crop = SKCropNode()
+        crop.name = Self.attackPileCropName
+        crop.zPosition = 1
+        let mask = SKSpriteNode(color: .white, size: CGSize(width: 8, height: 8))
+        mask.name = "hudAttackPileMask"
+        crop.maskNode = mask
+        let fill = SKSpriteNode(texture: Self.attackPileFillTexture, size: CGSize(width: 4, height: 1))
+        fill.name = Self.attackPileFillName
+        fill.anchorPoint = CGPoint(x: 0.5, y: 0)
+        fill.color = BlomixAppearance.primaryTextSK
+        fill.colorBlendFactor = 1
+        fill.yScale = 1
+        crop.addChild(fill)
+        body.addChild(crop)
+
+        addChild(container)
+    }
+
+    /// À droite du gros score. Une barre continue 0…50, clipée (pas de `yScale`).
+    private func layoutAttackPile() {
+        guard pvpCoordinator != nil else {
+            childNode(withName: Self.attackPileContainerName)?.isHidden = true
+            return
+        }
+        ensureAttackPileIfNeeded()
+        guard let scoreLbl = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode,
+              let container = childNode(withName: Self.attackPileContainerName),
+              let body = container.childNode(withName: Self.attackPileBodyName) else { return }
+
+        var fullH: CGFloat = 36
+        if let caption = childNode(withName: Self.hudTimerCaptionName) as? SKLabelNode {
+            let halfGlyph = caption.fontSize * 0.5
+            let topY = caption.position.y + halfGlyph
+            let botY = caption.position.y - 22 - halfGlyph
+            fullH = max(topY - botY, 16)
+        }
+        let scoreFont = UIFont(name: Self.displayFontName, size: scoreLbl.fontSize)
+            ?? UIFont.systemFont(ofSize: scoreLbl.fontSize, weight: .bold)
+        // Largeur ≈ un digit du gros score (pas la hauteur du bandeau × 2, qui allait jusqu’à TEMPS).
+        let digitW = ("0" as NSString).size(withAttributes: [.font: scoreFont]).width
+        let barW = max(10, digitW)
+        let barH = fullH
+        let inset: CGFloat = 1
+        let innerW = max(1, barW - inset * 2)
+        let innerH = max(1, barH - inset * 2)
+        attackPileInnerSize = CGSize(width: innerW, height: innerH)
+
+        let scoreW = ("50" as NSString).size(withAttributes: [.font: scoreFont]).width
+        container.position = CGPoint(
+            x: scoreLbl.position.x + scoreW / 2 + 8 + barW / 2,
+            y: scoreLbl.position.y
+        )
+
+        let corner = min(2.0, barW * 0.22)
+        if let track = body.childNode(withName: Self.attackPileTrackName) as? SKShapeNode {
+            let rect = CGRect(x: -barW / 2, y: -barH / 2, width: barW, height: barH)
+            track.path = CGPath(roundedRect: rect, cornerWidth: corner, cornerHeight: corner, transform: nil)
+            track.fillColor = BlomixAppearance.sceneBackgroundSK
+            track.strokeColor = SKColor(white: 0.55, alpha: 1)
+        }
+        if let crop = body.childNode(withName: Self.attackPileCropName) as? SKCropNode {
+            crop.position = .zero
+            if let mask = crop.maskNode as? SKSpriteNode {
+                mask.size = CGSize(width: innerW, height: innerH)
+                mask.position = .zero
+            }
+            if let fill = crop.childNode(withName: Self.attackPileFillName) as? SKSpriteNode {
+                fill.anchorPoint = CGPoint(x: 0.5, y: 0)
+                fill.position = CGPoint(x: 0, y: -innerH / 2)
+                fill.yScale = 1
+                fill.xScale = 1
+                fill.size.width = innerW
+            }
+        }
+        container.isHidden = isStartScreen
+        if !isStartScreen {
+            applyAttackPileMeter(attackPileDisplayMeter)
+        }
+    }
+
+    private func applyAttackPileMeter(_ meter: CGFloat) {
+        guard let fill = childNode(withName: Self.attackPileContainerName)?
+            .childNode(withName: Self.attackPileBodyName)?
+            .childNode(withName: Self.attackPileCropName)?
+            .childNode(withName: Self.attackPileFillName) as? SKSpriteNode else { return }
+        let innerH = max(1, attackPileInnerSize.height)
+        let innerW = max(1, attackPileInnerSize.width)
+        let frac = min(1, max(0, meter / 50))
+        fill.yScale = 1
+        fill.xScale = 1
+        fill.size = CGSize(width: innerW, height: max(0.5, frac * innerH))
+        fill.isHidden = frac <= 0.002
+        fill.position = CGPoint(x: 0, y: -innerH / 2)
+    }
+
+    private func applyAttackPileFillColor(_ color: SKColor) {
+        (childNode(withName: Self.attackPileContainerName)?
+            .childNode(withName: Self.attackPileBodyName)?
+            .childNode(withName: Self.attackPileCropName)?
+            .childNode(withName: Self.attackPileFillName) as? SKSpriteNode)?.color = color
+    }
+
+    private func applyScoreAndPileAccent(_ color: SKColor) {
+        (childNode(withName: Self.scoreHudLabelName) as? SKLabelNode)?.fontColor = color
+        applyAttackPileFillColor(color)
+    }
+
+    private func setAttackPileHotIndex(_ hot: Int?) {
+        guard let body = childNode(withName: Self.attackPileContainerName)?
+            .childNode(withName: Self.attackPileBodyName) else { return }
+        if attackPileHotIndex == hot { return }
+        let crossedDecade = attackPileHotIndex != nil && hot != nil
+        attackPileHotIndex = hot
+        if hot == nil {
+            pulseAttackPileBodyWidth(body, to: 1.0)
+        } else if crossedDecade {
+            body.removeAction(forKey: Self.attackPileWidthActionKey)
+            let down = SKAction.scaleX(to: 1.0, duration: 0.06)
+            down.timingMode = .easeIn
+            let up = SKAction.scaleX(to: Self.attackPilePeakWidthScale, duration: 0.07)
+            up.timingMode = .easeOut
+            body.run(SKAction.sequence([down, up]), withKey: Self.attackPileWidthActionKey)
+        } else {
+            pulseAttackPileBodyWidth(body, to: Self.attackPilePeakWidthScale)
+        }
+    }
+
+    private func pulseAttackPileBodyWidth(_ body: SKNode, to scale: CGFloat) {
+        body.removeAction(forKey: Self.attackPileWidthActionKey)
+        let anim = SKAction.scaleX(to: scale, duration: scale > 1 ? 0.07 : 0.10)
+        anim.timingMode = scale > 1 ? .easeOut : .easeIn
+        body.run(anim, withKey: Self.attackPileWidthActionKey)
+    }
+
+    private func resetAttackPileWidths() {
+        attackPileHotIndex = nil
+        guard let body = childNode(withName: Self.attackPileContainerName)?
+            .childNode(withName: Self.attackPileBodyName) else { return }
+        body.removeAction(forKey: Self.attackPileWidthActionKey)
+        body.xScale = 1
+        body.yScale = 1
+    }
+
+    private func refreshAttackPileHUD() {
+        guard !isStartScreen, pvpCoordinator != nil else {
+            childNode(withName: Self.attackPileContainerName)?.isHidden = true
+            return
+        }
+        ensureAttackPileIfNeeded()
+        layoutAttackPile()
+        childNode(withName: Self.attackPileContainerName)?.isHidden = false
+        if childNode(withName: Self.scoreHudLabelName)?.action(forKey: Self.scoreRollActionKey) == nil {
+            applyDuelHudMeter(CGFloat(score % 50), animateHot: false)
         }
     }
 
@@ -6226,19 +6654,33 @@ final class GameScene: SKScene {
         guard !isProcessing || ignoreProcessing else { return }
 
         let incomingAttackPreview = pvpCoordinator?.peekNextIncomingAttackLinePreview()
+        let decadePending = pvpNeedsDecadeLineAfterAttackInjection || moveCount % 10 == 9
+        if decadePending, (pvpCoordinator?.incomingAttackLineCount ?? 0) == 0 {
+            pvpDecadePreviewQueuedAheadOfAttacks = true
+        }
+        if !decadePending {
+            pvpDecadePreviewQueuedAheadOfAttacks = false
+        }
+
         let previewLine: [BlockType]
-        if let incomingAttackPreview {
+        let previewToken: String
+        if pvpDecadePreviewQueuedAheadOfAttacks, decadePending {
+            previewLine = nextBottomLine
+            previewToken = "decade"
+        } else if let incomingAttackPreview {
             previewLine = incomingAttackPreview.line
-        } else if !isProcessing && pvpNeedsDecadeLineAfterAttackInjection {
+            previewToken = "atk-\(incomingAttackPreview.id)"
+        } else if decadePending, !isProcessing {
             previewLine = nextBottomLine
-        } else if !isProcessing && moveCount % 10 == 9 {
-            previewLine = nextBottomLine
+            previewToken = "decade"
         } else {
             // Aucune ligne à signaler. Retirer le strip uniquement hors du traitement.
             if !isProcessing {
                 childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
                 pendingBottomLineBloopaSoundPlayedAtMoveCount = nil
+                pvpBottomPreviewToken = nil
             }
+            refreshLignePipsHUD()
             return
         }
         guard previewLine.count == GridLayout.columnCount else {
@@ -6246,7 +6688,14 @@ final class GameScene: SKScene {
             return
         }
 
-        // Supprimer l'éventuel strip précédent avant de créer le nouveau.
+        // Même 1ʳᵉ ligne : ne pas reconstruire (une attaque derrière ne remplace pas la bande).
+        if pvpBottomPreviewToken == previewToken,
+           childNode(withName: Self.bottomLinePreviewStripName) != nil {
+            refreshLignePipsHUD()
+            return
+        }
+        pvpBottomPreviewToken = previewToken
+
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
 
         let strip = SKNode()
@@ -6292,6 +6741,7 @@ final class GameScene: SKScene {
             pendingBottomLineBloopaSoundPlayedAtMoveCount = moveCount
             playMatchSound(.pendingRandomLineBloopa)
         }
+        refreshLignePipsHUD()
     }
 
     /// Résultat de l’insertion de la ligne des 10 coups (`priks.html` : `addRandomLine`).
@@ -6345,6 +6795,7 @@ final class GameScene: SKScene {
         isInjectingBottomRandomLine = true
         // Pendant l’injection déclenchée au 10e coup, la barre « Next line » doit rester visuellement pleine.
         refreshProgressHUDBars()
+        refreshLignePipsHUD()
 
         if isTutorialMode && !tutorialLineShown {
             tutorialLineShown = true
@@ -7103,12 +7554,11 @@ final class GameScene: SKScene {
             overlayContainer = nc
         }
 
-        let cellSize = CGSize(width: GridLayout.cellPoints, height: GridLayout.cellPoints)
         for r in GridLayout.topRowIndex..<GridLayout.rowCount {
             for c in 0..<GridLayout.columnCount {
                 guard case .color(let name) = grid[r][c], name == colorName else { continue }
                 guard let cell = container.childNode(withName: "cell_\(r)_\(c)") as? SKSpriteNode else { continue }
-                let ov = SKSpriteNode(color: .white, size: cellSize)
+                let ov = SKSpriteNode(color: .white, size: cell.size)
                 ov.alpha = 0
                 ov.position = cell.position
                 ov.zPosition = 8   // au-dessus des cellules (z 1) et de toutes les jonctions (z 2.01+)
@@ -10477,6 +10927,7 @@ final class GameScene: SKScene {
             let half = GridLayout.spanPoints / 2
             value.position.x = gridAreaCenter.x - half
         }
+        refreshLignePipsHUD()
     }
 
     /// Met à jour le compteur "BOMBE x/10" en haut à droite.
@@ -10509,7 +10960,7 @@ final class GameScene: SKScene {
         }
 
         if let scoreLbl = container.childNode(withName: Self.pvpRemoteScoreLabelName) as? SKLabelNode {
-            scoreLbl.text = pvpRemoteScore > 0 ? "\(pvpRemoteScore)" : "–"
+            scoreLbl.text = "\(pvpRemoteScore % 50)"
         }
     }
 
@@ -10695,9 +11146,7 @@ final class GameScene: SKScene {
         refreshPendingBottomLinePreview()
         refreshLigneCounterHUD()
         refreshProgressHUDBars()
-        if let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
-            label.text = "\(displayedScore)"
-        }
+        applyScoreHudText(forTotal: displayedScore)
         updateBombHUD()
     }
 
@@ -10833,9 +11282,7 @@ final class GameScene: SKScene {
         setGameplayNodesHidden(false)
 
         // Synchronisation des labels HUD avec les valeurs restaurées
-        if let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
-            label.text = "\(displayedScore)"
-        }
+        applyScoreHudText(forTotal: displayedScore)
         updateBombHUD()
         updateHintButton()
         refreshBombHudIcon()
@@ -11178,7 +11625,16 @@ final class GameScene: SKScene {
 
     private static let stageTimerHudName    = "hudStageTimer"
     private static let stageBadgeNodeName   = "hudStageBadge"
+    private static let stageBadgeAdvanceActionKey = "stageBadgeAdvance"
     private static let stageTimerActionKey  = "soloStageCountdown"
+    /// Horloge partagée overlay central + animation du badge LX.
+    private enum StageOverlayTiming {
+        static let popIn: TimeInterval = 0.45
+        static let pause: TimeInterval = 1.0
+        static let fadeOut: TimeInterval = 0.35
+        static let popStagger: TimeInterval = 0.07
+        static let badgePeakScale: CGFloat = 2.0
+    }
     /// Durée minimale pendant laquelle le preview tremblotant est visible avant que le timer
     /// ne commence à décompter. Garantit 1.5 s même au Stage Ultime (timer natif = 1 s).
     private static let stageTimerPreviewGrace: TimeInterval = 1.5
@@ -11234,9 +11690,13 @@ final class GameScene: SKScene {
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = lbl.isHidden
     }
 
-    // MARK: - Stage badge (image 100×100 en jeu)
+    // MARK: - Stage badge (LX à gauche de la bande bombe)
 
-    /// Crée le badge si absent. Appelé dans la completion de l'overlay de transition.
+    private static func stageBadgeText(for levelText: String) -> String {
+        levelText == "Ultimate" ? "L★" : "L\(levelText)"
+    }
+
+    /// Crée le badge si absent.
     private func ensureStageBadge() {
         guard isInStagedSoloMode else { return }
         guard childNode(withName: Self.stageBadgeNodeName) == nil else { return }
@@ -11260,28 +11720,42 @@ final class GameScene: SKScene {
         badge.position = CGPoint(x: gridAreaCenter.x - half + 25, y: bandY)
     }
 
-    /// Met à jour le texte et la visibilité du badge.
+    /// Texte / visibilité / couleur. N’interrompt pas l’anim grow→swap→settle.
     private func refreshStageBadge() {
         guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKLabelNode else { return }
-        let lv = currentStageConfig.levelText
-        let nextText = lv == "Ultimate" ? "L★" : "L\(lv)"
-        let changed = badge.text != nextText
-        badge.text     = nextText
-        badge.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
-        if changed, !badge.isHidden {
-            badge.removeAction(forKey: "stageBadgePulse")
+        badge.fontColor = BlomixAppearance.primaryTextSK
+        if badge.action(forKey: Self.stageBadgeAdvanceActionKey) == nil {
+            badge.text = Self.stageBadgeText(for: currentStageConfig.levelText)
             badge.setScale(1)
-            let pulse = SKAction.sequence([
-                SKAction.group([
-                    SKAction.scale(to: 1.35, duration: 0.16),
-                    SKAction.fadeAlpha(to: 1, duration: 0.08),
-                ]),
-                SKAction.scale(to: 0.92, duration: 0.10),
-                SKAction.scale(to: 1.0, duration: 0.12),
-            ])
-            pulse.timingMode = .easeInEaseOut
-            badge.run(pulse, withKey: "stageBadgePulse")
         }
+        badge.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
+    }
+
+    /// LX reste visible : grow pendant le pop-in, swap au pic, hold pendant la pause, settle au fade.
+    private func playStageBadgeOverlaySyncedAdvance(revealing nextText: String) {
+        guard isInStagedSoloMode, !isStartScreen else { return }
+        ensureStageBadge()
+        layoutStageBadge()
+        guard let badge = childNode(withName: Self.stageBadgeNodeName) as? SKLabelNode else { return }
+        badge.fontName = Self.displayFontName
+        badge.fontColor = BlomixAppearance.primaryTextSK
+        badge.alpha = 1
+        badge.isHidden = false
+        if badge.text == nil || badge.text?.isEmpty == true {
+            badge.text = nextText
+        }
+        badge.removeAction(forKey: Self.stageBadgeAdvanceActionKey)
+        badge.setScale(1)
+
+        let grow = SKAction.scale(to: StageOverlayTiming.badgePeakScale, duration: StageOverlayTiming.popIn)
+        grow.timingMode = .easeOut
+        let swap = SKAction.run { [weak badge] in
+            badge?.text = nextText
+        }
+        let hold = SKAction.wait(forDuration: StageOverlayTiming.pause)
+        let shrink = SKAction.scale(to: 1.0, duration: StageOverlayTiming.fadeOut)
+        shrink.timingMode = .easeIn
+        badge.run(SKAction.sequence([grow, swap, hold, shrink]), withKey: Self.stageBadgeAdvanceActionKey)
     }
 
     // MARK: - Stage timer
@@ -11378,8 +11852,8 @@ final class GameScene: SKScene {
         let newCfg = Self.soloStages[targetIndex]
         currentStageIndex = targetIndex
         refreshBombHudIcon()   // mise à jour icône bombe → nuke si stage ≥ 2
-        childNode(withName: Self.stageBadgeNodeName)?.isHidden = true  // masqué pendant la transition
         stopStageTimer()
+        playStageBadgeOverlaySyncedAdvance(revealing: Self.stageBadgeText(for: newCfg.levelText))
         showTransitionOverlay(stageLevelText: newCfg.levelText,
                               line1: newCfg.overlayLine1,
                               line2: newCfg.overlayLine2) { [weak self] in
@@ -11402,6 +11876,7 @@ final class GameScene: SKScene {
         layoutStageTimerHUD()
         updateStageTimerHUD()
         let cfg = Self.soloStages[0]
+        playStageBadgeOverlaySyncedAdvance(revealing: Self.stageBadgeText(for: cfg.levelText))
         showTransitionOverlay(stageLevelText: cfg.levelText,
                               line1: cfg.overlayLine1,
                               line2: cfg.overlayLine2) { [weak self] in
@@ -11409,8 +11884,6 @@ final class GameScene: SKScene {
             // Stage 1 = piste de base déjà en cours. On la reconfirme pour le cas d'une
             // partie lancée après une session PvP ou un tutoriel.
             BlomixMusicPlayer.shared.switchToFile(cfg.musicFilename)
-            self.ensureStageBadge()
-            self.layoutStageBadge()
             self.refreshStageBadge()
             self.restartStageTimer()
         }
@@ -11584,11 +12057,11 @@ final class GameScene: SKScene {
         addChild(overlayNode)
 
         let centerX   = size.width  / 2
-        let popIn:    TimeInterval = 0.45
-        let pause:    TimeInterval = 1.0
-        let fadeOut:  TimeInterval = 0.35
+        let popIn     = StageOverlayTiming.popIn
+        let pause     = StageOverlayTiming.pause
+        let fadeOut   = StageOverlayTiming.fadeOut
         let maxW:     CGFloat = size.width - 48
-        let popStagger: TimeInterval = 0.07
+        let popStagger = StageOverlayTiming.popStagger
 
         // Couleurs du skin joueur (fallback si skin non chargé).
         let orangeColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "orange")
@@ -12036,12 +12509,15 @@ final class GameScene: SKScene {
         node.run(SKAction.scale(to: 1.0, duration: 0.2))
     }
 
-    /// Overlay Magix : 3 blocs animés (CHROMAX, CROSX, BRIXED) + texte "surprises".
+    /// Overlay Magix : tous les Magix animés + texte "surprises".
     /// Tap ou auto-dismiss 3 s → `exitTutorial()`.
     private func buildMagixIntroOverlay(node: SKNode, width: CGFloat) {
         let pad: CGFloat        = 14
-        let blockSize: CGFloat  = 30
-        let blockGap: CGFloat   = 8
+        let kinds = Array(MagixKind.allCases)
+        let n = CGFloat(kinds.count)
+        let blockGap: CGFloat   = 6
+        let maxRowW = width - pad * 2
+        let blockSize: CGFloat  = min(30, floor((maxRowW - (n - 1) * blockGap) / max(n, 1)))
         let blocksRowH: CGFloat = blockSize + 10   // hauteur réservée à la rangée de blocs
         let mainFont: CGFloat   = 14
 
@@ -12066,9 +12542,7 @@ final class GameScene: SKScene {
 
         var curY: CGFloat = contentH / 2 - pad
 
-        // 3 blocs MAGIX animés (un par variante).
-        let kinds: [MagixKind] = [.chromax, .crosx, .brixed, .scrumblx]
-        let totalBlocksW = CGFloat(kinds.count) * blockSize + CGFloat(kinds.count - 1) * blockGap
+        let totalBlocksW = n * blockSize + (n - 1) * blockGap
         var blockX = -totalBlocksW / 2 + blockSize / 2
         let blockY = curY - blockSize / 2
 
@@ -12616,6 +13090,8 @@ final class GameScene: SKScene {
         BlomixAvailablePlayersManager.shared.setActiveMatch(false)
         pvpMatchSetupInProgress = false
         pvpNeedsDecadeLineAfterAttackInjection = false
+        pvpDecadePreviewQueuedAheadOfAttacks = false
+        pvpBottomPreviewToken = nil
         didFinalizePvPEloForCurrentMatch = false
         pvpOpponentDisplayName = nil
         pvpLastEloResult = nil
@@ -12628,6 +13104,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.hudPvPTurnTimerName)?.removeFromParent()
         childNode(withName: Self.hudPvPOpponentName)?.removeFromParent()
         childNode(withName: Self.pvpRemoteFillContainerName)?.removeFromParent()
+        childNode(withName: Self.attackPileContainerName)?.removeFromParent()
         pvpCoordinator?.tearDown()
         pvpCoordinator = nil
     }
@@ -12669,7 +13146,8 @@ final class GameScene: SKScene {
         BlomixPvPH2HManager.shared.seedSeriesBaselineFromCache(
             remoteGamePlayerID: remoteGameID,
             remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
-            displayName: pvpOpponentDisplayName
+            displayName: pvpOpponentDisplayName,
+            forceNewSeries: true
         )
     }
 
@@ -12751,13 +13229,18 @@ final class GameScene: SKScene {
         )
         // Clé stable par manche de la série (évite double event cloud si fin de match rejouée).
         let matchEventKey = "\(channel)|g\(pvpSeriesGamesPlayed)|\(remoteGameID)|\(remoteTeamID)"
+        let matchId: String? = {
+            guard let seed = pvpCoordinator?.h2hSharedMatchSeed else { return nil }
+            return "\(seed)-\(pvpSeriesGamesPlayed)"
+        }()
         // Enregistrer game + team : le classement Elo ne renvoie pas toujours le même ID que le match.
         BlomixPvPH2HManager.shared.recordMatchOutcome(
             localWon: localWon,
             remoteGamePlayerID: remoteGameID,
             remoteTeamPlayerID: remoteTeamID.isEmpty ? nil : remoteTeamID,
             channel: channel,
-            matchEventKey: matchEventKey
+            matchEventKey: matchEventKey,
+            matchId: matchId
         )
     }
 
@@ -12927,6 +13410,8 @@ final class GameScene: SKScene {
         blomixPvP_teardownPreservingSuspendedSolo()
         pvpMatchSetupInProgress = true
         pvpNeedsDecadeLineAfterAttackInjection = false
+        pvpDecadePreviewQueuedAheadOfAttacks = false
+        pvpBottomPreviewToken = nil
         didFinalizePvPEloForCurrentMatch = false
         removeAllActions()
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
@@ -13256,6 +13741,7 @@ final class GameScene: SKScene {
         // ignoreProcessing: true → le strip apparaît même pendant une chaîne en cours,
         // garantissant que le joueur voit toujours l'attaque adverse avant son prochain coup.
         refreshPendingBottomLinePreview(ignoreProcessing: true)
+        refreshLignePipsHUD()
     }
 
     /// Flash du score + envol de blocs vers le haut quand une ligne d'attaque est envoyée.
@@ -13359,6 +13845,7 @@ final class GameScene: SKScene {
         if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
             scoreLabel.text = "0"
         }
+        refreshAttackPileHUD()
 
         // Snapshot H2H max-merge : **après** que la grille soit jouable (évite freeze 1er blox).
         // Uniquement en début de série (0 partie), pas à chaque revanche.
@@ -13462,6 +13949,7 @@ final class GameScene: SKScene {
         // La caption "TEMPS" reste visible en PvP (partagée avec le stage timer)
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = pvpCoordinator == nil
         childNode(withName: Self.bestScoreAboveName)?.isHidden = pvpCoordinator != nil
+        refreshAttackPileHUD()
         if let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode {
             blomixPvP_refreshOpponentHudLabel()
             let scoreY = scoreLbl.position.y

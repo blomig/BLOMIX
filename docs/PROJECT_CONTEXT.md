@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.1  
+> **Version de référence** : 6.3  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -228,8 +228,8 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
-- **H2H** : 0 CloudKit en match / récap ; une vérité d’affichage (`displayedTotalsForUI`) ; juge 1 duo au retour accueil sans écraser un cumul plus haut par une query partielle
-- Attaque : `score / 50` → ligne chez l'adverse
+- **H2H** : 0 CloudKit en match / récap ; affichage = historique + Δ ; juge accueil ne descend pas sous le plancher (sauf ±1)
+- Attaque : `score / 50` → **une** ligne chez l’adverse par `addScore` (reste `score % 50` ; HUD et pile montrent ce reste)
 - Timer tour : 10 s
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
 - Lobby : Partie rapide (**Local** / **En ligne**), défis CloudKit / récents / classement
@@ -347,10 +347,12 @@ Deux visages figés (plus de picker joueur) :
 
 ### HUD en jeu
 
-- Score animé (rolling counter, milestones 100/1000)
+- Score animé (rolling counter, milestones 100/1000) ; **Duel** : affichage `score % 50` (total inchangé)
 - Best score Game Center
 - Compteur LIGNE x/10 (gauche)
+- Duel : barre continue 0…50 à droite du score (clipée, même horloge / couleur que le chiffre)
 - Timer stage ou PvP (droite)
+- Arcade : badge LX (bas gauche) visible pendant l’overlay ; grow ×2 / swap / settle calés sur la transition
 - File P1/P2, icône bombe + compteur
 - Menu hamburger (Accueil / Scores / Réglages) — pause le timer Solo tant qu’il est ouvert
 
@@ -402,6 +404,8 @@ Blomix/Blomix/
 ├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + reconcile local>GC
 ├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
+├── BlomixPublicCloudGate.swift   # Robinet Public DB (503 / Retry-After) H2H + lobby
+├── BlomixAvailablePlayersManager.swift  # Joueurs dispo + défis `chfrom_*`
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift  # Classements Elo H2H + défis ; crédits plain-text legacy
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)

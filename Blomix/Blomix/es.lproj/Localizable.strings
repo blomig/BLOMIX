@@ -278,6 +278,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "pvp.available_you_not_visible" = "No eres visible (activar en el lobby)";
 "pvp.player_in_match"           = "En partida";
 "pvp.available_error_format" = "No se pudieron cargar jugadores: %@";
+"pvp.cloud_busy_retry_format" = "La nube está ocupada. Reintenta en %d s.";
 
 "pvp.gc_not_connected" = "⚠️ Game Center no conectado";
 "pvp.gc_connected_format" = "✓ %@";

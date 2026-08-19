@@ -7,9 +7,59 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.1] — 2026-08 (courant)
+## [6.3] — 2026-08 (courant)
 
-Build **108** (TestFlight).
+Build **117**.
+
+### Corrigé (117)
+- **CloudKit Public** : robinet unique (503 / Retry-After) partagé H2H + lobby ; plus de juge H2H au `didBecomeActive` ; juge = ≤3 `pairKey`, 1 flush ; poll défis saute si throttle — l’appariement n’était pas réécrit, il était affamé
+
+### Corrigé (116)
+- **H2H** : affichage = historique + Δ de série (plus de `max` qui avalait 2–1 derrière 50–49) ; seed fusionne IDs match/Elo/nom ; juge cloud ne remplace plus un gros plancher par un 33–32
+
+### Corrigé
+- **H2H** : une formule d’affichage (récap = Elo) ; lock ne rajoute plus la série ; nouveau Duel lobby reset les Δ ; gagnant **et** perdant écrivent un `PvPH2HEvent` (`matchId` + `reporterId`) ; juge cloud = 1 point / `matchId`, lecture complète sans le `+2` ; 0 CloudKit en manche
+
+### Version
+- Marketing **6.3**, build **117**
+
+---
+
+## [6.2] — 2026-08
+
+Build **114** (TestFlight).
+
+### Corrigé (113)
+- **COLORX** : overlays blancs de la roulette calés sur la taille des blox (`cell.size`, plus le débord de 40 pt vs 36 pt)
+- **Tutoriel** : l’overlay Magix de fin montre **tous** les Magix, plus seulement les 4 premiers
+
+### Corrigé (112)
+- **Duel pile** : largeur ≈ un digit du gros score (plus la barre qui s’étirait jusqu’à TEMPS)
+
+### Corrigé (111)
+- **Duel pile** : plus de bande de couleur qui fuyait au-dessus des cases (`yScale` sur sprite) ; une **barre continue** 0…50, clipée, hauteur = mètre (lisible même petite)
+
+### Modifié (110)
+- **Duel** : le gros score HUD et le score adverse montrent `score % 50` (0…49) ; à l’envoi le chiffre monte à 50 puis pose le reste. Total interne et envoi inchangés ; plus d’explosions 100/1000 en Duel
+- **Duel pile** : à droite du gros score, largeur ×2, fill continu (15 pts = 1 + ½) calé sur le roll des `+N` ; couleur = chiffre (`primaryText` + flash chaîne) ; case en cours un peu plus large, stagger si plusieurs cases
+
+### Ajouté (109)
+- **Puces LIGNE** : 4 points 2×2 à droite de LIGNE / X/10 (hauteur calée sur les deux lignes) ; allumage rouge = lignes en file ; une puce s’éteint à chaque départ
+- **Duel pile d’attaque** : 5 segments à gauche de TEMPS / Xs (même écart que les puces) ; 10 pts / case, vert = `score % 50` ; flash 5/5 à l’envoi puis reste (ex. 80 → 3). HUD seul, calcul d’envoi inchangé
+
+### Modifié (109)
+- **Duel** : bande tremblotante = première ligne arrivée (chrono) ; les suivantes s’empilent (puces), plus de remplacement par la dernière attaque
+- **Arcade LX** : reste visible pendant l’overlay ; grow ×2 / swap du chiffre au pic / retour 1,0 calés sur pop-in 0,45 + pause 1,0 + fade 0,35 (plus de hide ni petit pulse)
+
+### Corrigé
+- **Classement Duel** : `X - Y` pour **tous** les adversaires déjà joués (pont nom / récents), pas seulement le dernier match — toujours 0 CloudKit au scroll
+
+### Version
+- Marketing **6.2**, builds 109–114
+
+---
+
+## [6.1] — 2026-08
 
 ### Corrigé (108)
 - **Duel / accueil** : plus de reprise Arcade fantôme (grille de prép sauvée) ; Duel depuis le menu → retour accueil
@@ -55,7 +105,7 @@ Build **105** (TestFlight).
 - **Accueil** : Elo et rangs des disques (#n) de nouveau après connexion Game Center (lookup du nom dans la ligne compressée)
 
 ### Version
-- Marketing **6.1**, build **108**
+- Marketing **6.1**, builds 102–108
 
 ---
 

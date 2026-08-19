@@ -64,6 +64,7 @@
 		1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CC /* BlomixAmbientBlocksView.swift */; };
 		1000000000000000000001CF /* BlomixCreditsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CE /* BlomixCreditsViewController.swift */; };
 		1000000000000000000001D1 /* BlomixPvPH2HManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001D0 /* BlomixPvPH2HManager.swift */; };
+		100000000000000000000271 /* BlomixPublicCloudGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000270 /* BlomixPublicCloudGate.swift */; };
 		10000000000000000000021C /* tips_of_day.json in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* tips_of_day.json */; };
 		10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* BlomixAvailablePlayersManager.swift */; };
 		100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* BlomixSKButtonNode.swift */; };
@@ -158,6 +159,7 @@
 		1000000000000000000001CC /* BlomixAmbientBlocksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAmbientBlocksView.swift; sourceTree = "<group>"; };
 		1000000000000000000001CE /* BlomixCreditsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixCreditsViewController.swift; sourceTree = "<group>"; };
 		1000000000000000000001D0 /* BlomixPvPH2HManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPH2HManager.swift; sourceTree = "<group>"; };
+		100000000000000000000270 /* BlomixPublicCloudGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPublicCloudGate.swift; sourceTree = "<group>"; };
 		10000000000000000000021A /* en */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = en; path = en.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000021B /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = fr; path = fr.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000021F /* BlomixAvailablePlayersManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAvailablePlayersManager.swift; sourceTree = "<group>"; };
@@ -244,6 +246,7 @@
 				1000000000000000000001CC /* BlomixAmbientBlocksView.swift */,
 				1000000000000000000001CE /* BlomixCreditsViewController.swift */,
 				1000000000000000000001D0 /* BlomixPvPH2HManager.swift */,
+				100000000000000000000270 /* BlomixPublicCloudGate.swift */,
 				1000000000000000000001C0 /* BlomixTypography.swift */,
 				100000000000000000000241 /* BlomixAppearance.swift */,
 				100000000000000000000250 /* BlomixShareComposer.swift */,
@@ -503,6 +506,7 @@
 				1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */,
 				1000000000000000000001CF /* BlomixCreditsViewController.swift in Sources */,
 				1000000000000000000001D1 /* BlomixPvPH2HManager.swift in Sources */,
+				100000000000000000000271 /* BlomixPublicCloudGate.swift in Sources */,
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
 				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
 				100000000000000000000251 /* BlomixShareComposer.swift in Sources */,
@@ -727,7 +731,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 108;
+				CURRENT_PROJECT_VERSION = 117;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -737,7 +741,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.1;
+				MARKETING_VERSION = 6.3;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -758,7 +762,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 108;
+				CURRENT_PROJECT_VERSION = 117;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -768,7 +772,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 6.1;
+				MARKETING_VERSION = 6.3;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

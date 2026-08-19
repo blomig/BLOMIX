@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 6.1  
+> **Version de référence** : 6.3  
 > **Dernière mise à jour** : août 2026
 
 ---
@@ -30,8 +30,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 6.1 |
-| `CURRENT_PROJECT_VERSION` | 108 |
+| `MARKETING_VERSION` | 6.3 |
+| `CURRENT_PROJECT_VERSION` | 117 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
@@ -73,6 +73,7 @@ GameViewController          # Root UIKit, tutoriel, invitations GC
 
 BlomixMoveAnalyzer          # Évaluation pure Swift (sans SpriteKit)
 BlomixPvPNetworking         # GKMatch, état partagé, attaques
+BlomixPublicCloudGate       # Throttle CloudKit Public (H2H + lobby)
 BlomixProceduralSFX         # Sons procéduraux Magix / feedback
 BlomixL10n                  # Pont typé vers Localizable.strings
 ```

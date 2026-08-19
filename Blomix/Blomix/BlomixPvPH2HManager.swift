@@ -7,14 +7,17 @@
 //  Isolation stricte : tout est best-effort / async. Un échec n’affecte que l’affichage
 //  du total H2H — jamais le match, l’Elo, la série session ou la reconnexion.
 //
-//  Schéma CloudKit (Record Type `PvPH2HEvent`, Public DB) — à déployer en prod :
+//  Schéma CloudKit (Record Type `PvPH2HEvent`, Public DB) :
 //    pairKey        String   Queryable
 //    winnerID       String
 //    loserID        String
 //    channel        String   ("online" | "local")
 //    clientEventId  String
 //    createdAt      Date
-//  recordName = "h2h_{clientEventId}" (créateur = vainqueur → WRITE OK).
+//    matchId        String   Queryable (114+) — 1 manche = 1 id partagé
+//    reporterId     String   (114+) — auteur du record (WRITE OK)
+//  recordName = "h2h_{clientEventId}" (chaque côté crée le sien).
+//  Juge : 1 matchId unique = 1 point (vieux records : 1 clientEventId).
 //
 //  Identité : GameKit expose parfois des chaînes différentes selon l’API
 //  (`GKMatch` vs `GKLeaderboard.Entry`) pour le même joueur (`gamePlayerID` vs
@@ -27,7 +30,7 @@
 //  2) **Pendant le match live** : **aucun** fetchCloudSum / flush multi / CloudKit H2H.
 //  3) **Fin de série** : LOCK baseline+série + committed floor ; flush pending **léger**.
 //  4) **Elo / hors partie** : seul endroit pour fetchCloudSum (agrégation cloud).
-//  5) Uploads winner-only : 1 flush best-effort en fin de manche, pas une rafale.
+//  5) Uploads des deux côtés (gagnant + perdant), même matchId ; flush hors partie.
 //
 //  BlomixPvPH2HManager est @MainActor : tout CloudKit lourd pendant isGameActive = FREEZE.
 //
@@ -123,9 +126,10 @@ final class BlomixPvPH2HManager {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.flushPendingEventsBestEffort()
-                // Juge 1 duo hors écran Elo (sinon freeze serpent / scroll).
-                self?.scheduleHomeReconcileAfterReturnToMenu()
+                // Un flush calme seulement — jamais le juge ici (sinon 503 + lobby / défis cassés).
+                if !BlomixPublicCloudGate.shared.isBlocked {
+                    self?.flushPendingEventsBestEffort()
+                }
             }
         }
     }
@@ -178,7 +182,7 @@ final class BlomixPvPH2HManager {
             return
         }
 
-        // Série déjà en cours : on ne touche qu’à la baseline (garde les Δ série).
+        // Série déjà ouverte avec des Δ : snapshot = baseline only, jamais les manches en cours.
         if var live = liveSeries(forRemoteIDs: remotes),
            live.isActive,
            live.seriesLocal + live.seriesRemote > 0 {
@@ -217,8 +221,8 @@ final class BlomixPvPH2HManager {
         print("[H2H] peer max-merge \(ours.localWins)-\(ours.remoteWins) + peer claims us=\(peerClaimsOurWins) them=\(peerOwnWins) → \(merged.localWins)-\(merged.remoteWins)")
     }
 
-    /// Une seule vérité d’affichage (récap, Duel, baseline série) : max(live, cache, plancher).
-    /// Jamais de lecture CloudKit. Ne redescend pas sous un cumul déjà connu.
+    /// Une seule vérité d’affichage (récap, Duel) : historique + Δ de série, jamais `max(cache, 1-2)`.
+    /// Jamais de lecture CloudKit.
     func displayedTotalsForUI(
         againstRemoteIDs remoteIDs: [String],
         displayName: String? = nil
@@ -231,23 +235,32 @@ final class BlomixPvPH2HManager {
         return displayedTotalsPreferringLive(againstRemoteIDs: Self.normalizedIDList(remoteIDs))
     }
 
-    /// Totaux à afficher : max(live protégé, cache, committed) — jamais le plus bas seul.
-    private func displayedTotalsPreferringLive(againstRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals {
+    /// Historique figé (cache + plancher), sans les Δ de la série en cours.
+    private func historicalTotals(againstRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals {
         let remotes = expandedRemoteIDs(remoteIDs)
         let cache = cachedTotals(againstRemoteIDs: remotes) ?? .zero
         let committed = committedFloor(forRemoteIDs: remotes) ?? .zero
-        var best = BlomixPvPH2HTotals(
-            localWins: max(cache.localWins, committed.localWins),
-            remoteWins: max(cache.remoteWins, committed.remoteWins)
-        )
-        if let live = liveSeries(forRemoteIDs: remotes), live.protectsDisplay {
-            let d = live.displayedTotals
-            best = BlomixPvPH2HTotals(
-                localWins: max(best.localWins, d.localWins),
-                remoteWins: max(best.remoteWins, d.remoteWins)
+        return cache.merging(committed)
+    }
+
+    /// Série ouverte : `max(baseline live, historique) + Δ`. Grâce post-lock : total figé (pas +Δ).
+    private func composeDisplayed(historical: BlomixPvPH2HTotals, live: LiveSeriesContext?) -> BlomixPvPH2HTotals {
+        guard let live, live.protectsDisplay else { return historical }
+        if live.isActive {
+            return BlomixPvPH2HTotals(
+                localWins: max(live.baselineLocal, historical.localWins) + live.seriesLocal,
+                remoteWins: max(live.baselineRemote, historical.remoteWins) + live.seriesRemote
             )
         }
-        return best
+        return live.displayedTotals.merging(historical)
+    }
+
+    private func displayedTotalsPreferringLive(againstRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals {
+        let remotes = expandedRemoteIDs(remoteIDs)
+        return composeDisplayed(
+            historical: historicalTotals(againstRemoteIDs: remotes),
+            live: liveSeries(forRemoteIDs: remotes)
+        )
     }
 
     /// Mémorise le duo courant (IDs match) pour une lecture cloud **plus tard**, hors gameplay.
@@ -286,7 +299,8 @@ final class BlomixPvPH2HManager {
         normalizedIDList(ids).joined(separator: "|")
     }
 
-    /// Lecture **légère** pour le tableau Elo : 1 decode cache/live/floor/alias, puis lookups.
+    /// Lecture **légère** pour le tableau Elo : 1 decode cache/live/floor/alias + récents, puis lookups.
+    /// Pont nom → ID match pour **toutes** les lignes (pas seulement le dernier adversaire).
     /// Alias **en mémoire uniquement** (pas d’écriture). 0 CloudKit.
     func precomputedLightTotals(idGroups: [[String]], displayNames: [String] = []) -> [String: BlomixPvPH2HTotals] {
         migrateCacheV1IfNeeded()
@@ -295,8 +309,17 @@ final class BlomixPvPH2HManager {
         let floors = loadCommittedFloors()
         let aliases = loadAliases()
         let lastKeys = Set(Self.normalizedIDList([lastOpponentGameID, lastOpponentTeamID]))
-        let lastName = lastOpponentDisplayName?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        var idsByNormalizedName: [String: [String]] = [:]
+        for recent in BlomixRecentOpponentsCache.shared.all() {
+            let n = recent.displayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard !n.isEmpty else { continue }
+            idsByNormalizedName[n, default: []].append(recent.gamePlayerID)
+        }
+        if let lastName = lastOpponentDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !lastName.isEmpty, !lastKeys.isEmpty {
+            idsByNormalizedName[lastName.lowercased(), default: []].append(contentsOf: lastKeys)
+        }
+
         var out: [String: BlomixPvPH2HTotals] = [:]
         out.reserveCapacity(idGroups.count)
         for (index, ids) in idGroups.enumerated() {
@@ -309,20 +332,22 @@ final class BlomixPvPH2HManager {
             if !lastKeys.isEmpty, !keys.isDisjoint(with: lastKeys) {
                 keys.formUnion(lastKeys)
             }
-            if !lastName.isEmpty, index < displayNames.count {
-                let rowName = displayNames[index].trimmingCharacters(in: .whitespacesAndNewlines)
-                if !rowName.isEmpty, rowName.caseInsensitiveCompare(lastName) == .orderedSame {
-                    keys.formUnion(lastKeys)
+            if index < displayNames.count {
+                let rowName = displayNames[index].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if let extra = idsByNormalizedName[rowName] {
+                    keys.formUnion(extra)
                 }
             }
-            var best = BlomixPvPH2HTotals.zero
+            var hist = BlomixPvPH2HTotals.zero
+            var live: LiveSeriesContext?
             for k in keys {
-                if let t = cache[k] { best = best.merging(t) }
-                if let f = floors[k], f.totals.hasHistory { best = best.merging(f.totals) }
-                if let live = lives[k], live.protectsDisplay {
-                    best = best.merging(live.displayedTotals)
+                if let t = cache[k] { hist = hist.merging(t) }
+                if let f = floors[k], f.totals.hasHistory { hist = hist.merging(f.totals) }
+                if live == nil, let l = lives[k], l.protectsDisplay {
+                    live = l
                 }
             }
+            let best = composeDisplayed(historical: hist, live: live)
             if best.hasHistory { out[mapKey] = best }
         }
         return out
@@ -337,8 +362,14 @@ final class BlomixPvPH2HManager {
         guard !game.isEmpty || !team.isEmpty else { return }
         homeReconcileTask?.cancel()
         homeReconcileTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 900_000_000)
+            let extra = UInt64(max(0, BlomixPublicCloudGate.shared.retryRemainingSeconds)) * 1_000_000_000
+            try? await Task.sleep(nanoseconds: 8_000_000_000 + extra)
             guard !Task.isCancelled else { return }
+            if BlomixPublicCloudGate.shared.isBlocked
+                || BlomixAvailablePlayersManager.shared.isInActiveMatch {
+                print("[H2H] reconcile skip (home delayed) — gate/match")
+                return
+            }
             await self?.performRememberedOpponentReconcile(
                 remoteGamePlayerID: game,
                 remoteTeamPlayerID: team.isEmpty ? nil : team,
@@ -371,6 +402,10 @@ final class BlomixPvPH2HManager {
             print("[H2H] reconcile skip (\(reason)) — match actif")
             return
         }
+        if BlomixPublicCloudGate.shared.isBlocked {
+            print("[H2H] reconcile skip (\(reason)) — CK gate")
+            return
+        }
         if let last = lastCloudReconcileAt,
            Date().timeIntervalSince(last) < Self.homeReconcileMinInterval {
             print("[H2H] reconcile skip (\(reason)) — déjà fait il y a \(Int(Date().timeIntervalSince(last)))s")
@@ -387,10 +422,12 @@ final class BlomixPvPH2HManager {
 
     /// Baseline **locale immédiate** (cache uniquement, 0 réseau).
     /// À appeler au début de série / lancement match — ne bloque jamais le handshake.
+    /// - Parameter forceNewSeries: nouveau Duel lobby (pas revanche) — oublie les Δ H2H de l’ancienne série.
     func seedSeriesBaselineFromCache(
         remoteGamePlayerID: String,
         remoteTeamPlayerID: String? = nil,
-        displayName: String? = nil
+        displayName: String? = nil,
+        forceNewSeries: Bool = false
     ) {
         registerLifecycleIfNeeded()
         migrateCacheV1IfNeeded()
@@ -399,15 +436,19 @@ final class BlomixPvPH2HManager {
         if let name = displayName { bridgeAliasesUsingDisplayName(name, eloIDs: remoteIDs) }
         registerAliases(remoteIDs)
 
-        if let live = liveSeries(forRemoteIDs: remoteIDs),
+        if !forceNewSeries,
+           let live = liveSeries(forRemoteIDs: remoteIDs),
            live.isActive,
            live.seriesLocal + live.seriesRemote > 0 {
             return
         }
 
-        let remotes = expandedRemoteIDs(remoteIDs)
-        // Toujours repartir du max(cache, committed) — pas d’un live series « mort » avec anciens Δ.
-        let base = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
+        let remotes = augmentedRemoteIDs(remoteIDs, displayName: displayName)
+        // Historique seulement (pas les Δ d’une vieille série). Nouveau lobby : reset Δ, même baseline.
+        let base = historicalTotals(againstRemoteIDs: remotes)
+        if forceNewSeries {
+            clearLiveSeries(forRemoteIDs: remotes)
+        }
         // Nouvelle série : baseline propre, Δ à 0 (évite de rejouer les Δ de la série précédente).
         let ctx = LiveSeriesContext(
             remoteKey: sessionStorageKey(forRemoteIDs: remoteIDs),
@@ -497,32 +538,19 @@ final class BlomixPvPH2HManager {
         flushPending: Bool = true
     ) -> BlomixPvPH2HTotals {
         let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
-        let remotes = expandedRemoteIDs(remoteIDs)
-        let live = liveSeries(forRemoteIDs: remoteIDs)
-        let known = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
+        let remotes = augmentedRemoteIDs(remoteIDs, displayName: lastOpponentDisplayName)
+        let hist = historicalTotals(againstRemoteIDs: remotes)
+        let live = liveSeries(forRemoteIDs: remotes)
         let seriesL = max(0, seriesLocalWins)
         let seriesR = max(0, seriesRemoteWins)
-        let liveDisp = live?.displayedTotals
-        let final: BlomixPvPH2HTotals
-        if let live, let liveDisp,
-           known.localWins == liveDisp.localWins,
-           known.remoteWins == liveDisp.remoteWins {
-            // Cache / live déjà = baseline + Δ : ne pas rajouter la série.
-            final = known
-        } else {
-            let hist = BlomixPvPH2HTotals(
-                localWins: max(known.localWins, live?.baselineLocal ?? 0),
-                remoteWins: max(known.remoteWins, live?.baselineRemote ?? 0)
-            )
-            final = BlomixPvPH2HTotals(
-                localWins: hist.localWins + seriesL,
-                remoteWins: hist.remoteWins + seriesR
-            )
-        }
-        let baseline = BlomixPvPH2HTotals(
-            localWins: max(0, final.localWins - seriesL),
-            remoteWins: max(0, final.remoteWins - seriesR)
+        // Baseline = historique / seed, PAS live.displayed (qui contient déjà les Δ).
+        let baseL = max(live?.baselineLocal ?? 0, hist.localWins)
+        let baseR = max(live?.baselineRemote ?? 0, hist.remoteWins)
+        let final = BlomixPvPH2HTotals(
+            localWins: baseL + seriesL,
+            remoteWins: baseR + seriesR
         )
+        let baseline = BlomixPvPH2HTotals(localWins: baseL, remoteWins: baseR)
         let indexIDs = Array(Set(Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""]) + remotes))
             .prefix(Self.maxExpandedRemoteIDs)
             .map { $0 }
@@ -563,7 +591,8 @@ final class BlomixPvPH2HManager {
         remoteGamePlayerID: String,
         remoteTeamPlayerID: String? = nil,
         channel: String,
-        matchEventKey: String? = nil
+        matchEventKey: String? = nil,
+        matchId: String? = nil
     ) {
         registerLifecycleIfNeeded()
         migrateCacheV1IfNeeded()
@@ -601,26 +630,33 @@ final class BlomixPvPH2HManager {
         )
         print("[H2H] cache \(localWon ? "win" : "loss") → \(displayed.localWins)-\(displayed.remoteWins) (baseline+série) \(debugDumpLiveSeries(remoteIDs))")
 
-        guard localWon else { return }
+        let trimmedMatchId = matchId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasSharedMatchId = !trimmedMatchId.isEmpty
+        // Sans matchId (vieux chemin) : seul le vainqueur écrit. Avec matchId : les deux.
+        guard hasSharedMatchId || localWon else { return }
 
-        let clientEventId = Self.stableClientEventId(matchEventKey: matchEventKey, pairKey: pair, winnerID: primaryLocal)
-        // Idempotence : déjà en pending.
+        let winnerID = localWon ? primaryLocal : primaryRemote
+        let loserID = localWon ? primaryRemote : primaryLocal
+        let clientEventId = hasSharedMatchId
+            ? Self.stableClientEventId(matchEventKey: "\(trimmedMatchId)|\(primaryLocal)", pairKey: pair, winnerID: primaryLocal)
+            : Self.stableClientEventId(matchEventKey: matchEventKey, pairKey: pair, winnerID: primaryLocal)
         if loadPending().contains(where: { $0.clientEventId == clientEventId }) {
-            print("[H2H] win already pending event=\(clientEventId.prefix(12))…")
+            print("[H2H] report already pending event=\(clientEventId.prefix(12))…")
             return
         }
 
         let event = PendingH2HEvent(
             clientEventId: clientEventId,
             pairKey: pair,
-            winnerID: primaryLocal,
-            loserID: primaryRemote,
+            winnerID: winnerID,
+            loserID: loserID,
             channel: channel,
-            createdAt: Date()
+            createdAt: Date(),
+            matchId: hasSharedMatchId ? trimmedMatchId : nil,
+            reporterId: primaryLocal
         )
         enqueuePending(event)
-        print("[H2H] win queued event=\(event.clientEventId.prefix(12))… (no flush in-match)")
-        // Flush uniquement hors partie (didBecomeActive / fin de série / ouverture Elo).
+        print("[H2H] \(localWon ? "win" : "loss") queued event=\(event.clientEventId.prefix(12))… matchId=\(hasSharedMatchId ? String(trimmedMatchId.prefix(16)) : "nil") (no flush in-match)")
     }
 
     /// Totaux en cache pour un ID distant (suit les alias).
@@ -660,7 +696,7 @@ final class BlomixPvPH2HManager {
         }
         registerAliases(remoteIDs)
 
-        let remotes = expandedRemoteIDs(remoteIDs)
+        let remotes = augmentedRemoteIDs(remoteIDs, displayName: displayName)
         guard !remotes.isEmpty else {
             print("[H2H] refresh skip — no remote IDs")
             return nil
@@ -690,80 +726,42 @@ final class BlomixPvPH2HManager {
             }
         }()
 
-        // Flush agressif pour pousser les wins avant lecture vérité cloud.
-        await flushPendingUntilEmptyOrAttempts(maxAttempts: 4)
-        var pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
+        if BlomixPublicCloudGate.shared.isBlocked {
+            print("[H2H] refresh skip — CK gate \(BlomixPublicCloudGate.shared.retryRemainingSeconds)s")
+            return previous ?? seriesFloor
+        }
+
+        // Un flush, une lecture — pas de rafale (503 Public DB).
+        await flushPendingUntilEmptyOrAttempts(maxAttempts: 1)
+        let pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
         if pendingLeft > 0 {
             print("[H2H] pending still \(pendingLeft) — \(debugDumpPendingSummary())")
         }
 
-        var cloudBundle = await fetchCloudSum(
+        let cloudBundle = await fetchCloudSum(
             localIDs: localIDs,
             remotes: remotes,
             flushFirst: false
         )
-        // Re-essai si cloud sous le plancher (uploads en vol).
-        if let floor = seriesFloor, cloudBundle.querySucceeded {
-            let c = cloudBundle.sum
-            if c.localWins < floor.localWins || c.remoteWins < floor.remoteWins || pendingLeft > 0 {
-                print("[H2H] cloud \(c.localWins)-\(c.remoteWins) < floor \(floor.localWins)-\(floor.remoteWins) — extra flush+query")
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                await flushPendingUntilEmptyOrAttempts(maxAttempts: 3)
-                cloudBundle = await fetchCloudSum(
-                    localIDs: localIDs,
-                    remotes: remotes,
-                    flushFirst: false
-                )
-                pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
-            }
-        }
 
         if cloudBundle.querySucceeded {
             let cloud = cloudBundle.sum
             let total: BlomixPvPH2HTotals
-            if let floor = seriesFloor, floor.hasHistory {
-                let cloudGames = cloud.localWins + cloud.remoteWins
-                let floorGames = floor.localWins + floor.remoteWins
-                // Query vide / autre pairKey : 1–0 vs 34–34. Ne pas effacer l’historique.
-                let cloudLooksComplete = cloud.hasHistory && cloudGames + 2 >= floorGames
-                if pendingLeft == 0, cloudLooksComplete {
-                    // Juge : pending vides + cloud plausible → le cloud a raison (corrige un +1 fantôme).
-                    total = cloud
+            let complete = cloudBundle.queryComplete && pendingLeft == 0
+            let floor = seriesFloor ?? previous
+            if complete, Self.cloudMayReplaceLocal(cloud: cloud, floor: floor) {
+                total = cloud
+                if floor?.hasHistory == true {
                     clearLiveSeries(forRemoteIDs: remotes)
                     clearCommittedFloor(forRemoteIDs: remotes)
-                    print("[H2H] reconcile CLOUD-JUDGE \(total.localWins)-\(total.remoteWins) (was floor \(floor.localWins)-\(floor.remoteWins))")
-                } else {
-                    // Uploads encore en vol, ou lecture partielle : ne pas redescendre.
-                    total = BlomixPvPH2HTotals(
-                        localWins: max(cloud.localWins, floor.localWins),
-                        remoteWins: max(cloud.remoteWins, floor.remoteWins)
-                    )
-                    if cloud.localWins >= floor.localWins && cloud.remoteWins >= floor.remoteWins {
-                        clearLiveSeries(forRemoteIDs: remotes)
-                        clearCommittedFloor(forRemoteIDs: remotes)
-                        print("[H2H] reconcile CLOUD+FLOOR synced \(total.localWins)-\(total.remoteWins) (floors cleared)")
-                    } else {
-                        print("[H2H] reconcile CLOUD+FLOOR floor \(floor.localWins)-\(floor.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins) pending=\(pendingLeft)")
-                    }
                 }
-            } else if let prev = previous, prev.hasHistory {
-                // Pas de live/committed trouvé : quand même ne pas écraser 34–34 par un cloud 28–30.
-                let cloudGames = cloud.localWins + cloud.remoteWins
-                let prevGames = prev.localWins + prev.remoteWins
-                let cloudLooksComplete = cloud.hasHistory && cloudGames + 2 >= prevGames
-                if pendingLeft == 0, cloudLooksComplete {
-                    total = cloud
-                    print("[H2H] reconcile CLOUD-JUDGE (no floor) \(total.localWins)-\(total.remoteWins) prev \(prev.localWins)-\(prev.remoteWins)")
-                } else {
-                    total = BlomixPvPH2HTotals(
-                        localWins: max(cloud.localWins, prev.localWins),
-                        remoteWins: max(cloud.remoteWins, prev.remoteWins)
-                    )
-                    print("[H2H] reconcile CLOUD+CACHE prev \(prev.localWins)-\(prev.remoteWins) cloud \(cloud.localWins)-\(cloud.remoteWins) → \(total.localWins)-\(total.remoteWins)")
-                }
+                print("[H2H] reconcile CLOUD-JUDGE \(total.localWins)-\(total.remoteWins) floor=\(floor.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
+            } else if let floor, floor.hasHistory {
+                total = cloud.merging(floor)
+                print("[H2H] reconcile KEEP-LOCAL \(total.localWins)-\(total.remoteWins) cloud=\(cloud.localWins)-\(cloud.remoteWins) complete=\(complete) pending=\(pendingLeft)")
             } else {
                 total = cloud
-                print("[H2H] reconcile CLOUD-TRUTH \(total.localWins)-\(total.remoteWins) prev \(previous.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
+                print("[H2H] reconcile CLOUD-TRUTH \(total.localWins)-\(total.remoteWins) complete=\(complete)")
             }
             if total.hasHistory {
                 replaceTotals(total, underRemoteIDs: remotes)
@@ -829,8 +827,7 @@ final class BlomixPvPH2HManager {
         let remotes = expandedRemoteIDs(remoteIDs)
         var ctx = liveSeries(forRemoteIDs: remoteIDs)
         if ctx == nil || (ctx?.isActive == false && ctx?.protectsDisplay == false) {
-            // Pas de baseline async encore : baseline = cache courant (ou 0).
-            let base = cachedTotals(againstRemoteIDs: remotes) ?? .zero
+            let base = historicalTotals(againstRemoteIDs: remotes)
             ctx = LiveSeriesContext(
                 remoteKey: sessionStorageKey(forRemoteIDs: remoteIDs),
                 remoteIDs: remotes,
@@ -864,22 +861,12 @@ final class BlomixPvPH2HManager {
             live.seriesRemote += 1
         }
         live.updatedAt = Date()
-        let displayed = live.displayedTotals
-        // Persistance **différée** : ne pas bloquer le MainActor pendant l’UI de fin de match
-        // (viewDidLoad résultat / serpent / present). Les totaux live restent en mémoire via saveLiveSeries.
-        let floorTotals = displayed
+        // Ne pas écrire baseline+Δ dans le cache ici : le lock ferait alors +série en double.
         let floorRemotes = Array(remotes.prefix(Self.maxExpandedRemoteIDs))
         var liveToSave = live
         liveToSave.remoteIDs = floorRemotes
-        // Live series = petit write immédiat (nécessaire pour le HUD série).
         saveLiveSeries(liveToSave)
-        // Cache + floor : après un vrai délai pour laisser l’UI s’afficher (pas seulement yield).
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            self.replaceTotals(floorTotals, underRemoteIDs: floorRemotes)
-            self.commitDisplayFloor(floorTotals, remoteIDs: floorRemotes)
-        }
-        return displayed
+        return composeDisplayed(historical: historicalTotals(againstRemoteIDs: remotes), live: liveToSave)
     }
 
     private func liveSeries(forRemoteIDs remoteIDs: [String]) -> LiveSeriesContext? {
@@ -1057,6 +1044,9 @@ final class BlomixPvPH2HManager {
         var sum: BlomixPvPH2HTotals
         var anyHit: Bool
         var querySucceeded: Bool
+        var pairKeyAttempted: Int
+        var pairKeyFailed: Int
+        var queryComplete: Bool { pairKeyAttempted > 0 && pairKeyFailed == 0 }
     }
 
     private struct H2HCloudEvent {
@@ -1065,6 +1055,8 @@ final class BlomixPvPH2HManager {
         var loserID: String
         var pairKey: String
         var clientEventId: String
+        var matchId: String
+        var reporterId: String
     }
 
     private func fetchCloudSum(
@@ -1080,25 +1072,20 @@ final class BlomixPvPH2HManager {
         var remoteSet = Set(remotes)
         var unique: [String: H2HCloudEvent] = [:]
         var querySucceeded = false
-        var winnerQueryUseful = false
+        var pairKeyAttempted = 0
+        var pairKeyFailed = 0
 
-        // 1) Queries par winnerID (même ensemble d’events des deux côtés si index Queryable).
-        let winnerIDs = Array(localSet.union(remoteSet)).sorted { Self.idQueryPriority($0) > Self.idQueryPriority($1) }
-        for wid in winnerIDs {
-            do {
-                let recs = try await fetchRecords(predicate: NSPredicate(format: "winnerID == %@", wid))
-                querySucceeded = true
-                winnerQueryUseful = true
-                mergeCloudRecords(recs, into: &unique)
-            } catch {
-                // Index absent ou erreur : on bascule sur pairKey (pas fatal).
-                print("[H2H] winnerID query fail id=\(debugID(wid)): \(error.localizedDescription)")
-            }
+        if BlomixPublicCloudGate.shared.isBlocked {
+            return CloudSumBundle(
+                sum: .zero, anyHit: false, querySucceeded: false,
+                pairKeyAttempted: 0, pairKeyFailed: 0
+            )
         }
 
-        // 2) Queries pairKey (IDs live + known + pending) — couvre l’historique même sans index winnerID.
-        let pairKeys = candidatePairKeys(localIDs: Array(localSet), remotes: Array(remoteSet))
+        // Une poignée de pairKey seulement — pas de winnerID global (trop lourd / 503).
+        let pairKeys = Array(candidatePairKeys(localIDs: Array(localSet), remotes: Array(remoteSet)).prefix(3))
         for pair in pairKeys {
+            pairKeyAttempted += 1
             do {
                 let recs = try await fetchRecords(predicate: NSPredicate(format: "pairKey == %@", pair))
                 querySucceeded = true
@@ -1108,7 +1095,10 @@ final class BlomixPvPH2HManager {
                     print("[H2H] cloud hit pair=\(String(pair.prefix(36)))… raw=\(recs.count)")
                 }
             } catch {
+                pairKeyFailed += 1
+                BlomixPublicCloudGate.shared.noteError(error)
                 print("[H2H] pairKey query fail pair=\(String(pair.prefix(24)))…: \(error.localizedDescription)")
+                if BlomixPublicCloudGate.shared.isBlocked { break }
             }
         }
 
@@ -1152,24 +1142,68 @@ final class BlomixPvPH2HManager {
             print("[H2H] learned remote IDs \(learnedRemote.map(debugID).joined(separator: ","))")
         }
 
+        let sum = tallyDuoEvents(duoEvents, localSet: localSet, remoteSet: remoteSet)
+        if !duoEvents.isEmpty {
+            print("[H2H] cloud events=\(duoEvents.count) matchIds=\(Set(duoEvents.map(\.matchId).filter { !$0.isEmpty }).count) pairsTried=\(pairKeys.count) fail=\(pairKeyFailed) → \(sum.localWins)-\(sum.remoteWins)")
+        }
+        return CloudSumBundle(
+            sum: sum,
+            anyHit: sum.hasHistory,
+            querySucceeded: querySucceeded,
+            pairKeyAttempted: pairKeyAttempted,
+            pairKeyFailed: pairKeyFailed
+        )
+    }
+
+    /// 1 `matchId` = 1 point. Records sans matchId (pré-114) : 1 `clientEventId`.
+    private func tallyDuoEvents(
+        _ events: [H2HCloudEvent],
+        localSet: Set<String>,
+        remoteSet: Set<String>
+    ) -> BlomixPvPH2HTotals {
+        var grouped: [String: [H2HCloudEvent]] = [:]
+        var legacy: [H2HCloudEvent] = []
+        for ev in events {
+            let mid = ev.matchId.trimmingCharacters(in: .whitespacesAndNewlines)
+            if mid.isEmpty {
+                legacy.append(ev)
+            } else {
+                grouped[mid, default: []].append(ev)
+            }
+        }
         var localWins = 0
         var remoteWins = 0
-        for ev in duoEvents {
-            if Self.isLocalWinner(winnerID: ev.winnerID, localIDs: localSet, remoteIDs: remoteSet) {
+        func credit(_ winnerID: String) {
+            if Self.isLocalWinner(winnerID: winnerID, localIDs: localSet, remoteIDs: remoteSet) {
                 localWins += 1
-            } else if remoteSet.contains(ev.winnerID) {
-                remoteWins += 1
             } else {
-                // Winner inconnu mais event duo via pairKey : l’autre côté du pair.
                 remoteWins += 1
             }
         }
-
-        let sum = BlomixPvPH2HTotals(localWins: localWins, remoteWins: remoteWins)
-        if !duoEvents.isEmpty {
-            print("[H2H] cloud unique events=\(duoEvents.count) pairsTried=\(pairKeys.count) winnerQ=\(winnerQueryUseful) → \(localWins)-\(remoteWins)")
+        for reports in grouped.values {
+            credit(Self.resolvedWinnerID(reports: reports))
         }
-        return CloudSumBundle(sum: sum, anyHit: sum.hasHistory, querySucceeded: querySucceeded)
+        for ev in legacy {
+            credit(ev.winnerID)
+        }
+        return BlomixPvPH2HTotals(localWins: localWins, remoteWins: remoteWins)
+    }
+
+    /// Accord des reports ; en conflit : majorité, puis winnerID lexico min (déterministe).
+    private static func resolvedWinnerID(reports: [H2HCloudEvent]) -> String {
+        var votes: [String: Int] = [:]
+        for r in reports {
+            let w = r.winnerID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !w.isEmpty else { continue }
+            votes[w, default: 0] += 1
+        }
+        if let best = votes.max(by: {
+            if $0.value != $1.value { return $0.value < $1.value }
+            return $0.key > $1.key
+        }) {
+            return best.key
+        }
+        return reports.first?.winnerID ?? ""
     }
 
     private func mergeCloudRecords(_ records: [CKRecord], into unique: inout [String: H2HCloudEvent]) {
@@ -1179,6 +1213,8 @@ final class BlomixPvPH2HManager {
             let loser = (rec["loserID"] as? String) ?? ""
             let pair = (rec["pairKey"] as? String) ?? ""
             let cid = (rec["clientEventId"] as? String) ?? name
+            let matchId = (rec["matchId"] as? String) ?? ""
+            let reporterId = (rec["reporterId"] as? String) ?? ""
             let key = cid.isEmpty ? name : cid
             guard !winner.isEmpty else { continue }
             unique[key] = H2HCloudEvent(
@@ -1186,7 +1222,9 @@ final class BlomixPvPH2HManager {
                 winnerID: winner,
                 loserID: loser,
                 pairKey: pair,
-                clientEventId: cid
+                clientEventId: cid,
+                matchId: matchId,
+                reporterId: reporterId
             )
         }
     }
@@ -1238,8 +1276,8 @@ final class BlomixPvPH2HManager {
                 } else {
                     op = CKQueryOperation(query: query)
                 }
-                op.qualityOfService = .userInitiated
-                op.resultsLimit = 200
+                op.qualityOfService = .utility
+                op.resultsLimit = 100
                 var page: [CKRecord] = []
                 op.recordMatchedBlock = { _, result in
                     if case .success(let rec) = result {
@@ -1491,15 +1529,23 @@ final class BlomixPvPH2HManager {
         record["channel"] = event.channel as CKRecordValue
         record["clientEventId"] = event.clientEventId as CKRecordValue
         record["createdAt"] = event.createdAt as CKRecordValue
+        if let mid = event.matchId, !mid.isEmpty {
+            record["matchId"] = mid as CKRecordValue
+        }
+        if let rid = event.reporterId, !rid.isEmpty {
+            record["reporterId"] = rid as CKRecordValue
+        }
 
         do {
             _ = try await publicDB.save(record)
             rememberPairKey(event.pairKey)
+            BlomixPublicCloudGate.shared.noteSuccess()
         } catch {
             if isIdempotentCloudSuccess(error) {
                 rememberPairKey(event.pairKey)
                 return
             }
+            BlomixPublicCloudGate.shared.noteError(error)
             throw error
         }
     }
@@ -1713,6 +1759,41 @@ final class BlomixPvPH2HManager {
         return out
     }
 
+    /// IDs match + Elo + récents au même nom + dernier adversaire — une seule baseline par duo.
+    private func augmentedRemoteIDs(_ remoteIDs: [String], displayName: String?) -> [String] {
+        var ids = Self.normalizedIDList(remoteIDs)
+        if let raw = displayName?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+            let lower = raw.lowercased()
+            for recent in BlomixRecentOpponentsCache.shared.all() {
+                if recent.displayName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == lower {
+                    ids.append(recent.gamePlayerID)
+                }
+            }
+            if let last = lastOpponentDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines),
+               last.lowercased() == lower {
+                ids.append(lastOpponentGameID)
+                ids.append(lastOpponentTeamID)
+            }
+            bridgeAliasesUsingDisplayName(raw, eloIDs: ids)
+        }
+        registerAliases(ids)
+        return expandedRemoteIDs(ids)
+    }
+
+    /// Le cloud ne remplace le local que s’il est ≥ le plancher, ou à ±1 manche près.
+    /// Interdit 49–50 → 33–32.
+    private static func cloudMayReplaceLocal(cloud: BlomixPvPH2HTotals, floor: BlomixPvPH2HTotals?) -> Bool {
+        guard let floor, floor.hasHistory else { return true }
+        if !cloud.hasHistory { return false }
+        if cloud.localWins >= floor.localWins, cloud.remoteWins >= floor.remoteWins {
+            return true
+        }
+        let dL = abs(cloud.localWins - floor.localWins)
+        let dR = abs(cloud.remoteWins - floor.remoteWins)
+        let dG = abs((cloud.localWins + cloud.remoteWins) - (floor.localWins + floor.remoteWins))
+        return dL <= 1 && dR <= 1 && dG <= 1
+    }
+
     /// Pont de secours : même displayName qu’un adversaire récent (ID match `A:_…`).
     private func bridgeAliasesUsingDisplayName(_ displayName: String, eloIDs: [String]) {
         let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1754,6 +1835,8 @@ final class BlomixPvPH2HManager {
         var loserID: String
         var channel: String
         var createdAt: Date
+        var matchId: String?
+        var reporterId: String?
     }
 
     private func loadCacheV2() -> [String: BlomixPvPH2HTotals] {

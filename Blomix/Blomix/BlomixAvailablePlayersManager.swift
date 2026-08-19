@@ -104,6 +104,8 @@ final class BlomixAvailablePlayersManager {
     /// Positionné à true quand une partie PvP est active — suspend la bannière de défi entrant.
     /// Mis à jour par GameScene via `setActiveMatch(_:)`.
     private(set) var isInActiveMatch: Bool = false
+    /// Poll `chfrom_*` en cours — le juge H2H ne doit pas saturer CloudKit en parallèle.
+    var isChallengePollingActive: Bool { challengePollTimer != nil }
 
     /// Cible du défi CloudKit sortant en cours (`chfrom_*`), si connu.
     /// Sert à détecter un défi croisé (A défie B pendant que B défie A).
@@ -212,12 +214,14 @@ final class BlomixAvailablePlayersManager {
     private func pollForIncomingChallenge() {
         // Pas de bannière pendant une partie PvP active.
         guard !isInActiveMatch else { return }
+        if BlomixPublicCloudGate.shared.isBlocked { return }
         Task { [weak self] in
             guard let self else { return }
             let challenge: BlomixIncomingChallenge?
             do {
                 (_, challenge) = try await self.fetchAvailablePlayersAndChallenge()
             } catch {
+                BlomixPublicCloudGate.shared.noteError(error)
                 print("[Available] poll error: \(error.localizedDescription)")
                 return
             }
@@ -375,7 +379,14 @@ final class BlomixAvailablePlayersManager {
         record["displayName"]   = challengerDisplayName  as CKRecordValue
         record["eloRating"]     = matchPlayerGroup       as CKRecordValue
         record["lastHeartbeat"] = Date()                  as CKRecordValue
-        try await modifyRecords([record])
+        try BlomixPublicCloudGate.shared.throwIfBlocked()
+        do {
+            try await modifyRecords([record])
+            BlomixPublicCloudGate.shared.noteSuccess()
+        } catch {
+            BlomixPublicCloudGate.shared.noteError(error)
+            throw error
+        }
         outgoingChallengeTargetID = challengedGamePlayerID
         BlomixPvPLog.event("challenge_created", [
             "from": challengerGamePlayerID,
@@ -441,15 +452,24 @@ final class BlomixAvailablePlayersManager {
         // pour les comparaisons côté serveur (le save réussit mais la requête retourne ∅).
         // sortDescriptors retiré : dépendance à un second index qui ralentit l'indexation
         // des records fraîchement écrits, aggravant la latence de visibilité.
+        try BlomixPublicCloudGate.shared.throwIfBlocked()
         let predicate = NSPredicate(format: "lastHeartbeat >= %@", cutoff as NSDate)
         let query = CKQuery(recordType: Self.recordType, predicate: predicate)
 
-        let (results, _) = try await publicDB.records(
-            matching:     query,
-            inZoneWith:   nil,
-            desiredKeys:  ["teamPlayerID", "displayName", "eloRating", "lastHeartbeat", "inMatch"],
-            resultsLimit: 50   // largement suffisant pour des joueurs actifs récents
-        )
+        let results: [(CKRecord.ID, Result<CKRecord, any Error>)]
+        do {
+            let (batch, _) = try await publicDB.records(
+                matching:     query,
+                inZoneWith:   nil,
+                desiredKeys:  ["teamPlayerID", "displayName", "eloRating", "lastHeartbeat", "inMatch"],
+                resultsLimit: 50   // largement suffisant pour des joueurs actifs récents
+            )
+            BlomixPublicCloudGate.shared.noteSuccess()
+            results = batch
+        } catch {
+            BlomixPublicCloudGate.shared.noteError(error)
+            throw error
+        }
 
         var players:   [BlomixAvailablePlayer]  = []
         var challenge: BlomixIncomingChallenge? = nil

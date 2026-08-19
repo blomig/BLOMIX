@@ -153,7 +153,7 @@ Tous les **10 coups joués** (`moveCount % 10 == 0`), une rangée de 8 blocs **m
 - Les blocs **Magix n'apparaissent jamais** dans ces lignes.
 - Si une colonne est déjà pleine au moment de l'injection → **Game Over**.
 
-En **PvP**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score.
+En **PvP**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score. Une pile de 5 segments à gauche de TEMPS montre l’approche du prochain palier (10 pts / case) ; c’est un indicateur HUD, l’envoi reste inchangé.
 
 ---
 
@@ -202,6 +202,7 @@ Via **Game Center** :
 - RNG partagé → mêmes blocs pour les deux joueurs
 - **3 bombes** au départ
 - Attaque : ligne chez l'adversaire à chaque palier **score / 50**
+- Le score affiché est le reste **0–49** avant le prochain palier (le total n’est pas montré)
 - Timer de tour : **10 s** par coup
 - **Elo** : rating initial 800, K adaptatif selon le nombre de matchs
 - Victoire = adversaire en Game Over ; le score le plus élevé l'emporte

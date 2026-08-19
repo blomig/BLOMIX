@@ -3221,7 +3221,12 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
                 let newPhase: Phase = players.isEmpty ? .empty : .loaded(players)
                 self.applyPhase(newPhase)
             } catch {
-                self.applyPhase(.failed(message: BlomixL10n.pvpAvailableError(error.localizedDescription)))
+                if BlomixPublicCloudGate.shared.isBlocked {
+                    let sec = max(1, BlomixPublicCloudGate.shared.retryRemainingSeconds)
+                    self.applyPhase(.failed(message: BlomixL10n.pvpCloudBusyRetry(sec)))
+                } else {
+                    self.applyPhase(.failed(message: BlomixL10n.pvpAvailableError(error.localizedDescription)))
+                }
             }
         }
     }

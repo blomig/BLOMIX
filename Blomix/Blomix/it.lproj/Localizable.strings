@@ -278,6 +278,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "pvp.available_you_not_visible" = "Non sei visibile (attiva in lobby)";
 "pvp.player_in_match"           = "In partita";
 "pvp.available_error_format" = "Impossibile caricare i giocatori: %@";
+"pvp.cloud_busy_retry_format" = "Cloud occupato. Riprova tra %d s.";
 
 "pvp.gc_not_connected" = "⚠️ Game Center non connesso";
 "pvp.gc_connected_format" = "✓ %@";

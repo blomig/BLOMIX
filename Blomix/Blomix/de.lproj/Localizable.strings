@@ -290,6 +290,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "pvp.available_you_not_visible" = "Du bist nicht sichtbar (in der Lobby aktivieren)";
 "pvp.player_in_match"           = "Im Match";
 "pvp.available_error_format" = "Spieler konnten nicht geladen werden: %@";
+"pvp.cloud_busy_retry_format" = "Cloud ist ausgelastet. In %d s erneut versuchen.";
 
 "pvp.gc_not_connected" = "⚠️ Game Center nicht verbunden";
 "pvp.gc_connected_format" = "✓ %@";

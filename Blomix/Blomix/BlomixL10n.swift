@@ -580,6 +580,9 @@ enum BlomixL10n {
     static func pvpAvailableError(_ message: String) -> String {
         String(format: tr("pvp.available_error_format", comment: "Available players — load error; %@ = message"), message)
     }
+    static func pvpCloudBusyRetry(_ seconds: Int) -> String {
+        String(format: tr("pvp.cloud_busy_retry_format", comment: "CloudKit throttled; %d = seconds to wait"), seconds)
+    }
     static var pvpGcNotConnected: String { tr("pvp.gc_not_connected", comment: "PvP lobby — Game Center not signed in") }
     static func pvpGcConnected(_ displayName: String) -> String {
         String(format: tr("pvp.gc_connected_format", comment: "PvP lobby — GC OK; %@ = display name"), displayName)

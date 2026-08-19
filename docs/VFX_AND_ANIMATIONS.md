@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 5.7  
+> **Version de référence** : 6.3  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : juillet 2026
 
@@ -393,7 +393,7 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 | | |
 |---|---|
-| **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 sur cases de la couleur courante |
+| **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante |
 | **Timing** | `[0,10, 0,15, 0,22, 0,30, 0,50]` s/étape ; pop scale ×1,25 |
 | **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30→0,01 + fade 0,14 s ; max 8 pops audio |
 | **Audio** | `playColorxRouletteClick` + `playColorxDissolvePop` |
@@ -579,6 +579,18 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 - Couleur timer : rouge (0–2 s), orange (3–5 s), blanc (6+)
 - Auto-drop : `hapticSoft()` + `dropBlock` colonne préférée
 
+### 10.3 Badge LX (`hudStageBadge`)
+
+Visible pendant tout l’overlay de stage (plus de hide). Même horloge que §10.1 (`StageOverlayTiming`).
+
+| Phase overlay | Badge |
+|---|---|
+| Pop-in **0,45 s** | Scale **1,0 → 2,0** (`easeOut`), ancien chiffre |
+| Pic / pause **1,0 s** | Texte → `L2`… / `L★` ; tient ×2 |
+| Fade **0,35 s** | Scale **2,0 → 1,0** (`easeIn`) |
+
+Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’overlay. Couleur = `primaryTextSK` (rafraîchie).
+
 ---
 
 ## 11. UI et ambiance
@@ -643,6 +655,19 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 | 0–5 | gris `#A3A3A3` | — |
 | 6–8 | orange `#F4A261` | — |
 | 9–10 | rouge | shake ±2 pt, cycle 0,05 s |
+
+### 11.5 Pile d’attaque Duel (`hudAttackPile`)
+
+Indicateur **HUD uniquement** (Duel). À **droite du gros score** (écart 8 pt, largeur calée sur « 50 »). Arcade / Zen : absent.
+
+| | |
+|---|---|
+| **Déclencheur** | Arrivée des `+N` (`applyDisplayedScoreIncrement`) — **même horloge** que le chiffre |
+| **Visuel** | **Une barre continue** 0…50, clipée (`SKCropNode`) ; hauteur = `mètre/50` (`yScale` toujours 1, plus de fuite) |
+| **Largeur** | ≈ un digit du gros score (`"0"` en Changa 52) ; pulse `xScale` **1,20** pendant le fill ; tick à chaque palier de 10 |
+| **Couleur fill** | `primaryTextSK` (blanc Sombre / gris Clair) ; flash couleur des `+N` puis fade **0,30 s** |
+| **Envoi** | Roll chiffre+barre → **50** en **0,22 s**, puis reste (ex. +80 → 50 puis 30) |
+| **Réf. code** | `applyDuelHudMeter` / `applyAttackPileMeter` |
 
 ---
 

@@ -272,6 +272,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private var countdownRemaining: Int = 10
     private var handshakeRetryTimer: Timer?
     private var handshakeSeed: UInt64?
+    /// Seed handshake partagé (hôte + invité). Sert au `matchId` H2H, 0 CloudKit.
+    var h2hSharedMatchSeed: UInt64? { handshakeSeed }
 
     private var didReportLocalLoss = false
     private var didReceiveRemoteLoss = false
@@ -595,6 +597,9 @@ final class BlomixPvPMatchCoordinator: NSObject {
         return (id: first.id, line: first.line)
     }
 
+    /// Nombre d’attaques encore en file (puces LIGNE). Ne consomme rien.
+    var incomingAttackLineCount: Int { incomingAttackLines.count }
+
     @discardableResult
     func localScoreDidUpdate(_ score: Int) -> Bool {
         guard didFinishHandshake else { return false }
@@ -826,6 +831,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
                 return
             }
             rng = BlomixPvPSeededBlockRNG(seed: seed)
+            handshakeSeed = seed
             markHandshakeComplete(isHostSide: false)
             sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .ackReady, seed: nil, line: nil, fillDepth: nil))
             sendAck(forMsgId: env.msgId)

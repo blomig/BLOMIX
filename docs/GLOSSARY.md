@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 5.7
+> **Version de référence** : 6.3
 
 ---
 
@@ -121,6 +121,7 @@
 |---|---|
 | **P0 / P1 / P2** | Positions dans la file de blocs à venir |
 | **LIGNE x/10** | Compteur avant prochaine ligne entrante |
+| **Pile Duel** | Barre continue 0…50 à droite du score ; même mètre que le HUD |
 | **GC** | Game Center |
 | **GK** | GameKit (framework Apple) |
 

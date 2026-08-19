@@ -55,7 +55,7 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 | Règle gameplay visible par le joueur | `RULES.md` |
 | Constante, algorithme, architecture | `PROJECT_CONTEXT.md` |
 | Animation, particule, son, timing | `VFX_AND_ANIMATIONS.md` |
-| Fonction d'évaluation / hints | `EVAL.md` |
+| Fonction d'évaluation / récap | `EVAL.md` |
 | Nouveau terme ou renommage | `GLOSSARY.md` |
 | Nouvelle clé UI ou langue | `LOCALIZATION.md` + `BlomixL10n.swift` |
 | Release App Store / version Xcode | `CHANGELOG.md` + `MARKETING_VERSION` |

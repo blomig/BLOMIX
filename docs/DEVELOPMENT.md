@@ -64,7 +64,7 @@ Fichier : `Blomix/Blomix/Blomix.entitlements`
 
 ## Architecture (résumé)
 
-La logique gameplay est centralisée dans `GameScene.swift` (~11k lignes) :
+La logique gameplay est centralisée dans `GameScene.swift` (~14,5k lignes) :
 
 ```
 GameViewController          # Root UIKit, tutoriel, invitations GC

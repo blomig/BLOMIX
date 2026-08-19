@@ -53,7 +53,7 @@ Le mode solo principal (**stagé**) impose un timer par coup et un multiplicateu
 | `.empty` | Case vide |
 | `.color("nom")` | Blox coloré (6 couleurs) |
 | `.priks(n)` | Brix, `n` coups restants |
-| `.magix(MagixKind)` | Bloc Magix (7 variantes) |
+| `.magix(MagixKind)` | Bloc Magix (8 variantes, dont BOMBX) |
 
 ---
 
@@ -61,10 +61,12 @@ Le mode solo principal (**stagé**) impose un timer par coup et un multiplicateu
 
 Fonction centrale : `randomNextPlayableBlock()` dans `GameScene.swift`.
 
-Ordre de tirage :
-1. **Magix** (~3 % cumulé) — voir `MagixRules.spawnProbabilityByKind`
-2. **Brix** (1/8) — `PriksRules.spawnProbability`
-3. **Couleur** (reste) — uniforme parmi les 6
+Ordre de tirage (`randomNextPlayableBlock`) :
+1. **Magix** si `r < MagixRules.spawnProbability` (~**2,9 %** cumulé) — tirage pondéré par variante, voir `MagixRules.spawnProbabilityByKind`
+2. **Brix** si `r < spawnMagix + 1/8` — donc **exactement 12,5 %** du tirage total
+3. **Couleur** — le reste (~84,6 %), uniforme parmi les 6
+
+Ce n’est **pas** « 7/8 couleur + 1/8 Brix, plus 3 % Magix par-dessus ».
 
 **File d'attente** (3 blocs visibles) :
 
@@ -77,7 +79,7 @@ Ordre de tirage :
 En PvP : RNG partagé via `BlomixPvPMatchCoordinator`.  
 En tutoriel : séquence scriptée (`tutorialBlockQueue`).
 
-**Restrictions lignes entrantes** : pas de Magix ; pas de Brix en tutoriel (remplacés par des couleurs).
+**Restrictions lignes entrantes** (`nextBottomLineRowForSession`) : tirage identique à la file, **puis** tout `.magix` est remplacé par une couleur ; en tutoriel, les `.priks` aussi. En Duel, le RNG partagé **ne tire jamais** de Magix (`BlomixPvPSeededBlockRNG` : 1/8 Brix sinon couleur).
 
 ---
 
@@ -123,7 +125,7 @@ Bonus cascade : `+ chainSeriesLevel × 10`.
 | Disparition | +20 pts, son `priksVanish` |
 | Bombe | destruction instantanée (+20 pts), pas de décrément |
 
-BRIXED (Magix) : crée un Brix(9), décrémente tous les autres de 2.  
+BRIXED (Magix) : crée un Brix(9), **détruit** tous les autres Brix (+20 chacun).  
 SAINTX : laisse un Brix valant le nombre de cases effacées.
 
 ---
@@ -135,29 +137,48 @@ Définis dans `MagixKind` et `MagixRules` (`GameScene.swift`).
 | Kind | Label popup | Effet principal |
 |---|---|---|
 | `.chromax` | CHROMAX | Chemin ≤ 15 cases → couleur unique → `resolveChains()` |
-| `.brixed` | BRIXED | Devient Priks(9) ; −2 sur tous les Brix |
+| `.brixed` | BRIXED | Devient Priks(9) ; **détruit tous les autres Brix** (+20 chacun). `brixedGlobalDecrement` (ancienne règle −2) n’est plus appliqué |
 | `.crosx` | CROSSX | Ligne + colonne → couleur aléatoire → chaînes |
 | `.scrumblx` | SCRUMBLX | Décalage horizontal par ligne ; −1 Brix global |
 | `.colorx` | COLORX | Roulette → efface une couleur (score chaîne) |
-| `.cleanx` | SAINTX | Vide la grille → Brix(N) + 200 pts |
-| `.twistx` | TWISTX | Échange couleur ↔ Brix (valeur = min Brix, défaut 3) |
+| `.cleanx` | SAINTX | Vide la grille → Brix(N) ; +200 pts **via `addScore`** (donc × stage en Arcade) |
+| `.twistx` | TWISTX | Échange **automatique** (pas de tap joueur) : une couleur présente ↔ tous les Brix (valeur = min Brix, défaut 3) |
+| `.bombx` | BOMBX | Tâche 3 rangs sur cases occupées → chaînes → **+1 bombe** au stock (`grantBombxStockBonus`). Arcade / Zen uniquement |
+
+Fractions de spawn (`MagixRules.spawnProbabilityByKind`) :
+
+| Kind | p |
+|---|---|
+| `.twistx` / `.chromax` / `.brixed` | 1/324 chacun |
+| `.colorx` / `.scrumblx` | 1/180 chacun |
+| `.crosx` | 1/216 |
+| `.cleanx` / `.bombx` | 1/500 chacun |
+
+Cumul ≈ **2,9 %**. (Le commentaire code « ≈ 1/30 » est un vestige à 4 variantes.)
 
 Rendu : shader dégradé animé + halo + particules orbitales (`applyMagixShader`).
 
-Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix (effets non simulables).
+Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effets non simulables).
 
 ---
 
 ## 8. Bombe
 
-| Paramètre | Solo | PvP |
+| Paramètre | Arcade / Zen | Duel |
 |---|---|---|
 | Stock initial | 5 | 3 |
-| Gain en partie | Aucun (stock fixe) | — |
+| Gain en partie | **BOMBX** : +1 (garanti) | Pas de Magix |
+| Zone | Arcade : 3×3 + croix selon stage ; Zen : 3×3 | Toujours 3×3 |
 
-**Flux solo :**
+`bombCrossArmLength` = `currentStageIndex` en solo stagé (0 au L1 … 5 à l’Ultime) ; 0 hors Arcade. Texture HUD `nuke` dès que `arm > 0`.
+
+**Une bombe n’est pas un coup** : `shouldRunPostPlacementHooks` n’est posé que par `dropBlock`. `moveCount` / ligne des 10 n’avancent pas.
+
+**Timer :** `stageTimerTick` et `blomixPvP_shouldRunTurnTimer` **sautent** tant que `isBombMode` (le chrono Duel est gelé pendant la visée).
+
+**Flux :**
 1. Tap icône → `isBombMode = true`, `bombCount -= 1`
-2. Tap case → tremblement 0,3 s → explosion 3×3
+2. Tap case → tremblement 0,3 s → explosion (`bombAffectedCells`)
 3. +10 pts, Brix détruits +20 pts chacun
 4. `chainSeriesLevel = 1` → cascades
 5. Annulation possible (restitue la bombe)
@@ -166,10 +187,10 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix (effets non simulables)
 
 ## 9. Ligne entrante
 
-- `moveCount` s'incrémente de 1 après chaque pose dont la résolution se termine **sans chaîne en attente** (fin de `resolveChains` sans nouvelle chaîne).
+- `moveCount` s'incrémente **une fois**, dans la branche idle de `resolveChains`, si `shouldRunPostPlacementHooks` (après **toutes** les cascades d’une pose). Une bombe ne pose pas ce flag.
 - Injection quand `moveCount % 10 == 0` via `addRandomLinePushingGridUp()`.
 - Preview visible quand `moveCount % 10 == 9`.
-- 8 tirages indépendants ; animation montée depuis le bas.
+- 8 tirages indépendants via `randomNextPlayableBlock()`, **puis** strip Magix (et Brix en tuto).
 - Game Over si colonne pleine avant injection.
 
 **PvP** : `consumeNextIncomingAttackLineIfAny()` pour les attaques (palier score/50).
@@ -184,9 +205,10 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix (effets non simulables)
 | Brix disparu / bombe | 20 par Brix |
 | Bombe utilisée | 10 |
 | Colonne vidée | 10 par colonne |
-| SAINTX | 200 |
+| SAINTX | 200 (via `addScore` → × stage en Arcade) |
+| Grille 100 % vide (Arcade / Zen) | **500** plats (`fullyClearedBoardBonusPoints`, `applyStageMultiplier: false`) — en plus des +10 / colonne |
 
-**Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`.
+**Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`, sauf le bonus grille vide.
 
 **Game Over** : `finalScore = score` (pas de bonus de fin Brix).
 
@@ -204,7 +226,9 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix (effets non simulables)
 `isInStagedSoloMode = pvpCoordinator == nil && !isTutorialMode && !isZenMode`
 
 6 stages (`soloStages`) : timer décroissant, multiplicateur croissant.  
-Timer relancé après chaque coup stable ; overlay de transition entre stages.
+Timer relancé **à fond** après chaque coup stable et après overlay de stage. Timeout → `autoDropPreferredColumn()` : hasard parmi les colonnes dont `grid[0][col] == .empty`, sinon toute colonne jouable.
+
+**Reprise de save :** `restoreFromSoloSave` appelle `restartStageTimer()` → **durée pleine du stage**, pas `stageTimerSecondsRemaining` (le champ est persisté mais non relu). Un flush mid-anim (`removeAllActions`) tue aussi le countdown ; s’il n’y a pas de kill process, le timer peut rester mort jusqu’à la prochaine pose stable.
 
 ### Mode Zen
 
@@ -216,7 +240,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
-- Auto-save en arrière-plan ; restauration au lancement
+- Auto-save en arrière-plan ; au lancement, **s’il existe une save**, elle est restaurée **directement en partie** (`presentStartScreenOrRestoreSoloSave` saute l’accueil)
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
@@ -230,7 +254,7 @@ Timer relancé après chaque coup stable ; overlay de transition entre stages.
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
 - **H2H** : 0 CloudKit en match / récap ; affichage = historique + Δ ; juge accueil ne descend pas sous le plancher (sauf ±1)
 - Attaque : `score / 50` → **une** ligne chez l’adverse par `addScore` (reste `score % 50` ; HUD et pile montrent ce reste)
-- Timer tour : 10 s
+- Timer tour : 10 s ; **gelé** tant que `isBombMode` (`blomixPvP_shouldRunTurnTimer`)
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
 - Lobby : Partie rapide (**Local** / **En ligne**), défis CloudKit / récents / classement
 - Overlay attente match sur **grille vide** (pas sur l’accueil)
@@ -258,11 +282,12 @@ Machine à états `TutorialStep` :
 | Ligne | 1ère injection |
 | Brix | 1er Brix en P0 |
 | Célébration Brix | Brix décrémenté (auto 2,8 s) |
-| Bombe | Après 2 poses libres |
-| Magix | Après bombe posée (auto 3 s) |
-| Célébration finale | Auto 3 s → sortie |
+| Bombe | Après 2 poses libres (`tutorialBombUnlocked`) |
+| Magix | Après bombe posée — overlay tous les Magix ; tap **ou** 3 s → célébration |
+| Célébration finale | « Tu sais tout » auto 3 s → `exitTutorial` (reprise save solo si présente) |
 
-Contraintes : bombe verrouillée jusqu'à l'étape ; Brix/Magix absents des lignes ; bouton Passer.
+Contraintes : bombe verrouillée jusqu'à l'étape ; Brix/Magix absents des lignes ; bouton Passer.  
+L’overlay UIKit paginé (`GameTutorialOverlayView` / `hasSeenGameTutorial`) n’est plus sur le chemin joueur.
 
 ---
 
@@ -272,7 +297,7 @@ Contraintes : bombe verrouillée jusqu'à l'étape ; Brix/Magix absents des lign
 
 - Lookahead 3 niveaux (P0, P1, P2) : 512 simulations max
 - `evalEnabled = true`, `realtimeFeedbackEnabled = false`
-- Stats fin de partie : **justesse** % , pire coup (`worstMistakeSnapshot`) — plus de hint en cours de partie (v6.1)
+- Stats fin de partie : **justesse** % , pire coup (`worstMistakeSnapshot`) — plus de hint en cours de partie (v6.1). Magix / bombes non simulés → le % ne les compte pas.
 
 Voir [EVAL.md](EVAL.md).
 
@@ -301,17 +326,17 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 
 ### Accueil — liens utilitaires & crédits
 
-Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
+Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) — `makeStartScreenUtilityLinks` (libellés texte) n’est plus branché :
 
-| Lien | Action |
+| Icône | Action |
 |---|---|
-| **Réglages** | icône `gearshape.fill` → `SettingsViewController` |
-| **Tutoriel** | icône `book.fill` → partie guidée |
+| **Réglages** | `gearshape.fill` → `SettingsViewController` |
+| **Tutoriel** | `book.fill` → partie guidée (tuto interactif grille, pas l’overlay paginé UIKit) |
 | **Thème** | soleil / lune |
 | **Partager** | `paperplane.fill` |
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
-- Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`)
+- Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - Arcade **pleine largeur** (hero skin) ; Duel + Zen en paire
 - 4 disques de rang : Arc. / Moy. / Zen / Duel
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
@@ -324,7 +349,7 @@ Bande texte sous la carte joueur (`makeStartScreenUtilityLinks`) :
 
 | Entrée | Contenu |
 |---|---|
-| Accueil | Chip icône avion en papier custom + « Partager » (sous le toggle apparence) → texte challenge + URL App Store `id6762053543` |
+| Accueil | Icône avion en papier (`paperplane.fill`) → texte challenge + URL App Store `id6762053543` |
 | Game over Solo/Zen | 3ᵉ bouton sous Classement → **carte 1:1** (grille finale, skin + thème chrome, score, bandeau record si PB) + texte + URL |
 | PvP | Hors scope v1 |
 
@@ -350,7 +375,7 @@ Deux visages figés (plus de picker joueur) :
 - Score animé (rolling counter, milestones 100/1000) ; **Duel** : affichage `score % 50` (total inchangé)
 - Best score Game Center
 - Compteur LIGNE x/10 (gauche)
-- Duel : barre continue 0…50 à droite du score (clipée, même horloge / couleur que le chiffre)
+- Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
 - Timer stage ou PvP (droite)
 - Arcade : badge LX (bas gauche) visible pendant l’overlay ; grow ×2 / swap / settle calés sur la transition
 - File P1/P2, icône bombe + compteur
@@ -379,7 +404,7 @@ Tokens `BlomixAppearance` (fill / bordure / titre inversés Sombre ↔ Clair), r
 | `gameover_quotes.json` | Citations fin de partie |
 | `InfoPlist.strings` | Chaînes système (`NSGKFriendListUsageDescription`, etc.) |
 | `rules.txt` | Anciennes règles statiques (legacy ; non exposé par l’UI) |
-| `credits.txt` | Crédits (accueil → lien Crédits ; FR + EN) |
+| `credits.txt` | Legacy ; l’UI crédits utilise `BlomixL10n.creditsSections` |
 
 ---
 
@@ -392,7 +417,7 @@ Blomix/Blomix/
 │   ├── PriksRules / MagixRules   # Constantes Brix et Magix
 │   ├── BlomixSoloSaveManager     # Sauvegarde UserDefaults
 │   └── BlomixSkinCatalog         # Skins couleur
-├── BlomixMoveAnalyzer.swift      # Évaluation des coups, hints
+├── BlomixMoveAnalyzer.swift      # Évaluation des coups (récap / pire coup)
 ├── BlomixL10n.swift              # Pont typé localisation
 ├── BlomixTypography.swift        # Police joueur
 ├── BlomixAppearance.swift        # Thème chrome Sombre / Clair (+ icône partage custom)
@@ -417,4 +442,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v6.0 — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v6.3 (build 117) — à maintenir lors des évolutions majeures.*

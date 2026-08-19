@@ -1,13 +1,16 @@
 # Blomix — Fonction d'évaluation (`BlomixMoveAnalyzer`)
 
 > **Version implémentée** : v2 (production)  
+> **Version de référence** : 6.3  
 > Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`
 
 ---
 
 ## Vue d'ensemble
 
-La fonction d'évaluation attribue un **score de position** à une grille stable (après résolution de toutes les cascades). Ce score alimente un **lookahead à 3 niveaux** pour évaluer la qualité des coups du joueur (récap et pire coup en fin de partie).
+La fonction d'évaluation attribue un **score de position** à une grille stable (après résolution de toutes les cascades). Ce score alimente un **lookahead à 3 niveaux** pour évaluer la qualité des coups du joueur (récap et pire coup en fin de partie). Il n’y a plus de hint en cours de partie.
+
+Le % de justesse affiché au Game Over **ne compte pas** les Magix ni les bombes (non simulables) : uniquement les poses de Blox / Brix sur P0–P2.
 
 Un score **plus élevé** = position **meilleure**.  
 La plupart des termes sont des **pénalités** (négatifs) ; les termes positifs récompensent les structures favorables.
@@ -238,7 +241,7 @@ optimalityPercent = moyenne × 100
 
 1. **Cascades profondes** aux niveaux 2–3 : seule la position finale est scorée (partiellement compensé par `immediateClearing`).
 2. **Horizon borné à 3** : setups à 4+ coups sous-évalués.
-3. **Magix et bombes** : non simulés dans le lookahead.
+3. **Magix et bombes** : non simulés dans le lookahead (`simulateDropAny` retourne vide si P0 est Magix ; le mode bombe n’est pas analysé). Une partie riche en Magix peut donc afficher une justesse basse alors que les effets spéciaux ont été bien utilisés. C’est la limite affichée côté joueur dans [RULES.md](RULES.md) §10.
 4. **Lignes futures** : ignorées au-delà du niveau 1 (compensé partiellement par `urgencyH`).
 5. **`risk` dominant** : même avec le facteur dynamique v2.
 

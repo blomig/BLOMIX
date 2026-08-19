@@ -1,5 +1,8 @@
 # Blomix — Règles du jeu
 
+> **Version de référence** : 6.3  
+> Aligné sur le comportement du binaire (build 117).
+
 ## 1. La grille
 
 La grille est de **8 colonnes × 8 rangées**.  
@@ -12,15 +15,21 @@ La **gravité est inversée** : les blocs se compactent **vers le haut**. Quand 
 
 ## 2. Les blocs jouables
 
+Chaque tirage de la file (P0 / P1 / P2) suit **cet ordre** :
+
+1. **Magix** — ~**3 %** cumulé (voir §2c)  
+2. **Brix** — **1/8** du tirage (12,5 %)  
+3. **Blox couleur** — le reste (~84,5 %), uniforme parmi les 6 couleurs  
+
+Les Magix sont donc tirés **en premier** : ils ne s’ajoutent pas « par-dessus » un 7/8 couleur + 1/8 Brix.
+
 ### 2a. Blox (blocs couleur)
 
-6 couleurs : rouge, bleu, vert, jaune, violet, orange.  
-Probabilité de tirage : **7/8** (uniforme parmi les 6 couleurs).
+6 couleurs : rouge, bleu, vert, jaune, violet, orange.
 
 ### 2b. Brix (Priks)
 
-Blocs numérotés, tirés avec une probabilité de **1/8**.  
-Compteur initial : **5**.  
+Blocs numérotés. Compteur initial : **5**.  
 À chaque chaîne qui **touche** (8-connexité) un Brix, son compteur décrémente de **1** (maximum 1 par vague de résolution).  
 Quand le compteur atteint **0**, le Brix disparaît et rapporte **20 pts**.
 
@@ -28,18 +37,20 @@ Les Brix **ne participent jamais** à la formation des chaînes.
 
 ### 2c. Blocs Magix
 
-Blocs spéciaux rares (~**3 %** de probabilité cumulée) déclenchant un effet à l'atterrissage. Ils **n'apparaissent jamais** dans les lignes entrantes du bas.
+Blocs spéciaux rares (~**3 %** de probabilité cumulée) déclenchant un effet à l'atterrissage. Ils **n'apparaissent jamais** dans les lignes entrantes du bas, ni en **Duel**.
 
 | Variante | Symbole | Effet |
 |---|---|---|
 | **CHROMAX** | ? | Chemin aléatoire (≤ 15 cases) transformé en une couleur, puis résolution des chaînes |
-| **BRIXED** | 9 | Devient un Brix(9) ; tous les autres Brix perdent 2 points |
+| **BRIXED** | 9 | Devient un Brix(9) ; **tous les autres Brix sont détruits** (+20 pts chacun) |
 | **CROSSX** | + | Ligne + colonne centrées sur la case deviennent une couleur aléatoire, puis chaînes |
 | **SCRUMBLX** | = | Chaque ligne occupée se décale horizontalement (1–7 cases, wrap-around) ; −1 sur tous les Brix |
 | **COLORX** | O | Roulette de couleur : efface tous les blocs de la couleur choisie (score chaîne) |
-| **SAINTX** (cleanx) | ∞ | Efface toute la grille et laisse un Brix valant le nombre de cases supprimées (+200 pts bonus) |
-| **TWISTX** | X | Échange une couleur aléatoire ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
-| **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; dots colorés vers le **compteur de bombes** (en plus des dots score) puis **+1 bombe** à l’arrivée (garanti même sans clear, dots depuis la zone peinte). SFX tâche procédural par case (pas le son bombe de pose). Rareté ≈ SAINTX. **Solo / Zen** (pas de Magix en PvP) |
+| **SAINTX** (cleanx) | ∞ | Efface toute la grille et laisse un Brix valant le nombre de cases supprimées ; **+200 pts** bonus (en Arcade : × le multiplicateur du stage) |
+| **TWISTX** | X | Échange **automatique** : une couleur aléatoire présente sur la grille ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
+| **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; puis **+1 bombe** au stock (garanti même sans clear). Rareté ≈ SAINTX. **Arcade / Zen** uniquement |
+
+Les fractions exactes par variante sont dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7.
 
 ---
 
@@ -68,7 +79,7 @@ Le joueur voit en permanence :
 
 Après chaque pose : P0 ← P1, P1 ← P2, P2 ← tirage aléatoire.
 
-En **PvP**, la séquence est partagée (RNG synchronisé).  
+En **Duel**, la séquence est partagée (RNG synchronisé, **sans Magix**).  
 En **tutoriel**, la séquence est scriptée puis repasse en aléatoire.
 
 ---
@@ -84,10 +95,8 @@ Dès qu'une telle configuration existe (après pose, compactage ou effet Magix),
 Après suppression + compactage, la grille est re-scannée. Les nouvelles chaînes forment une **cascade** (combo). Le niveau `chainSeriesLevel` s'incrémente à chaque vague :
 
 - Première chaîne d'une résolution → `chainSeriesLevel = 0`
-- Deuxième vague (cascade) → `chainSeriesLevel = 1`
-- Troisième → `chainSeriesLevel = 2`, etc.
-
-Popup **COMBO** / **SUPER COMBO** à partir du niveau 2.
+- Deuxième vague (cascade) → `chainSeriesLevel = 1` → popup **COMBO**
+- Troisième → `chainSeriesLevel = 2` → popup **SUPER COMBO**, etc.
 
 ### Bombe et cascades
 
@@ -117,14 +126,15 @@ Exemples :
 
 Si plusieurs composantes indépendantes existent dans la même vague, elles partagent le même `chainSeriesLevel`.
 
-En **Arcade**, tous les points sont multipliés par le multiplicateur du stage courant (×1 à ×6).
+En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à ×6), **sauf** le bonus grille vide (§ ci-dessous), qui est plat.
 
 ### Brix
 
 | Action | Points |
 |---|---|
-| Brix disparu (compteur → 0 via chaîne) | **20 pts** par Brix |
+| Brix disparu (compteur → 0 via chaîne, SCRUMBLX, etc.) | **20 pts** par Brix |
 | Brix détruit par bombe | **20 pts** par Brix |
+| Brix détruit par **BRIXED** | **20 pts** par Brix |
 
 ### Bombe
 
@@ -137,41 +147,65 @@ En **Arcade**, tous les points sont multipliés par le multiplicateur du stage c
 
 **+10 pts** par colonne qui contenait au moins un bloc avant la vague et se retrouve entièrement vide après.
 
+### Grille entièrement vide (Arcade / Zen)
+
+Si une vague part d’une grille **non vide** et la laisse **entièrement vide** : **+500 pts** plats (hors ×stage), **en plus** des +10 par colonne. Absent en Duel et en tutoriel.
+
 ### SAINTX (cleanx)
 
-**+200 pts** bonus à l'activation (en plus du Brix laissé sur la grille).
+**+200 pts** bonus à l'activation (en plus du Brix laissé sur la grille).  
+En Arcade, ce bonus **est multiplié** par le ×stage (×1 à ×6). En Zen : +200 plat.
 
 ---
 
 ## 7. La ligne entrante (tous les 10 coups)
 
-Tous les **10 coups joués** (`moveCount % 10 == 0`), une rangée de 8 blocs **monte depuis le bas** et occupe la première case vide de chaque colonne.
+Tous les **10 coups de pose** (`moveCount % 10 == 0`), une rangée de 8 blocs **monte depuis le bas** et occupe la première case vide de chaque colonne.
+
+Un **coup** = une pose de bloc (Blox, Brix ou Magix) dont la résolution est terminée. **Poser une bombe n’est pas un coup** : le compteur LIGNE n’avance pas.
 
 - Le compteur **LIGNE x/10** est visible en permanence dans le HUD.
 - La composition est **prévisualisée au coup 9** (demi-cases en bas de grille).
-- Chaque case est tirée indépendamment (1/8 Brix, ~3 % Magix, reste couleur).
-- Les blocs **Magix n'apparaissent jamais** dans ces lignes.
+- Chaque case est tirée indépendamment comme un bloc de file, **puis** tout Magix est remplacé par une couleur. En tutoriel, les Brix des lignes sont aussi remplacés par des couleurs.
 - Si une colonne est déjà pleine au moment de l'injection → **Game Over**.
 
-En **PvP**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score. Une pile de 5 segments à gauche de TEMPS montre l’approche du prochain palier (10 pts / case) ; c’est un indicateur HUD, l’envoi reste inchangé.
+En **Duel**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score. Une **barre continue 0…50** à droite du gros score (le chiffre HUD est le reste `score % 50`) montre l’approche du prochain palier ; c’est un indicateur HUD, l’envoi reste inchangé.
 
 ---
 
 ## 8. Les bombes
 
-| Paramètre | Solo | PvP |
+| Paramètre | Arcade / Zen | Duel |
 |---|---|---|
 | Stock initial | **5** | **3** |
 
 **Utilisation :**
 1. Taper l'icône bombe → mode bombe actif (la bombe sort du stock).
-2. Taper **directement une case** de la grille.
-3. Tremblement 0,3 s, puis explosion **3×3** (8-connexité autour de la case ciblée).
+2. Taper **directement une case** de la grille (visée : overlay de la zone).
+3. Tremblement 0,3 s, puis explosion.
 4. Tous les Blox couleur dans le rayon sont supprimés.
 5. Les Brix dans le rayon sont **détruits** (pas décrémentés) → 20 pts chacun.
 6. Compactage, puis résolution des cascades (niveau 1).
 
 Taper à nouveau l'icône bombe **annule** le mode et restitue la bombe au stock.
+
+**Ce n’est pas un coup** pour la ligne entrante (voir §7).
+
+### Zone d’explosion
+
+| Mode | Zone |
+|---|---|
+| Zen, Duel, tutoriel | Toujours **3×3** (8-connexité autour de la case) |
+| Arcade stage 1 | **3×3** |
+| Arcade stage 2 | 3×3 + **1** case par bras cardinal (croix) |
+| Arcade stage 3 | 3×3 + **2** cases par bras |
+| Arcade stage 4 | 3×3 + **3** cases par bras |
+| Arcade stage 5 | 3×3 + **4** cases par bras |
+| Arcade Ultime | 3×3 + **5** cases par bras |
+
+À partir du stage 2, l’icône HUD passe à la texture **nuke**. Les cases hors grille sont ignorées.
+
+En **Duel**, tant que le mode bombe est actif (visée), le **timer de tour (10 s) est gelé**. Annuler ou poser la bombe relance le décompte.
 
 ---
 
@@ -190,26 +224,30 @@ Partie infinie avec **timer par coup** et **multiplicateur de score** progressif
 | 5 | 3 000 | 2 s | ×5 |
 | Ultime | 5 000 | 1 s | ×6 |
 
-Sauvegarde automatique à la mise en arrière-plan.
+Quand le timer arrive à 0, le bloc courant est **posé automatiquement** : au hasard parmi les colonnes dont **la ligne du haut est encore vide** ; s’il n’y en a aucune, au hasard parmi toutes les colonnes encore jouables. Si plus aucune colonne n’est libre → Game Over.
+
+Sauvegarde automatique à la mise en arrière-plan (reprise : voir [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §11).
 
 ### Mode Zen
 
-Sans timer, sans stages. Classement Game Center dédié (`ZenMode`). Multiplicateur ×1.
+Sans timer, sans stages, bombes **3×3** uniquement. Classement Game Center dédié (`ZenMode`). Multiplicateur ×1.
 
-### PvP (1 vs 1)
+### Duel (1 vs 1)
 
-Via **Game Center** :
-- RNG partagé → mêmes blocs pour les deux joueurs
-- **3 bombes** au départ
+Via **Game Center** (en ligne) ou **Multipeer** (Local) :
+- RNG partagé → mêmes blocs pour les deux joueurs (**pas de Magix**)
+- **3 bombes** au départ, zone **3×3**
 - Attaque : ligne chez l'adversaire à chaque palier **score / 50**
 - Le score affiché est le reste **0–49** avant le prochain palier (le total n’est pas montré)
-- Timer de tour : **10 s** par coup
+- Timer de tour : **10 s** par coup ; **geler** tant que le mode bombe est actif
 - **Elo** : rating initial 800, K adaptatif selon le nombre de matchs
 - Victoire = adversaire en Game Over ; le score le plus élevé l'emporte
 
+Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md).
+
 ### Tutoriel interactif
 
-- Automatique au premier lancement (ou via le bouton Tutoriel)
+- Automatique au premier lancement (ou via l’icône Tutoriel de l’accueil)
 - Séquence de blocs scriptée, bombe verrouillée jusqu'à l'étape dédiée
 - Pas de Brix/Magix dans les lignes injectées
 - Bouton **Passer** toujours disponible
@@ -218,7 +256,11 @@ Via **Game Center** :
 
 ## 10. Analyse des coups
 
-En fin de partie Solo / Zen, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie.
+En fin de partie Arcade / Zen, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie.
+
+Le pourcentage **ne compte pas** les Magix ni les bombes : seuls les placements de Blox / Brix sont évalués, sur un horizon de 3 blocs visibles (P0, P1, P2).
+
+Voir [EVAL.md](EVAL.md) pour l’algorithme.
 
 ---
 
@@ -226,18 +268,19 @@ En fin de partie Solo / Zen, un récapitulatif indique la **justesse** des place
 
 Le jeu se termine quand :
 - Le joueur tente de poser un bloc dans une colonne **pleine** alors qu'**aucune autre colonne** n'est disponible
-- Une ligne entrante provoque un débordement (colonne pleine)
+- Une ligne entrante (ou d’attaque) provoque un débordement (colonne pleine)
+- En Arcade, le timer expire alors qu’aucune colonne n’est jouable
 
-L'écran affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité (si activé), et les boutons Rejouer / Classement.
+L'écran affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
 
 ---
 
-## 12. Analyse des coups (feedback)
+## 12. Analyse des coups (feedback interne)
 
 Un moteur interne évalue chaque coup sur un horizon de 3 blocs (P0, P1, P2). En fin de partie, un pourcentage d'**optimalité** résume la qualité globale des choix.
 
-Seuils de feedback (si activé en temps réel) :
+Seuils de feedback (si activé en temps réel — **désactivé** en production) :
 - Écart ≤ 50 pts vs optimal → **!!** (excellent, si spread ≥ 900)
 - Écart > 900 pts → **?** (mauvais)
 
-Voir [EVAL.md](EVAL.md) pour le détail de l'algorithme.
+Voir [EVAL.md](EVAL.md).

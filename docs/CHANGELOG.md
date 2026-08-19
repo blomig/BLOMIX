@@ -20,6 +20,9 @@ Build **117**.
 ### Corrigé
 - **H2H** : une formule d’affichage (récap = Elo) ; lock ne rajoute plus la série ; nouveau Duel lobby reset les Δ ; gagnant **et** perdant écrivent un `PvPH2HEvent` (`matchId` + `reporterId`) ; juge cloud = 1 point / `matchId`, lecture complète sans le `+2` ; 0 CloudKit en manche
 
+### Documenté
+- **Passe d’alignement doc ↔ binaire** (aucun changement de jeu) : BRIXED = wipe des autres Brix ; bombe Arcade croix nuke par stage ; +500 grille vide ; SAINTX +200 × stage ; COMBO dès la 1re cascade ; bombe ≠ coup LIGNE ; timer Duel gelé en visée bombe ; reprise Arcade = timer plein du stage ; probabilités de file (Magix d’abord) ; justesse ignore Magix/bombes. PVP_MATCHING : `chfrom_*`, Partie rapide branchée sans skill Elo, overlay série ≥ 1.
+
 ### Version
 - Marketing **6.3**, build **117**
 

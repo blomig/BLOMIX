@@ -10,7 +10,7 @@ Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se dé
 
 ## Vue d'ensemble
 
-BLOMIX propose **trois chemins distincts** pour lancer un duel 1 vs 1. Ils n'utilisent **pas** le même mécanisme de « notification » :
+BLOMIX propose **cinq chemins distincts** pour lancer un duel 1 vs 1. Ils n'utilisent **pas** le même mécanisme de « notification » :
 
 | Mode | Entrée UI | Signalisation | Mécanisme d'invitation |
 |------|-----------|---------------|------------------------|
@@ -25,7 +25,7 @@ BLOMIX propose **trois chemins distincts** pour lancer un duel 1 vs 1. Ils n'uti
 | Option | Transport | Prérequis | Elo |
 |--------|-----------|-----------|-----|
 | **Local** | Multipeer (`serviceType` `blomix-pvp`) | Cache identité GC + Elo sur l’appareil (auth passée au moins une fois) | Calcul local + pending submit à l’auth |
-| **En ligne** | `GKMatchmaker.findMatch` (inchangé) | Game Center connecté | Comme avant |
+| **En ligne** | `GKMatchmaker.findMatch` (`BlomixEloManager.makePvPMatchRequest`, **sans** file skill / `playerGroup` Elo) | Game Center connecté | 1 update Elo par manche, comme les autres chemins |
 
 Handshake local : échange `BlomixPvPLocalPeerIdentity` (gamePlayerID, displayName, elo, matchCount, protocolVersion) puis même `helloSeed` / coordinateur que l’online (`BlomixPvPMatchCoordinator` dual canal GK / local).
 
@@ -131,7 +131,7 @@ Il n'existe **aucun contrôle de version d'app** dans le chemin PvP. « Même ve
 |-------|------|-------|-------|
 | `teamPlayerID` | String | Queryable | Identifiant d'équipe GC ; pour les défis = `gamePlayerID` du **challenger** |
 | `displayName` | String | — | Nom affiché |
-| `eloRating` | Int64 | — | Elo réel **ou** `matchPlayerGroup` pour les records `chal_*` |
+| `eloRating` | Int64 | — | Elo réel **ou** `matchPlayerGroup` pour les records `chfrom_*` |
 | `lastHeartbeat` | Date | Queryable, Sortable | Fraîcheur ; filtre requête ≥ now − 5 min |
 | `inMatch` | Int (0/1) | — | 1 = joueur en partie PvP (badge « En match », pas de bouton Défier) |
 
@@ -217,10 +217,10 @@ challengeTapped()
 **`createChallenge` — points de fragilité :**
 - Utilise `publicDB.save(record)` après un éventuel `record(for:)` — **pas** `CKModifyRecordsOperation` + `.allKeys`
 - En cas d'échec : log `[Available] challenge create error:` uniquement, **aucun feedback UI**
-- Risque `serverRecordChanged` si record `chal_*` existant avec changeTag différent
+- Risque `serverRecordChanged` si record `chfrom_*` existant avec changeTag différent
 
 **`startChallengeMatchmaking` :**
-- Annule `BlomixPvPAutoSearcher` + `GKMatchmaker.shared().cancel()`
+- Annule une éventuelle recherche `GKMatchmaker.shared().cancel()` (`BlomixPvPAutoSearcher.startSearching` n’est plus appelé ; `stopSearching` reste un filet)
 - Poste `.blomixPvPOutgoingInviteStateChanged(active: true, targetPlayerID:)`
 - Timeout 60 s → cancel + `deleteChallenge` + phase `.failed`
 - Attend `expectedPlayerCount == 0` via `GKMatchDelegate` avant `onMatch`
@@ -232,7 +232,7 @@ Le défi **n'est pas** une invitation Game Center. C'est une **bannière in-app*
 ```
 pollForIncomingChallenge() [toutes les 4 s, si available && !inMatch]
   → fetchAvailablePlayersAndChallenge()
-  → cherche record chal_{localGamePlayerID}, heartbeat < 90 s
+  → cherche record `chfrom_*` dont `teamPlayerID == mon gamePlayerID`, heartbeat < 90 s
   → si nouveau challenger (≠ lastNotifiedChallengerID) :
        post .blomixIncomingChallengeDetected
 
@@ -270,11 +270,11 @@ Challenger                          CloudKit                         Challengé
     |-- query (liste) ----------------->|                                |
     |<-- voit challengé ----------------|                                |
     |                                   |                                |
-    |-- save chal_{challengé} --------->|                                |
+    |-- save chfrom_{challenger} ------>|                                |
     |-- findMatch(playerGroup)          |                                |
     |                                   |                                |
     |                                   |<-- poll (4 s) -----------------|
-    |                                   |--- chal_{challengé} ----------->|
+    |                                   |--- chfrom_* (cible = moi) ----->|
     |                                   |                                |-- bannière ⚔️
     |                                   |                                |-- findMatch(même group)
     |<=========== GKMatch P2P ==========================================>|
@@ -337,7 +337,7 @@ loaded → inviting(name) → [match via onMatch] | failed
 ```
 choosingMode → searching → matchFound → preparingBoards
 ```
-Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à aucun bouton UI**.
+Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide → En ligne**. `BlomixPvPAutoSearcher.startSearching()` n’est plus utilisé. Partie rapide en ligne **ne trie pas par Elo** (pas de `playerGroup` skill).
 
 ---
 
@@ -374,7 +374,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | 2 | `isInActiveMatch == false` | Poll ignoré, bannière bloquée |
 | 3 | Polling actif (app au premier plan) | Délai jusqu'à `didBecomeActive` |
 | 4 | Fetch CloudKit réussit | `try?` avale l'erreur — silence total |
-| 5 | Record `chal_{localID}` présent, HB < 90 s | Pas de notification |
+| 5 | Record `chfrom_*` ciblant le local (`teamPlayerID`), HB < 90 s | Pas de notification |
 | 6 | `challengerID ≠ lastNotifiedChallengerID` | Pas de re-notification (verrou anti-rebond) |
 | 7 | Pas de bannière déjà affichée | Deuxième défi ignoré |
 | 8 | Utilisateur regarde l'écran (bannière in-app) | Confusion avec « pas d'invitation GC » |
@@ -390,7 +390,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 | Les deux se voient, rien ne se passe | Attente d'une notif **Game Center** (mode A n'en envoie pas) | Pas de log d'erreur |
 | Défi manqué pendant quelques secondes | App en arrière-plan (`willResignActive` arrête le poll) | Reprise au retour foreground |
 | Re-défi du même adversaire après refus | Verrou `lastNotified` jusqu’à expiration du `chfrom_*` | Normal tant que le record vit (≤ 90 s) |
-| Re-défi du même adversaire sans refus | `lastNotifiedChallengerID` encore actif | Record `chal_*` non expiré |
+| Re-défi du même adversaire sans refus | `lastNotifiedChallengerID` encore actif | Record `chfrom_*` non expiré |
 | Partie précédente terminée bizarrement | `isInActiveMatch` resté à `true` | Poll jamais relancé |
 | Acceptation mais match impossible | `eloRating` lu `as? Int` alors que CloudKit renvoie `Int64` → `playerGroup = 0` | Match échoue **après** bannière |
 | Adversaire récent : erreur explicite | GameKit 5121 never played together | Message UI dédié |
@@ -420,7 +420,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
    Si une partie PvP précédente n'a pas appelé `setActiveMatch(false)` (crash, déconnexion brutale), le polling et la bannière sont désactivés.
 
 6. **Latence d'indexation CloudKit**  
-   Les records de disponibilité et de défi partagent le même type et la même requête, mais un record `chal_*` fraîchement écrit peut mettre quelques secondes à apparaître dans les résultats de query.
+   Les records de disponibilité et de défi partagent le même type et la même requête, mais un record `chfrom_*` fraîchement écrit peut mettre quelques secondes à apparaître dans les résultats de query. La query a un `resultsLimit` de 50 **sans tri** : à grande échelle un défi peut manquer le lot.
 
 ### Ce qui est **peu probable** si « on se voit dans la liste »
 
@@ -437,7 +437,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 
 1. Console Xcode : chercher `[Available] challenge created →` vs `challenge create error:`
 2. Vérifier que l'écran affiche « Invitation envoyée à … » + countdown 60 s
-3. CloudKit Dashboard → container `iCloud.blomig.BLOMIX` → record `chal_{gamePlayerID du challengé}`
+3. CloudKit Dashboard → container `iCloud.blomig.BLOMIX` → record `chfrom_{gamePlayerID du challenger}` (`teamPlayerID` = défié)
 
 ### Côté challengé
 
@@ -445,7 +445,7 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 2. Console : polling actif ? Pas de `[Available]` fetch errors ?
 3. `isInActiveMatch` doit être false (partie solo OK)
 4. **Regarder le haut de l'écran** — bannière ⚔️, pas une alerte Game Center
-5. Si bannière absente après 10 s : vérifier record `chal_{mon gamePlayerID}` dans CloudKit Dashboard
+5. Si bannière absente après 10 s : vérifier un `chfrom_*` dont `teamPlayerID` = mon `gamePlayerID` dans CloudKit Dashboard
 
 ### Préfixes de log utiles
 
@@ -504,6 +504,13 @@ Le chemin `searching` via `beginMatchSearch()` existe mais **n'est relié à auc
 
 Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 
+### In-match (aligné binaire 6.3)
+
+- RNG partagé : **1/8 Brix sinon couleur** — jamais de Magix (`BlomixPvPSeededBlockRNG`).
+- Timer de tour **10 s** ; `blomixPvP_shouldRunTurnTimer` et l’auto-drop **s’arrêtent** tant que `isBombMode` (viser une bombe gèle le chrono).
+- Recents / classement Elo (modes B et C) : attente `didChange .connected` **sans** poll `expectedPlayerCount` (le mode A et le coordinateur le font). Si le peer est déjà connecté au moment du `delegate =`, risque de timeout 60 s.
+- Lecture legacy : records `chal_*` encore reconnus en **lecture seule** (`legacyChallengePrefix`) ; l’écriture est exclusivement `chfrom_*`.
+
 ---
 
 ## Fichiers source
@@ -515,9 +522,10 @@ Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 | `BlomixPvPLocalSession.swift` | Session Multipeer 1v1, identité, reconnexion mid-match |
 | `GameViewController.swift` | Réception défis CloudKit + invites GK |
 | `LeaderboardViewController.swift` | Défis depuis classement Elo |
-| `BlomixPvPNetworking.swift` | Auto-searcher, coordinateur in-match (GK + local) |
+| `BlomixPvPNetworking.swift` | Coordinateur in-match (GK + local) ; `BlomixPvPAutoSearcher` relique (`startSearching` non appelé) |
 | `BlomixPvPH2HManager.swift` | H2H CloudKit, cache, juge 1 duo au retour accueil |
-| `GameScene.swift` | `setup()`, `setActiveMatch`, lancement PvP |
+| `BlomixPublicCloudGate.swift` | Robinet 503 / Retry-After partagé H2H + lobby |
+| `GameScene.swift` | `setup()`, `setActiveMatch`, lancement PvP, timer tour / mode bombe |
 
 ---
 

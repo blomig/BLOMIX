@@ -22,7 +22,7 @@
 |---|---|
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Référence technique (architecture, HUD, sauvegarde, localisation) |
 | [PVP_MATCHING.md](PVP_MATCHING.md) | Appariement PvP : défis CloudKit, invites GameKit, échecs silencieux |
-| [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) et hints |
+| [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) — récap / pire coup |
 | [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN/DE/ES/IT (`BlomixL10n`) |
 
 ### Projet et maintenance

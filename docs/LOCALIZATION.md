@@ -39,7 +39,8 @@ Blomix/Blomix/
 
 Fichiers legacy (encore référencés en fallback) :
 - `rules.txt` — anciennes règles statiques (legacy ; non exposé par l’UI moderne)
-- `credits.txt` — legacy (non branché UI) ; crédits via clés `credits.section.*` + `BlomixCreditsViewController`
+- `credits.txt` — legacy (non branché UI) ; crédits via clés `credits.section.*` + `BlomixCreditsViewController`  
+- Overlay tutoriel paginé UIKit (`GameTutorialOverlayView`) — legacy ; le chemin joueur est le tuto interactif dans `GameScene`
 
 L'UI moderne utilise `BlomixL10n` pour les chaînes ; le tutoriel remplace l’ancien `rules.txt`.
 

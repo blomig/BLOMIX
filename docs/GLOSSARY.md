@@ -55,7 +55,7 @@
 | **TWISTX** | `.twistx` | X |
 | **BOMBX** | `.bombx` | B |
 
-> **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI). Les Magix n’apparaissent **pas** en PvP.
+> **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI). Les Magix n’apparaissent **pas** en Duel, ni dans les lignes du bas. **BRIXED** détruit tous les autres Brix (il ne les décrémente plus de 2).
 
 ---
 
@@ -64,9 +64,10 @@
 | Terme | Description |
 |---|---|
 | **File d'attente** | 3 prochains blocs jouables : P0 (courant), P1, P2 |
-| **Ligne entrante** | Nouvelle rangée injectée en bas tous les 10 coups |
-| **Bombe** | Explosion déclenchée après N lignes entrantes ; efface une zone |
-| **Placement** | Le joueur choisit une colonne ; le bloc tombe (gravité inversée) |
+| **Ligne entrante** | Nouvelle rangée injectée en bas tous les 10 **coups de pose** (une bombe n’est pas un coup) ; jamais de Magix |
+| **Bombe** | Stock (5 Arcade/Zen, 3 Duel) ; explosion sur une case ciblée. Arcade : zone 3×3 puis croix nuke selon le stage. Duel/Zen/tuto : 3×3 |
+| **Nuke** | Bombe Arcade à partir du stage 2 : 3×3 + bras cardinaux (`bombCrossArmLength` = index de stage) |
+| **Placement** | Le joueur choisit une colonne ; le bloc remonte (gravité inversée) |
 | **Toucher un Brix** | 8-connexité avec un Brix pendant une vague → compteur −1 (max 1/vague) |
 | **Stage** | Palier solo (1–6) avec timer et multiplicateur de score croissant |
 | **Multiplicateur** | Bonus de score lié au stage atteint |
@@ -91,7 +92,8 @@
 |---|---|
 | **Score de chaîne** | Points pour une chaîne (taille, couleur, multiplicateur) |
 | **Bonus Brix** | +20 pts quand un Brix atteint 0 |
-| **Bonus SAINTX** | +200 pts en plus du score des cases effacées |
+| **Bonus SAINTX** | +200 pts (× stage en Arcade) en plus du Brix laissé sur la grille |
+| **Bonus grille vide** | +500 pts plats (hors ×stage) si une vague vide toute la grille — Arcade / Zen |
 | **Milestone** | Seuils HUD 100 / 1000 (animation score) |
 | **Best score** | Record personnel (Game Center + local) |
 | **Elo** | Classement compétitif Duel (`BlomixEloManager`) |
@@ -121,7 +123,7 @@
 |---|---|
 | **P0 / P1 / P2** | Positions dans la file de blocs à venir |
 | **LIGNE x/10** | Compteur avant prochaine ligne entrante |
-| **Pile Duel** | Barre continue 0…50 à droite du score ; même mètre que le HUD |
+| **Pile Duel** | Barre continue 0…50 à **droite** du gros score (`score % 50`) |
 | **GC** | Game Center |
 | **GK** | GameKit (framework Apple) |
 

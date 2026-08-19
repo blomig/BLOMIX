@@ -2,7 +2,7 @@
 
 > **Version de référence** : 6.3  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
-> **Dernière mise à jour** : juillet 2026
+> **Dernière mise à jour** : août 2026
 
 ---
 
@@ -325,6 +325,8 @@ Animation texte (identique au `+N`) :
 | Score | — | +10 pts centre ; +20/Brix |
 | Compactage | 0,25 s | puis cascades depuis `chainSeriesLevel = 1` |
 
+Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 + bras cardinaux (`bombCrossArmLength` = index de stage), texture HUD **nuke**. L’anim de destruction ci-dessous s’applique à **toutes** les cases de `bombAffectedCells` (le nom « Blocs 3×3 » est historique).
+
 ### 5.2 Explosion visuelle (`BombExplosionFeedback`)
 
 **Audio / haptique** : `bomb` + `hapticHeavy()` + `shakeScreen(2,5)`
@@ -366,7 +368,7 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 | | |
 |---|---|
 | **Visuel** | Devient Brix(9) ; flash blanc α 0,85 sur tous les Brix, **0,20 s** |
-| **Logique** | −2 sur tous les autres Brix |
+| **Logique** | Devient Brix(9) ; **détruit** tous les autres Brix (+20 chacun) |
 | **Audio** | `playBrixedImpact()` |
 | **Suite** | Gravité + `resolveChains()` |
 
@@ -610,7 +612,7 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 **Interactions**
 
 - Disque → `LeaderboardViewController` (onglet Arc. / Moy. / Zen / Duel)
-- Liens → Réglages / Tutoriel / Crédits (`BlomixPlainTextModalViewController` + `credits.txt`)
+- Icônes → Réglages / Tutoriel (partie guidée) / thème / Partager / Crédits (`BlomixCreditsViewController`)
 
 | Effet | Paramètres |
 |---|---|

@@ -52,7 +52,7 @@ BLOMIX/
 │   ├── Blomix.xcodeproj
 │   └── Blomix/             # Sources Swift, assets, localisation
 ├── docs/                   # Documentation
-├── store/whats-new/        # Nouveautés App Store Connect (hors bundle)
+├── store/                  # Métadonnées App Store Connect (hors bundle)
 ├── icones_app/             # Icônes et visuels marketing
 ├── Palette couleur/        # Références couleurs
 └── old_web_code/           # Ancienne version web (archive)

@@ -44,7 +44,7 @@ BLOMIX/
 ├── Blomix/
 │   ├── Blomix.xcodeproj
 │   └── Blomix/               # Sources Swift, assets, lproj, Sounds
-├── store/whats-new/          # Nouveautés App Store Connect (hors bundle)
+├── store/                    # Métadonnées ASC hors bundle (whats-new + promo)
 ├── scripts/                  # Export preview / promo
 ├── icones_app/               # Marketing
 ├── Palette couleur/          # Références design
@@ -67,6 +67,7 @@ BLOMIX/
 | Nouvelle chaîne UI | `DOCS/LOCALIZATION.md` |
 | Historique versions | `DOCS/CHANGELOG.md` |
 | Nouveautés App Store | `store/whats-new/` (pas le bundle) |
+| Texte promo ASC | `store/promotional-text/` (stable, pas whats-new) |
 
 **Ne pas inventer les règles** : si le code et la doc divergent, vérifier le code puis proposer une mise à jour de la doc.
 
@@ -128,6 +129,7 @@ La logique gameplay est concentrée dans :
 | Commits | FR ou EN, style impératif + préfixe (`feat:`, `fix:`, `docs:`, …) — voir `DOCS/CONTRIBUTING.md` |
 | Chaînes joueur | Via `BlomixL10n` uniquement — **jamais** de texte UI en dur |
 | Nouveautés App Store | `store/whats-new/` — **FR+EN+DE+ES+IT** à chaque version marketing (pas le bundle) |
+| Texte promo ASC | `store/promotional-text/` — **stable**, ≤ 170 car. ; coller si vide, **ne pas** réécrire à chaque 6.x |
 
 ### Terminologie (canonique)
 
@@ -177,7 +179,7 @@ Si le comportement change, mettre à jour **en même temps** :
 | Eval / hints | `DOCS/EVAL.md` |
 | Terme nouveau | `DOCS/GLOSSARY.md` |
 | i18n | `DOCS/LOCALIZATION.md` + lproj |
-| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (5 langues)** |
+| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (5 langues)** ; coller aussi `store/promotional-text/` si ASC l’a vidé |
 | Nouveau doc | `DOCS/README.md` (+ README racine si besoin) |
 
 Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.

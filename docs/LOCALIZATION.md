@@ -113,6 +113,18 @@ Détail release : `store/whats-new/README.md`.
 
 ---
 
+## Texte promotionnel App Store (hors bundle, **stable**)
+
+Champ ASC **Texte promotionnel** (≤ **170** car.). Ce n’est **pas** une Nouveauté et **pas** une chaîne `lproj`.
+
+- Source : `store/promotional-text/` (`en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`)
+- **Ne pas** le mettre dans `whats-new/` (réécrit à chaque version) ni dans le target Xcode
+- On ne le régénère **pas** à chaque `MARKETING_VERSION` — coller les fichiers existants si le champ est vide
+
+Index : `store/README.md`.
+
+---
+
 ## Format JSON (tips et citations)
 
 ### `tips_of_day.json`

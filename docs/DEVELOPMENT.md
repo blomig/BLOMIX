@@ -163,3 +163,5 @@ Le champ **Nouveautés** n’est **pas** lu dans l’IPA. Source de vérité : `
 **Systématique** à chaque `MARKETING_VERSION` : rédiger FR puis traduire EN/DE/ES/IT dans le même lot que le CHANGELOG. Ensuite coller dans ASC (champ vide ; description et captures recopiées).
 
 Détail : `store/whats-new/README.md` et [LOCALIZATION.md](LOCALIZATION.md).
+
+**Texte promotionnel** (≤ 170 car.) : `store/promotional-text/` — **figé**. Coller si le champ ASC est vide ; ne pas le régénérer à chaque version.

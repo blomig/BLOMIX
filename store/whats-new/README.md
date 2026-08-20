@@ -26,3 +26,5 @@ Si un lot change encore le bénéfice joueur de **cette** version : rafraîchir 
 4. Uploader le build comme d’habitude.
 
 Procédure agents / l10n : `DOCS/LOCALIZATION.md`, `AGENTS.md` (volet 2b).
+
+Le **texte promotionnel** (stable, 170 car.) n’est **pas** ici : voir `store/promotional-text/`.

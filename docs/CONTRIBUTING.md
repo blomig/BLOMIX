@@ -73,8 +73,10 @@ Chaque document technique commence par une ligne **Version de référence** alig
 2. Ne pas coller le `CHANGELOG.md` (trop technique). Noms Magix **non traduits**.
 3. L’humain copie-colle dans App Store Connect (le champ Nouveautés est vide). Rien n’est lu depuis l’IPA.
 
-Procédure : [LOCALIZATION.md](LOCALIZATION.md) + `store/whats-new/README.md`.  
-Si un lot ultérieur change encore le bénéfice joueur de **cette** version : mettre à jour les **5** fichiers tout de suite.
+**Texte promotionnel** (`store/promotional-text/`) : **stable**, ≤ 170 car. Coller si ASC l’a vidé. **Ne pas** le réécrire avec le CHANGELOG.
+
+Procédure : [LOCALIZATION.md](LOCALIZATION.md) + `store/README.md`.  
+Si un lot ultérieur change encore le bénéfice joueur de **cette** version : mettre à jour les **5** fichiers `whats-new` tout de suite.
 
 ---
 

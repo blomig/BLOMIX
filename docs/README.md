@@ -13,6 +13,7 @@
 | Fichier | Description |
 |---|---|
 | [RULES.md](RULES.md) | Règles du jeu (mécaniques, scoring, modes) |
+| [MAGIX.md](MAGIX.md) | Catalogue Magix en jeu + pistes non codées |
 | [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Juice Spec : animations, particules, sons, timings |
 | [GLOSSARY.md](GLOSSARY.md) | Terminologie canonique (code ↔ joueur ↔ UI) |
 
@@ -53,7 +54,7 @@
 
 | Je suis… | Commencer par… |
 |---|---|
-| Nouveau joueur / game designer | `RULES.md` → `GLOSSARY.md` |
+| Nouveau joueur / game designer | `RULES.md` → `MAGIX.md` → `GLOSSARY.md` |
 | Développeur rejoignant le projet | `DEVELOPMENT.md` → `PROJECT_CONTEXT.md` |
 | Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `GLOSSARY.md` |
 | Traducteur | `LOCALIZATION.md` → `GLOSSARY.md` |

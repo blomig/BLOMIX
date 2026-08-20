@@ -32,6 +32,7 @@ BLOMIX/
 ├── DOCS/                     # Documentation de référence (lire en premier)
 │   ├── README.md             # Index
 │   ├── RULES.md              # Règles joueur
+│   ├── MAGIX.md              # Catalogue Magix + pistes
 │   ├── PROJECT_CONTEXT.md    # Référence technique
 │   ├── PVP_MATCHING.md       # Appariement / CloudKit / GameKit
 │   ├── EVAL.md               # BlomixMoveAnalyzer
@@ -59,7 +60,7 @@ BLOMIX/
 
 | Besoin | Document / fichier |
 |---|---|
-| Comprendre le jeu | `DOCS/RULES.md` → `DOCS/GLOSSARY.md` |
+| Comprendre le jeu | `DOCS/RULES.md` → `DOCS/MAGIX.md` → `DOCS/GLOSSARY.md` |
 | Comprendre le code | `DOCS/PROJECT_CONTEXT.md` → `DOCS/DEVELOPMENT.md` |
 | PvP / défis / bugs matchmaking | `DOCS/PVP_MATCHING.md` |
 | Hints / optimalité | `DOCS/EVAL.md` |
@@ -174,6 +175,7 @@ Si le comportement change, mettre à jour **en même temps** :
 | Changement | Fichiers |
 |---|---|
 | Règle joueur | `DOCS/RULES.md` |
+| Magix (en jeu ou piste) | `DOCS/MAGIX.md` (+ RULES / CONTEXT si en jeu) |
 | Algo / archi / constantes | `DOCS/PROJECT_CONTEXT.md` |
 | Son / VFX / timing | `DOCS/VFX_AND_ANIMATIONS.md` |
 | Eval / hints | `DOCS/EVAL.md` |

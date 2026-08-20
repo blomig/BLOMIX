@@ -55,7 +55,7 @@
 | **TWISTX** | `.twistx` | X |
 | **BOMBX** | `.bombx` | B |
 
-> **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI). Les Magix n’apparaissent **pas** en Duel, ni dans les lignes du bas. **BRIXED** détruit tous les autres Brix (il ne les décrémente plus de 2).
+> **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI). Les Magix n’apparaissent **pas** en Duel, ni dans les lignes du bas. **BRIXED** détruit tous les autres Brix (il ne les décrémente plus de 2). Catalogue + pistes : [MAGIX.md](MAGIX.md).
 
 ---
 

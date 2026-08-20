@@ -132,7 +132,7 @@ SAINTX : laisse un Brix valant le nombre de cases effacées.
 
 ## 7. Blocs Magix
 
-Définis dans `MagixKind` et `MagixRules` (`GameScene.swift`).
+Définis dans `MagixKind` et `MagixRules` (`GameScene.swift`). Catalogue joueur + pistes : [MAGIX.md](MAGIX.md).
 
 | Kind | Label popup | Effet principal |
 |---|---|---|

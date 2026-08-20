@@ -53,6 +53,7 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 | Changement | Fichier(s) à mettre à jour |
 |---|---|
 | Règle gameplay visible par le joueur | `RULES.md` |
+| Magix (effet en jeu ou piste) | `MAGIX.md` (+ `RULES.md` / `PROJECT_CONTEXT.md` si en jeu) |
 | Constante, algorithme, architecture | `PROJECT_CONTEXT.md` |
 | Animation, particule, son, timing | `VFX_AND_ANIMATIONS.md` |
 | Fonction d'évaluation / récap | `EVAL.md` |

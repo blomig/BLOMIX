@@ -50,7 +50,7 @@ Blocs spéciaux rares (~**3 %** de probabilité cumulée) déclenchant un effet 
 | **TWISTX** | X | Échange **automatique** : une couleur aléatoire présente sur la grille ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
 | **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; puis **+1 bombe** au stock (garanti même sans clear). Rareté ≈ SAINTX. **Arcade / Zen** uniquement |
 
-Les fractions exactes par variante sont dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7.
+Les fractions exactes par variante sont dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7. Catalogue et pistes : [MAGIX.md](MAGIX.md).
 
 ---
 

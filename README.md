@@ -29,6 +29,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 |---|---|
 | [docs/README.md](docs/README.md) | Index de la documentation |
 | [docs/RULES.md](docs/RULES.md) | Règles du jeu (joueurs) |
+| [docs/MAGIX.md](docs/MAGIX.md) | Catalogue Magix + pistes |
 | [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Référence technique (mécaniques, HUD, sauvegarde) |
 | [docs/PVP_MATCHING.md](docs/PVP_MATCHING.md) | Appariement PvP (CloudKit, GameKit, revanche) |
 | [docs/VFX_AND_ANIMATIONS.md](docs/VFX_AND_ANIMATIONS.md) | Juice Spec : sons, particules, timings |

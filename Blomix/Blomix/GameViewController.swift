@@ -373,6 +373,7 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         banner.onDecline = { [weak self] in self?.declineIncomingChallenge() }
         let targetView: UIView = view.window ?? view
         banner.show(in: targetView, safeAreaTop: targetView.safeAreaInsets.top)
+        (spriteKitView?.scene as? GameScene)?.playIncomingChallengeFeedback()
     }
 
     private func acceptIncomingChallenge(_ challenge: BlomixIncomingChallenge) {

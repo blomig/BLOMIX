@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.3 (build 117)  
+> **Version de référence** : 6.4 (build 118)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.

@@ -5,8 +5,8 @@
 
 /* Confirmation de quitter une partie solo */
 "quit_confirm.title" = "Quitter la partie ?";
-"quit_confirm.message" = "Ton score actuel sera comptabilisé dans ta moyenne.";
-"quit_confirm.message_zen" = "Ton score ne sera pas sauvegardé.";
+"quit_confirm.message" = "Ta partie pourra être reprise depuis l’accueil.";
+"quit_confirm.message_zen" = "Ta partie pourra être reprise depuis l’accueil.";
 "quit_confirm.quit" = "Quitter";
 
 /* Accueil & jeu */
@@ -354,6 +354,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 /* Credits screen (cards) */
 "credits.tagline" = "Ceux qui ont permis au jeu d'exister.";
 "credits.version_format" = "Version %@ (%@)";
+"credits.review_hint" = "Un avis sur l’App Store aide BLOMIX à se faire connaître.";
+"credits.review_button" = "Laisser un avis";
 "credits.section.studio.title" = "Studio";
 "credits.section.studio.body" = "BLOMIX © Terrasse studio\nDesign / Lomig";
 "credits.section.code.title" = "Code";
@@ -371,3 +373,40 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 
 "pvp.series_end_series_caption" = "Série";
 "pvp.series_end_total_caption" = "Total historique";
+
+"start.continue" = "Continuer";
+"start.discover" = "Découvrir";
+"start.new_game" = "Nouvelle partie";
+"start.new_game_confirm_title" = "Nouvelle partie ?";
+"start.new_game_confirm_message" = "La partie en cours sera abandonnée.";
+"start.abandon_save_title" = "Partie sauvegardée";
+"start.abandon_save_message" = "Tu vas perdre la partie sauvegardée. Continuer quand même ?";
+"start.abandon_save_confirm" = "Continuer";
+"start.hero_mode_arcade" = "Arcade";
+"start.hero_mode_zen" = "Zen";
+"home.icon.settings" = "Réglages";
+"home.icon.tutorial" = "Tutoriel";
+"home.icon.theme" = "Thème";
+"home.icon.share" = "Partager";
+"home.icon.credits" = "Crédits";
+"hud.attack_caption" = "attaque";
+"hud.time_aiming_caption" = "visée";
+"game_over.optimality_excludes" = "Hors Magix et bombes";
+"pvp.challenge_keep_app_open" = "L’app doit rester ouverte · 60 s";
+"guide.title" = "Guide";
+"guide.replay_tutorial" = "Rejouer le tuto";
+"guide.section.blox.title" = "Blox et chaînes";
+"guide.section.blox.body" = "Grille 8×8, gravité vers le haut.\nUne chaîne : 5 blox ou plus de la même couleur, y compris en diagonale (8-connexité).";
+"guide.section.brix.title" = "Brix";
+"guide.section.brix.body" = "Blocs numérotés. Une chaîne adjacente leur retire 1 (max une fois par vague).\nÀ 0 ils disparaissent : +20 pts.";
+"guide.section.line.title" = "Ligne entrante";
+"guide.section.line.body" = "Tous les 10 coups de pose, une rangée monte du bas.\nPoser une bombe n’est pas un coup : le compteur LIGNE n’avance pas.";
+"guide.section.bombs.title" = "Bombes";
+"guide.section.bombs.body" = "Stock : 5 en Arcade/Zen, 3 en Duel.\nZen, Duel et tuto : explosion 3×3.\nArcade : 3×3 au stage 1, puis une croix qui s’allonge à chaque stage (nuke).";
+"guide.section.magix.title" = "Magix";
+"guide.section.magix.intro" = "Jamais en Duel, ni dans les lignes.";
+"guide.section.magix.body" = "CHROMAX (?) — chemin coloré, puis chaînes.\nBRIXED (9) — devient Brix(9) ; tous les autres Brix sont détruits (+20).\nCROSSX (+) — ligne + colonne d’une couleur, puis chaînes.\nSCRUMBLX (=) — chaque ligne glisse ; −1 sur tous les Brix.\nCOLORX (O) — efface une couleur.\nSAINTX (∞) — vide la grille, laisse un Brix ; +200 × stage.\nTWISTX (X) — échange auto une couleur ↔ les Brix.\nBOMBX (B) — tâche de couleur puis +1 bombe.";
+"guide.section.score.title" = "Score";
+"guide.section.score.body" = "Chaînes : 5/7/10/13/15/20 pts + 10 par niveau de cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen, hors ×stage).";
+"guide.section.duel.title" = "Duel";
+"guide.section.duel.body" = "Le gros chiffre et la barre sont le mètre d’attaque (0…50), pas le score total.\nViser une bombe gèle votre timer de tour.";

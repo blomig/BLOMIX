@@ -120,6 +120,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     // MARK: - État invitation sortante
     private var pendingInviteMatch: GKMatch?
+    private let rosterWatcher = BlomixPvPRosterReadyWatcher()
     private var inviteTimer: Timer?
     private let inviteOverlay        = UIView()
     private let inviteAmbientBg      = BlomixAmbientBlocksView()
@@ -973,6 +974,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                 let match = try await GKMatchmaker.shared().findMatch(for: request)
                 self.pendingInviteMatch = match
                 match.delegate = self
+                self.startRosterWatch(on: match)
             } catch {
                 self.inviteTimer?.invalidate()
                 self.inviteTimer = nil
@@ -981,6 +983,38 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                 self.inviteStatusLabel.text = msg
                 self.inviteOverlay.isHidden = false
             }
+        }
+    }
+
+    private func startRosterWatch(on match: GKMatch) {
+        rosterWatcher.onReady = { [weak self] ready in
+            self?.completeOutgoingInvite(ready)
+        }
+        rosterWatcher.onTimeout = { [weak self] in
+            guard let self else { return }
+            self.rosterWatcher.stop()
+            self.inviteTimer?.invalidate()
+            self.inviteTimer = nil
+            self.pendingInviteMatch?.delegate = nil
+            self.pendingInviteMatch = nil
+            self.hideInviteOverlay()
+            self.inviteStatusLabel.text = BlomixL10n.pvpRecentInviteFailed
+            self.inviteOverlay.isHidden = false
+        }
+        rosterWatcher.start(match: match)
+    }
+
+    private func completeOutgoingInvite(_ match: GKMatch) {
+        rosterWatcher.stop()
+        inviteTimer?.invalidate()
+        inviteTimer = nil
+        pendingInviteMatch?.delegate = nil
+        pendingInviteMatch = nil
+        hideInviteOverlay()
+        GKMatchmaker.shared().finishMatchmaking(for: match)
+        onMatch?(match)
+        if !isBeingDismissed, presentingViewController != nil {
+            dismiss(animated: false)
         }
     }
 
@@ -1011,19 +1045,8 @@ extension LeaderboardViewController: GKMatchDelegate {
         let box = BlomixPvPGKMatchBox(match: match)
         Task { @MainActor [weak self] in
             guard let self else { return }
-            if state == .connected, box.match.expectedPlayerCount == 0 {
-                self.inviteTimer?.invalidate()
-                self.inviteTimer = nil
-                self.pendingInviteMatch?.delegate = nil
-                self.pendingInviteMatch = nil
-                self.hideInviteOverlay()
-                GKMatchmaker.shared().finishMatchmaking(for: box.match)
-                // Si le parent dismiss déjà (acceptation d’une bannière croisée), ne pas
-                // relancer un 2ᵉ dismiss — cause classique de crash UIKit.
-                self.onMatch?(box.match)
-                if !self.isBeingDismissed, self.presentingViewController != nil {
-                    self.dismiss(animated: false)
-                }
+            if state == .connected {
+                self.rosterWatcher.noteConnected()
             }
         }
     }

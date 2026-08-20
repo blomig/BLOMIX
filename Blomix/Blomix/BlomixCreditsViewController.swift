@@ -3,7 +3,7 @@
 //  Blomix
 //
 //  Écran Crédits en cartes (thème Jour/Nuit, accent skin, blox ambiants).
-//  Contenu via BlomixL10n — pas de liens cliquables.
+//  Contenu via BlomixL10n. Un bouton chrome « Laisser un avis » (lien App Store).
 //
 
 import UIKit
@@ -76,6 +76,9 @@ final class BlomixCreditsViewController: UIViewController {
         for section in BlomixL10n.creditsSections {
             contentStack.addArrangedSubview(makeSectionCard(section))
         }
+
+        contentStack.setCustomSpacing(22, after: contentStack.arrangedSubviews.last!)
+        contentStack.addArrangedSubview(makeReviewBlock())
     }
 
     // MARK: - Header
@@ -167,9 +170,49 @@ final class BlomixCreditsViewController: UIViewController {
             ?? UIColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
     }
 
+    // MARK: - Avis App Store
+
+    private func makeReviewBlock() -> UIView {
+        let wrap = UIView()
+
+        let hint = UILabel()
+        hint.text = BlomixL10n.creditsReviewHint
+        hint.textColor = BlomixAppearance.tertiaryText
+        hint.font = BlomixTypography.uiFont(size: 13, weight: .regular)
+        hint.textAlignment = .center
+        hint.numberOfLines = 0
+
+        let button = BlomixUIButton()
+        button.setTitle(BlomixL10n.creditsReviewButton, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: button)
+        BlomixUIDestinationButtonStyle.applyContentInsets(
+            UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16),
+            to: button
+        )
+        button.addTarget(self, action: #selector(reviewTapped), for: .touchUpInside)
+
+        let stack = UIStackView(arrangedSubviews: [hint, button])
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        wrap.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: wrap.topAnchor, constant: 4),
+            stack.leadingAnchor.constraint(equalTo: wrap.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: wrap.bottomAnchor),
+        ])
+        return wrap
+    }
+
     // MARK: - Actions
 
     @objc private func closeTapped() {
         dismiss(animated: true)
+    }
+
+    @objc private func reviewTapped() {
+        BlomixReviewPrompt.openWriteReview()
     }
 }

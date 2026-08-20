@@ -14,6 +14,65 @@ nonisolated struct BlomixPvPGKMatchBox: @unchecked Sendable {
     let match: GKMatch
 }
 
+/// Attend `expectedPlayerCount == 0` même si le peer est déjà `.connected` (pas de callback GameKit).
+@MainActor
+final class BlomixPvPRosterReadyWatcher {
+    private var timer: Timer?
+    private var ticks = 0
+    private let maxTicks: Int
+    private var didFire = false
+    private weak var match: GKMatch?
+    var onReady: ((GKMatch) -> Void)?
+    var onTimeout: (() -> Void)?
+
+    init(maxTicks: Int = 40) {
+        self.maxTicks = maxTicks
+    }
+
+    func start(match: GKMatch) {
+        stop()
+        didFire = false
+        ticks = 0
+        self.match = match
+        check()
+        guard !didFire else { return }
+        let t = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.tick()
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
+    }
+
+    func noteConnected() {
+        check()
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func tick() {
+        ticks += 1
+        check()
+        if !didFire, ticks >= maxTicks {
+            didFire = true
+            stop()
+            onTimeout?()
+        }
+    }
+
+    private func check() {
+        guard !didFire, let match else { return }
+        guard match.expectedPlayerCount == 0, !match.players.isEmpty else { return }
+        didFire = true
+        stop()
+        onReady?(match)
+    }
+}
+
 @MainActor
 final class BlomixPvPSearchBlocksView: UIView {
     /// Emprise visuelle ~119×119 (10×11 + 9×1).
@@ -323,6 +382,13 @@ final class BlomixPvPLobbyViewController: UIViewController {
         // L'animation UIView démarrée dans viewDidLoad (avant la fenêtre) est annulée
         // par UIKit ; on la relance ici pour garantir le clignotement des dots.
         updateAvailableToggleAppearance()
+        refreshCloudGateLobbyStatus()
+    }
+
+    private func refreshCloudGateLobbyStatus() {
+        guard BlomixPublicCloudGate.shared.isBlocked else { return }
+        let sec = BlomixPublicCloudGate.shared.retryRemainingSeconds
+        setAvailabilityStatus(BlomixL10n.pvpCloudBusyRetry(sec), color: .systemOrange)
     }
 
     deinit {
@@ -1815,6 +1881,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
     private var phase: Phase = .loading
     /// Match en attente de connexion complète (expectedPlayerCount > 0) après findMatch.
     private var pendingInviteMatch: GKMatch?
+    private let rosterWatcher = BlomixPvPRosterReadyWatcher()
     private var inviteTimer: Timer?
 
     // MARK: - UI
@@ -2197,6 +2264,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
                 let match = try await GKMatchmaker.shared().findMatch(for: request)
                 self.pendingInviteMatch = match
                 match.delegate = self
+                self.startRosterWatch(on: match)
             } catch {
                 self.inviteTimer?.invalidate()
                 self.inviteTimer = nil
@@ -2212,6 +2280,34 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
             object: nil,
             userInfo: ["active": false]
         )
+    }
+
+    private func startRosterWatch(on match: GKMatch) {
+        rosterWatcher.onReady = { [weak self] ready in
+            self?.completeOutgoingInvite(ready)
+        }
+        rosterWatcher.onTimeout = { [weak self] in
+            guard let self else { return }
+            self.rosterWatcher.stop()
+            self.pendingInviteMatch?.delegate = nil
+            self.pendingInviteMatch = nil
+            self.inviteTimer?.invalidate()
+            self.inviteTimer = nil
+            self.notifyOutgoingInviteEnded()
+            self.applyPhase(.failed(message: BlomixL10n.pvpRecentInviteFailed))
+        }
+        rosterWatcher.start(match: match)
+    }
+
+    private func completeOutgoingInvite(_ match: GKMatch) {
+        rosterWatcher.stop()
+        pendingInviteMatch = nil
+        match.delegate = nil
+        inviteTimer?.invalidate()
+        inviteTimer = nil
+        notifyOutgoingInviteEnded()
+        GKMatchmaker.shared().finishMatchmaking(for: match)
+        onMatch?(match)
     }
 
     // MARK: - Countdown
@@ -2239,6 +2335,7 @@ final class BlomixPvPRecentPlayersViewController: UIViewController {
     // MARK: - Close
 
     @objc private func closeTapped() {
+        rosterWatcher.stop()
         inviteTimer?.invalidate()
         inviteTimer = nil
         GKMatchmaker.shared().cancel()
@@ -2266,15 +2363,7 @@ extension BlomixPvPRecentPlayersViewController: GKMatchDelegate {
         let box = BlomixPvPGKMatchBox(match: match)
         Task { @MainActor [weak self] in
             guard let self, let pending = self.pendingInviteMatch, pending === box.match else { return }
-            // Attendre que tous les joueurs soient connectés (expectedPlayerCount == 0 = match complet).
-            guard box.match.expectedPlayerCount == 0 else { return }
-            self.pendingInviteMatch = nil
-            box.match.delegate = nil
-            self.inviteTimer?.invalidate()
-            self.inviteTimer = nil
-            self.notifyOutgoingInviteEnded()
-            GKMatchmaker.shared().finishMatchmaking(for: box.match)
-            self.onMatch?(box.match)
+            self.rosterWatcher.noteConnected()
         }
     }
 
@@ -2514,7 +2603,8 @@ final class BlomixChallengeBannerView: UIView {
     }
 
     private func updateCountdown() {
-        countdownLabel.text = "\(secondsLeft)s"
+        countdownLabel.text = BlomixL10n.pvpChallengeKeepAppOpen + " · \(secondsLeft)s"
+        countdownLabel.numberOfLines = 2
     }
 
     @objc private func acceptTapped() {
@@ -2553,6 +2643,14 @@ final class BlomixChallengeBannerView: UIView {
                        initialSpringVelocity: 0.5) {
             self.alpha = 1
             self.transform = .identity
+        } completion: { _ in
+            UIView.animate(withDuration: 0.18, delay: 0, options: [.autoreverse, .repeat]) {
+                self.transform = CGAffineTransform(scaleX: 1.03, y: 1.03)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) { [weak self] in
+                self?.layer.removeAllAnimations()
+                self?.transform = .identity
+            }
         }
     }
 }

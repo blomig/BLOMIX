@@ -1,7 +1,7 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 6.3  
-> Aligné sur le comportement du binaire (build 117).
+> **Version de référence** : 6.4  
+> Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
 

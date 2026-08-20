@@ -1,7 +1,7 @@
 # Blomix — Fonction d'évaluation (`BlomixMoveAnalyzer`)
 
 > **Version implémentée** : v2 (production)  
-> **Version de référence** : 6.3  
+> **Version de référence** : 6.4  
 > Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`
 
 ---

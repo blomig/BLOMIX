@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 6.3
+> **Version de référence** : 6.4
 
 ---
 
@@ -87,6 +87,32 @@ scoreLabel.text = BlomixL10n.scoreFormat(1250)
 
 ---
 
+## Nouveautés App Store (hors bundle)
+
+Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lproj` et n’est **pas** lu dans l’IPA. Source de vérité : `store/whats-new/`. **Systématique** à chaque version marketing (même lot que le CHANGELOG) — l’humain copie-colle ensuite dans ASC.
+
+### Fichiers (toujours les 5)
+
+| Fichier | Locale ASC | `lproj` |
+|---|---|---|
+| `store/whats-new/en-US.txt` | English (U.S.) | `en` |
+| `store/whats-new/fr-FR.txt` | French | `fr` |
+| `store/whats-new/de-DE.txt` | German | `de` |
+| `store/whats-new/es-ES.txt` | Spanish (Spain) | `es` |
+| `store/whats-new/it-IT.txt` | Italian | `it` |
+
+### Rédaction
+
+1. Partir du **bénéfice joueur** de la version (spec / CHANGELOG), pas des noms de fonctions.
+2. FR d’abord, puis EN / DE / ES / IT **dans le même lot**. Même nombre de puces, même ordre.
+3. Puces courtes (`• …`). Limite Apple : 4000 caractères. Noms Magix **non traduits**.
+4. Ne pas recopier `DOCS/CHANGELOG.md`. Ne pas ajouter à `BlomixL10n` ni au target Xcode.
+5. Un lot qui change encore le bénéfice joueur **de cette version** : rafraîchir les **5** fichiers.
+
+Détail release : `store/whats-new/README.md`.
+
+---
+
 ## Format JSON (tips et citations)
 
 ### `tips_of_day.json`
@@ -115,7 +141,7 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | Accueil & jeu | Boutons start, liens utilitaires (Réglages · Tutoriel · Crédits), game over, HUD |
 | Game Center | Statut connexion GC |
 | Skins | Noms des palettes couleur |
-| Règles / crédits | Titres modals + fallback si `credits.txt` / `rules.txt` absents |
+| Règles / crédits | Titres modals, bouton avis App Store (`credits.review_*`) |
 | Paramètres | Audio, police, langue |
 | PvP | Lobby, invitations, résultats, Elo |
 | Partage | Bouton, a11y, messages accueil/GO, badge record (`share.*`) |

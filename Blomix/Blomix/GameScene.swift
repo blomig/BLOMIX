@@ -751,6 +751,8 @@ final class GameScene: SKScene {
     private static let bombNukeDigitName        = "bombNukeDigit"
     private static let scoreHudLabelName = "hudScoreLabel"
     private static let bestScoreAboveName    = "hudBestScoreAbove"     // chiffre seul au-dessus du score
+    private static let bestScoreTitleName    = "hudBestScoreTitle"
+    private static let hudAttackCaptionName  = "hudAttackCaption"
     private static let bombeCaptionName      = "hudBombeCaption"   // conservé pour compatibilité saves
     private static let bombeValueName        = "hudBombeValue"     // conservé pour compatibilité saves
     private static let hudTimerCaptionName   = "hudTimerCaption"
@@ -800,6 +802,7 @@ final class GameScene: SKScene {
     private static let bottomMenuContainerName = "bottomMenuContainer"
     private static let bottomMenuNewGameName = "bottomMenuNewGame"
     private static let bottomMenuScoresName = "bottomMenuScores"
+    private static let bottomMenuTutorialName = "bottomMenuTutorial"
     private static let bottomMenuRulesName = "bottomMenuRules"
     private static let bottomMenuSettingsName = "bottomMenuSettings"
     private static let bottomMenuMultiplayerName = "bottomMenuMultiplayer"
@@ -845,6 +848,8 @@ final class GameScene: SKScene {
     private static let startScreenCreditsLinkName = "startScreenCreditsLink"
     private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
     private static let startScreenIconRowName = "startScreenIconRow"
+    private static let startScreenNewGameLinkName = "startScreenNewGameLink"
+    private static let startScreenHeroSubtitleName = "startScreenHeroSubtitle"
     private static let startScreenShareChipName = "startScreenShareChip"
     private static let startScreenShareLabelName = "startScreenShareLabel"
     private static let gameOverShareLabelName = "gameOverShareLabel"
@@ -1317,6 +1322,9 @@ final class GameScene: SKScene {
     private var pendingHintRequest: Bool = false
 
     // MARK: Ghost drop preview (appui maintenu → colonne grisée + bloc fantôme)
+    /// Colonne figée pour l’auto-drop Arcade (≤ 2 s) — nil hors zone rouge.
+    private var autoDropLockedColumn: Int?
+
     /// Timer qui déclenche le mode ghost après `ghostHoldDelay` secondes.
     private var ghostHoldTimer: Timer?
     /// Colonne actuellement ciblée par le ghost (nil = pas de tracking actif).
@@ -1377,8 +1385,11 @@ final class GameScene: SKScene {
     private static let updateBannerCloseName = "appUpdateBannerClose"
     /// URL de la fiche App Store, disponible dès qu'une MAJ est détectée.
     private var updateStoreURL: URL?
+    private var updateAvailableVersion: String?
     /// true une fois la vérification lancée (évite de rappeler l'API à chaque retour écran d'accueil).
     private var didCheckForUpdate = false
+    /// Fermeture ✕ : ne plus réafficher la bannière cette session.
+    private var updateBannerDismissedThisSession = false
 
     /// Jonction Blox — arêtes horizontales / verticales (`H_ligne_colGauche`, `V_ligneHaute_colonne`).
     private var borderConnections: [String: SKShapeNode] = [:]
@@ -1739,6 +1750,18 @@ final class GameScene: SKScene {
         return container
     }
 
+    private func attachStartScreenIconCaption(to container: SKNode, text: String) {
+        let lbl = SKLabelNode(text: text)
+        lbl.fontName = Self.customUIFontPostScriptName
+        lbl.fontSize = 8
+        lbl.fontColor = BlomixAppearance.tertiaryTextSK
+        lbl.horizontalAlignmentMode = .center
+        lbl.verticalAlignmentMode = .center
+        lbl.position = CGPoint(x: 0, y: -26)
+        lbl.zPosition = 2
+        container.addChild(lbl)
+    }
+
     /// Icône soleil / lune pour basculer Sombre ↔ Clair.
     private func makeStartScreenAppearanceToggleNode() -> SKNode {
         makeStartScreenChromeIcon(
@@ -1943,16 +1966,29 @@ final class GameScene: SKScene {
     }
 
     private func presentStartScreenOrRestoreSoloSave(playIntro: Bool = false) {
-        // Préférer le snapshot figé à l'entrée PvP (évite une save UD écrasée par la grille prep).
-        let save = pvpSuspendedSoloSave ?? BlomixSoloSaveManager.shared.load()
-        pvpSuspendedSoloSave = nil
-        if let save {
-            BlomixSoloSaveManager.shared.clear()
-            isZenMode = save.isZenMode  // restauré avant restoreFromSoloSave pour isInStagedSoloMode
-            restoreFromSoloSave(save)
-        } else {
-            presentStartScreen(playIntro: playIntro)
+        // 6.4 : toujours l’accueil. Continuer reprend `pvpSuspendedSoloSave` ou la save UD.
+        presentStartScreen(playIntro: playIntro)
+    }
+
+    private enum StartHeroKind {
+        case continueSave(isZen: Bool)
+        case discover
+        case arcade
+    }
+
+    /// Save affichable sur l’accueil (snapshot PvP prioritaire).
+    private func pendingHomeSave() -> BlomixSoloGameSave? {
+        pvpSuspendedSoloSave ?? BlomixSoloSaveManager.shared.load()
+    }
+
+    private func startHeroKind() -> StartHeroKind {
+        if let save = pendingHomeSave() {
+            return .continueSave(isZen: save.isZenMode)
         }
+        if !UserDefaults.standard.hasSeenInteractiveTutorial {
+            return .discover
+        }
+        return .arcade
     }
 
     /// Appelé par `GameViewController.viewDidAppear` au retour d'une modale.
@@ -2064,7 +2100,7 @@ final class GameScene: SKScene {
 
         // ── Rangée d'icônes : Réglages · Tutoriel · Thème · Partager · Crédits ─
         let discBottomExtent = discDiameter / 2 + 10
-        let iconRowY = discCenterY - discBottomExtent - 36
+        let iconRowY = discCenterY - discBottomExtent - 44
         let iconRow = SKNode()
         iconRow.name = Self.startScreenIconRowName
         iconRow.position = CGPoint(x: cx, y: iconRowY)
@@ -2072,10 +2108,15 @@ final class GameScene: SKScene {
         overlay.addChild(iconRow)
 
         let settingsIcon = makeStartScreenChromeIcon(name: Self.startScreenSettingsLinkName, systemName: "gearshape.fill")
+        attachStartScreenIconCaption(to: settingsIcon, text: BlomixL10n.homeIconSettings)
         let tutorialIcon = makeStartScreenChromeIcon(name: Self.startScreenTutorialLinkName, systemName: "book.fill")
+        attachStartScreenIconCaption(to: tutorialIcon, text: BlomixL10n.homeIconTutorial)
         let appearanceToggle = makeStartScreenAppearanceToggleNode()
+        attachStartScreenIconCaption(to: appearanceToggle, text: BlomixL10n.homeIconTheme)
         let shareIcon = makeStartScreenChromeIcon(name: Self.startScreenShareChipName, systemName: "paperplane.fill")
+        attachStartScreenIconCaption(to: shareIcon, text: BlomixL10n.homeIconShare)
         let creditsIcon = makeStartScreenChromeIcon(name: Self.startScreenCreditsLinkName, systemName: "info.circle.fill")
+        attachStartScreenIconCaption(to: creditsIcon, text: BlomixL10n.homeIconCredits)
         let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, creditsIcon]
         let iconStep: CGFloat = 52
         let iconRowWidth = CGFloat(iconItems.count - 1) * iconStep
@@ -2105,16 +2146,30 @@ final class GameScene: SKScene {
         let pairFromTip: CGFloat = 64
         var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2
         var heroY = secondaryRowY + hChip / 2 + 18 + heroH / 2
-        let iconClearance = iconRowY - 32
+        let iconClearance = iconRowY - 40
         if heroY + heroH / 2 > iconClearance {
             heroY = iconClearance - heroH / 2
             secondaryRowY = heroY - heroH / 2 - 16 - hChip / 2
         }
 
+        let heroKind = startHeroKind()
+        let heroTitle: String
+        let heroSubtitle: String?
+        switch heroKind {
+        case .continueSave(let isZen):
+            heroTitle = BlomixL10n.startContinue
+            heroSubtitle = isZen ? BlomixL10n.startHeroModeZen : BlomixL10n.startHeroModeArcade
+        case .discover:
+            heroTitle = BlomixL10n.startDiscover
+            heroSubtitle = nil
+        case .arcade:
+            heroTitle = BlomixL10n.startButton
+            heroSubtitle = nil
+        }
         let startChip = makeStartScreenButtonChip(
             chipName: Self.startScreenStartChipName,
             labelName: Self.startScreenStartLabelName,
-            text: BlomixL10n.startButton,
+            text: heroTitle,
             chipSize: heroSize,
             fontSize: heroFont
         )
@@ -2122,7 +2177,33 @@ final class GameScene: SKScene {
         startChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
         startChip.position = CGPoint(x: cx, y: heroY)
         startChip.zPosition = 2
+        if let heroSubtitle {
+            startChip.labelNode?.position.y = 7
+            let sub = SKLabelNode(text: heroSubtitle)
+            sub.name = Self.startScreenHeroSubtitleName
+            sub.fontName = Self.customUIFontPostScriptName
+            sub.fontSize = 9
+            sub.fontColor = BlomixAppearance.primaryTextSK
+            sub.horizontalAlignmentMode = .center
+            sub.verticalAlignmentMode = .center
+            sub.position = CGPoint(x: 0, y: -11)
+            sub.zPosition = 3
+            startChip.addChild(sub)
+        }
         overlay.addChild(startChip)
+
+        if case .continueSave = heroKind {
+            let newGame = SKLabelNode(text: BlomixL10n.startNewGameLink)
+            newGame.name = Self.startScreenNewGameLinkName
+            newGame.fontName = Self.customUIFontPostScriptName
+            newGame.fontSize = 12
+            newGame.fontColor = BlomixAppearance.secondaryTextSK
+            newGame.horizontalAlignmentMode = .center
+            newGame.verticalAlignmentMode = .center
+            newGame.position = CGPoint(x: cx, y: heroY - heroH / 2 - 14)
+            newGame.zPosition = 2
+            overlay.addChild(newGame)
+        }
 
         let pvpChip = makeStartScreenButtonChip(
             chipName: Self.startScreenPvPChipName,
@@ -2151,11 +2232,11 @@ final class GameScene: SKScene {
             self?.refreshStartScreenPlayerIdentityIfVisible()
         }
 
-        // ── Conseil du jour (ancré bas) ─────────────────────────────────────────
+        // ── Conseil du jour (ancré bas) — masqué si bannière de MAJ ─────────────
         tipOfDayPool = []
         lastTipIndex = -1
 
-        let tipContainerY = size.height * 0.10
+        let tipContainerY = startScreenTipAnchorY()
 
         let tipContainer = SKNode()
         tipContainer.name = Self.startScreenTipContainerName
@@ -2467,14 +2548,76 @@ final class GameScene: SKScene {
     }
 
     /// Démarre la partie après **START** : masque l’accueil, construit l’UI jeu, joue `begin.wav`.
-    private func beginNewMatchFromStartScreen() {
-        guard isStartScreen else { return }
-
-        // Premier lancement : démarrer le tutoriel interactif à la place d'une partie normale.
-        if !isTutorialMode && !UserDefaults.standard.hasSeenInteractiveTutorial {
+    private func performStartScreenHeroAction() {
+        switch startHeroKind() {
+        case .continueSave:
+            continueSavedGameFromHome()
+        case .discover:
             startTutorialGameWithIntro()
+        case .arcade:
+            beginNewMatchFromStartScreen()
+        }
+    }
+
+    private func continueSavedGameFromHome() {
+        guard isStartScreen, let save = pendingHomeSave() else { return }
+        pvpSuspendedSoloSave = nil
+        restoreFromSoloSave(save)
+    }
+
+    private func confirmNewGameFromHome() {
+        guard isStartScreen, pendingHomeSave() != nil else { return }
+        guard let host = view else { return }
+        BlomixInAppDialogView.presentChoices(
+            in: host,
+            title: BlomixL10n.startNewGameConfirmTitle,
+            message: BlomixL10n.startNewGameConfirmMessage,
+            actions: [
+                BlomixInAppDialogAction(title: BlomixL10n.startNewGameLink) { [weak self] in
+                    self?.discardHomeSaveAndRefreshHero()
+                },
+            ]
+        )
+    }
+
+    private func discardHomeSaveAndRefreshHero() {
+        discardPendingHomeSave()
+        presentStartScreen()
+    }
+
+    private func discardPendingHomeSave() {
+        pvpSuspendedSoloSave = nil
+        restoreSoloAfterPvP = false
+        BlomixSoloSaveManager.shared.clear()
+    }
+
+    /// Zen / Duel depuis l’accueil : si une save Arcade ou Zen existe, confirmer qu’on l’abandonne.
+    private func confirmAbandonHomeSaveThen(_ action: @escaping () -> Void) {
+        guard isStartScreen, pendingHomeSave() != nil else {
+            action()
             return
         }
+        guard let host = view else { return }
+        BlomixInAppDialogView.presentChoices(
+            in: host,
+            title: BlomixL10n.startAbandonSaveTitle,
+            message: BlomixL10n.startAbandonSaveMessage,
+            actions: [
+                BlomixInAppDialogAction(title: BlomixL10n.startAbandonSaveConfirm) {
+                    action()
+                },
+            ]
+        )
+    }
+
+    /// Duel depuis l’accueil après accord : la save n’est plus reprise (le joueur a confirmé).
+    private func showPvPLobbyAfterAbandoningSave() {
+        discardPendingHomeSave()
+        showPvPLobby()
+    }
+
+    private func beginNewMatchFromStartScreen() {
+        guard isStartScreen else { return }
 
         cancelGhostPreview()
         // En mode tutoriel : on conserve la sauvegarde de la partie précédente (restaurée à la fin du tuto).
@@ -2568,6 +2711,8 @@ final class GameScene: SKScene {
         childNode(withName: Self.upcomingQueueCaptionLabelName)?.isHidden = hidden
         childNode(withName: Self.scoreHudLabelName)?.isHidden = hidden
         childNode(withName: Self.bestScoreAboveName)?.isHidden = hidden || pvpCoordinator != nil
+        childNode(withName: Self.bestScoreTitleName)?.isHidden = hidden || pvpCoordinator != nil
+        childNode(withName: Self.hudAttackCaptionName)?.isHidden = hidden || pvpCoordinator == nil
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isZenMode
         // Compteur LIGNE
         childNode(withName: Self.ligneCaptionName)?.isHidden = hidden
@@ -2593,6 +2738,11 @@ final class GameScene: SKScene {
 
     private func playMatchSound(_ sfx: BlomixMatchSFX, playbackRate: Float = 1.0) {
         soundBank.play(sfx, playbackRate: playbackRate)
+    }
+
+    func playIncomingChallengeFeedback() {
+        hapticHeavy()
+        playMatchSound(.pendingRandomLineBloopa)
     }
 
     /// Son de chaîne : sans cascade (`chainSeriesLevel == 0`), selon la taille de la **plus grande** chaîne de la vague (5 → `chain_new`, 6–8 → `-1`, ≥9 → `-2`). En cascade, inchangé : 1ʳᵉ cascade → `-1`, suivantes → `-2`.
@@ -2651,6 +2801,12 @@ final class GameScene: SKScene {
 
     private func touchHitsStartScreenTutorialLink(_ scenePoint: CGPoint) -> Bool {
         touchHitsStartScreenUtilityLink(named: Self.startScreenTutorialLinkName, scenePoint: scenePoint)
+    }
+
+    private func touchHitsStartScreenNewGameLink(_ scenePoint: CGPoint) -> Bool {
+        guard let overlay = childNode(withName: Self.startScreenOverlayName),
+              let link = overlay.childNode(withName: Self.startScreenNewGameLinkName) as? SKLabelNode else { return false }
+        return sceneHitRect(for: link, minWidth: 140, minHeight: 32, padding: 8).contains(scenePoint)
     }
 
     private func touchHitsStartScreenCreditsLink(_ scenePoint: CGPoint) -> Bool {
@@ -3065,6 +3221,12 @@ final class GameScene: SKScene {
     }
 
     /// Bouton « Voir le classement » (Game Over) : présente `LeaderboardViewController` depuis le `rootViewController` UIKit.
+    private func leaderboardTabForCurrentMode() -> LeaderboardViewController.InitialTab {
+        if pvpCoordinator != nil { return .elo }
+        if isZenMode { return .zenScore }
+        return .mainScore
+    }
+
     private func showLeaderboard(initialTab: LeaderboardViewController.InitialTab = .mainScore) {
         let vc = LeaderboardViewController()
         vc.initialTab = initialTab
@@ -3080,11 +3242,18 @@ final class GameScene: SKScene {
         presentFullScreenModal(SettingsViewController())
     }
 
-    /// Règles : ouvre le tutoriel paginé par-dessus le jeu (accessible à tout moment depuis le menu).
+    /// Guide règles / Magix (6.4) — modal lecture, pas le tuto interactif.
+    private func showRulesGuide() {
+        let vc = BlomixRulesGuideViewController()
+        vc.onReplayTutorial = { [weak self] in
+            self?.startTutorialGameWithIntro()
+        }
+        presentFullScreenModal(vc)
+    }
+
+    /// Règles : ouvre le tutoriel paginé par-dessus le jeu (legacy, plus branché UI).
     private func showRules() {
-        guard let gameVC = modalRootViewController() as? GameViewController else { return }
-        let anchors = makeTutorialLayoutAnchorsForOverlay()
-        gameVC.showTutorialOverlay(anchors: anchors)
+        showRulesGuide()
     }
 
     /// Crédits : modal cartes (thème chrome + accent skin + blox ambiants).
@@ -3272,6 +3441,21 @@ final class GameScene: SKScene {
             overlay.addChild(subLabel)
             subLabel.run(SKAction.sequence([
                 SKAction.wait(forDuration: 0.30),
+                SKAction.fadeIn(withDuration: 0.2),
+            ]))
+
+            let excludeLabel = SKLabelNode(text: BlomixL10n.gameOverOptimalityExcludes)
+            excludeLabel.fontName               = Self.customUIFontPostScriptName
+            excludeLabel.fontSize               = 10
+            excludeLabel.fontColor              = BlomixAppearance.gameOverTertiaryTextSK
+            excludeLabel.horizontalAlignmentMode = .center
+            excludeLabel.verticalAlignmentMode   = .center
+            excludeLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 52)
+            excludeLabel.alpha     = 0
+            excludeLabel.zPosition = 10
+            overlay.addChild(excludeLabel)
+            excludeLabel.run(SKAction.sequence([
+                SKAction.wait(forDuration: 0.40),
                 SKAction.fadeIn(withDuration: 0.2),
             ]))
 
@@ -3577,6 +3761,41 @@ final class GameScene: SKScene {
                 self.presentPersonalBestOverlay(score: finalScore)
             }
         }
+
+        scheduleAppStoreReviewPromptIfNeeded()
+    }
+
+    private static let appStoreReviewPromptActionKey = "appStoreReviewPrompt"
+
+    /// Compte la partie (Arcade / Zen) et, si le seuil est atteint, demande un avis après une pause.
+    /// Tutoriel et Duel exclus. Pas de boîte custom — uniquement `AppStore.requestReview`.
+    private func scheduleAppStoreReviewPromptIfNeeded() {
+        removeAction(forKey: Self.appStoreReviewPromptActionKey)
+        guard !isTutorialMode, pvpCoordinator == nil else { return }
+        BlomixReviewPrompt.recordCompletedGame()
+        guard BlomixReviewPrompt.shouldRequestAfterGameOver() else { return }
+        run(
+            SKAction.sequence([
+                SKAction.wait(forDuration: BlomixReviewPrompt.delayAfterGameOver),
+                SKAction.run { [weak self] in self?.attemptAppStoreReviewPrompt() },
+            ]),
+            withKey: Self.appStoreReviewPromptActionKey
+        )
+    }
+
+    private func attemptAppStoreReviewPrompt() {
+        guard isGameOver, childNode(withName: Self.gameOverOverlayName) != nil else { return }
+        if childNode(withName: Self.gameOverRecordOverlayName) != nil {
+            run(
+                SKAction.sequence([
+                    SKAction.wait(forDuration: 0.6),
+                    SKAction.run { [weak self] in self?.attemptAppStoreReviewPrompt() },
+                ]),
+                withKey: Self.appStoreReviewPromptActionKey
+            )
+            return
+        }
+        BlomixReviewPrompt.requestReview(in: view?.window?.windowScene)
     }
 
     /// Overlay record perso (famille résultat PvP). OK → game over 6.1 dessous.
@@ -3668,6 +3887,7 @@ final class GameScene: SKScene {
 
     private func replayFromGameOver() {
         guard isGameOver else { return }
+        removeAction(forKey: Self.appStoreReviewPromptActionKey)
         let keepZen = isZenMode
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
@@ -4480,9 +4700,14 @@ final class GameScene: SKScene {
     /// pour cette vague (même idée que `priksAffected` dans `priks.html` : un Priks ne perd qu’au plus un point par résolution).
     /// Compteur ≤ 0 → la case devient `.empty` (disparition + bonus +10).
     /// - Returns: Cellules Priks effectivement supprimées (compteur arrivé à 0), pour animation visuelle.
-    private func applyPriksAdjacentDecrement(touchingRemovedCells: Set<GridAddress>) -> Set<GridAddress> {
+    private func applyPriksAdjacentDecrement(
+        touchingRemovedCells: Set<GridAddress>,
+        animated: Bool = true
+    ) -> Set<GridAddress> {
         guard !touchingRemovedCells.isEmpty else { return [] }
         var vanishedPriks = Set<GridAddress>()
+
+        var decrementing: [(addr: GridAddress, fromValue: Int, toValue: Int)] = []
 
         for row in GridLayout.topRowIndex..<GridLayout.rowCount {
             for col in 0..<GridLayout.columnCount {
@@ -4509,11 +4734,169 @@ final class GameScene: SKScene {
                     // Bonus Priks : affiché après l’animation de disparition (évite que le gros « +10 » masque le spin).
                 } else {
                     grid[row][col] = .priks(next)
+                    if animated {
+                        decrementing.append((
+                            GridAddress(row: row, col: col),
+                            remaining,
+                            next
+                        ))
+                    }
                     if isTutorialMode { tutorialPriksDecremented() }
                 }
             }
         }
+
+        if animated {
+            playStaggeredPriksDigitDecrements(decrementing)
+        }
         return vanishedPriks
+    }
+
+    /// Chiffre Brix −1 : le bloc ne bouge pas. Grow 0,12 s → swap −1 au pic → settle 0,60 s.
+    private static let priksDigitGrowDuration: TimeInterval = 0.12
+    private static let priksDigitSettleDuration: TimeInterval = 0.60
+    private static let priksDigitPeakScale: CGFloat = 1.30
+    /// Stagger léger entre plusieurs chiffres de la même vague (même ordre que la dissolution).
+    private static let priksDigitStagger: TimeInterval = 0.04
+    private static let priksDigitAnimKey = "priksDigitDec"
+    /// Cellules dont le chiffre doit se recaler après `drawGrid` (compactage).
+    private var priksDigitSettlePending: Set<GridAddress> = []
+    /// Début du settle par case (après le swap au pic).
+    private var priksDigitSettleStartedAt: [GridAddress: TimeInterval] = [:]
+
+    private func priksDigitLabel(on sprite: SKSpriteNode) -> SKLabelNode? {
+        sprite.children.compactMap { $0 as? SKLabelNode }.first
+    }
+
+    /// Grow staggeré, ordre `(ligne, colonne)`. Réutilisé chaînes et SCRUMBLX.
+    private func playStaggeredPriksDigitDecrements(
+        _ items: [(addr: GridAddress, fromValue: Int, toValue: Int)]
+    ) {
+        priksDigitSettlePending.removeAll()
+        priksDigitSettleStartedAt.removeAll()
+        guard !items.isEmpty else { return }
+        let ordered = items.sorted { a, b in
+            if a.addr.row != b.addr.row { return a.addr.row < b.addr.row }
+            return a.addr.col < b.addr.col
+        }
+        for (index, item) in ordered.enumerated() {
+            flashPriksDecrement(
+                at: item.addr,
+                fromValue: item.fromValue,
+                toValue: item.toValue,
+                delay: TimeInterval(index) * Self.priksDigitStagger
+            )
+        }
+    }
+
+    /// Temps jusqu’au dernier swap (grow du 1er + stagger des suivants).
+    private func priksDigitGrowWaveDuration() -> TimeInterval {
+        let n = priksDigitSettlePending.count
+        guard n > 0 else { return 0 }
+        return Self.priksDigitGrowDuration + TimeInterval(n - 1) * Self.priksDigitStagger
+    }
+
+    /// Échelle du settle ×1,3 → ×1, courbe proche de `easeInEaseOut`.
+    private static func priksDigitSettleScale(elapsed: TimeInterval) -> CGFloat {
+        let u = min(1, max(0, elapsed / priksDigitSettleDuration))
+        let eased = 0.5 - 0.5 * cos(Double.pi * u)
+        return priksDigitPeakScale + (1.0 - priksDigitPeakScale) * CGFloat(eased)
+    }
+
+    private func clearPriksDigitAnim(at addr: GridAddress) {
+        priksDigitSettlePending.remove(addr)
+        priksDigitSettleStartedAt.removeValue(forKey: addr)
+    }
+
+    private func flashPriksDecrement(
+        at addr: GridAddress,
+        fromValue: Int,
+        toValue: Int,
+        delay: TimeInterval
+    ) {
+        priksDigitSettlePending.insert(addr)
+        guard let container = childNode(withName: Self.gridContainerName),
+              let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode,
+              let digit = priksDigitLabel(on: sprite) else { return }
+        digit.removeAction(forKey: Self.priksDigitAnimKey)
+        digit.setScale(1)
+        digit.text = "\(fromValue)"
+        let grow = SKAction.scale(to: Self.priksDigitPeakScale, duration: Self.priksDigitGrowDuration)
+        grow.timingMode = .easeOut
+        let swap = SKAction.run { [weak self] in
+            digit.text = "\(toValue)"
+            self?.priksDigitSettleStartedAt[addr] = CACurrentMediaTime()
+        }
+        let settle = SKAction.scale(to: 1.0, duration: Self.priksDigitSettleDuration)
+        settle.timingMode = .easeInEaseOut
+        let clear = SKAction.run { [weak self] in
+            self?.clearPriksDigitAnim(at: addr)
+        }
+        var steps: [SKAction] = []
+        if delay > 0.0001 {
+            steps.append(SKAction.wait(forDuration: delay))
+        }
+        steps.append(contentsOf: [grow, swap, settle, clear])
+        digit.run(SKAction.sequence(steps), withKey: Self.priksDigitAnimKey)
+    }
+
+    /// Après `drawGrid`, reprend le settle au bon point (échelle interpolée, durée restante, stagger conservé).
+    private func replayPriksDigitSettleAfterDrawGrid() {
+        let pending = priksDigitSettlePending
+        guard !pending.isEmpty,
+              let container = childNode(withName: Self.gridContainerName) else { return }
+        let now = CACurrentMediaTime()
+        for addr in pending {
+            guard case .priks(let n) = grid[addr.row][addr.col], n > 0,
+                  let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode,
+                  let digit = priksDigitLabel(on: sprite) else {
+                clearPriksDigitAnim(at: addr)
+                continue
+            }
+            if priksDigitSettleStartedAt[addr] == nil {
+                priksDigitSettleStartedAt[addr] = now
+            }
+            let elapsed = now - (priksDigitSettleStartedAt[addr] ?? now)
+            let remaining = Self.priksDigitSettleDuration - elapsed
+            guard remaining > 0.01 else {
+                digit.setScale(1)
+                digit.text = "\(n)"
+                clearPriksDigitAnim(at: addr)
+                continue
+            }
+            digit.removeAction(forKey: Self.priksDigitAnimKey)
+            digit.text = "\(n)"
+            digit.setScale(Self.priksDigitSettleScale(elapsed: elapsed))
+            let settle = SKAction.scale(to: 1.0, duration: remaining)
+            settle.timingMode = .easeInEaseOut
+            let clear = SKAction.run { [weak self] in
+                self?.clearPriksDigitAnim(at: addr)
+            }
+            digit.run(SKAction.sequence([settle, clear]), withKey: Self.priksDigitAnimKey)
+        }
+    }
+
+    private func remapPriksDigitSettlePending(_ dest: [GridAddress: GridAddress]) {
+        guard !priksDigitSettlePending.isEmpty, !dest.isEmpty else { return }
+        priksDigitSettlePending = Set(priksDigitSettlePending.map { dest[$0] ?? $0 })
+        var remappedStarts: [GridAddress: TimeInterval] = [:]
+        remappedStarts.reserveCapacity(priksDigitSettleStartedAt.count)
+        for (addr, started) in priksDigitSettleStartedAt {
+            remappedStarts[dest[addr] ?? addr] = started
+        }
+        priksDigitSettleStartedAt = remappedStarts
+    }
+
+    /// Les Brix animés ont pu remonter : on suit `fromRow` → `toRow`.
+    private func remapPriksDigitSettlePending(riseMoves: [CompactRiseMove]) {
+        guard !riseMoves.isEmpty else { return }
+        var dest: [GridAddress: GridAddress] = [:]
+        dest.reserveCapacity(riseMoves.count)
+        for move in riseMoves {
+            dest[GridAddress(row: move.fromRow, col: move.column)] =
+                GridAddress(row: move.toRow, col: move.column)
+        }
+        remapPriksDigitSettlePending(dest)
     }
 
     /// Retourne le nombre de Priks adjacents (8-voisinage) à `touchingRemovedCells` qui ont
@@ -4997,6 +5380,7 @@ final class GameScene: SKScene {
             // Grille logique encore **non compactée** : `drawGrid()` place les sprites exactement là où ils sont,
             // y compris les trous — c’est la pose de départ pour l’animation de remontée.
             self.drawGrid()
+            self.replayPriksDigitSettleAfterDrawGrid()
 
             let riseMoves = self.computeCompactRiseMovesReadingCurrentGrid()
             self.compactGridTowardTop()
@@ -5009,7 +5393,7 @@ final class GameScene: SKScene {
             }
 
             if riseMoves.isEmpty {
-                self.drawGrid()
+                // Pas de déplacement : un second `drawGrid` tuerait le settle du chiffre Brix.
                 self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                 self.finishChainWaveAfterPhysicalPhase()
                 return
@@ -5037,7 +5421,9 @@ final class GameScene: SKScene {
                     SKAction.wait(forDuration: CompactRiseAnimation.duration),
                     SKAction.run { [weak self] in
                         guard let self else { return }
+                        self.remapPriksDigitSettlePending(riseMoves: riseMoves)
                         self.drawGrid()
+                        self.replayPriksDigitSettleAfterDrawGrid()
                         self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                         self.finishChainWaveAfterPhysicalPhase()
                     },
@@ -5045,8 +5431,21 @@ final class GameScene: SKScene {
             )
         }
 
+        let compactAfterDigitGrow: (TimeInterval) -> Void = { [weak self] alreadyElapsed in
+            guard let self else { return }
+            let remaining = self.priksDigitGrowWaveDuration() - alreadyElapsed
+            if remaining <= 0.001 {
+                continueWithCompaction()
+            } else {
+                self.run(SKAction.sequence([
+                    SKAction.wait(forDuration: remaining),
+                    SKAction.run { continueWithCompaction() },
+                ]))
+            }
+        }
+
         guard !vanishedPriks.isEmpty else {
-            continueWithCompaction()
+            compactAfterDigitGrow(0)
             return
         }
 
@@ -5058,7 +5457,7 @@ final class GameScene: SKScene {
                 let floatAt = self.sceneCentroid(for: vanishedPriks)
                 self.addScore(points: bonus, chainMultiplier: 0, floatAt: floatAt)
             }
-            continueWithCompaction()
+            compactAfterDigitGrow(BrixVanishFeedback.totalDuration)
         }
     }
 
@@ -5854,6 +6253,8 @@ final class GameScene: SKScene {
     private func setupScoreHUD() {
         childNode(withName: Self.scoreHudLabelName)?.removeFromParent()
         childNode(withName: Self.bestScoreAboveName)?.removeFromParent()
+        childNode(withName: Self.bestScoreTitleName)?.removeFromParent()
+        childNode(withName: Self.hudAttackCaptionName)?.removeFromParent()
         childNode(withName: Self.bombeCaptionName)?.removeFromParent()
         childNode(withName: Self.bombeValueName)?.removeFromParent()
         childNode(withName: Self.ligneCaptionName)?.removeFromParent()
@@ -5882,6 +6283,28 @@ final class GameScene: SKScene {
         bestAboveLabel.zPosition = 12
         bestAboveLabel.isHidden = pvpCoordinator != nil
         addChild(bestAboveLabel)
+
+        let bestTitle = SKLabelNode(text: BlomixL10n.hudBestScoreTitle)
+        bestTitle.name = Self.bestScoreTitleName
+        bestTitle.fontName = Self.customUIFontPostScriptName
+        bestTitle.fontSize = 11
+        bestTitle.fontColor = grayColor14
+        bestTitle.horizontalAlignmentMode = .center
+        bestTitle.verticalAlignmentMode = .center
+        bestTitle.zPosition = 12
+        bestTitle.isHidden = pvpCoordinator != nil
+        addChild(bestTitle)
+
+        let attackCaption = SKLabelNode(text: BlomixL10n.hudAttackCaption)
+        attackCaption.name = Self.hudAttackCaptionName
+        attackCaption.fontName = Self.customUIFontPostScriptName
+        attackCaption.fontSize = 14
+        attackCaption.fontColor = grayColor14
+        attackCaption.horizontalAlignmentMode = .center
+        attackCaption.verticalAlignmentMode = .center
+        attackCaption.zPosition = 12
+        attackCaption.isHidden = pvpCoordinator == nil
+        addChild(attackCaption)
 
         // Caption "TEMPS" — label de titre partagé par le stage timer (solo) et le PvP timer.
         // La valeur numérique est portée par hudStageTimer (solo) ou hudPvPTurnTimerName (PvP).
@@ -5941,11 +6364,28 @@ final class GameScene: SKScene {
         // Best score centré au-dessus du score (solo uniquement)
         if let bestAbove = childNode(withName: Self.bestScoreAboveName) as? SKLabelNode {
             bestAbove.fontSize = 14
-            // Positionné au même endroit que le timer PvP (ils ne coexistent jamais)
             bestAbove.position = CGPoint(
                 x: gridAreaCenter.x,
                 y: label.position.y + 26 + 8 + 11
             )
+            bestAbove.isHidden = pvpCoordinator != nil
+        }
+        if let bestTitle = childNode(withName: Self.bestScoreTitleName) as? SKLabelNode {
+            bestTitle.fontSize = 11
+            bestTitle.position = CGPoint(
+                x: gridAreaCenter.x,
+                y: label.position.y + 26 + 8 + 24
+            )
+            bestTitle.isHidden = pvpCoordinator != nil
+        }
+        if let attackCap = childNode(withName: Self.hudAttackCaptionName) as? SKLabelNode {
+            attackCap.fontSize = 14
+            // Plus proche du gros score / barre (l’adversaire est au-dessus).
+            attackCap.position = CGPoint(
+                x: gridAreaCenter.x,
+                y: label.position.y + 34
+            )
+            attackCap.isHidden = pvpCoordinator == nil
         }
         // Caption "TEMPS" — positionné à droite du score (emplacement ancien compteur BOMBE)
         if let timerCaption = childNode(withName: Self.hudTimerCaptionName) as? SKLabelNode {
@@ -6375,6 +6815,7 @@ final class GameScene: SKScene {
         let entries: [(text: String, name: String)] = [
             (BlomixL10n.menuNewGame, Self.bottomMenuNewGameName),
             (BlomixL10n.menuScores, Self.bottomMenuScoresName),
+            (BlomixL10n.menuTutorial, Self.bottomMenuTutorialName),
             (BlomixL10n.menuSettings, Self.bottomMenuSettingsName),
         ]
         let panelH = CGFloat(entries.count) * rowH + 20
@@ -6421,6 +6862,7 @@ final class GameScene: SKScene {
         let names = [
             Self.bottomMenuNewGameName,
             Self.bottomMenuScoresName,
+            Self.bottomMenuTutorialName,
             Self.bottomMenuSettingsName,
         ]
         let panelH = CGFloat(names.count) * rowH + 20
@@ -6906,6 +7348,38 @@ final class GameScene: SKScene {
         return .animating
     }
 
+    private func applyTimerAimingChrome(to lbl: SKLabelNode, seconds: Int) {
+        if isBombMode {
+            lbl.fontColor = SKColor(red: 0.40, green: 0.70, blue: 0.95, alpha: 1)
+            return
+        }
+        switch seconds {
+        case 0...2: lbl.fontColor = SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
+        case 3...5: lbl.fontColor = SKColor(red: 244/255, green: 162/255, blue: 97/255, alpha: 1)
+        default:    lbl.fontColor = BlomixAppearance.primaryTextSK
+        }
+    }
+
+    private func refreshTimerCaptionForAiming() {
+        guard let cap = childNode(withName: Self.hudTimerCaptionName) as? SKLabelNode else { return }
+        cap.text = isBombMode ? BlomixL10n.hudTimeAimingCaption : BlomixL10n.hudTimeCaption
+    }
+
+    private func refreshAutoDropGhostIfNeeded() {
+        guard isInStagedSoloMode, !isStartScreen, !isGameOver, !isProcessing, !isBombMode else { return }
+        guard !ghostTouchIsLive else { return }
+        if let locked = autoDropLockedColumn, highestEmptyRow(inColumn: locked) != nil {
+            showGhostPreview(column: locked)
+            return
+        }
+        autoDropLockedColumn = autoDropPreferredColumn()
+        if let col = autoDropLockedColumn {
+            showGhostPreview(column: col)
+        } else {
+            cancelGhostPreview()
+        }
+    }
+
     /// Fait visuellement transiter `currentBlock` : preview → bas de colonne (très rapide) → montée jusqu’à la case d’empilement, puis l’inscrit dans `grid`.
     /// - Parameter column: `nil` → `selectedColumn`. Sinon colonne du tap sur la grille.
     private func dropBlock(usingColumn column: Int? = nil) {
@@ -6913,6 +7387,7 @@ final class GameScene: SKScene {
         // En mode bombe, le placement se fait exclusivement via placeBombAtCell (tap direct sur case).
         guard !isBombMode else { return }
 
+        autoDropLockedColumn = nil
         let placedKind = currentBlock
         switch placedKind {
         case .color, .priks, .magix:
@@ -7481,6 +7956,19 @@ final class GameScene: SKScene {
             },
         ]))
         sprite.run(orbitSpawner, withKey: MagixRules.orbitParticlesActionKey)
+    }
+
+    /// Preview guide (6.4) : même sprite bombe que le HUD.
+    static func makeGuideBombPreviewSprite(size: CGSize) -> SKSpriteNode {
+        makeBombShaderSprite(size: size)
+    }
+
+    /// Preview guide (6.4) : même Magix shader + halo + particules que la grille.
+    static func makeGuideMagixPreviewSprite(size: CGSize, kind: MagixKind = .chromax) -> SKSpriteNode {
+        let sprite = SKSpriteNode(texture: magixShaderBaseTexture, size: size)
+        sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        applyMagixShader(to: sprite, size: size, kind: kind, symbolLabelName: "guideMagixSymbol")
+        return sprite
     }
 
     /// Crée un sprite bombe MAGIX-style autonome (shader + biseau + halo + particules).
@@ -8567,6 +9055,7 @@ final class GameScene: SKScene {
 
         // ── 2. −1 sur tous les Brix de la grille (avant l'animation de décalage).
         var vanishedBrixAddrs = Set<GridAddress>()
+        var decrementing: [(addr: GridAddress, fromValue: Int, toValue: Int)] = []
         for r in GridLayout.topRowIndex..<GridLayout.rowCount {
             for c in 0..<GridLayout.columnCount {
                 guard case .priks(let n) = grid[r][c] else { continue }
@@ -8575,6 +9064,7 @@ final class GameScene: SKScene {
                     vanishedBrixAddrs.insert(GridAddress(row: r, col: c))
                 } else {
                     grid[r][c] = .priks(n - 1)
+                    decrementing.append((GridAddress(row: r, col: c), n, n - 1))
                 }
             }
         }
@@ -8608,8 +9098,9 @@ final class GameScene: SKScene {
             return
         }
 
-        // Mise à jour visuelle des Brix dans le container existant (avant l'animation).
-        // Brix disparus : trou visuel gris (préfixe scrumblx_hole_, pas cell_). Brix survivants : label mis à jour.
+        // Mise à jour visuelle des Brix dans le container existant (avant le décalage).
+        // Brix disparus : trou visuel gris (préfixe scrumblx_hole_, pas cell_).
+        // Survivants : anim chiffre −1 (grow/swap) ; le settle continue pendant le slide.
         // Sons staggerés pour les Brix qui disparaissent à cause du SCRUMBLX (−1 → 0).
         let sortedVanished = vanishedBrixAddrs.sorted { a, b in
             a.row != b.row ? a.row < b.row : a.col < b.col
@@ -8639,13 +9130,10 @@ final class GameScene: SKScene {
                         slot.zPosition = 0
                         container.addChild(slot)
                     }
-                } else if case .priks(let newN) = grid[r][c],
-                          let bg = container.childNode(withName: nodeName),
-                          let lbl = bg.children.first(where: { $0 is SKLabelNode }) as? SKLabelNode {
-                    lbl.text = "\(newN)"
                 }
             }
         }
+        playStaggeredPriksDigitDecrements(decrementing)
 
         // ── Clip visuel : on enveloppe le container dans un SKCropNode masqué à la taille exacte
         //    de la grille. Aucun sprite ne peut apparaître en dehors quelle que soit l'animation.
@@ -8675,6 +9163,8 @@ final class GameScene: SKScene {
         addChild(cropWrapper)
 
         let flashDur: TimeInterval = 0.18
+        // Le mélange attend le dernier swap de chiffre (et au moins le flash SCRUMBLX).
+        let preShiftHold = max(flashDur, priksDigitGrowWaveDuration())
         if let scrumblxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
             let landingPos = scrumblxSprite.position
             // Renommer immédiatement pour que le loop de décalage de ligne ne le trouve pas
@@ -8727,7 +9217,7 @@ final class GameScene: SKScene {
         let half      = GridLayout.spanPoints / 2   // demi-largeur du container
 
         for (shiftIdx, shift) in shifts.enumerated() {
-            let lineStartDelay = flashDur + Double(shiftIdx) * rowGap
+            let lineStartDelay = preShiftHold + Double(shiftIdx) * rowGap
 
             for step in 1...shift.steps {
                 let stepDelay        = lineStartDelay + Double(step - 1) * cranDur
@@ -8803,10 +9293,10 @@ final class GameScene: SKScene {
         // Une ligne plus haute avec plus de crans finissait **après** ce délai → drawGrid +
         // compaction trop tôt → 1–2 blocs restaient visuellement bas / non remontés.
         let lastShiftEnd: TimeInterval = {
-            guard !shifts.isEmpty else { return flashDur }
+            guard !shifts.isEmpty else { return preShiftHold }
             return shifts.enumerated().map { idx, shift in
-                flashDur + Double(idx) * rowGap + Double(shift.steps) * cranDur
-            }.max() ?? flashDur
+                preShiftHold + Double(idx) * rowGap + Double(shift.steps) * cranDur
+            }.max() ?? preShiftHold
         }()
 
         run(SKAction.sequence([
@@ -8849,8 +9339,20 @@ final class GameScene: SKScene {
                 self.addChild(container)
                 // Retire les trous visuels SCRUMBLX : seuls les vrais blocs (`cell_*`) servent à la compaction.
                 self.removeScrumblxHolePlaceholders(in: container)
+                // Les chiffres −1 ont bougé avec leur sprite : suivre le wrap de colonne.
+                var digitDest: [GridAddress: GridAddress] = [:]
+                for shift in shifts {
+                    let delta = shift.direction * shift.steps
+                    for c in 0..<cols {
+                        let from = GridAddress(row: shift.row, col: c)
+                        let toCol = ((c + delta) % cols + cols) % cols
+                        digitDest[from] = GridAddress(row: shift.row, col: toCol)
+                    }
+                }
+                self.remapPriksDigitSettlePending(digitDest)
                 // Rebuild propre depuis la grille logique finale (positions exactes pré-compaction).
                 self.drawGrid()
+                self.replayPriksDigitSettleAfterDrawGrid()
                 self.applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
             },
         ]))
@@ -8881,10 +9383,12 @@ final class GameScene: SKScene {
     /// Utilisé après les effets BRIXED (les Brix disparaissent mais ne forment pas une chaîne ordinaire).
     private func applyMagixCompactionAndContinue(columnHadBlockBefore: [Bool], onLanded: (() -> Void)? = nil) {
         let riseMoves = computeCompactRiseMovesReadingCurrentGrid()
+        remapPriksDigitSettlePending(riseMoves: riseMoves)
         compactGridTowardTop()
 
         guard let container = childNode(withName: Self.gridContainerName) else {
             drawGrid()
+            replayPriksDigitSettleAfterDrawGrid()
             awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
             finishChainWaveAfterPhysicalPhase()
             onLanded?()
@@ -8893,6 +9397,7 @@ final class GameScene: SKScene {
 
         if riseMoves.isEmpty {
             drawGrid()
+            replayPriksDigitSettleAfterDrawGrid()
             awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
             finishChainWaveAfterPhysicalPhase()
             onLanded?()
@@ -8916,6 +9421,7 @@ final class GameScene: SKScene {
             SKAction.run { [weak self] in
                 guard let self else { return }
                 self.drawGrid()
+                self.replayPriksDigitSettleAfterDrawGrid()
                 self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                 self.finishChainWaveAfterPhysicalPhase()
                 onLanded?()
@@ -9158,6 +9664,14 @@ final class GameScene: SKScene {
             bombCount -= 1
             updateBombHUD()
         }
+        refreshTimerCaptionForAiming()
+        if let pvpLbl = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode,
+           let text = pvpLbl.text, let sec = Int(text.replacingOccurrences(of: "s", with: "")) {
+            applyTimerAimingChrome(to: pvpLbl, seconds: sec)
+        }
+        if let soloLbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode {
+            applyTimerAimingChrome(to: soloLbl, seconds: stageTimerSecondsRemaining)
+        }
         updatePreviewSprite()
         refreshUpcomingQueueSlots()
         updateHintButton()
@@ -9168,6 +9682,14 @@ final class GameScene: SKScene {
         for name in [Self.bombHudIconName, Self.bombHudCountLabelName] {
             guard let node = childNode(withName: name) else { continue }
             union = union.union(node.calculateAccumulatedFrame())
+        }
+        if union.isNull { return false }
+        let minSide: CGFloat = 44
+        if union.width < minSide {
+            union = union.insetBy(dx: -(minSide - union.width) / 2, dy: 0)
+        }
+        if union.height < minSide {
+            union = union.insetBy(dx: 0, dy: -(minSide - union.height) / 2)
         }
         return union.contains(locationInScene)
     }
@@ -11012,7 +11534,7 @@ final class GameScene: SKScene {
             grid[row][col] = .empty
         }
 
-        let vanishedPriks = applyPriksAdjacentDecrement(touchingRemovedCells: winningCells)
+        let vanishedPriks = applyPriksAdjacentDecrement(touchingRemovedCells: winningCells, animated: false)
         if !vanishedPriks.isEmpty {
             addScoreSynchronously(points: vanishedPriks.count * 20, chainMultiplier: 0)
         }
@@ -11188,6 +11710,11 @@ final class GameScene: SKScene {
         guard !isGameOver else { return nil }
         if wasProcessing {
             refreshVisualStateAfterSoloSaveStabilization()
+            if isInStagedSoloMode, !isStartScreen, !isGameOver {
+                let maxT = currentStageConfig.timerSeconds
+                stageTimerSecondsRemaining = max(1, min(stageTimerSecondsRemaining, maxT))
+                resumeStageTimerKeepingRemaining()
+            }
         }
         return BlomixSoloGameSave(
             version: BlomixSoloGameSave.currentVersion,
@@ -11295,8 +11822,10 @@ final class GameScene: SKScene {
         if !isZenMode {
             ensureStageTimerHUD()
             layoutStageTimerHUD()
+            let maxT = currentStageConfig.timerSeconds
+            stageTimerSecondsRemaining = max(1, min(save.stageTimerSecondsRemaining, maxT))
             updateStageTimerHUD()
-            restartStageTimer()
+            resumeStageTimerKeepingRemaining()
         }
 
         soundBank.play(.begin)
@@ -11680,13 +12209,8 @@ final class GameScene: SKScene {
         guard let lbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode else { return }
         lbl.text    = "\(stageTimerSecondsRemaining)s"
         lbl.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
-        // Couleur urgence
-        switch stageTimerSecondsRemaining {
-        case 0...2: lbl.fontColor = SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
-        case 3...5: lbl.fontColor = SKColor(red: 244/255, green: 162/255, blue: 97/255, alpha: 1)
-        default:    lbl.fontColor = BlomixAppearance.primaryTextSK
-        }
-        // Synchronise la visibilité de la caption "TEMPS"
+        applyTimerAimingChrome(to: lbl, seconds: stageTimerSecondsRemaining)
+        refreshTimerCaptionForAiming()
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = lbl.isHidden
     }
 
@@ -11763,6 +12287,7 @@ final class GameScene: SKScene {
     /// Redémarre le timer depuis la durée complète du stage courant.
     func restartStageTimer() {
         guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
+        autoDropLockedColumn = nil
         removeAction(forKey: Self.stageTimerActionKey)
         stageTimerSecondsRemaining = currentStageConfig.timerSeconds
         updateStageTimerHUD()
@@ -11822,10 +12347,16 @@ final class GameScene: SKScene {
         guard !isProcessing, !isInjectingBottomRandomLine, !isBombMode else { return }
         stageTimerSecondsRemaining -= 1
         updateStageTimerHUD()
+        if stageTimerSecondsRemaining <= 2, stageTimerSecondsRemaining > 0 {
+            refreshAutoDropGhostIfNeeded()
+        }
         if stageTimerSecondsRemaining <= 0 {
-            // Auto-drop dans la colonne la plus libre disponible
+            // Auto-drop dans la colonne figée (ghost) ou heuristique de secours
             stopStageTimer()
-            if let col = autoDropPreferredColumn() {
+            let col = autoDropLockedColumn ?? autoDropPreferredColumn()
+            autoDropLockedColumn = nil
+            cancelGhostPreview()
+            if let col {
                 selectedColumn = col
                 updatePreviewSprite()
                 hapticSoft()
@@ -12690,16 +13221,41 @@ final class GameScene: SKScene {
 
     // MARK: - In-app update banner
 
+    /// Ancre bas de l’accueil : conseils du jour, remplacés par la bannière de MAJ si besoin.
+    private func startScreenTipAnchorY() -> CGFloat { size.height * 0.10 }
+
     /// Lance la vérification (une seule fois par session) et affiche la bannière si une MAJ est dispo.
     private func checkAndShowUpdateBannerIfNeeded(in overlay: SKNode) {
+        if updateBannerDismissedThisSession { return }
+        if let version = updateAvailableVersion, updateStoreURL != nil {
+            showUpdateBanner(version: version, in: overlay)
+            return
+        }
         guard !didCheckForUpdate else { return }
         didCheckForUpdate = true
         Task { @MainActor [weak self, weak overlay] in
             guard let self, let overlay, overlay.parent != nil else { return }
+            guard !self.updateBannerDismissedThisSession else { return }
             guard let info = await Self.fetchAppStoreUpdateInfo() else { return }
             self.updateStoreURL = info.storeURL
+            self.updateAvailableVersion = info.version
             self.showUpdateBanner(version: info.version, in: overlay)
         }
+    }
+
+    private func hideStartScreenTipsForUpdateBanner(in overlay: SKNode) {
+        guard let tips = overlay.childNode(withName: Self.startScreenTipContainerName) else { return }
+        tips.removeAllActions()
+        tips.alpha = 0
+        tips.isHidden = true
+    }
+
+    private func revealStartScreenTipsAfterUpdateBanner(in overlay: SKNode) {
+        guard let tips = overlay.childNode(withName: Self.startScreenTipContainerName) else { return }
+        tips.isHidden = false
+        tips.removeAllActions()
+        tips.alpha = 0
+        tips.run(SKAction.fadeIn(withDuration: 0.35))
     }
 
     /// Appelle l'iTunes Lookup API et retourne (version, URL) si une version plus récente est dispo.
@@ -12718,18 +13274,18 @@ final class GameScene: SKScene {
         return (storeVersion, storeURL)
     }
 
-    /// Ajoute la bannière de mise à jour en bas de l'overlay de l'écran d'accueil.
+    /// Bannière de mise à jour : prend le slot des conseils du jour (les conseils sont masqués).
     private func showUpdateBanner(version: String, in overlay: SKNode) {
         overlay.childNode(withName: Self.updateBannerName)?.removeFromParent()
+        hideStartScreenTipsForUpdateBanner(in: overlay)
 
         let bannerW: CGFloat = size.width - 48
-        let bannerH: CGFloat = 54
-        let bannerY: CGFloat = 26
+        let bannerH: CGFloat = 58
 
         let banner = SKNode()
         banner.name      = Self.updateBannerName
-        banner.position  = CGPoint(x: size.width / 2, y: bannerY)
-        banner.zPosition = 10
+        banner.position  = CGPoint(x: size.width / 2, y: startScreenTipAnchorY())
+        banner.zPosition = 30
         overlay.addChild(banner)
 
         let bg = SKShapeNode(rectOf: CGSize(width: bannerW, height: bannerH), cornerRadius: 10)
@@ -12741,7 +13297,7 @@ final class GameScene: SKScene {
 
         let textLabel = SKLabelNode(text: BlomixL10n.updateBannerAvailable(version))
         textLabel.fontName              = Self.customUIFontPostScriptName
-        textLabel.fontSize              = 15
+        textLabel.fontSize              = 16
         textLabel.fontColor             = BlomixAppearance.primaryTextSK
         textLabel.horizontalAlignmentMode = .left
         textLabel.verticalAlignmentMode   = .center
@@ -12760,20 +13316,15 @@ final class GameScene: SKScene {
         closeLabel.zPosition = 1
         banner.addChild(closeLabel)
 
-        // Animation de "respiration" : oscillation subtile de scale, démarre après le fade-in.
         let breathe = SKAction.repeatForever(SKAction.sequence([
             SKAction.scale(to: 1.04, duration: 1.1),
             SKAction.scale(to: 1.00, duration: 1.1),
         ]))
-        // Les deux phases ont un timing doux pour une pulsation naturelle.
-        let fadeInThenBreathe = SKAction.sequence([
-            SKAction.wait(forDuration: 0.6),
-            SKAction.fadeIn(withDuration: 0.4),
-            SKAction.run { banner.run(breathe, withKey: "breathe") },
-        ])
-
         banner.alpha = 0
-        banner.run(fadeInThenBreathe)
+        banner.run(SKAction.sequence([
+            SKAction.fadeIn(withDuration: 0.35),
+            SKAction.run { banner.run(breathe, withKey: "breathe") },
+        ]))
     }
 
     // MARK: - Entrées utilisateur (tactile)
@@ -12825,6 +13376,9 @@ final class GameScene: SKScene {
                     guard let self else { return }
                     self.dismissQuitConfirmOverlay()
                     ScoreManager.shared.recordGameScore(self.score)
+                    if self.pvpCoordinator == nil, !self.isGameOver {
+                        self.saveCurrentSoloGameState()
+                    }
                     self.unwindToStartScreen()
                 }
             } else {
@@ -12842,6 +13396,8 @@ final class GameScene: SKScene {
                 if bannerFrame.contains(location) {
                     if location.x > bannerFrame.maxX - 44 {
                         banner.removeFromParent()
+                        updateBannerDismissedThisSession = true
+                        revealStartScreenTipsAfterUpdateBanner(in: overlay)
                     } else if let url = updateStoreURL {
                         UIApplication.shared.open(url)
                     }
@@ -12850,7 +13406,7 @@ final class GameScene: SKScene {
             }
 
             if touchHitsStartScreenZenButton(location) {
-                pendingButtonAction = { [weak self] in self?.beginZenModeFromStartScreen() }
+                pendingButtonAction = { [weak self] in self?.confirmAbandonHomeSaveThen { self?.beginZenModeFromStartScreen() } }
                 return
             }
             if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscSoloName) {
@@ -12882,11 +13438,15 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsStartScreenPvPButton(location) {
-                pendingButtonAction = { [weak self] in self?.showPvPLobby() }
+                pendingButtonAction = { [weak self] in self?.confirmAbandonHomeSaveThen { self?.showPvPLobbyAfterAbandoningSave() } }
                 return
             }
             if touchHitsStartScreenTutorialLink(location) {
-                pendingButtonAction = { [weak self] in self?.startTutorialGameWithIntro() }
+                pendingButtonAction = { [weak self] in self?.showRulesGuide() }
+                return
+            }
+            if touchHitsStartScreenNewGameLink(location) {
+                pendingButtonAction = { [weak self] in self?.confirmNewGameFromHome() }
                 return
             }
             if touchHitsStartScreenCreditsLink(location) {
@@ -12894,7 +13454,7 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsStartButton(location) {
-                pendingButtonAction = { [weak self] in self?.beginNewMatchFromStartScreen() }
+                pendingButtonAction = { [weak self] in self?.performStartScreenHeroAction() }
             }
             return
         }
@@ -12942,7 +13502,12 @@ final class GameScene: SKScene {
             }
             if touchHitsOverflowMenuItem(named: Self.bottomMenuScoresName, scenePoint: location) {
                 closeGameOverflowMenu(resumeTimer: false)
-                pendingButtonAction = { [weak self] in self?.showLeaderboard() }
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: self?.leaderboardTabForCurrentMode() ?? .mainScore) }
+                return
+            }
+            if touchHitsOverflowMenuItem(named: Self.bottomMenuTutorialName, scenePoint: location) {
+                closeGameOverflowMenu(resumeTimer: false)
+                pendingButtonAction = { [weak self] in self?.showRulesGuide() }
                 return
             }
             if touchHitsOverflowMenuItem(named: Self.bottomMenuSettingsName, scenePoint: location) {
@@ -13949,11 +14514,13 @@ final class GameScene: SKScene {
         // La caption "TEMPS" reste visible en PvP (partagée avec le stage timer)
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = pvpCoordinator == nil
         childNode(withName: Self.bestScoreAboveName)?.isHidden = pvpCoordinator != nil
+        childNode(withName: Self.bestScoreTitleName)?.isHidden = pvpCoordinator != nil
+        childNode(withName: Self.hudAttackCaptionName)?.isHidden = pvpCoordinator == nil
         refreshAttackPileHUD()
         if let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode {
             blomixPvP_refreshOpponentHudLabel()
             let scoreY = scoreLbl.position.y
-            opponentLabel.position = CGPoint(x: gridAreaCenter.x, y: scoreY + 34)
+            opponentLabel.position = CGPoint(x: gridAreaCenter.x, y: scoreY + 58)
             opponentLabel.isHidden = pvpCoordinator == nil
         }
     }
@@ -13978,11 +14545,8 @@ final class GameScene: SKScene {
         ensurePvPTurnCountdownLabelIfNeeded()
         guard let lbl = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode else { return }
         lbl.text = "\(seconds)s"
-        switch seconds {
-        case 0...2: lbl.fontColor = SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
-        case 3...5: lbl.fontColor = SKColor(red: 244/255, green: 162/255, blue: 97/255, alpha: 1)
-        default:    lbl.fontColor = BlomixAppearance.primaryTextSK
-        }
+        applyTimerAimingChrome(to: lbl, seconds: seconds)
+        refreshTimerCaptionForAiming()
     }
 
     func blomixPvP_shouldRunTurnTimer() -> Bool {

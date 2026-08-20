@@ -1,0 +1,6 @@
+• Guide des règles et des Magix, rejouable depuis l’accueil et le menu
+• Accueil plus clair : Continuer une partie, Découvrir ou Arcade — plus de reprise surprise
+• Confirmation avant d’abandonner une partie sauvegardée (Zen, Duel ou Nouvelle partie)
+• Duel : jauge d’attaque plus lisible
+• Visée bombe plus confortable ; le chrono gelé s’affiche
+• Compteurs Brix plus nets

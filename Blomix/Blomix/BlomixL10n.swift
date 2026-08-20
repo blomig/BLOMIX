@@ -21,10 +21,10 @@ enum BlomixL10n {
     static var loading: String { tr("common.loading", comment: "Generic loading label") }
 
     static var quitConfirmTitle:   String { tr("quit_confirm.title",   comment: "Alert: quit solo game?") }
-    static var quitConfirmMessage: String { tr("quit_confirm.message", comment: "Alert: score counted in average (solo staged)") }
-    /// Message de sortie en mode Zen (pas de moyenne ; score non soumis si abandon).
+    static var quitConfirmMessage: String { tr("quit_confirm.message", comment: "Alert: game can be resumed from home") }
+    /// Message de sortie Zen (même idée : reprise depuis l’accueil).
     static var quitConfirmMessageZen: String {
-        tr("quit_confirm.message_zen", comment: "Alert: score will not be saved (Zen quit)")
+        tr("quit_confirm.message_zen", comment: "Alert: game can be resumed from home (Zen)")
     }
     static var quitConfirmQuit:    String { tr("quit_confirm.quit",    comment: "Alert: confirm quit button") }
 
@@ -32,6 +32,21 @@ enum BlomixL10n {
 
     static var gameTagline: String { tr("game.tagline", comment: "Subtitle under BLOMIX title") }
     static var startButton: String { tr("start.button", comment: "Start game on welcome screen") }
+    static var startContinue: String { tr("start.continue", comment: "Home hero — resume saved Arcade/Zen") }
+    static var startDiscover: String { tr("start.discover", comment: "Home hero — first launch tutorial") }
+    static var startNewGameLink: String { tr("start.new_game", comment: "Home — start a fresh game, wipes save") }
+    static var startNewGameConfirmTitle: String { tr("start.new_game_confirm_title", comment: "Confirm wipe saved game") }
+    static var startNewGameConfirmMessage: String { tr("start.new_game_confirm_message", comment: "Confirm wipe saved game body") }
+    static var startAbandonSaveTitle: String { tr("start.abandon_save_title", comment: "Home — leave saved game for Zen/Duel") }
+    static var startAbandonSaveMessage: String { tr("start.abandon_save_message", comment: "Home — confirm losing saved Arcade/Zen") }
+    static var startAbandonSaveConfirm: String { tr("start.abandon_save_confirm", comment: "Home — proceed anyway") }
+    static var startHeroModeArcade: String { tr("start.hero_mode_arcade", comment: "Tiny subtitle under Continuer") }
+    static var startHeroModeZen: String { tr("start.hero_mode_zen", comment: "Tiny subtitle under Continuer") }
+    static var homeIconSettings: String { tr("home.icon.settings", comment: "8pt caption under home settings icon") }
+    static var homeIconTutorial: String { tr("home.icon.tutorial", comment: "8pt caption under home tutorial icon") }
+    static var homeIconTheme: String { tr("home.icon.theme", comment: "8pt caption under home theme toggle") }
+    static var homeIconShare: String { tr("home.icon.share", comment: "8pt caption under home share icon") }
+    static var homeIconCredits: String { tr("home.icon.credits", comment: "8pt caption under home credits icon") }
     static var settings: String { tr("start.settings", comment: "Settings link on welcome") }
     static var credits: String { tr("start.credits", comment: "Credits link on welcome") }
     static var zenButton: String { tr("start.zen", comment: "Zen mode button on welcome screen") }
@@ -70,6 +85,7 @@ enum BlomixL10n {
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
     static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under placement-quality % on game over (justesse / placement)") }
+    static var gameOverOptimalityExcludes: String { tr("game_over.optimality_excludes", comment: "Game over — optimality ignores Magix and bombs") }
     static func gameOverMoveStats(excellent: Int, mistakes: Int) -> String {
         String(format: tr("game_over.move_stats_format", comment: "%lld excellent, %lld mistakes"), excellent, mistakes)
     }
@@ -89,7 +105,9 @@ enum BlomixL10n {
     static var hudNextLine: String { tr("hud.next_line", comment: "Progress HUD label") }
     static var hudNextBomb: String { tr("hud.next_bomb", comment: "Bomb progress HUD label") }
     static var hudTimeCaption: String { tr("hud.time_caption", comment: "HUD timer caption (solo stage / PvP)") }
+    static var hudTimeAimingCaption: String { tr("hud.time_aiming_caption", comment: "HUD timer caption while bomb aim is active") }
     static var hudLineCaption: String { tr("hud.line_caption", comment: "HUD incoming-line counter caption") }
+    static var hudAttackCaption: String { tr("hud.attack_caption", comment: "Duel HUD — 0…50 attack meter caption") }
 
     static var gcStatusChecking: String { tr("gc.status.checking", comment: "Game Center HUD before known state") }
     static var gcStatusOk: String { tr("gc.status.ok", comment: "Game Center authenticated") }
@@ -117,6 +135,13 @@ enum BlomixL10n {
             format: tr("credits.version_format", comment: "Credits version; %@ marketing, %@ build"),
             marketing, build
         )
+    }
+
+    static var creditsReviewHint: String {
+        tr("credits.review_hint", comment: "Credits — why a store review helps")
+    }
+    static var creditsReviewButton: String {
+        tr("credits.review_button", comment: "Credits — open App Store write-review")
     }
 
     /// Sections structurées de l’écran Crédits (titres + lignes corps).
@@ -334,6 +359,9 @@ enum BlomixL10n {
     }
     static var pvpAvailableInviteAppOpenHint: String {
         tr("pvp.available_invite_app_open_hint", comment: "Mode A — invitation is in-app only, peer must have BLOMIX open")
+    }
+    static var pvpChallengeKeepAppOpen: String {
+        tr("pvp.challenge_keep_app_open", comment: "Incoming challenge banner — stay in app, 60 s")
     }
     static func pvpLobbyActivePlayersHint(_ count: Int) -> String {
         String(format: tr("pvp.lobby_active_players_hint_format", comment: "PvP lobby — active player count hint"), count)
@@ -590,6 +618,46 @@ enum BlomixL10n {
     static var pvpAvailabilitySending: String { tr("pvp.availability_sending", comment: "PvP lobby — publishing availability to CloudKit") }
     static func pvpAvailabilityCloudKitError(_ message: String) -> String {
         String(format: tr("pvp.availability_cloudkit_error_format", comment: "CloudKit publish error; %@ = message"), message)
+    }
+
+    // MARK: - Guide règles (modal 6.4)
+
+    static var guideTitle: String { tr("guide.title", comment: "Rules / Magix guide screen title") }
+    static var guideReplayTutorial: String { tr("guide.replay_tutorial", comment: "Guide footer — replay interactive tutorial") }
+    static var guideMagixIntro: String {
+        tr("guide.section.magix.intro", comment: "Guide — Magix never in Duel or incoming lines")
+    }
+    static var guideSections: [BlomixCreditsSection] {
+        [
+            BlomixCreditsSection(
+                title: tr("guide.section.blox.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.blox.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.brix.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.brix.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.line.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.line.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.bombs.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.bombs.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.magix.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.magix.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.score.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.score.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.duel.title", comment: "Guide section title"),
+                lines: bodyLines(tr("guide.section.duel.body", comment: "Guide section body"))
+            ),
+        ]
     }
 
     // MARK: - Generic

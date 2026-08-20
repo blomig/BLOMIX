@@ -58,12 +58,23 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 | Fonction d'évaluation / récap | `EVAL.md` |
 | Nouveau terme ou renommage | `GLOSSARY.md` |
 | Nouvelle clé UI ou langue | `LOCALIZATION.md` + `BlomixL10n.swift` |
-| Release App Store / version Xcode | `CHANGELOG.md` + `MARKETING_VERSION` |
+| Release App Store / version Xcode | `CHANGELOG.md` + `MARKETING_VERSION` + **`store/whats-new/` (5 langues)** |
 | Nouveau document | `docs/README.md` + `README.md` (racine) |
 
 ### Version de référence
 
-Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **6.3**). La mettre à jour lors d'une release majeure.
+Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **6.4**). La mettre à jour lors d'une release majeure.
+
+### Nouveautés App Store (systématique à la release)
+
+À chaque **nouvelle version marketing**, le lot n’est pas fini sans les 5 fichiers `store/whats-new/` :
+
+1. Rédiger les puces **joueur** (FR), puis **EN, DE, ES, IT** — même ordre, même nombre.
+2. Ne pas coller le `CHANGELOG.md` (trop technique). Noms Magix **non traduits**.
+3. L’humain copie-colle dans App Store Connect (le champ Nouveautés est vide). Rien n’est lu depuis l’IPA.
+
+Procédure : [LOCALIZATION.md](LOCALIZATION.md) + `store/whats-new/README.md`.  
+Si un lot ultérieur change encore le bénéfice joueur de **cette** version : mettre à jour les **5** fichiers tout de suite.
 
 ---
 
@@ -98,6 +109,7 @@ Nommer les imagesets de façon explicite (`red_new`, `magix`, `bomb_new`…). Do
 - [ ] Test manuel du flux concerné (solo / Zen / PvP selon le cas)
 - [ ] Documentation mise à jour si le comportement change
 - [ ] `CHANGELOG.md` mis à jour si release
+- [ ] `store/whats-new/` FR+EN+DE+ES+IT si nouvelle version marketing
 - [ ] Pas de fichiers locaux commités (`.DS_Store`, `xcuserdata/`)
 
 ---

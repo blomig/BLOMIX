@@ -4,7 +4,7 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 6.3 (build 117) |
+| **Version** | 6.4 (build 119) |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
 | **Langues** | Français, Anglais, Allemand, Espagnol, Italien |
@@ -37,6 +37,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, debug, conventions de code |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
+| [docs/SPEC_6.4.md](docs/SPEC_6.4.md) | Cahier 6.4 (build 118) |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Conventions de contribution et maintenance doc |
 
 Politique de confidentialité : [docs/privacy-policy.html](docs/privacy-policy.html)
@@ -51,6 +52,7 @@ BLOMIX/
 │   ├── Blomix.xcodeproj
 │   └── Blomix/             # Sources Swift, assets, localisation
 ├── docs/                   # Documentation
+├── store/whats-new/        # Nouveautés App Store Connect (hors bundle)
 ├── icones_app/             # Icônes et visuels marketing
 ├── Palette couleur/        # Références couleurs
 └── old_web_code/           # Ancienne version web (archive)

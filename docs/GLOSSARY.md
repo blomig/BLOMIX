@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 6.3
+> **Version de référence** : 6.4
 
 ---
 

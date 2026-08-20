@@ -7,7 +7,34 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.3] — 2026-08 (courant)
+## [6.4] — 2026-08 (courant)
+
+Build **119**. Cahier : [SPEC_6.4.md](SPEC_6.4.md).
+
+### Ajouté
+- **Guide** règles + Magix (modal chrome) ; icône livre et ☰ Tutoriel ; Rejouer le tuto
+- Accueil : hero **Continuer** + mode / **Découvrir** / Arcade ; lien **Nouvelle partie**
+- HUD Duel caption **attaque** ; légende RECORD au-dessus du best ; justesse « hors Magix et bombes »
+- Ghost auto-drop figé à ≤ 2 s ; flash Brix −1 ; visée bombe HUD ≥ 44 pt
+- Poll roster Récents / Elo (peer déjà connected) ; bannière défi plus visible
+
+### Modifié
+- Plus de saut auto dans une save au lancement
+- Reprise Arcade : timer = secondes restantes
+- Gel bombe Duel **affiché** (caption visée)
+
+### Modifié (119)
+- Accueil : Zen / Duel avec une save Arcade ou Zen → dialog « Tu vas perdre la partie sauvegardée »
+
+### Ajouté (119)
+- Demande d’avis App Store : prompt système au GO (≥ 3 parties Arcade/Zen, 1× par version) ; bouton chrome **Laisser un avis** dans Crédits
+
+### Version
+- Marketing **6.4**, build **119**
+
+---
+
+## [6.3] — 2026-08
 
 Build **117**.
 

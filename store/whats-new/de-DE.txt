@@ -1,0 +1,6 @@
+• Leitfaden zu Regeln und Magix — jederzeit vom Startbildschirm oder Menü
+• Klarerer Start: Weiterspielen, Entdecken oder Arcade — kein überraschendes Fortsetzen
+• Nachfrage, bevor ein gespeichertes Spiel verlassen wird (Zen, Duell oder Neues Spiel)
+• Duell: besser ablesbare Angriffsanzeige
+• Bequemeres Bombenzielen; der angehaltene Timer ist sichtbar
+• Deutlicheres Brix-Countdown-Feedback

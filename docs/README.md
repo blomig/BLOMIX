@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 6.3  
+> **Version de référence** : 6.4  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -32,6 +32,7 @@
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Build, debug, tests manuels, conventions |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Conventions de contribution et maintenance doc |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| [SPEC_6.4.md](SPEC_6.4.md) | Cahier 6.4 / build 118 (accueil, HUD, guide) |
 | [privacy-policy.html](privacy-policy.html) | Politique de confidentialité (FR/EN) |
 
 ---
@@ -56,7 +57,8 @@
 | Développeur rejoignant le projet | `DEVELOPMENT.md` → `PROJECT_CONTEXT.md` |
 | Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `GLOSSARY.md` |
 | Traducteur | `LOCALIZATION.md` → `GLOSSARY.md` |
-| Mainteneur / release | `CHANGELOG.md` → `CONTRIBUTING.md` |
+| Mainteneur / release | `CHANGELOG.md` → `store/whats-new/` → `CONTRIBUTING.md` |
+| Prochaine version (6.4) | `SPEC_6.4.md` |
 
 ---
 

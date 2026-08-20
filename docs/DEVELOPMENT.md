@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 6.3  
+> **Version de référence** : 6.4  
 > **Dernière mise à jour** : août 2026
 
 ---
@@ -30,8 +30,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 6.3 |
-| `CURRENT_PROJECT_VERSION` | 117 |
+| `MARKETING_VERSION` | 6.4 |
+| `CURRENT_PROJECT_VERSION` | 119 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
@@ -150,5 +150,16 @@ Lors d'une évolution majeure du gameplay, mettre à jour **en priorité** :
 4. `EVAL.md` si la fonction d'évaluation change
 5. `GLOSSARY.md` si un terme est ajouté ou renommé
 6. `CHANGELOG.md` à chaque release
+7. `store/whats-new/` (5 langues) à chaque **version marketing**
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nommage.
+
+---
+
+## Nouveautés App Store Connect
+
+Le champ **Nouveautés** n’est **pas** lu dans l’IPA. Source de vérité : `store/whats-new/` (`en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`).
+
+**Systématique** à chaque `MARKETING_VERSION` : rédiger FR puis traduire EN/DE/ES/IT dans le même lot que le CHANGELOG. Ensuite coller dans ASC (champ vide ; description et captures recopiées).
+
+Détail : `store/whats-new/README.md` et [LOCALIZATION.md](LOCALIZATION.md).

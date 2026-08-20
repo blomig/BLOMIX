@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.3  
+> **Version de référence** : 6.4  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : août 2026
 
@@ -283,7 +283,10 @@ Animation texte (identique au `+N`) :
 
 ### 4.1 Décrément (compteur > 0)
 
-- Mise à jour label uniquement (pas d'animation dédiée)
+- Le **bloc** ne bouge pas (pas de scale / colorize).
+- Le **chiffre** : ×1,0 → ×**1,3** en **0,12 s** (`easeOut`) ; **au pic** le texte passe à −1 ; retour ×1,0 en **0,60 s** (`easeInEaseOut`). Pas de SFX.
+- Plusieurs Brix dans la même vague : stagger **0,04 s**/chiffre, ordre `(ligne, colonne)` (même famille que la dissolution). Le compactage attend le dernier swap.
+- **SCRUMBLX** : même anim, **avant** le décalage des lignes (`max(flash 0,18 s, dernier swap)`). Le settle peut continuer pendant le slide.
 
 ### 4.2 Disparition (`animateVanishingPriks`)
 
@@ -385,10 +388,10 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 | | |
 |---|---|
-| **Visuel** | Flash blanc sprite ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
+| **Visuel** | Flash blanc sprite ; **chiffres Brix −1** (même anim §4.1) avant le mélange ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
 | **Logique** | −1 tous Brix avant shift |
 | **Audio** | `scrumblx` + `priksVanish` staggeré pour Brix à 0 |
-| **Fin d’anim** | Attente = **max** sur toutes les lignes de `flash + idx×0,3 + steps×0,08` (pas seulement la dernière ligne) ; réapplication idempotente des shifts depuis snapshot pré-décalage ; `drawGrid` puis compaction vers le haut |
+| **Fin d’anim** | Attente = **max** sur toutes les lignes de `preShiftHold + idx×0,3 + steps×0,08` (`preShiftHold = max(flash 0,18 s, dernier swap chiffre)`) ; réapplication idempotente des shifts depuis snapshot pré-décalage ; `drawGrid` puis compaction vers le haut |
 | **Suite** | compaction animée + `resolveChains()` |
 
 ### 6.5 COLORX

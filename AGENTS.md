@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **6.3** (build 117, `MARKETING_VERSION`) |
+| Version courante | **6.4** (build 119, `MARKETING_VERSION`) |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -44,6 +44,7 @@ BLOMIX/
 ├── Blomix/
 │   ├── Blomix.xcodeproj
 │   └── Blomix/               # Sources Swift, assets, lproj, Sounds
+├── store/whats-new/          # Nouveautés App Store Connect (hors bundle)
 ├── scripts/                  # Export preview / promo
 ├── icones_app/               # Marketing
 ├── Palette couleur/          # Références design
@@ -65,6 +66,7 @@ BLOMIX/
 | Animations / sons | `DOCS/VFX_AND_ANIMATIONS.md` |
 | Nouvelle chaîne UI | `DOCS/LOCALIZATION.md` |
 | Historique versions | `DOCS/CHANGELOG.md` |
+| Nouveautés App Store | `store/whats-new/` (pas le bundle) |
 
 **Ne pas inventer les règles** : si le code et la doc divergent, vérifier le code puis proposer une mise à jour de la doc.
 
@@ -125,6 +127,7 @@ La logique gameplay est concentrée dans :
 | Identifiants Swift | Anglais (`priks`, `MagixKind.chromax`, …) |
 | Commits | FR ou EN, style impératif + préfixe (`feat:`, `fix:`, `docs:`, …) — voir `DOCS/CONTRIBUTING.md` |
 | Chaînes joueur | Via `BlomixL10n` uniquement — **jamais** de texte UI en dur |
+| Nouveautés App Store | `store/whats-new/` — **FR+EN+DE+ES+IT** à chaque version marketing (pas le bundle) |
 
 ### Terminologie (canonique)
 
@@ -174,7 +177,7 @@ Si le comportement change, mettre à jour **en même temps** :
 | Eval / hints | `DOCS/EVAL.md` |
 | Terme nouveau | `DOCS/GLOSSARY.md` |
 | i18n | `DOCS/LOCALIZATION.md` + lproj |
-| Release | `DOCS/CHANGELOG.md` + version Xcode |
+| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (5 langues)** |
 | Nouveau doc | `DOCS/README.md` (+ README racine si besoin) |
 
 Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.
@@ -184,6 +187,8 @@ Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.
 ## Boucle de clôture (à ne pas oublier)
 
 À certains moments, le travail **n’est pas fini** tant que ces trois volets n’ont pas été traités (ou explicitement reportés par l’humain). L’agent doit **les proposer proactivement**, pas attendre qu’on les redemande.
+
+**Release marketing** (nouvelle `MARKETING_VERSION`, jalon App Store) : un **quatrième** volet s’ajoute — Nouveautés ASC, voir ci-dessous.
 
 ### 1. Fichiers de langues (l10n)
 
@@ -203,6 +208,18 @@ Voir `DOCS/LOCALIZATION.md`.
 **Quoi** : synchroniser les fichiers du tableau ci-dessus **dans le même lot de travail** que le code (pas « on documentera plus tard »).  
 Release / jalon : mettre aussi à jour `DOCS/CHANGELOG.md` (et la version de référence des docs si besoin).
 
+### 2b. Nouveautés App Store (`store/whats-new/`) — si release
+
+**Quand** : jalon / nouvelle version marketing / préparation ASC (ex. 6.4). Pas à chaque petit fix. Si les notes existent déjà pour cette version et qu’un lot change encore le bénéfice joueur : **rafraîchir les 5 fichiers** dans ce lot.
+
+**Quoi** (même lot que le CHANGELOG, **proactif**) :
+- Réécrire **FR + EN + DE + ES + IT** (`fr-FR.txt`, `en-US.txt`, `de-DE.txt`, `es-ES.txt`, `it-IT.txt`)
+- Ton **joueur**, puces courtes, même ordre dans les 5 fichiers ; noms Magix **non traduits**
+- **Pas** dans `BlomixL10n` ni le target Xcode — Apple ne lit pas l’IPA
+- L’humain **copie-colle** dans ASC (le champ Nouveautés est vide à la création de version)
+
+Voir `store/whats-new/README.md` et `DOCS/LOCALIZATION.md`.
+
 ### 3. Commit et push GitHub
 
 **Quand** (moments naturels) :
@@ -221,10 +238,10 @@ Release / jalon : mettre aussi à jour `DOCS/CHANGELOG.md` (et la version de ré
 **Ordre conseillé en fin de lot** :
 
 ```
-code OK → (1) langues → (2) doc → checklist manuelle si besoin → (3) commit → push
+code OK → (1) langues → (2) doc → (2b) nouveautés si release → checklist manuelle si besoin → (3) commit → push
 ```
 
-Ces trois points sont la **hygiène de livrable** du projet : un diff code seul, sans l10n/doc/remote à jour, est souvent un travail incomplet.
+Ces points sont la **hygiène de livrable** du projet : un diff code seul, sans l10n/doc/remote à jour (ni Nouveautés si c’est une release), est souvent un travail incomplet.
 
 ---
 
@@ -264,6 +281,7 @@ Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (souvent `de
 - [ ] Flux impacté pensé (solo / Zen / PvP / tutoriel selon le cas)
 - [ ] **(1) Langues** : clés `BlomixL10n` + `.lproj` à jour (FR+EN min.) si UI touchée
 - [ ] **(2) Doc** : `DOCS/` alignée si le comportement / les règles changent
+- [ ] **(2b) Nouveautés** : `store/whats-new/` FR+EN+DE+ES+IT si jalon / `MARKETING_VERSION`
 - [ ] Terminologie GLOSSARY respectée
 - [ ] Pas de fichiers locaux / secrets dans le diff
 - [ ] **(3) Git** : proposer (ou faire sur demande) commit + push vers GitHub quand le lot est prêt
@@ -275,13 +293,13 @@ Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (souvent `de
 | OK sans confirmation | Demander d’abord |
 |---|---|
 | Lire le code et la doc | **Push** vers GitHub (sauf si l’humain a déjà dit de pusher) |
-| Éditer sources + **docs liées** + **l10n** dans le même lot | Tag release / changer version marketing / build |
+| Éditer sources + **docs liées** + **l10n** (+ **`store/whats-new/`** si release) dans le même lot | Tag release / changer version marketing / build |
 | Proposer **commit + push** en fin de lot | Refactor large de `GameScene` |
 | Petits fix ciblés | Modifier entitlements / CloudKit schema prod |
 | Proposer design / plan | Actions destructives (reset hard, force-push) |
 | **Commit** si l’humain a demandé d’enregistrer / committer / finaliser le lot | Commit « surprise » sur un arbre non validé |
 
-En pratique : langues et doc font partie du lot de code ; le **rappel** commit/push est systématique en clôture ; l’**exécution** du push reste confirmée sauf consigne déjà donnée (« commit et push », « envoie sur GitHub », etc.).
+En pratique : langues et doc font partie du lot de code ; **Nouveautés ASC** aussi dès qu’on fige une version marketing ; le **rappel** commit/push est systématique en clôture ; l’**exécution** du push reste confirmée sauf consigne déjà donnée (« commit et push », « envoie sur GitHub », etc.).
 
 ---
 
@@ -289,7 +307,7 @@ En pratique : langues et doc font partie du lot de code ; le **rappel** commit/p
 
 - Préférer des réponses en **français**, structurées, avec chemins de fichiers concrets.
 - Pour une feature non triviale : plan court → implémentation → points de test manuel.
-- En fin de lot pertinent : rappeler explicitement **langues / doc / commit+push** s’ils n’ont pas encore été faits.
+- En fin de lot pertinent : rappeler explicitement **langues / doc / commit+push** (et **Nouveautés** si release) s’ils n’ont pas encore été faits.
 - En cas d’ambiguïté de design (équilibre, UX, copy) : **poser la question** plutôt que d’imposer un choix arbitraire.
 
 ---

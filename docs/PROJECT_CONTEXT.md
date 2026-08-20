@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.3  
+> **Version de référence** : 6.4  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -228,7 +228,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 6 stages (`soloStages`) : timer décroissant, multiplicateur croissant.  
 Timer relancé **à fond** après chaque coup stable et après overlay de stage. Timeout → `autoDropPreferredColumn()` : hasard parmi les colonnes dont `grid[0][col] == .empty`, sinon toute colonne jouable.
 
-**Reprise de save :** `restoreFromSoloSave` appelle `restartStageTimer()` → **durée pleine du stage**, pas `stageTimerSecondsRemaining` (le champ est persisté mais non relu). Un flush mid-anim (`removeAllActions`) tue aussi le countdown ; s’il n’y a pas de kill process, le timer peut rester mort jusqu’à la prochaine pose stable.
+**Reprise de save :** `resumeStageTimerKeepingRemaining()` avec les secondes persistées, clamp `[1 … durée du stage]`. Un flush mid-anim relance aussi sur le reste.
 
 ### Mode Zen
 
@@ -240,7 +240,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
-- Auto-save en arrière-plan ; au lancement, **s’il existe une save**, elle est restaurée **directement en partie** (`presentStartScreenOrRestoreSoloSave` saute l’accueil)
+- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** (6.4) : hero Continuer + mode si save, sinon Découvrir / Arcade
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
@@ -341,7 +341,10 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - 4 disques de rang : Arc. / Moy. / Zen / Duel
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
-- Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) — pas de liens ; `credits.txt` legacy non branché UI
+- Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) ; `credits.txt` legacy non branché UI
+- Crédits : bouton chrome **Laisser un avis** → `?action=write-review` (pas de pop-up custom, guideline 5.6.1)
+- GO Arcade/Zen : après ≥ 3 parties terminées, 1× par `MARKETING_VERSION`, `AppStore.requestReview` (pause 2,5 s, pas pendant overlay record) ; hors tuto / Duel
+- **Conseil du jour** : ancré à 10 % de la hauteur. Si l’iTunes Lookup signale une MAJ, une bannière (lien App Store) **prend ce slot et masque les conseils** ; ✕ rétablit les conseils pour la session.
 
 ### Partage (accueil + game over)
 
@@ -428,6 +431,7 @@ Blomix/Blomix/
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
 ├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + reconcile local>GC
 ├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
+├── BlomixRulesGuideViewController.swift  # Guide règles + Magix (6.4)
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
 ├── BlomixPublicCloudGate.swift   # Robinet Public DB (503 / Retry-After) H2H + lobby
 ├── BlomixAvailablePlayersManager.swift  # Joueurs dispo + défis `chfrom_*`
@@ -442,4 +446,4 @@ Blomix/Blomix/
 
 ---
 
-*Document aligné sur le code v6.3 (build 117) — à maintenir lors des évolutions majeures.*
+*Document aligné sur le code v6.4 (build 118) — à maintenir lors des évolutions majeures.*

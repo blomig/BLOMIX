@@ -1,6 +1,4 @@
-• Guida a regole e Magix, sempre disponibile da Home o dal menu
-• Home più chiara: Continua, Scopri o Arcade — niente ripresa a sorpresa
-• Conferma prima di lasciare una partita salvata (Zen, Duello o Nuova partita)
-• Duello: indicatore d’attacco più leggibile
-• Mira delle bombe più comoda; il timer congelato è visibile
-• Countdown dei Brix più nitido
+• Nuovo Magix: SLASHX colora le diagonali (cugino di CROSSX)
+• Guida più chiara: Magix, Blox, Brix, righe, bombe, punteggio e Duello
+• Game Over: la precisione di piazzamento si legge meglio
+• Icona aggiornata (niente margine bianco)

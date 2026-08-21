@@ -311,6 +311,10 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.availability_cloudkit_error_format" = "Erreur CloudKit : %@";
 
 "generic.ok" = "OK";
+"whatsnew.title" = "Changement dans cette version";
+"whatsnew.twistx" = "Le TWISTX a désormais ce symbole";
+"whatsnew.slashx" = "Un nouveau Magix, SLASHX, fait son apparition";
+"whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */
 "appearance.toggle_a11y" = "Basculer entre mode sombre et clair";
@@ -396,17 +400,17 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "guide.title" = "Guide";
 "guide.replay_tutorial" = "Rejouer le tuto";
 "guide.section.blox.title" = "Blox et chaînes";
-"guide.section.blox.body" = "Grille 8×8, gravité vers le haut.\nUne chaîne : 5 blox ou plus de la même couleur, y compris en diagonale (8-connexité).";
+"guide.section.blox.body" = "Grille 8×8, gravité vers le haut.\nUne chaîne : 5 blox ou plus de la même couleur en contact, y compris en diagonale.";
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Blocs numérotés. Une chaîne adjacente leur retire 1 (max une fois par vague).\nÀ 0 ils disparaissent : +20 pts.";
 "guide.section.line.title" = "Ligne entrante";
-"guide.section.line.body" = "Tous les 10 coups de pose, une rangée monte du bas.\nPoser une bombe n’est pas un coup : le compteur LIGNE n’avance pas.";
+"guide.section.line.body" = "Tous les 10 blox / Brix posés, une rangée aléatoire monte du bas.\nPoser une bombe n’est pas un coup : le compteur LIGNE n’avance pas.";
 "guide.section.bombs.title" = "Bombes";
-"guide.section.bombs.body" = "Stock : 5 en Arcade/Zen, 3 en Duel.\nZen, Duel et tuto : explosion 3×3.\nArcade : 3×3 au stage 1, puis une croix qui s’allonge à chaque stage (nuke).";
+"guide.section.bombs.body" = "Stock : 5 en Arcade/Zen, 3 en Duel.\nZen, Duel et tuto : explosion d’une zone de 3×3.\nArcade : 3×3 au Stage 1, puis une croix qui s’allonge à chaque Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Jamais en Duel, ni dans les lignes.";
-"guide.section.magix.body" = "CHROMAX (?) — chemin coloré, puis chaînes.\nBRIXED (9) — devient Brix(9) ; tous les autres Brix sont détruits (+20).\nCROSSX (+) — ligne + colonne d’une couleur, puis chaînes.\nSCRUMBLX (=) — chaque ligne glisse ; −1 sur tous les Brix.\nCOLORX (O) — efface une couleur.\nSAINTX (∞) — vide la grille, laisse un Brix ; +200 × stage.\nTWISTX (X) — échange auto une couleur ↔ les Brix.\nBOMBX (B) — tâche de couleur puis +1 bombe.";
+"guide.section.magix.intro" = "Des blocs spéciaux avec de gros pouvoirs, très rares, et qui n’apparaissent qu’en mode Arcade ou Zen dans la file de blox / Brix à lancer.";
+"guide.section.magix.body" = "CHROMAX (?) — chemin coloré aléatoire à l’impact, plus ou moins long.\nBRIXED (9) — devient Brix(9) ; tous les autres Brix sont détruits (+20).\nCROSSX (+) — ligne + colonne repeinte d’une couleur, puis chaînes.\nSLASHX (X) — diagonales repeintes d’une couleur, puis chaînes.\nSCRUMBLX (=) — chaque ligne glisse d’un nombre de cases aléatoires ; −1 sur tous les Brix.\nCOLORX (O) — efface tous les blox d’une couleur aléatoire.\nSAINTX (∞) — vide la grille, laisse un Brix ; +200 × stage.\nTWISTX (§) — échange une couleur de blox contre le Brix minimal.\nBOMBX (B) — tâche de couleur aléatoire, puis ajoute une bombe au stock.";
 "guide.section.score.title" = "Score";
-"guide.section.score.body" = "Chaînes : 5/7/10/13/15/20 pts + 10 par niveau de cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen, hors ×stage).";
+"guide.section.score.body" = "Chaînes : 5 points pour une chaîne de 5 blox, et jusqu’à 20 points pour une chaîne très longue. +10 pour une chaîne en cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen, hors ×stage).";
 "guide.section.duel.title" = "Duel";
-"guide.section.duel.body" = "Le gros chiffre et la barre sont le mètre d’attaque (0…50), pas le score total.\nViser une bombe gèle votre timer de tour.";
+"guide.section.duel.body" = "Le gros chiffre et la barre sont le mètre d’attaque (0…50) : tous les 50 points, ça envoie une ligne à l’autre joueur.\nPlacer une bombe gèle votre timer de tour.";

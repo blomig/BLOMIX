@@ -660,6 +660,13 @@ enum BlomixL10n {
         ]
     }
 
+    // MARK: - What's new (accueil, après splash)
+
+    static var whatsNewTitle: String { tr("whatsnew.title", comment: "Version changes dialog title on home") }
+    static var whatsNewTwistx: String { tr("whatsnew.twistx", comment: "TWISTX new glyph §") }
+    static var whatsNewSlashx: String { tr("whatsnew.slashx", comment: "SLASHX introduction") }
+    static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
+
     // MARK: - Generic
     static var ok: String { tr("generic.ok", comment: "Generic OK button") }
 }

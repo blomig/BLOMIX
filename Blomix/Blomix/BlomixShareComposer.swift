@@ -304,10 +304,11 @@ enum BlomixShareComposer {
         case .chromax:  return "?"
         case .brixed:   return "9"
         case .crosx:    return "+"
+        case .slashx:   return "X"
         case .scrumblx: return "="
         case .colorx:   return "O"
         case .cleanx:   return "∞"
-        case .twistx:   return "X"
+        case .twistx:   return "§"
         case .bombx:    return "B"
         }
     }

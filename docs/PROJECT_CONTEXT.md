@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.4  
+> **Version de référence** : 6.5 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -53,7 +53,7 @@ Le mode solo principal (**stagé**) impose un timer par coup et un multiplicateu
 | `.empty` | Case vide |
 | `.color("nom")` | Blox coloré (6 couleurs) |
 | `.priks(n)` | Brix, `n` coups restants |
-| `.magix(MagixKind)` | Bloc Magix (8 variantes, dont BOMBX) |
+| `.magix(MagixKind)` | Bloc Magix (9 variantes, dont BOMBX et SLASHX) |
 
 ---
 
@@ -139,6 +139,7 @@ Définis dans `MagixKind` et `MagixRules` (`GameScene.swift`). Catalogue joueur 
 | `.chromax` | CHROMAX | Chemin ≤ 15 cases → couleur unique → `resolveChains()` |
 | `.brixed` | BRIXED | Devient Priks(9) ; **détruit tous les autres Brix** (+20 chacun). `brixedGlobalDecrement` (ancienne règle −2) n’est plus appliqué |
 | `.crosx` | CROSSX | Ligne + colonne → couleur aléatoire → chaînes |
+| `.slashx` | SLASHX | Deux diagonales → couleur aléatoire → chaînes (cousin CROSSX) |
 | `.scrumblx` | SCRUMBLX | Décalage horizontal par ligne ; −1 Brix global |
 | `.colorx` | COLORX | Roulette → efface une couleur (score chaîne) |
 | `.cleanx` | SAINTX | Vide la grille → Brix(N) ; +200 pts **via `addScore`** (donc × stage en Arcade) |
@@ -151,10 +152,10 @@ Fractions de spawn (`MagixRules.spawnProbabilityByKind`) :
 |---|---|
 | `.twistx` / `.chromax` / `.brixed` | 1/324 chacun |
 | `.colorx` / `.scrumblx` | 1/180 chacun |
-| `.crosx` | 1/216 |
+| `.crosx` / `.slashx` | 1/432 chacun (ensemble = ancien 1/216 CROSSX) |
 | `.cleanx` / `.bombx` | 1/500 chacun |
 
-Cumul ≈ **2,9 %**. (Le commentaire code « ≈ 1/30 » est un vestige à 4 variantes.)
+Cumul ≈ **2,9 %** (inchangé : SLASHX prend la moitié du budget CROSSX).
 
 Rendu : shader dégradé animé + halo + particules orbitales (`applyMagixShader`).
 

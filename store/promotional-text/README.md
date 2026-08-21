@@ -5,7 +5,7 @@ Source de vérité du champ **Texte promotionnel** (Promotional Text) d’App St
 - **Pas dans le bundle**, **pas dans `whats-new/`** (ce dossier est réécrit à chaque version).
 - Limite Apple : **170** caractères / langue (compter les espaces).
 - Modifiable dans ASC **sans** nouvelle version ; chez BLOMIX on le traite comme **figé**.
-- À la création d’une version : coller ces fichiers si le champ est vide. **Ne pas** le régénérer avec le CHANGELOG.
+- À la création d’une version : Fastlane re-pousse ces fichiers (`metadata` / `release`) si ASC les a vidés. **Ne pas** les régénérer avec le CHANGELOG.
 
 ## Locales
 

@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 6.4  
+> **Version de référence** : 6.5 (local)  
 > **Dernière mise à jour** : août 2026
 
 ---
@@ -13,6 +13,7 @@
 | Xcode | 16+ (Swift 6) |
 | iOS (cible) | 18.0 (`IPHONEOS_DEPLOYMENT_TARGET`) |
 | Compte Apple Developer | Requis pour Game Center, CloudKit et déploiement |
+| Ruby + Bundler | Pour Fastlane (`bundle install` à la racine) |
 
 ---
 
@@ -30,8 +31,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 6.4 |
-| `CURRENT_PROJECT_VERSION` | 119 |
+| `MARKETING_VERSION` | 6.5 (local) |
+| `CURRENT_PROJECT_VERSION` | 120 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
@@ -46,7 +47,7 @@ Fichier : `Blomix/Blomix/Blomix.entitlements`
 |---|---|
 | **Game Center** | Classements solo/Zen, matchmaking PvP, invitations |
 | **CloudKit** | Défis PvP asynchrones (`iCloud.blomig.BLOMIX`) |
-| **Push (APS)** | Environnement `development` (à basculer en production pour release) |
+| **Push (APS)** | Debug : `development` (`Blomix.entitlements`). Release / TestFlight / App Store : `production` (`BlomixRelease.entitlements`) |
 
 ### Tester le PvP
 
@@ -131,12 +132,15 @@ Validation manuelle recommandée :
 
 - [ ] Partie solo complète (6 stages + game over)
 - [ ] Mode Zen (pas de timer)
-- [ ] Chaque variante Magix (spawn forcé en debug si besoin)
+- [ ] Chaque variante Magix (spawn forcé en debug si besoin) — **6.5 : SLASHX** centre / bord / coin
 - [ ] Sauvegarde / reprise (`BlomixSoloSaveManager`)
 - [ ] PvP invitation + match complet
 - [ ] Classements Game Center
 - [ ] Changement de langue FR ↔ EN
 - [ ] Réglages audio (mix SFX / musique)
+- [ ] **6.5** Splash → popup TWISTX § / SLASHX (Ok = session, Ne plus montrer = définitif)
+- [ ] **6.5** Guide : 9 Magix, glyphe TWISTX = §
+- [ ] **6.5** Game Over : % / justesse au-dessus de la barre
 
 ---
 
@@ -156,12 +160,71 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nom
 
 ---
 
-## Nouveautés App Store Connect
+## Déploiement App Store Connect
 
-Le champ **Nouveautés** n’est **pas** lu dans l’IPA. Source de vérité : `store/whats-new/` (`en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`).
+Les champs **Nouveautés** et **Texte promotionnel** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/` et `store/promotional-text/` (5 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures).
 
-**Systématique** à chaque `MARKETING_VERSION` : rédiger FR puis traduire EN/DE/ES/IT dans le même lot que le CHANGELOG. Ensuite coller dans ASC (champ vide ; description et captures recopiées).
+Rédaction : [LOCALIZATION.md](LOCALIZATION.md), `store/README.md`. À chaque `MARKETING_VERSION`, écrire les 5 Nouveautés dans le même lot que le CHANGELOG. Le texte promo est **figé** (≤ 170 car.) — on le re-pousse parce qu’Apple le vide souvent à la création de version.
 
-Détail : `store/whats-new/README.md` et [LOCALIZATION.md](LOCALIZATION.md).
+### Prérequis (une fois)
 
-**Texte promotionnel** (≤ 170 car.) : `store/promotional-text/` — **figé**. Coller si le champ ASC est vide ; ne pas le régénérer à chaque version.
+1. App Store Connect → Users and Access → Integrations → **App Store Connect API** → Team Key, rôle **App Manager**.
+2. Enregistrer le `.p8` hors git, ex. `~/.appstoreconnect/AuthKey_XXXXXXXXXX.p8`.
+3. `cp .env.example .env` et remplir `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_PATH`.
+4. Ruby **≥ 3.2** (pas le Ruby système Apple 2.6) :
+
+```bash
+brew install ruby@3.3
+echo 'export PATH="/opt/homebrew/opt/ruby@3.3/bin:$PATH"' >> ~/.zshrc
+hash -r
+ruby -v   # 3.3.x
+bundle install
+```
+
+La clé n’est pas dans le dépôt. Sans `.env`, `validate` fonctionne ; `metadata` / `beta` / `release` / `submit` s’arrêtent avec un message explicite.
+
+### Lanes
+
+Depuis la racine du dépôt :
+
+```bash
+bundle exec fastlane validate    # store/ + entitlements (aucun réseau ASC)
+bundle exec fastlane metadata    # Nouveautés + promo, 5 langues
+bundle exec fastlane beta        # archive Release → TestFlight
+bundle exec fastlane release     # archive + binaire + textes — PAS de review
+bundle exec fastlane submit      # envoi à la review (irréversible)
+```
+
+| Variable | Effet |
+|---|---|
+| `DRY_RUN=1` | `metadata` : génère `fastlane/metadata/.generated/` sans upload |
+| `SKIP_WAIT=1` | `beta` : ne pas attendre la fin du processing |
+| `CLEAN=0` | pas de `clean` xcodebuild |
+| `EDIT_LIVE=1` | `metadata` : écrit le promo sur la version **en vente** |
+
+`release` et `beta` bumpent `CURRENT_PROJECT_VERSION` : `max(local, dernier build ASC + 1)`. **Committer le pbxproj** après un bump.
+
+Fastlane nomme l’italien `it` (pas `it-IT`) dans le dossier généré ; les fichiers `store/**/it-IT.txt` restent la source de vérité.
+
+`submit` laisse la version en *Pending Developer Release* (`automatic_release: false`) — le bouton Release reste manuel dans ASC.
+
+### Checklist release
+
+1. `store/whats-new/` à jour (5 langues, mêmes puces) + CHANGELOG.
+2. `bundle exec fastlane validate`
+3. `bundle exec fastlane release` (ou `beta` puis `metadata`)
+4. Vérifier dans ASC : Nouveautés / promo, build **Valid**, APS production.
+5. TestFlight interne.
+6. `bundle exec fastlane submit` quand le build est traité.
+7. Après approbation Apple : Release manuel dans ASC.
+
+Ce que le pipeline **ne** touche **pas** : description, mots-clés, captures, App Preview, age rating, prix.
+
+### Entitlements push
+
+| Config Xcode | Fichier | `aps-environment` |
+|---|---|---|
+| Debug | `Blomix/Blomix.entitlements` | `development` |
+| Release | `Blomix/BlomixRelease.entitlements` | `production` |
+
+Export compliance : `ITSAppUsesNonExemptEncryption = false` dans `Info.plist` (HTTPS / services Apple uniquement).

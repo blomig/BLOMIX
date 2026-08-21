@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 6.4  
+> **Version de référence** : 6.5 (local)  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -44,10 +44,11 @@ Blocs spéciaux rares (~**3 %** de probabilité cumulée) déclenchant un effet 
 | **CHROMAX** | ? | Chemin aléatoire (≤ 15 cases) transformé en une couleur, puis résolution des chaînes |
 | **BRIXED** | 9 | Devient un Brix(9) ; **tous les autres Brix sont détruits** (+20 pts chacun) |
 | **CROSSX** | + | Ligne + colonne centrées sur la case deviennent une couleur aléatoire, puis chaînes |
+| **SLASHX** | X | Les deux diagonales centrées sur la case deviennent une couleur aléatoire, puis chaînes (cousin CROSSX) |
 | **SCRUMBLX** | = | Chaque ligne occupée se décale horizontalement (1–7 cases, wrap-around) ; −1 sur tous les Brix |
 | **COLORX** | O | Roulette de couleur : efface tous les blocs de la couleur choisie (score chaîne) |
 | **SAINTX** (cleanx) | ∞ | Efface toute la grille et laisse un Brix valant le nombre de cases supprimées ; **+200 pts** bonus (en Arcade : × le multiplicateur du stage) |
-| **TWISTX** | X | Échange **automatique** : une couleur aléatoire présente sur la grille ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
+| **TWISTX** | § | Échange **automatique** : une couleur aléatoire présente sur la grille ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
 | **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; puis **+1 bombe** au stock (garanti même sans clear). Rareté ≈ SAINTX. **Arcade / Zen** uniquement |
 
 Les fractions exactes par variante sont dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7. Catalogue et pistes : [MAGIX.md](MAGIX.md).

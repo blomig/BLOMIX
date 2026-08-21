@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 6.4
+> **Version de référence** : 6.5 (local)
 
 ---
 
@@ -89,7 +89,7 @@ scoreLabel.text = BlomixL10n.scoreFormat(1250)
 
 ## Nouveautés App Store (hors bundle)
 
-Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lproj` et n’est **pas** lu dans l’IPA. Source de vérité : `store/whats-new/`. **Systématique** à chaque version marketing (même lot que le CHANGELOG) — l’humain copie-colle ensuite dans ASC.
+Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lproj` et n’est **pas** lu dans l’IPA. Source de vérité : `store/whats-new/`. **Systématique** à chaque version marketing (même lot que le CHANGELOG) — Fastlane pousse ensuite vers ASC (`metadata` / `release`).
 
 ### Fichiers (toujours les 5)
 
@@ -111,6 +111,19 @@ Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lpr
 
 Détail release : `store/whats-new/README.md`.
 
+### Popup in-app (accueil 6.5)
+
+Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew_dont_show_6.5_slashx_twistx`) :
+
+| Clé | Usage |
+|---|---|
+| `whatsnew.title` | Titre |
+| `whatsnew.twistx` | Ligne TWISTX + sprite § |
+| `whatsnew.slashx` | Ligne SLASHX + sprite X |
+| `whatsnew.dont_show` | Bouton définitif ; `generic.ok` = cette session seulement |
+
+Ce n’est **pas** le champ ASC Nouveautés.
+
 ---
 
 ## Texte promotionnel App Store (hors bundle, **stable**)
@@ -119,7 +132,7 @@ Champ ASC **Texte promotionnel** (≤ **170** car.). Ce n’est **pas** une Nouv
 
 - Source : `store/promotional-text/` (`en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`)
 - **Ne pas** le mettre dans `whats-new/` (réécrit à chaque version) ni dans le target Xcode
-- On ne le régénère **pas** à chaque `MARKETING_VERSION` — coller les fichiers existants si le champ est vide
+- On ne le régénère **pas** à chaque `MARKETING_VERSION` — Fastlane re-pousse les fichiers existants si le champ ASC est vide
 
 Index : `store/README.md`.
 

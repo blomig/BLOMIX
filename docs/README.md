@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 6.4  
+> **Version de référence** : 6.5 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -58,7 +58,7 @@
 | Développeur rejoignant le projet | `DEVELOPMENT.md` → `PROJECT_CONTEXT.md` |
 | Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `GLOSSARY.md` |
 | Traducteur | `LOCALIZATION.md` → `GLOSSARY.md` |
-| Mainteneur / release | `CHANGELOG.md` → `store/whats-new/` (+ promo si besoin) → `CONTRIBUTING.md` |
+| Mainteneur / release | `CHANGELOG.md` → `store/whats-new/` → `DEVELOPMENT.md` § Déploiement (Fastlane) |
 | Prochaine version (6.4) | `SPEC_6.4.md` |
 
 ---

@@ -7,7 +7,27 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.4] — 2026-08 (courant)
+## [6.5] — 2026-08 (en cours, local)
+
+Build **120**. 6.4 est en vente. Cahier joueur : `store/whats-new/`.
+
+### Ajouté
+- **SLASHX** (X) : diagonales repeintes d’une couleur, même juice que CROSSX ; spawn 1/432 (½ de l’ancien budget CROSSX)
+
+### Modifié
+- Guide : textes Magix et cartes Blox / Brix / Ligne / Bombes / Score / Duel (5 langues)
+- CROSSX spawn 1/216 → **1/432** (cumul Magix toujours ≈ 2,9 %)
+- TWISTX glyphe **X → §** (Changa One n’a pas de double flèche)
+- Game Over : XX % / justesse / « Hors Magix et bombes » remontés (~10 pt) ; justesse plus grande, même couleur que le %
+- Icône App Store : plus de marge blanche (`AppIcon.appiconset/icon_blomix.png`)
+- Accueil : popup « Changement dans cette version » (TWISTX §, SLASHX) après le splash ; Ok = session, Ne plus montrer = définitif
+
+### Outils
+- Pipeline Fastlane local (`validate` / `metadata` / `beta` / `release` / `submit`) ; entitlements Release = APS production
+
+---
+
+## [6.4] — 2026-08 (courant ASC)
 
 Build **119**. Cahier : [SPEC_6.4.md](SPEC_6.4.md).
 
@@ -28,6 +48,10 @@ Build **119**. Cahier : [SPEC_6.4.md](SPEC_6.4.md).
 
 ### Ajouté (119)
 - Demande d’avis App Store : prompt système au GO (≥ 3 parties Arcade/Zen, 1× par version) ; bouton chrome **Laisser un avis** dans Crédits
+
+### Outils
+- Pipeline Fastlane (`validate` / `metadata` / `beta` / `release` / `submit`) : Nouveautés + texte promo 5 langues, archive TestFlight / ASC
+- Entitlements Release : `aps-environment` **production** (`BlomixRelease.entitlements`) ; Debug reste `development`
 
 ### Version
 - Marketing **6.4**, build **119**

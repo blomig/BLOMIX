@@ -476,6 +476,8 @@ enum MagixKind: String, Codable, Equatable, CaseIterable {
     case brixed
     /// Transformation en croix (ligne + colonne) + chaîne.
     case crosx
+    /// Transformation en X (deux diagonales) + chaîne. Cousin de CROSSX.
+    case slashx
     /// Mélange la grille : chaque ligne se décale aléatoirement (direction + distance 1–7, wrap-around).
     case scrumblx
     /// Roulette de couleur : choisit une couleur au ralenti, efface tous les blocs de cette couleur.
@@ -646,12 +648,13 @@ private enum PriksRules {
 
 private enum MagixRules {
     /// Probabilité par variante Magix. L'ordre du tableau détermine la priorité de tirage.
-    /// Total ≈ 1/100 + 1/100 + 1/150 + 1/150 ≈ 1/30.
+    /// CROSSX + SLASHX se partagent l’ancien 1/216 (½ chacun) : cumul Magix inchangé ≈ 2,9 %.
     static let spawnProbabilityByKind: [(kind: MagixKind, p: Double)] = [
         (.twistx,   1.0 / 324.0),
         (.colorx,   1.0 / 180.0),
         (.scrumblx, 1.0 / 180.0),
-        (.crosx,    1.0 / 216.0),
+        (.crosx,    1.0 / 432.0),
+        (.slashx,   1.0 / 432.0),
         (.chromax,  1.0 / 324.0),
         (.brixed,   1.0 / 324.0),
         (.cleanx,   1.0 / 500.0),
@@ -672,6 +675,7 @@ private enum MagixRules {
         case .chromax:  return "CHROMAX"
         case .brixed:   return "BRIXED"
         case .crosx:    return "CROSSX"
+        case .slashx:   return "SLASHX"
         case .scrumblx: return "SCRUMBLX"
         case .colorx:   return "COLORX"
         case .cleanx:   return "SAINTX"
@@ -686,10 +690,11 @@ private enum MagixRules {
         case .chromax:  return "?"
         case .brixed:   return "9"
         case .crosx:    return "+"
+        case .slashx:   return "X"
         case .scrumblx: return "="
         case .colorx:   return "O"
         case .cleanx:   return "∞"
-        case .twistx:   return "X"
+        case .twistx:   return "§"
         case .bombx:    return "B"
         }
     }
@@ -854,6 +859,7 @@ final class GameScene: SKScene {
     private static let startScreenShareLabelName = "startScreenShareLabel"
     private static let gameOverShareLabelName = "gameOverShareLabel"
     private static let studioSplashOverlayName = "studioSplashOverlay"
+    private static let whatsNewPresentActionKey = "presentWhatsNewDialog"
     private static let hudPvPTurnTimerName = "hudPvPCountdown"
     private static let hudPvPOpponentName = "hudPvPOpponentName"
     private static let pvpConnectingOverlayName = "pvpConnectingOverlay"
@@ -2354,7 +2360,35 @@ final class GameScene: SKScene {
         if pendingTutorialStart {
             pendingTutorialStart = false
             run(SKAction.wait(forDuration: 0.3)) { [weak self] in self?.startTutorialGameWithIntro() }
+        } else if playIntro {
+            scheduleWhatsNewDialogAfterIntro()
         }
+    }
+
+    /// Après le splash + slot-machine accueil (~2,2 s). Ok = session ; Ne plus montrer = définitif.
+    private func scheduleWhatsNewDialogAfterIntro() {
+        guard BlomixWhatsNew.shouldPresent else { return }
+        removeAction(forKey: Self.whatsNewPresentActionKey)
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: 2.2),
+            SKAction.run { [weak self] in
+                DispatchQueue.main.async {
+                    self?.presentWhatsNewDialogIfNeeded()
+                }
+            },
+        ]), withKey: Self.whatsNewPresentActionKey)
+    }
+
+    private func presentWhatsNewDialogIfNeeded() {
+        guard isStartScreen, BlomixWhatsNew.shouldPresent else { return }
+        let host: UIView?
+        if let window = view?.window {
+            host = window
+        } else {
+            host = view
+        }
+        guard let host else { return }
+        BlomixWhatsNew.present(in: host)
     }
 
     private func startStartScreenAmbientBlocksAnimation(in overlay: SKNode) {
@@ -3412,7 +3446,7 @@ final class GameScene: SKScene {
             bigPctLabel.fontColor              = accentColor
             bigPctLabel.horizontalAlignmentMode = .center
             bigPctLabel.verticalAlignmentMode   = .center
-            bigPctLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY)
+            bigPctLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY + 10)
             bigPctLabel.alpha     = 0
             bigPctLabel.zPosition = 10
             overlay.addChild(bigPctLabel)
@@ -3428,14 +3462,14 @@ final class GameScene: SKScene {
                 ]),
             ]))
 
-            // ── Sous-titre "optimalité" ──
+            // ── Sous-titre "justesse" (même couleur que le %) ──
             let subLabel = SKLabelNode(text: BlomixL10n.gameOverOptimalityLabel)
             subLabel.fontName               = Self.customUIFontPostScriptName
-            subLabel.fontSize               = 11
-            subLabel.fontColor              = BlomixAppearance.gameOverTertiaryTextSK
+            subLabel.fontSize               = 18
+            subLabel.fontColor              = accentColor
             subLabel.horizontalAlignmentMode = .center
             subLabel.verticalAlignmentMode   = .center
-            subLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 36)
+            subLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 26)
             subLabel.alpha     = 0
             subLabel.zPosition = 10
             overlay.addChild(subLabel)
@@ -3450,7 +3484,7 @@ final class GameScene: SKScene {
             excludeLabel.fontColor              = BlomixAppearance.gameOverTertiaryTextSK
             excludeLabel.horizontalAlignmentMode = .center
             excludeLabel.verticalAlignmentMode   = .center
-            excludeLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 52)
+            excludeLabel.position  = CGPoint(x: size.width / 2, y: recapBaseY - 42)
             excludeLabel.alpha     = 0
             excludeLabel.zPosition = 10
             overlay.addChild(excludeLabel)
@@ -8014,6 +8048,7 @@ final class GameScene: SKScene {
         case .chromax:  applyMagixEffect_chromax(at: cell)
         case .brixed:   applyMagixEffect_brixed(at: cell)
         case .crosx:    applyMagixEffect_crosx(at: cell)
+        case .slashx:   applyMagixEffect_slashx(at: cell)
         case .scrumblx: applyMagixEffect_scrumblx(at: cell)
         case .colorx:   applyMagixEffect_colorx(at: cell)
         case .cleanx:   applyMagixEffect_cleanx(at: cell)
@@ -8688,76 +8723,82 @@ final class GameScene: SKScene {
         }
     }
 
-    // MARK: CROSX
+    // MARK: CROSX / SLASHX
 
-    /// Transforme toutes les cases `.color()` de la croix (même ligne + même colonne)
-    /// ainsi que la case d'atterrissage en une couleur aléatoire, puis appelle `resolveChains()`.
+    /// CROSSX — ligne + colonne d'atterrissage → une couleur, puis chaînes.
     private func applyMagixEffect_crosx(at cell: GridAddress) {
-        let chosenColor = Self.colorPalette.randomElement() ?? "red"
-
-        // ── 1. Collecte : LIGNE ENTIÈRE + COLONNE ENTIÈRE centrées sur la case d'atterrissage.
-        // Transformées : Blox (.color) ET Brix (.priks) → tous deviennent la couleur aléatoire.
-        // Cases vides et Magix ignorées.
-        var crossCells: [GridAddress] = []
-
-        // Ligne horizontale complète
+        var cells: [GridAddress] = []
         for c in 0..<GridLayout.columnCount {
-            let addr = GridAddress(row: cell.row, col: c)
             switch grid[cell.row][c] {
-            case .color, .priks: crossCells.append(addr)
+            case .color, .priks: cells.append(GridAddress(row: cell.row, col: c))
             default: break
             }
         }
-        // Colonne verticale complète (évite le doublon sur la case centrale)
         for r in GridLayout.topRowIndex..<GridLayout.rowCount {
             if r == cell.row { continue }
-            let addr = GridAddress(row: r, col: cell.col)
             switch grid[r][cell.col] {
-            case .color, .priks: crossCells.append(addr)
+            case .color, .priks: cells.append(GridAddress(row: r, col: cell.col))
             default: break
             }
         }
-        // La case centrale elle-même (le CROSX qui vient d'atterrir)
-        if !crossCells.contains(cell) { crossCells.append(cell) }
+        applyMagixAxisPaint(at: cell, cells: cells, ringDistance: { addr in
+            abs(addr.row - cell.row) + abs(addr.col - cell.col)
+        })
+    }
 
-        // ── 2. Suppression immédiate des barres de jonction touchant la croix.
-        removeBloxJunctionElementsTouching(Set(crossCells))
+    /// SLASHX — deux diagonales d'atterrissage → une couleur, puis chaînes (cousin CROSSX).
+    private func applyMagixEffect_slashx(at cell: GridAddress) {
+        var cells: [GridAddress] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                guard abs(r - cell.row) == abs(c - cell.col) else { continue }
+                switch grid[r][c] {
+                case .color, .priks: cells.append(GridAddress(row: r, col: c))
+                default: break
+                }
+            }
+        }
+        applyMagixAxisPaint(at: cell, cells: cells, ringDistance: { addr in
+            abs(addr.row - cell.row)
+        })
+    }
 
-        // ── 3. Fallback sans container ─────────────────────────────────────────
+    /// Peinture d'axes (CROSSX / SLASHX) : couleur unique, anneaux, pop, SFX CROSSX, `resolveChains()`.
+    private func applyMagixAxisPaint(
+        at cell: GridAddress,
+        cells: [GridAddress],
+        ringDistance: (GridAddress) -> Int
+    ) {
+        let chosenColor = Self.colorPalette.randomElement() ?? "red"
+        var paintCells = cells
+        if !paintCells.contains(cell) { paintCells.append(cell) }
+
+        removeBloxJunctionElementsTouching(Set(paintCells))
+
         guard let container = childNode(withName: Self.gridContainerName) else {
-            for addr in crossCells { grid[addr.row][addr.col] = .color(chosenColor) }
+            for addr in paintCells { grid[addr.row][addr.col] = .color(chosenColor) }
             drawGrid()
             resolveChains()
             return
         }
 
-        // ── 3. Animation PROGRESSIVE depuis le centre vers l'extérieur.
-        // Les cases sont triées par distance de Manhattan au centre (0, 1, 2, …).
-        // Toutes les cases d'une même distance s'animent simultanément, puis les
-        // cases plus éloignées suivent avec un léger décalage.
-        let sorted = crossCells.sorted {
-            let d1 = abs($0.row - cell.row) + abs($0.col - cell.col)
-            let d2 = abs($1.row - cell.row) + abs($1.col - cell.col)
-            return d1 < d2
-        }
-
+        let sorted = paintCells.sorted { ringDistance($0) < ringDistance($1) }
         let waveDelay: TimeInterval = 0.06
         var totalDelay: TimeInterval = 0
-        var prevDist  = -1
+        var prevDist = -1
         var ringIndex = 0
 
         for addr in sorted {
-            let dist = abs(addr.row - cell.row) + abs(addr.col - cell.col)
+            let dist = ringDistance(addr)
             if dist != prevDist {
-                // Nouvelle vague : décalage supplémentaire + son d'anneau.
                 if prevDist >= 0 { totalDelay += waveDelay }
-                let capturedRing  = ringIndex
+                let capturedRing = ringIndex
                 let capturedDelay = totalDelay
                 run(SKAction.sequence([
                     SKAction.wait(forDuration: capturedDelay),
                     SKAction.run { BlomixProceduralSFX.shared.playCrosxPulse(ring: capturedRing) },
                 ]))
-                prevDist  = dist
+                prevDist = dist
                 ringIndex += 1
             }
             let capturedAddr = addr
@@ -8782,9 +8823,8 @@ final class GameScene: SKScene {
                 },
             ]))
         }
-        let finalDelay = totalDelay + waveDelay  // inclut la dernière vague
+        let finalDelay = totalDelay + waveDelay
 
-        // ── 4. Resynchronisation + résolution des chaînes ─────────────────────
         run(SKAction.sequence([
             SKAction.wait(forDuration: finalDelay + 0.12),
             SKAction.run { [weak self] in

@@ -1,6 +1,4 @@
-• Guía de reglas y Magix, disponible en cualquier momento desde el inicio o el menú
-• Inicio más claro: Continuar, Descubrir o Arcade — sin reanudar por sorpresa
-• Confirmación antes de dejar una partida guardada (Zen, Duelo o Nueva partida)
-• Duelo: medidor de ataque más legible
-• Apuntar bombas más cómodo; el temporizador congelado se muestra
-• Contadores Brix más nítidos
+• Nuevo Magix: SLASHX pinta las diagonales (primo de CROSSX)
+• Guía más clara: Magix, Blox, Brix, líneas, bombas, puntuación y Duelo
+• Game Over: la precisión de colocación se lee mejor
+• Icono actualizado (sin margen blanco)

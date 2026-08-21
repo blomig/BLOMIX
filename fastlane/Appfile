@@ -1,0 +1,4 @@
+# frozen_string_literal: true
+
+app_identifier("blomig.BLOMIX")
+team_id("337CZP5VR7")

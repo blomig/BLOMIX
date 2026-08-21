@@ -1,0 +1,21 @@
+name: Store metadata
+
+on:
+  push:
+    paths:
+      - "store/**"
+      - "scripts/validate-store-metadata.rb"
+      - "Blomix/Blomix.xcodeproj/project.pbxproj"
+      - "Blomix/Blomix/Blomix.entitlements"
+      - "Blomix/Blomix/BlomixRelease.entitlements"
+      - ".github/workflows/store-metadata.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valider store/ et entitlements
+        run: ruby scripts/validate-store-metadata.rb

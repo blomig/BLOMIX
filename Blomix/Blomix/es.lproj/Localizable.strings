@@ -286,6 +286,10 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "pvp.availability_cloudkit_error_format" = "Error de CloudKit: %@";
 
 "generic.ok" = "OK";
+"whatsnew.title" = "Cambios en esta versión";
+"whatsnew.twistx" = "TWISTX usa ahora este símbolo";
+"whatsnew.slashx" = "Un nuevo Magix, SLASHX, hace su aparición";
+"whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */
 "appearance.toggle_a11y" = "Cambiar entre modo oscuro y claro";
@@ -371,17 +375,17 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "guide.title" = "Guía";
 "guide.replay_tutorial" = "Repetir el tutorial";
 "guide.section.blox.title" = "Blox y cadenas";
-"guide.section.blox.body" = "Rejilla 8×8, gravedad hacia arriba.\nUna cadena: 5+ blox del mismo color, también en diagonal (8-conectados).";
+"guide.section.blox.body" = "Rejilla 8×8, gravedad hacia arriba.\nUna cadena: 5 blox o más del mismo color en contacto, también en diagonal.";
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Bloques numerados. Una cadena adyacente les resta 1 (máx. una vez por oleada).\nAl llegar a 0 desaparecen: +20 pts.";
 "guide.section.line.title" = "Línea entrante";
-"guide.section.line.body" = "Cada 10 colocaciones, una fila sube desde abajo.\nUsar una bomba no es un movimiento: el contador LÍNEA no avanza.";
+"guide.section.line.body" = "Cada 10 blox / Brix colocados, una fila aleatoria sube desde abajo.\nUsar una bomba no es un movimiento: el contador LÍNEA no avanza.";
 "guide.section.bombs.title" = "Bombas";
-"guide.section.bombs.body" = "Reserva: 5 en Arcade/Zen, 3 en Duelo.\nZen, Duelo y tutorial: explosión 3×3.\nArcade: 3×3 en la etapa 1, luego una cruz que crece en cada etapa (nuke).";
+"guide.section.bombs.body" = "Reserva: 5 en Arcade/Zen, 3 en Duelo.\nZen, Duelo y tutorial: explosión en una zona de 3×3.\nArcade: 3×3 en el Stage 1, luego una cruz que se alarga en cada Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Nunca en Duelo, ni en las líneas.";
-"guide.section.magix.body" = "CHROMAX (?) — camino de color, luego cadenas.\nBRIXED (9) — se convierte en Brix(9); los demás Brix se destruyen (+20).\nCROSSX (+) — fila + columna de un color, luego cadenas.\nSCRUMBLX (=) — cada fila se desplaza; −1 en todos los Brix.\nCOLORX (O) — borra un color.\nSAINTX (∞) — vacía la cuadrícula, deja un Brix; +200 × etapa.\nTWISTX (X) — intercambia solo un color ↔ Brix.\nBOMBX (B) — mancha de color y luego +1 bomba.";
+"guide.section.magix.intro" = "Bloques especiales con grandes poderes, muy raros, y solo aparecen en Arcade o Zen en la cola de blox / Brix a lanzar.";
+"guide.section.magix.body" = "CHROMAX (?) — camino de color aleatorio al impacto, más o menos largo.\nBRIXED (9) — se convierte en Brix(9); los demás Brix se destruyen (+20).\nCROSSX (+) — fila + columna repintadas de un color, luego cadenas.\nSLASHX (X) — diagonales repintadas de un color, luego cadenas.\nSCRUMBLX (=) — cada fila se desplaza un número aleatorio de casillas; −1 en todos los Brix.\nCOLORX (O) — borra todos los blox de un color aleatorio.\nSAINTX (∞) — vacía la cuadrícula, deja un Brix; +200 × etapa.\nTWISTX (§) — intercambia un color de blox por el Brix mínimo.\nBOMBX (B) — mancha de color aleatoria, luego añade una bomba al stock.";
 "guide.section.score.title" = "Puntuación";
-"guide.section.score.body" = "Cadenas: 5/7/10/13/15/20 pts + 10 por nivel de cascada.\nColumna vacía: +10. Tablero vacío: +500 (Arcade/Zen, sin ×etapa).";
+"guide.section.score.body" = "Cadenas: 5 puntos por una cadena de 5 blox, y hasta 20 por una cadena muy larga. +10 por una cadena en cascada.\nColumna vacía: +10. Tablero vacío: +500 (Arcade/Zen, sin ×etapa).";
 "guide.section.duel.title" = "Duelo";
-"guide.section.duel.body" = "El número grande y la barra son el medidor de ataque (0…50), no el total.\nApuntar una bomba congela tu temporizador de turno.";
+"guide.section.duel.body" = "El número grande y la barra son el medidor de ataque (0…50): cada 50 puntos envía una línea al otro jugador.\nColocar una bomba congela tu temporizador de turno.";

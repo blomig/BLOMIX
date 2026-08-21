@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 6.4
+> **Version de référence** : 6.5 (local)
 
 ---
 
@@ -49,10 +49,11 @@
 | **CHROMAX** | `.chromax` | ? |
 | **BRIXED** | `.brixed` | 9 |
 | **CROSSX** | `.crosx` | + |
+| **SLASHX** | `.slashx` | X |
 | **SCRUMBLX** | `.scrumblx` | = |
 | **COLORX** | `.colorx` | O |
 | **SAINTX** | `.cleanx` | ∞ |
-| **TWISTX** | `.twistx` | X |
+| **TWISTX** | `.twistx` | § |
 | **BOMBX** | `.bombx` | B |
 
 > **Note** : le code utilise `crosx` (pas `crossx`) et `cleanx` (affiché SAINTX en UI). Les Magix n’apparaissent **pas** en Duel, ni dans les lignes du bas. **BRIXED** détruit tous les autres Brix (il ne les décrémente plus de 2). Catalogue + pistes : [MAGIX.md](MAGIX.md).

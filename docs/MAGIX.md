@@ -1,6 +1,6 @@
 # BLOMIX — Magix
 
-> **Version de référence** : 6.4  
+> **Version de référence** : 6.5 (local)  
 > Catalogue des blocs Magix **en jeu** et pistes **non implémentées**.  
 > Les règles joueur font foi dans [RULES.md](RULES.md) §2c ; constantes et spawn dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7 ; juice dans [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) §6.
 
@@ -17,24 +17,27 @@ Noms Magix **non traduits** (UI, doc, ASC). Code : `MagixKind` / `MagixRules` da
 
 ---
 
-## En jeu (6.4)
+## En jeu (6.5)
 
 | UI | Code | Symbole | Spawn | Effet joueur |
 |---|---|---|---|---|
 | **CHROMAX** | `.chromax` | ? | 1/324 | Chemin aléatoire ≤ 15 cases occupées → une couleur → chaînes |
 | **BRIXED** | `.brixed` | 9 | 1/324 | Devient Brix(9) ; **détruit** tous les autres Brix (+20 chacun). Plus de −2 global |
-| **CROSSX** | `.crosx` | + | 1/216 | Ligne + colonne d’atterrissage → couleur aléatoire → chaînes |
+| **CROSSX** | `.crosx` | + | 1/432 | Ligne + colonne d’atterrissage → couleur aléatoire → chaînes |
+| **SLASHX** | `.slashx` | X | 1/432 | Deux diagonales d’atterrissage → couleur aléatoire → chaînes (cousin CROSSX) |
 | **SCRUMBLX** | `.scrumblx` | = | 1/180 | Chaque ligne occupée se décale (1–7 crans, wrap) ; **−1** tous les Brix |
 | **COLORX** | `.colorx` | O | 1/180 | Roulette : **efface** tous les blox d’une couleur (score chaîne) |
 | **SAINTX** | `.cleanx` | ∞ | 1/500 | Vide la grille ; laisse un Brix(N = cases enlevées) ; **+200** (× stage en Arcade) |
-| **TWISTX** | `.twistx` | X | 1/324 | Échange auto : une couleur **présente** ↔ tous les Brix (valeur = min des Brix, défaut 3) |
+| **TWISTX** | `.twistx` | § | 1/324 | Échange auto : une couleur **présente** ↔ tous les Brix (valeur = min des Brix, défaut 3) |
 | **BOMBX** | `.bombx` | B | 1/500 | Tâche 3 rangs sur cases **occupées** → chaînes → **+1 bombe** (garanti). Arcade / Zen seulement |
+
+Cumul Magix ≈ **2,9 %** (SLASHX + CROSSX = ancien 1/216 CROSSX). Glyphe TWISTX = **§** (Changa One n’a pas de double flèche).
 
 ### Axes déjà utilisés
 
 | Axe | Variantes |
 |---|---|
-| Peindre une zone | CHROMAX (chemin), CROSSX (croix +), BOMBX (tache) |
+| Peindre une zone | CHROMAX (chemin), CROSSX (croix +), SLASHX (diagonales X), BOMBX (tache) |
 | Effacer | COLORX (une couleur), SAINTX (tout) |
 | Brix | BRIXED (wipe), TWISTX (échange couleur↔Brix), SCRUMBLX (−1 global) |
 | Ordre / lignes | SCRUMBLX (décalage **horizontal** par ligne) |
@@ -44,9 +47,9 @@ Noms Magix **non traduits** (UI, doc, ASC). Code : `MagixKind` / `MagixRules` da
 
 ## Pistes (non codées)
 
-Recueillies en 6.4. Un seul nouveau Magix suffirait : la table a déjà 8 tirages. **Hors Duel / lignes du bas**, comme les autres.
+Recueillies en 6.4. Un seul nouveau Magix suffirait : la table a déjà 9 tirages. **Hors Duel / lignes du bas**, comme les autres.
 
-À éviter (trop proches) : autre tache, autre wipe total, autre −1 Brix global, autre décalage horizontal aléatoire de lignes.
+À éviter (trop proches) : autre tache, autre wipe total, autre −1 Brix global, autre décalage horizontal aléatoire de lignes, autre peinture d’axes (CROSSX / SLASHX).
 
 ### PACKX — tout glisse vers ta colonne
 
@@ -87,14 +90,6 @@ Vider la **ligne** ou la **colonne** d’atterrissage, puis compactage.
 - **Nouveau :** CROSSX **peint** la croix ; ici une **coupe** qui fait de la place.
 - **Joueur :** oxygène sans reset SAINTX.
 - **Risque :** sacrifier la meilleure colonne.
-
-### SLASHX — la croix qu’on n’a pas
-
-Peindre les **diagonales** passant par l’atterrissage (8-connexité). CROSSX = **+**.
-
-- **Nouveau :** géométrie encore unused.
-- **Joueur :** relier des coins, chaînes diagonales.
-- **Risque :** plus chaotique que CROSSX. Symbole **X** déjà TWISTX — glyphe à soigner.
 
 ### FORGEX — les Brix deviennent du jeu
 

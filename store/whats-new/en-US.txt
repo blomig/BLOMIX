@@ -1,6 +1,4 @@
-• In-game guide for the rules and Magix — open it anytime from Home or the menu
-• Clearer Home: Continue a saved game, Discover, or Arcade — no surprise resume
-• Confirmation before leaving a saved game (Zen, Duel, or New game)
-• Duel: easier-to-read attack meter
-• More comfortable bomb aiming; the frozen timer is now visible
-• Sharper Brix countdown feedback
+• New Magix: SLASHX paints the diagonals (CROSSX’s cousin)
+• Clearer in-game guide: Magix, Blox, Brix, lines, bombs, score, and Duel
+• Game Over: placement accuracy is easier to read
+• Updated app icon (no white margin)

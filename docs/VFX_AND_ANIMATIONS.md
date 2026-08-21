@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.4  
+> **Version de référence** : 6.5 (local)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : août 2026
 
@@ -60,7 +60,7 @@ Synthèse PCM en mémoire (44,1 kHz, pool de 14 `AVAudioPlayerNode`). Volume mod
 | Fonction | Déclencheur | Durée | Pitch / timbre | Gain |
 |---|---|---|---|---|
 | `playChromaxTick(step, total)` | CHROMAX : chaque case transformée | 0,055 s | C5→C6 selon `step/total` | 0,55 |
-| `playCrosxPulse(ring)` | CROSSX : chaque anneau Manhattan | 0,075 s | 700 Hz / 1,07^ring | 0,50 |
+| `playCrosxPulse(ring)` | CROSSX / SLASHX : chaque anneau | 0,075 s | 700 Hz / 1,07^ring | 0,50 |
 | `playBombxStain(rank, indexInRank)` | BOMBX : chaque case peinte (R0…R3) | 0,055–0,095 s | ~195→410 Hz selon rang ; tête de vague +20 % | 0,42–0,74 |
 | `playTwistxFlip(index)` | TWISTX : chaque case swappée | 0,038 s | 880 Hz (pair) / 660 Hz (impair) | 0,45 |
 | `playColorxRouletteClick(step)` | COLORX : étape roulette (0–4) | 0,055 s | 880→728 Hz (−38/step) | 0,60 |
@@ -69,7 +69,7 @@ Synthèse PCM en mémoire (44,1 kHz, pool de 14 `AVAudioPlayerNode`). Volume mod
 
 Staggers audio Magix alignés sur les animations visuelles :
 - CHROMAX : **0,08 s**/case
-- CROSSX : **0,06 s**/anneau
+- CROSSX / SLASHX : **0,06 s**/anneau
 - BOMBX : **0,055 s**/case (vagues R0→R3 ; R0 plus présent)
 - TWISTX : **0,04 s**/case
 - COLORX roulette : durées visuelles `[0,10, 0,15, 0,22, 0,30, 0,50]` s
@@ -382,6 +382,17 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 | **Visuel** | Ligne + colonne → couleur aléatoire ; expansion par distance Manhattan |
 | **Timing** | **0,06 s**/anneau ; scale pop 0,5→1,35→1,0 |
 | **Audio** | `playCrosxPulse(ring)` |
+| **Suite** | `resolveChains()` |
+
+### 6.3b SLASHX
+
+Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosxPulse`, puis `resolveChains()`. Géométrie = **deux diagonales** ; anneaux = `|Δrow|`.
+
+| | |
+|---|---|
+| **Visuel** | Diagonales → couleur aléatoire ; expansion depuis le centre |
+| **Timing** | **0,06 s**/anneau (identique CROSSX) |
+| **Audio** | `playCrosxPulse(ring)` (cousin) |
 | **Suite** | `resolveChains()` |
 
 ### 6.4 SCRUMBLX

@@ -298,6 +298,10 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.availability_cloudkit_error_format" = "CloudKit error: %@";
 
 "generic.ok" = "OK";
+"whatsnew.title" = "What’s new in this version";
+"whatsnew.twistx" = "TWISTX now uses this symbol";
+"whatsnew.slashx" = "A new Magix, SLASHX, has arrived";
+"whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */
 "appearance.toggle_a11y" = "Toggle dark and light appearance";
@@ -383,17 +387,17 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "guide.title" = "Guide";
 "guide.replay_tutorial" = "Replay tutorial";
 "guide.section.blox.title" = "Blox and chains";
-"guide.section.blox.body" = "8×8 grid, gravity toward the top.\nA chain is 5+ blox of the same colour, including diagonals (8-connected).";
+"guide.section.blox.body" = "8×8 grid, gravity toward the top.\nA chain: 5 or more blox of the same colour in contact, including diagonally.";
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Numbered blocks. An adjacent chain knocks 1 off (once per wave).\nAt 0 they vanish: +20 pts.";
 "guide.section.line.title" = "Incoming line";
-"guide.section.line.body" = "Every 10 placement moves, a row rises from the bottom.\nUsing a bomb is not a move: the LINE counter does not advance.";
+"guide.section.line.body" = "Every 10 placed blox / Brix, a random row rises from the bottom.\nUsing a bomb is not a move: the LINE counter does not advance.";
 "guide.section.bombs.title" = "Bombs";
-"guide.section.bombs.body" = "Stock: 5 in Arcade/Zen, 3 in Duel.\nZen, Duel and tutorial: 3×3 blast.\nArcade: 3×3 at stage 1, then a lengthening cross each stage (nuke).";
+"guide.section.bombs.body" = "Stock: 5 in Arcade/Zen, 3 in Duel.\nZen, Duel and tutorial: a 3×3 blast zone.\nArcade: 3×3 at Stage 1, then a cross that lengthens each Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Never in Duel, nor in incoming lines.";
-"guide.section.magix.body" = "CHROMAX (?) — coloured path, then chains.\nBRIXED (9) — becomes Brix(9); all other Brix are destroyed (+20).\nCROSSX (+) — row + column one colour, then chains.\nSCRUMBLX (=) — each row shifts; −1 on every Brix.\nCOLORX (O) — clears one colour.\nSAINTX (∞) — clears the board, leaves a Brix; +200 × stage.\nTWISTX (X) — auto-swaps one colour ↔ Brix.\nBOMBX (B) — colour stain then +1 bomb.";
+"guide.section.magix.intro" = "Special blocks with powerful effects, very rare, and they only appear in Arcade or Zen in the blox / Brix launch queue.";
+"guide.section.magix.body" = "CHROMAX (?) — random coloured path on impact, more or less long.\nBRIXED (9) — becomes Brix(9); all other Brix are destroyed (+20).\nCROSSX (+) — row + column repainted one colour, then chains.\nSLASHX (X) — diagonals repainted one colour, then chains.\nSCRUMBLX (=) — each row shifts a random number of cells; −1 on every Brix.\nCOLORX (O) — clears all blox of a random colour.\nSAINTX (∞) — clears the board, leaves a Brix; +200 × stage.\nTWISTX (§) — swaps one blox colour for the lowest Brix.\nBOMBX (B) — random colour stain, then adds a bomb to the stock.";
 "guide.section.score.title" = "Score";
-"guide.section.score.body" = "Chains: 5/7/10/13/15/20 pts + 10 per cascade level.\nCleared column: +10. Fully empty board: +500 (Arcade/Zen, no stage multiplier).";
+"guide.section.score.body" = "Chains: 5 points for a chain of 5 blox, up to 20 for a very long chain. +10 for a cascade chain.\nCleared column: +10. Fully empty board: +500 (Arcade/Zen, no stage multiplier).";
 "guide.section.duel.title" = "Duel";
-"guide.section.duel.body" = "The big number and the bar are the attack meter (0…50), not your total score.\nAiming a bomb freezes your turn timer.";
+"guide.section.duel.body" = "The big number and the bar are the attack meter (0…50): every 50 points sends a line to the other player.\nPlacing a bomb freezes your turn timer.";

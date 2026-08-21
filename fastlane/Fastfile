@@ -1,0 +1,298 @@
+# frozen_string_literal: true
+
+# Pipeline App Store Connect BLOMIX.
+# Source de verite textes : store/whats-new/ et store/promotional-text/
+# (jamais fastlane/metadata versionne -- trop facile d'ecraser description / captures).
+
+opt_out_usage
+skip_docs
+
+default_platform(:ios)
+
+ROOT = File.expand_path("..", __dir__)
+XCODEPROJ = File.join(ROOT, "Blomix/Blomix.xcodeproj")
+SCHEME = "Blomix"
+BUNDLE_ID = "blomig.BLOMIX"
+TEAM_ID = "337CZP5VR7"
+LOCALES = %w[en-US fr-FR de-DE es-ES it-IT].freeze
+# deliver n'accepte pas it-IT (dossier = "it"). store/ garde it-IT.txt.
+FASTLANE_LOCALE = {
+  "en-US" => "en-US",
+  "fr-FR" => "fr-FR",
+  "de-DE" => "de-DE",
+  "es-ES" => "es-ES",
+  "it-IT" => "it"
+}.freeze
+GENERATED_METADATA = File.join(ROOT, "fastlane/metadata/.generated")
+
+platform :ios do
+  before_all do
+    load_root_env!
+  end
+
+  desc "Valide store/ (5 langues) + entitlements Release=production"
+  lane :validate do
+    validate_project!(require_store: true)
+  end
+
+  desc "Pousse Nouveautés + texte promo (5 locales). Ne touche pas description/captures."
+  lane :metadata do
+    validate_project!(require_store: true)
+    generated = generate_deliver_metadata!
+    if dry_run?
+      UI.success("DRY_RUN : metadonnees generees dans #{generated} -- rien envoye a ASC")
+      next
+    end
+    api = connect_api_key!
+    version = marketing_version
+    UI.message("Version ASC visée : #{version}")
+    upload_to_app_store(
+      **deliver_common(api, version).merge(
+        skip_binary_upload: true,
+        metadata_path: generated,
+        skip_metadata: false,
+        submit_for_review: false,
+        edit_live: edit_live?
+      )
+    )
+  end
+
+  desc "Archive Release + upload TestFlight (pas de fiche magasin, pas de review)"
+  lane :beta do
+    validate_project!(require_store: false)
+    api = connect_api_key!
+    bump_build_number!(api)
+    ipa = archive_release_ipa!
+    upload_to_testflight(
+      api_key: api,
+      ipa: ipa,
+      app_identifier: BUNDLE_ID,
+      skip_waiting_for_build_processing: skip_wait?,
+      distribute_external: false,
+      changelog: testflight_changelog,
+      uses_non_exempt_encryption: false
+    )
+  end
+
+  desc "Archive + upload binaire + Nouveautés/promo. Ne soumet PAS à la review."
+  lane :release do
+    validate_project!(require_store: true)
+    api = connect_api_key!
+    bump_build_number!(api)
+    ipa = archive_release_ipa!
+    generated = generate_deliver_metadata!
+    upload_to_app_store(
+      **deliver_common(api, marketing_version).merge(
+        ipa: ipa,
+        skip_binary_upload: false,
+        metadata_path: generated,
+        skip_metadata: false,
+        submit_for_review: false
+      )
+    )
+    UI.success("Build #{get_build_number(xcodeproj: XCODEPROJ, target: "BLOMIX")} uploadé pour #{marketing_version}.")
+    UI.important("Review non lancee. Quand le build est Valid dans ASC : bundle exec fastlane submit")
+  end
+
+  desc "Soumet la version MARKETING_VERSION à la review (build déjà uploadé). Irréversible."
+  lane :submit do
+    validate_project!(require_store: true)
+    api = connect_api_key!
+    generated = generate_deliver_metadata!
+    version = marketing_version
+    UI.important("Soumission #{version} (build #{get_build_number(xcodeproj: XCODEPROJ, target: "BLOMIX")}) -- automatic_release=false")
+    upload_to_app_store(
+      **deliver_common(api, version).merge(
+        skip_binary_upload: true,
+        metadata_path: generated,
+        skip_metadata: false,
+        submit_for_review: true,
+        automatic_release: false,
+        submission_information: {
+          add_id_info_uses_idfa: false,
+          export_compliance_uses_encryption: false,
+          export_compliance_encryption_updated: false
+        }
+      )
+    )
+  end
+end
+
+###############################################################################
+# Helpers
+###############################################################################
+
+def load_root_env!
+  [File.join(ROOT, ".env"), File.join(ROOT, "fastlane/.env")].each do |path|
+    next unless File.exist?(path)
+
+    File.readlines(path, chomp: true).each do |line|
+      next if line.empty? || line.start_with?("#")
+      next unless line.include?("=")
+
+      key, val = line.split("=", 2)
+      key = key.strip
+      val = val.strip.sub(/\A["']/, "").sub(/["']\z/, "")
+      ENV[key] = val if ENV[key].to_s.empty?
+    end
+  end
+end
+
+def dry_run?
+  truthy?(ENV["DRY_RUN"])
+end
+
+def skip_wait?
+  truthy?(ENV["SKIP_WAIT"])
+end
+
+def edit_live?
+  truthy?(ENV["EDIT_LIVE"])
+end
+
+def truthy?(value)
+  %w[1 true yes].include?(value.to_s.strip.downcase)
+end
+
+def validate_project!(require_store:)
+  args = ["ruby", File.join(ROOT, "scripts/validate-store-metadata.rb")]
+  args << "--skip-store" unless require_store
+  Dir.chdir(ROOT) do
+    system(*args) or UI.user_error!("Validation store/ ou entitlements echouee")
+  end
+end
+
+def connect_api_key!
+  key_id = ENV["ASC_KEY_ID"].to_s.strip
+  issuer = ENV["ASC_ISSUER_ID"].to_s.strip
+  key_path = File.expand_path(ENV["ASC_KEY_PATH"].to_s.strip)
+  missing = []
+  missing << "ASC_KEY_ID" if key_id.empty?
+  missing << "ASC_ISSUER_ID" if issuer.empty?
+  missing << "ASC_KEY_PATH (fichier .p8)" if key_path.empty? || !File.file?(key_path)
+  unless missing.empty?
+    UI.user_error!(
+      "Clé API App Store Connect manquante : #{missing.join(', ')}.\n" \
+      "1. ASC → Users and Access → Integrations → App Store Connect API → Team Key (App Manager)\n" \
+      "2. cp .env.example .env  puis remplir ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH\n" \
+      "3. Le .p8 reste HORS git (ex. ~/.appstoreconnect/AuthKey_….p8)"
+    )
+  end
+  app_store_connect_api_key(
+    key_id: key_id,
+    issuer_id: issuer,
+    key_filepath: key_path,
+    in_house: false,
+    duration: 1200,
+    set_spaceship_token: true
+  )
+end
+
+def marketing_version
+  pbx = File.read(XCODEPROJ + "/project.pbxproj")
+  versions = pbx.scan(/MARKETING_VERSION = ([^;]+);/).flatten.map(&:strip).uniq
+  UI.user_error!("MARKETING_VERSION introuvable dans le pbxproj") if versions.empty?
+  UI.user_error!("MARKETING_VERSION incohérent : #{versions.join(', ')}") if versions.size > 1
+  versions.first
+end
+
+def bump_build_number!(api)
+  local = get_build_number(xcodeproj: XCODEPROJ, target: "BLOMIX").to_i
+  remote = 0
+  begin
+    tf = latest_testflight_build_number(
+      api_key: api,
+      app_identifier: BUNDLE_ID,
+      initial_build_number: 0
+    ).to_i
+    live = begin
+      app_store_build_number(
+        api_key: api,
+        app_identifier: BUNDLE_ID,
+        live: true,
+        initial_build_number: 0
+      ).to_i
+    rescue StandardError
+      0
+    end
+    remote = [tf, live].max
+    UI.message("Build local #{local} -- TestFlight/ASC max #{remote}")
+  rescue StandardError => e
+    UI.user_error!(
+      "Impossible de lire le dernier build ASC (#{e.message}). " \
+      "Impossible de bumper le build sans ASC. Corriger la cle API."
+    )
+  end
+  nxt = [local, remote + 1].max
+  if nxt == local
+    UI.success("Build #{local} encore libre -- on le garde.")
+  else
+    increment_build_number(xcodeproj: XCODEPROJ, build_number: nxt)
+    UI.success("CURRENT_PROJECT_VERSION → #{nxt} (penser à committer le pbxproj)")
+  end
+  nxt
+end
+
+def archive_release_ipa!
+  clean = ENV["CLEAN"].to_s != "0"
+  build_app(
+    project: XCODEPROJ,
+    scheme: SCHEME,
+    configuration: "Release",
+    clean: clean,
+    export_method: "app-store",
+    export_team_id: TEAM_ID,
+    output_directory: File.join(ROOT, "build"),
+    output_name: "BLOMIX",
+    include_bitcode: false,
+    include_symbols: true,
+    destination: "generic/platform=iOS",
+    xcargs: "-allowProvisioningUpdates",
+    export_options: {
+      method: "app-store",
+      signingStyle: "automatic",
+      teamID: TEAM_ID,
+      uploadSymbols: true,
+      compileBitcode: false
+    }
+  )
+  ipa = File.join(ROOT, "build/BLOMIX.ipa")
+  UI.user_error!("IPA introuvable : #{ipa}") unless File.file?(ipa)
+  ipa
+end
+
+def generate_deliver_metadata!
+  FileUtils.rm_rf(GENERATED_METADATA)
+  LOCALES.each do |locale|
+    dir = File.join(GENERATED_METADATA, FASTLANE_LOCALE.fetch(locale))
+    FileUtils.mkdir_p(dir)
+    notes = File.read(File.join(ROOT, "store/whats-new/#{locale}.txt"), encoding: "UTF-8")
+    promo = File.read(File.join(ROOT, "store/promotional-text/#{locale}.txt"), encoding: "UTF-8")
+    File.write(File.join(dir, "release_notes.txt"), notes.gsub("\r\n", "\n").strip + "\n")
+    File.write(File.join(dir, "promotional_text.txt"), promo.gsub("\r\n", "\n").strip + "\n")
+  end
+  UI.message("Métadonnées générées (Nouveautés + promo seulement) → #{GENERATED_METADATA}")
+  GENERATED_METADATA
+end
+
+def testflight_changelog
+  path = File.join(ROOT, "store/whats-new/en-US.txt")
+  return nil unless File.file?(path)
+
+  File.read(path, encoding: "UTF-8").gsub("\r\n", "\n").strip
+end
+
+def deliver_common(api, version)
+  {
+    api_key: api,
+    app_identifier: BUNDLE_ID,
+    app_version: version,
+    skip_screenshots: true,
+    force: true,
+    run_precheck_before_submit: false,
+    precheck_include_in_app_purchases: false,
+    reject_if_possible: false,
+    overwrite_screenshots: false,
+    version_check_wait_retry_limit: 10
+  }
+end

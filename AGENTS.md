@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **6.4** (build 119, `MARKETING_VERSION`) |
+| Version courante | **6.5** (build 120, local) — **6.4** (build 119) encore en review ASC |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -46,7 +46,9 @@ BLOMIX/
 │   ├── Blomix.xcodeproj
 │   └── Blomix/               # Sources Swift, assets, lproj, Sounds
 ├── store/                    # Métadonnées ASC hors bundle (whats-new + promo)
-├── scripts/                  # Export preview / promo
+├── fastlane/                 # Lanes validate / metadata / beta / release / submit
+├── Gemfile                   # Fastlane
+├── scripts/                  # validate-store-metadata + export preview / promo
 ├── icones_app/               # Marketing
 ├── Palette couleur/          # Références design
 └── old_web_code/             # Archive web (ne pas faire évoluer)
@@ -130,7 +132,7 @@ La logique gameplay est concentrée dans :
 | Commits | FR ou EN, style impératif + préfixe (`feat:`, `fix:`, `docs:`, …) — voir `DOCS/CONTRIBUTING.md` |
 | Chaînes joueur | Via `BlomixL10n` uniquement — **jamais** de texte UI en dur |
 | Nouveautés App Store | `store/whats-new/` — **FR+EN+DE+ES+IT** à chaque version marketing (pas le bundle) |
-| Texte promo ASC | `store/promotional-text/` — **stable**, ≤ 170 car. ; coller si vide, **ne pas** réécrire à chaque 6.x |
+| Texte promo ASC | `store/promotional-text/` — **stable**, ≤ 170 car. ; Fastlane le re-pousse si ASC l’a vidé ; **ne pas** le réécrire à chaque 6.x |
 
 ### Terminologie (canonique)
 
@@ -143,6 +145,7 @@ Respecter `DOCS/GLOSSARY.md` :
 | Magix | `BlockType.magix` / `MagixKind` |
 | SAINTX | `.cleanx` |
 | CROSSX | `.crosx` (orthographe code : `crosx`) |
+| SLASHX | `.slashx` |
 | Solo stagé | mode défaut (pas « classique ») |
 
 ### Localisation
@@ -181,7 +184,7 @@ Si le comportement change, mettre à jour **en même temps** :
 | Eval / hints | `DOCS/EVAL.md` |
 | Terme nouveau | `DOCS/GLOSSARY.md` |
 | i18n | `DOCS/LOCALIZATION.md` + lproj |
-| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (5 langues)** ; coller aussi `store/promotional-text/` si ASC l’a vidé |
+| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (5 langues)** + Fastlane `metadata` / `release` (re-pousse aussi le promo si ASC l’a vidé) |
 | Nouveau doc | `DOCS/README.md` (+ README racine si besoin) |
 
 Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.
@@ -220,7 +223,7 @@ Release / jalon : mettre aussi à jour `DOCS/CHANGELOG.md` (et la version de ré
 - Réécrire **FR + EN + DE + ES + IT** (`fr-FR.txt`, `en-US.txt`, `de-DE.txt`, `es-ES.txt`, `it-IT.txt`)
 - Ton **joueur**, puces courtes, même ordre dans les 5 fichiers ; noms Magix **non traduits**
 - **Pas** dans `BlomixL10n` ni le target Xcode — Apple ne lit pas l’IPA
-- L’humain **copie-colle** dans ASC (le champ Nouveautés est vide à la création de version)
+- Fastlane pousse `store/` vers ASC (`bundle exec fastlane metadata` ou `release`) — le champ Nouveautés est vide à la création de version
 
 Voir `store/whats-new/README.md` et `DOCS/LOCALIZATION.md`.
 
@@ -262,7 +265,7 @@ open Blomix/Blomix.xcodeproj
 | `IPHONEOS_DEPLOYMENT_TARGET` | 18.0 |
 | Scheme | Blomix |
 
-Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (souvent `development` en local — attention avant release).
+Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (Debug `development`, Release `production` via `BlomixRelease.entitlements`). Déploiement : `DOCS/DEVELOPMENT.md` § Déploiement (`fastlane validate|metadata|beta|release|submit`).
 
 **PvP** : 2 comptes Game Center distincts ; lire `DOCS/PVP_MATCHING.md` avant de toucher à l’appariement (permissions CloudKit `chfrom_*`, handshake, revanche).
 

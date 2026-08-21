@@ -64,7 +64,7 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 
 ### Version de référence
 
-Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **6.4**). La mettre à jour lors d'une release majeure.
+Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **6.5** en local ; **6.4** encore en review ASC). La mettre à jour lors d'une release majeure.
 
 ### Nouveautés App Store (systématique à la release)
 
@@ -72,7 +72,7 @@ Chaque document technique commence par une ligne **Version de référence** alig
 
 1. Rédiger les puces **joueur** (FR), puis **EN, DE, ES, IT** — même ordre, même nombre.
 2. Ne pas coller le `CHANGELOG.md` (trop technique). Noms Magix **non traduits**.
-3. L’humain copie-colle dans App Store Connect (le champ Nouveautés est vide). Rien n’est lu depuis l’IPA.
+3. Fastlane pousse les fichiers vers App Store Connect (`bundle exec fastlane metadata` ou `release`). Rien n’est lu depuis l’IPA.
 
 **Texte promotionnel** (`store/promotional-text/`) : **stable**, ≤ 170 car. Coller si ASC l’a vidé. **Ne pas** le réécrire avec le CHANGELOG.
 
@@ -119,7 +119,7 @@ Nommer les imagesets de façon explicite (`red_new`, `magix`, `bomb_new`…). Do
 
 ## Fichiers à ne pas committer
 
-Voir `.gitignore` : `DerivedData/`, `xcuserdata/`, `.DS_Store`, secrets (`.env`).
+Voir `.gitignore` : `DerivedData/`, `xcuserdata/`, `.DS_Store`, secrets (`.env`, `AuthKey_*.p8`).
 
 ---
 

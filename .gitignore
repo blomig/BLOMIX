@@ -33,11 +33,16 @@ Pods/
 # Carthage
 Carthage/Build/
 
-# fastlane
+# Bundler local
+.bundle/
+vendor/bundle/
+
+# Fastlane — artefacts (Fastfile / Appfile / README sont versionnés)
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
-fastlane/test_output
+fastlane/test_output/
+fastlane/metadata/.generated/
 
 # Éditeurs / IDE
 .idea/
@@ -50,3 +55,5 @@ fastlane/test_output
 .env
 .env.*
 !.env.example
+AuthKey_*.p8
+*.p8

@@ -286,6 +286,10 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "pvp.availability_cloudkit_error_format" = "Errore CloudKit: %@";
 
 "generic.ok" = "OK";
+"whatsnew.title" = "Novità di questa versione";
+"whatsnew.twistx" = "TWISTX usa ora questo simbolo";
+"whatsnew.slashx" = "Un nuovo Magix, SLASHX, fa la sua comparsa";
+"whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */
 "appearance.toggle_a11y" = "Passa tra modalità scura e chiara";
@@ -371,17 +375,17 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "guide.title" = "Guida";
 "guide.replay_tutorial" = "Rigioca il tutorial";
 "guide.section.blox.title" = "Blox e catene";
-"guide.section.blox.body" = "Griglia 8×8, gravità verso l’alto.\nUna catena: 5+ blox dello stesso colore, anche in diagonale (8-connessi).";
+"guide.section.blox.body" = "Griglia 8×8, gravità verso l’alto.\nUna catena: 5 blox o più dello stesso colore a contatto, anche in diagonale.";
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Blocchi numerati. Una catena adiacente toglie 1 (max una volta per ondata).\nA 0 scompaiono: +20 pt.";
 "guide.section.line.title" = "Riga in arrivo";
-"guide.section.line.body" = "Ogni 10 piazzamenti una riga sale dal basso.\nUsare una bomba non è una mossa: il contatore RIGA non avanza.";
+"guide.section.line.body" = "Ogni 10 blox / Brix piazzati, una riga casuale sale dal basso.\nUsare una bomba non è una mossa: il contatore RIGA non avanza.";
 "guide.section.bombs.title" = "Bombe";
-"guide.section.bombs.body" = "Scorte: 5 in Arcade/Zen, 3 in Duello.\nZen, Duello e tutorial: esplosione 3×3.\nArcade: 3×3 al livello 1, poi una croce che si allunga a ogni livello (nuke).";
+"guide.section.bombs.body" = "Scorte: 5 in Arcade/Zen, 3 in Duello.\nZen, Duello e tutorial: esplosione in una zona 3×3.\nArcade: 3×3 allo Stage 1, poi una croce che si allunga a ogni Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Mai in Duello, né nelle righe.";
-"guide.section.magix.body" = "CHROMAX (?) — percorso colorato, poi catene.\nBRIXED (9) — diventa Brix(9); tutti gli altri Brix sono distrutti (+20).\nCROSSX (+) — riga + colonna di un colore, poi catene.\nSCRUMBLX (=) — ogni riga scorre; −1 su tutti i Brix.\nCOLORX (O) — cancella un colore.\nSAINTX (∞) — svuota la griglia, lascia un Brix; +200 × livello.\nTWISTX (X) — scambia in automatico un colore ↔ Brix.\nBOMBX (B) — macchia di colore poi +1 bomba.";
+"guide.section.magix.intro" = "Blocchi speciali con grandi poteri, molto rari, e compaiono solo in Arcade o Zen nella coda di blox / Brix da lanciare.";
+"guide.section.magix.body" = "CHROMAX (?) — percorso colorato casuale all’impatto, più o meno lungo.\nBRIXED (9) — diventa Brix(9); tutti gli altri Brix sono distrutti (+20).\nCROSSX (+) — riga + colonna ridipinte di un colore, poi catene.\nSLASHX (X) — diagonali ridipinte di un colore, poi catene.\nSCRUMBLX (=) — ogni riga scorre di un numero casuale di caselle; −1 su tutti i Brix.\nCOLORX (O) — cancella tutti i blox di un colore casuale.\nSAINTX (∞) — svuota la griglia, lascia un Brix; +200 × livello.\nTWISTX (§) — scambia un colore di blox con il Brix minimo.\nBOMBX (B) — macchia di colore casuale, poi aggiunge una bomba allo stock.";
 "guide.section.score.title" = "Punteggio";
-"guide.section.score.body" = "Catene: 5/7/10/13/15/20 pt + 10 per livello di cascata.\nColonna vuota: +10. Griglia del tutto vuota: +500 (Arcade/Zen, senza ×livello).";
+"guide.section.score.body" = "Catene: 5 punti per una catena di 5 blox, fino a 20 per una catena molto lunga. +10 per una catena in cascata.\nColonna vuota: +10. Griglia del tutto vuota: +500 (Arcade/Zen, senza ×livello).";
 "guide.section.duel.title" = "Duello";
-"guide.section.duel.body" = "Il numero grande e la barra sono il metro d’attacco (0…50), non il totale.\nMirare una bomba congela il timer del turno.";
+"guide.section.duel.body" = "Il numero grande e la barra sono il metro d’attacco (0…50): ogni 50 punti invia una riga all’altro giocatore.\nPiazzare una bomba congela il timer del turno.";

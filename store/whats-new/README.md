@@ -2,7 +2,7 @@
 
 Source de vérité du champ **Nouveautés** d’App Store Connect. **Pas dans le bundle** : Apple ne lit jamais ce texte depuis l’IPA.
 
-**Mode de travail** : à chaque version marketing, rédiger et traduire les **5** fichiers **dans le même lot** que `DOCS/CHANGELOG.md`. L’humain copie-colle ensuite dans ASC (le champ est vide à la création de version ; description et captures sont recopiées).
+**Mode de travail** : à chaque version marketing, rédiger et traduire les **5** fichiers **dans le même lot** que `DOCS/CHANGELOG.md`. Fastlane les pousse vers ASC (`bundle exec fastlane metadata` ou `release`) — le champ est vide à la création de version ; description et captures ne sont **pas** renvoyées.
 
 Limite Apple : **4000** caractères / langue. Puces courtes, bénéfice joueur — pas le changelog interne. Noms Magix **non traduits**. Même ordre et même nombre de puces dans les 5 fichiers.
 
@@ -18,12 +18,11 @@ Si un lot change encore le bénéfice joueur de **cette** version : rafraîchir 
 | `es-ES.txt` | Spanish (Spain) | `es` |
 | `it-IT.txt` | Italian | `it` |
 
-## Release (humain)
+## Release
 
 1. Vérifier que les 5 fichiers correspondent à `MARKETING_VERSION`.
-2. Créer la version dans App Store Connect.
-3. Coller chaque `.txt` dans la locale correspondante.
-4. Uploader le build comme d’habitude.
+2. `bundle exec fastlane validate` puis `metadata` ou `release` (`DOCS/DEVELOPMENT.md`).
+3. Contrôler les 5 locales dans ASC. Description et captures ne sont pas touchées.
 
 Procédure agents / l10n : `DOCS/LOCALIZATION.md`, `AGENTS.md` (volet 2b).
 

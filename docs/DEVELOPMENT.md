@@ -181,6 +181,14 @@ ruby -v   # 3.3.x
 bundle install
 ```
 
+`xcode-select` doit pointer sur **Xcode.app** (pas les Command Line Tools), ou exporter :
+
+```bash
+export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+```
+
+Le Fastfile le pose par défaut si la variable est vide.
+
 La clé n’est pas dans le dépôt. Sans `.env`, `validate` fonctionne ; `metadata` / `beta` / `release` / `submit` s’arrêtent avec un message explicite.
 
 ### Lanes

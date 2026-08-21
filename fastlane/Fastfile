@@ -10,6 +10,8 @@ skip_docs
 default_platform(:ios)
 
 ROOT = File.expand_path("..", __dir__)
+# agvtool / archive exigent Xcode.app, pas /Library/Developer/CommandLineTools.
+ENV["DEVELOPER_DIR"] ||= "/Applications/Xcode.app/Contents/Developer"
 XCODEPROJ = File.join(ROOT, "Blomix/Blomix.xcodeproj")
 SCHEME = "Blomix"
 BUNDLE_ID = "blomig.BLOMIX"

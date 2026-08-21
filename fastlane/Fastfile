@@ -90,7 +90,7 @@ platform :ios do
         submit_for_review: false
       )
     )
-    UI.success("Build #{get_build_number(xcodeproj: XCODEPROJ, target: "BLOMIX")} uploadé pour #{marketing_version}.")
+    UI.success("Build #{get_build_number(xcodeproj: XCODEPROJ)} uploadé pour #{marketing_version}.")
     UI.important("Review non lancee. Quand le build est Valid dans ASC : bundle exec fastlane submit")
   end
 
@@ -100,7 +100,7 @@ platform :ios do
     api = connect_api_key!
     generated = generate_deliver_metadata!
     version = marketing_version
-    UI.important("Soumission #{version} (build #{get_build_number(xcodeproj: XCODEPROJ, target: "BLOMIX")}) -- automatic_release=false")
+    UI.important("Soumission #{version} (build #{get_build_number(xcodeproj: XCODEPROJ)}) -- automatic_release=false")
     upload_to_app_store(
       **deliver_common(api, version).merge(
         skip_binary_upload: true,
@@ -197,7 +197,7 @@ def marketing_version
 end
 
 def bump_build_number!(api)
-  local = get_build_number(xcodeproj: XCODEPROJ, target: "BLOMIX").to_i
+  local = get_build_number(xcodeproj: XCODEPROJ).to_i
   remote = 0
   begin
     tf = latest_testflight_build_number(

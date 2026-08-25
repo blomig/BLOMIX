@@ -492,6 +492,7 @@ Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide 
 | **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé (105) — accueil : cloud = vérité si pending vides et lecture plausible |
 | **PVP-27** | Cumuls H2H Elo divergents (plancher MAX + snapshot handshake + juge jamais à l’onglet Elo) | ✅ Corrigé (121) — cloud = vérité si lecture complète ; plus de MAX handshake ; juge 1 vague à l’ouverture Elo |
 | **PVP-28** | Juge `pairKey` `sorted().prefix(3)` → 0 record (`T:_`) alors que l’historique est sous `A:_`×`A:_` | ✅ Corrigé (122) — `pairKey` classé `A:_` d’abord ; filet `winnerID` |
+| **PVP-29** | Elo reste au plancher/grâce 24 h (`max` live) même après CLOUD-JUDGE | ✅ Corrigé (123) — juge cloud efface série live + plancher |
 
 ### Protocole filaire (résumé robustesse)
 

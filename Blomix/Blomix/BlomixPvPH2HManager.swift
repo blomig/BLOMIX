@@ -828,16 +828,13 @@ final class BlomixPvPH2HManager {
             let total: BlomixPvPH2HTotals
             let complete = cloudBundle.queryComplete && pendingLeft == 0
             let floor = seriesFloor ?? previous
-            let liveActiveWithDeltas = live?.isActive == true
-                && ((live?.seriesLocal ?? 0) + (live?.seriesRemote ?? 0) > 0)
             if complete, cloud.hasHistory {
-                // 6.6 : snapshot cloud = vérité d’affichage, même s’il est plus bas que le plancher.
+                // Snapshot cloud = vérité : toujours casser série live / grâce / plancher
+                // (sinon Elo reste à max(75-69, cloud) après un lock 24 h).
                 total = cloud
-                if !liveActiveWithDeltas {
-                    clearLiveSeries(forRemoteIDs: remotes)
-                    clearCommittedFloor(forRemoteIDs: remotes)
-                }
-                print("[H2H] reconcile CLOUD-JUDGE \(total.localWins)-\(total.remoteWins) floor=\(floor.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
+                clearLiveSeries(forRemoteIDs: remotes)
+                clearCommittedFloor(forRemoteIDs: remotes)
+                print("[H2H] reconcile CLOUD-JUDGE \(total.localWins)-\(total.remoteWins) floor=\(floor.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil") liveCleared=1")
             } else if complete, !cloud.hasHistory, let floor, floor.hasHistory {
                 total = floor
                 print("[H2H] reconcile KEEP-LOCAL \(total.localWins)-\(total.remoteWins) cloud=0-0 complete empty")
@@ -1198,11 +1195,22 @@ final class BlomixPvPH2HManager {
             }
         }
 
-        // Filet : `loserID` n’est pas queryable. `winnerID` l’est — on prend les wins
-        // de chaque côté puis on filtre le duo en mémoire (évite le 0-0 si pairKey raté).
+        func isStrictDuo(_ ev: H2HCloudEvent, loc: Set<String>, rem: Set<String>) -> Bool {
+            Self.eventInvolvesDuo(
+                winnerID: ev.winnerID,
+                loserID: ev.loserID,
+                pairKey: ev.pairKey,
+                localIDs: loc,
+                remoteIDs: rem
+            )
+        }
+
+        var duoEvents = unique.values.filter { isStrictDuo($0, loc: localSet, rem: remoteSet) }
+
+        // Filet si la pairKey n’a rien donné pour CE duo (`loserID` non queryable).
         var winnerIDAttempted = 0
         var winnerIDFailed = 0
-        if unique.isEmpty, !BlomixPublicCloudGate.shared.isBlocked {
+        if duoEvents.isEmpty, !BlomixPublicCloudGate.shared.isBlocked {
             let winnerIDs = Self.normalizedIDList([
                 Self.preferredCloudID(from: Array(localSet)),
                 Self.preferredCloudID(from: Array(remoteSet))
@@ -1221,21 +1229,8 @@ final class BlomixPvPH2HManager {
                     if BlomixPublicCloudGate.shared.isBlocked { break }
                 }
             }
+            duoEvents = unique.values.filter { isStrictDuo($0, loc: localSet, rem: remoteSet) }
         }
-
-        // 3) Filtrer strictement le duo (winnerID renvoie toutes les wins vs tout le monde).
-        //    Puis enrichir les sets d’IDs seulement à partir d’events déjà duo-valides.
-        func isStrictDuo(_ ev: H2HCloudEvent, loc: Set<String>, rem: Set<String>) -> Bool {
-            Self.eventInvolvesDuo(
-                winnerID: ev.winnerID,
-                loserID: ev.loserID,
-                pairKey: ev.pairKey,
-                localIDs: loc,
-                remoteIDs: rem
-            )
-        }
-
-        var duoEvents = unique.values.filter { isStrictDuo($0, loc: localSet, rem: remoteSet) }
 
         // Enrichissement borné : IDs alternatifs sur des events déjà reconnus duo.
         for ev in duoEvents {
@@ -1394,26 +1389,54 @@ final class BlomixPvPH2HManager {
         var cursor: CKQueryOperation.Cursor?
 
         repeat {
-            let page: (matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?)
-            if let cursor {
-                page = try await publicDB.records(continuingMatchFrom: cursor, resultsLimit: 100)
-            } else {
-                page = try await publicDB.records(
-                    matching: query,
-                    inZoneWith: nil,
-                    desiredKeys: nil,
-                    resultsLimit: 100
-                )
-            }
-            for (_, recResult) in page.matchResults {
-                if case .success(let rec) = recResult {
-                    all.append(rec)
+            let (batch, next): ([CKRecord], CKQueryOperation.Cursor?) = try await withCheckedThrowingContinuation { cont in
+                let op: CKQueryOperation
+                if let cursor {
+                    op = CKQueryOperation(cursor: cursor)
+                } else {
+                    op = CKQueryOperation(query: query)
                 }
+                op.qualityOfService = .utility
+                op.resultsLimit = 100
+                let box = H2HRecordPage()
+                op.recordMatchedBlock = { _, result in
+                    if case .success(let rec) = result {
+                        box.append(rec)
+                    }
+                }
+                op.queryResultBlock = { result in
+                    switch result {
+                    case .success(let c):
+                        cont.resume(returning: (box.snapshot(), c))
+                    case .failure(let err):
+                        cont.resume(throwing: err)
+                    }
+                }
+                publicDB.add(op)
             }
-            cursor = page.queryCursor
+            all.append(contentsOf: batch)
+            cursor = next
         } while cursor != nil
 
         return all
+    }
+
+    /// Accumulateur thread-safe : `recordMatchedBlock` n’est pas forcément sur le même thread que le completion.
+    private final class H2HRecordPage: @unchecked Sendable {
+        private let lock = NSLock()
+        private var recs: [CKRecord] = []
+
+        func append(_ rec: CKRecord) {
+            lock.lock()
+            recs.append(rec)
+            lock.unlock()
+        }
+
+        func snapshot() -> [CKRecord] {
+            lock.lock()
+            defer { lock.unlock() }
+            return recs
+        }
     }
 
     /// Enregistre que plusieurs IDs désignent le même joueur (game ↔ team, Elo ↔ match).

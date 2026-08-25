@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [6.6] — 2026-08 (en cours, TestFlight)
 
-Build **122**. 6.5 est en vente. **Pas de soumission commerciale.**
+Build **123**. 6.5 est en vente. **Pas de soumission commerciale.**
 
 ### Corrigé
 - **COLORX** : jonctions H/V/D retirées avant les overlays blancs (plus de barres visibles pendant la roulette)
@@ -17,6 +17,7 @@ Build **122**. 6.5 est en vente. **Pas de soumission commerciale.**
 - **Arcade** : overlay de Stage avant de relâcher la saisie (plus d’affichage au lancement du blox suivant)
 - **H2H** : lecture cloud complète + pending vides = vérité d’affichage (le plancher local n’empêche plus de redescendre) ; snapshot handshake **sans MAX** sur l’historique ; juge **1 vague** à l’ouverture Elo (idle, ≤ 4 duos, 0 CloudKit en match / scroll)
 - **H2H (122)** : le juge queryait 3 `pairKey` par ordre alphabet (`T:_` vides) → `cloud=0-0` alors que l’historique est sous `A:_`×`A:_` ; désormais `A:_` d’abord, filet `winnerID` si vide (`loserID` n’est pas queryable)
+- **H2H (123)** : un CLOUD-JUDGE ne laisse plus la grâce 24 h / le plancher gonfler l’Elo (`max(75-69, cloud)`) ; filet `winnerID` si la pairKey ne matche pas ce duo
 
 ---
 

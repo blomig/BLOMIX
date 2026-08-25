@@ -59,7 +59,7 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Déco mid-match | Restant win / partant loss ; **1 `matchId`** |
 | Pendant match | **0 CloudKit H2H** (pending gagnant **et** perdant) |
 | Fin de série | LOCK = `max(baseline, historique) + série GameScene` ; 0 CloudKit |
-| Vérité d’affichage (6.6) | Lecture **complète** + pending vides → le snapshot cloud **remplace** cache et plancher (même plus bas). Query partielle ou pending restants → KEEP-LOCAL. Cloud 0–0 **après filet `winnerID`** ne wipe pas un historique local. |
+| Vérité d’affichage (124) | Cache = **dernier snapshot CloudKit** (même valeur sous toutes les clés du duo). Affichage = snapshot + Δ **série en cours**. Plus de max(cache, plancher, grâce). Fin de série : le récap peut montrer snapshot+Δ, **sans** réécrire le cache. Hors-ligne : on garde le snapshot ; on ne restaure plus un plancher gonflé. |
 | Lecture juge (122) | `pairKey` **A:_×A:_** en premier (plus de `sorted().prefix(3)` lexico) ; si 0 record → `winnerID ==` local puis remote, filtre duo en mémoire (`loserID` non queryable) |
 | Retour accueil | Juge **1 duo** (dernier adversaire), délai ~8 s, jamais en Duel |
 | Elo leaderboard | Précalcul cache O(1) au chargement ; `cellForRow` / scroll = 0 CloudKit ; **1 vague idle** (≤ 4 duos, dernier adversaire d’abord) pour recaler sur le cloud |
@@ -493,6 +493,7 @@ Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide 
 | **PVP-27** | Cumuls H2H Elo divergents (plancher MAX + snapshot handshake + juge jamais à l’onglet Elo) | ✅ Corrigé (121) — cloud = vérité si lecture complète ; plus de MAX handshake ; juge 1 vague à l’ouverture Elo |
 | **PVP-28** | Juge `pairKey` `sorted().prefix(3)` → 0 record (`T:_`) alors que l’historique est sous `A:_`×`A:_` | ✅ Corrigé (122) — `pairKey` classé `A:_` d’abord ; filet `winnerID` |
 | **PVP-29** | Elo reste au plancher/grâce 24 h (`max` live) même après CLOUD-JUDGE | ✅ Corrigé (123) — juge cloud efface série live + plancher |
+| **PVP-30** | Après 53–51 Elo, le Duel reseed en max(clés) → 76–69 ; Gontman pas recalé | ✅ Corrigé (124) — snapshot cloud seul ; lock n’écrit plus le cumul ; IDs match toujours dans le juge |
 
 ### Protocole filaire (résumé robustesse)
 

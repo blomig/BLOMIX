@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [6.6] — 2026-08 (en cours, TestFlight)
 
-Build **125**. 6.5 est en vente. **Pas de soumission commerciale.**
+Build **126**. 6.5 est en vente. **Pas de soumission commerciale.**
 
 ### Corrigé
 - **COLORX** : jonctions H/V/D retirées avant les overlays blancs (plus de barres visibles pendant la roulette)
@@ -20,6 +20,8 @@ Build **125**. 6.5 est en vente. **Pas de soumission commerciale.**
 - **H2H (123)** : un CLOUD-JUDGE ne laisse plus la grâce 24 h / le plancher gonfler l’Elo (`max(75-69, cloud)`) ; filet `winnerID` si la pairKey ne matche pas ce duo
 - **H2H (124)** : le cumul affiché = dernier snapshot CloudKit (+ Δ de la série en cours seulement). Plus de max entre clés / plancher / grâce ; le lock de série n’écrit plus le total gonflé dans le cache. Juge : toujours inclure les IDs match du dernier adversaire (`A:_`)
 - **H2H (125)** : récap fin de série — « Total historique » = snapshot cloud (comme l’Elo), plus snapshot + série (la série est déjà au-dessus)
+- **H2H (126)** : après un bon cumul cloud (32–42), l’Elo de l’adversaire ne peut plus retomber sur un cache `A:_` gonflé (70–75). Stamp = dernier juge CloudKit ; plus de préférence `A:_` ; l’affichage ignore une `live.baseline` périmée ; fin de série clear live sync
+- **Game Over record** : le rang affiché (« tu es 2ᵉ ») se calcule avec le **nouveau** score face aux autres joueurs, plus le rang GC d’avant le submit (ex. 2ᵉ → 1ᵉʳ en Zen)
 
 ---
 

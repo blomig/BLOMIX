@@ -211,7 +211,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 
 **Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`, sauf le bonus grille vide.
 
-**Game Over** : `finalScore = score` (pas de bonus de fin Brix).
+**Game Over** : `finalScore = score` (pas de bonus de fin Brix). Overlay record perso : rang = 1 + joueurs du top 100 dont le score est **strictement supérieur** au nouveau PB (pas `localEntry.rank` encore non indexé).
 
 **Leaderboards Game Center** :
 - Solo : score principal + moyenne
@@ -253,7 +253,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
-- **H2H** : 0 CloudKit en match ; affichage = **dernier snapshot cloud** + Δ de la série en cours (plus de max/plancher/grâce) ; juge Elo / accueil ; query `pairKey` `A:_`×`A:_` + IDs match du dernier adversaire, filet `winnerID`
+- **H2H** : 0 CloudKit en match ; affichage = **dernier stamp CLOUD-JUDGE** + Δ de la série en cours (plus de max/plancher/grâce, plus de préférence `A:_`) ; juge Elo / accueil ; query `pairKey` `A:_`×`A:_` + IDs match du dernier adversaire, filet `winnerID`
 - Attaque : `score / 50` → **une** ligne chez l’adverse par `addScore` (reste `score % 50` ; HUD et pile montrent ce reste)
 - Timer tour : 10 s ; **gelé** tant que `isBombMode` (`blomixPvP_shouldRunTurnTimer`)
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**

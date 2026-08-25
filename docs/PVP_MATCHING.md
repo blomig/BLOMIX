@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.6 (build 121)  
+> **Version de référence** : 6.6 (build 126)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -58,8 +58,8 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Snapshot H2H | `h2hSnapshot` : **bootstrap** si historique local vide — **pas** de MAX ; 0 CloudKit ; n’écrase pas les Δ de série |
 | Déco mid-match | Restant win / partant loss ; **1 `matchId`** |
 | Pendant match | **0 CloudKit H2H** (pending gagnant **et** perdant) |
-| Fin de série | LOCK = `max(baseline, historique) + série GameScene` ; 0 CloudKit |
-| Vérité d’affichage (124) | Cache = **dernier snapshot CloudKit** (même valeur sous toutes les clés du duo). Affichage = snapshot + Δ **série en cours**. Plus de max(cache, plancher, grâce). Fin de série : le récap peut montrer snapshot+Δ, **sans** réécrire le cache. Hors-ligne : on garde le snapshot ; on ne restaure plus un plancher gonflé. |
+| Fin de série | Récap « Total historique » = **stamp cloud** (pas snapshot+série) ; clear live **sync** ; 0 CloudKit |
+| Vérité d’affichage (126) | **Stamp** = dernier CLOUD-JUDGE (seule écriture d’affichage), recopié sous `A:_` et `T:_`. Affichage = stamp + Δ **série en cours** (jamais une `live.baseline` périmée). Conflit de cache : on ne préfère plus `A:_` (70-75 vs 32-42). Hors-ligne : on garde le stamp. |
 | Lecture juge (122) | `pairKey` **A:_×A:_** en premier (plus de `sorted().prefix(3)` lexico) ; si 0 record → `winnerID ==` local puis remote, filtre duo en mémoire (`loserID` non queryable) |
 | Retour accueil | Juge **1 duo** (dernier adversaire), délai ~8 s, jamais en Duel |
 | Elo leaderboard | Précalcul cache O(1) au chargement ; `cellForRow` / scroll = 0 CloudKit ; **1 vague idle** (≤ 4 duos, dernier adversaire d’abord) pour recaler sur le cloud |
@@ -494,6 +494,7 @@ Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide 
 | **PVP-28** | Juge `pairKey` `sorted().prefix(3)` → 0 record (`T:_`) alors que l’historique est sous `A:_`×`A:_` | ✅ Corrigé (122) — `pairKey` classé `A:_` d’abord ; filet `winnerID` |
 | **PVP-29** | Elo reste au plancher/grâce 24 h (`max` live) même après CLOUD-JUDGE | ✅ Corrigé (123) — juge cloud efface série live + plancher |
 | **PVP-30** | Après 53–51 Elo, le Duel reseed en max(clés) → 76–69 ; Gontman pas recalé | ✅ Corrigé (124) — snapshot cloud seul ; lock n’écrit plus le cumul ; IDs match toujours dans le juge |
+| **PVP-31** | Gontman voit le bon cloud (32–42) puis l’Elo retombe à 70–75 (`A:_` périmé / live.baseline) | ✅ Corrigé (126) — stamp juge ; plus de préférence `A:_` ; compose = stamp+Δ ; clear live sync |
 
 ### Protocole filaire (résumé robustesse)
 

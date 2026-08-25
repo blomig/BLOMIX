@@ -681,4 +681,82 @@ final class ScoreManager {
             }
         }
     }
+
+    /// Rang global **si** `score` était déjà le best du joueur (overlay record).
+    ///
+    /// Ne pas lire `localEntry.rank` juste après un submit : Game Center renvoie souvent
+    /// l’ancien rang (2ᵉ) alors que le nouveau score prend la 1ʳᵉ place.
+    /// Ici : 1 + nombre d’**autres** joueurs (top 100) dont le score est strictement supérieur.
+    func fetchGlobalRankInsertingScore(
+        _ score: Int,
+        leaderboardID: String,
+        completion: @escaping @Sendable @MainActor (Int?) -> Void
+    ) {
+        guard score > 0, GKLocalPlayer.local.isAuthenticated else {
+            Task { @MainActor in completion(nil) }
+            return
+        }
+
+        struct LeaderboardBox: @unchecked Sendable { let board: GKLeaderboard }
+        struct EntrySnap: Sendable {
+            let score: Int
+            let rank: Int
+            let gamePlayerID: String
+            let teamPlayerID: String
+        }
+
+        let localGID = GKLocalPlayer.local.gamePlayerID
+        let localTID = GKLocalPlayer.local.teamPlayerID
+
+        GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, error in
+            guard let leaderboard = leaderboards?.first, error == nil else {
+                Task { @MainActor in completion(nil) }
+                return
+            }
+            let boardBox = LeaderboardBox(board: leaderboard)
+            boardBox.board.loadEntries(
+                for: .global,
+                timeScope: .allTime,
+                range: NSRange(location: 1, length: 100)
+            ) { localEntry, rankedEntries, _, err in
+                if let err {
+                    print("[ScoreManager] fetchGlobalRankInsertingScore loadEntries: \(err.localizedDescription)")
+                    Task { @MainActor in completion(nil) }
+                    return
+                }
+                func snap(_ entry: GKLeaderboard.Entry) -> EntrySnap {
+                    EntrySnap(
+                        score: Int(entry.score),
+                        rank: entry.rank,
+                        gamePlayerID: entry.player.gamePlayerID,
+                        teamPlayerID: entry.player.teamPlayerID
+                    )
+                }
+                func isLocal(_ s: EntrySnap) -> Bool {
+                    if !localGID.isEmpty, s.gamePlayerID == localGID { return true }
+                    if !localTID.isEmpty, s.teamPlayerID == localTID { return true }
+                    return false
+                }
+                let page = (rankedEntries ?? []).map(snap)
+                let localSnap = localEntry.map(snap)
+                let others = page.filter { !isLocal($0) }
+                let above = others.filter { $0.score > score }.count
+                let insertionInPage = others.isEmpty
+                    || others.contains(where: { $0.score <= score })
+                    || page.count < 100
+                let computed = above + 1
+                let gcAlreadyUpdated = (localSnap?.score ?? 0) >= score
+                let rank: Int?
+                if insertionInPage {
+                    rank = computed
+                } else if gcAlreadyUpdated, let gcRank = localSnap?.rank, gcRank > 0 {
+                    rank = gcRank
+                } else {
+                    rank = nil
+                }
+                print("[ScoreManager] rank inserting \(score) on \(leaderboardID): \(rank.map(String.init) ?? "nil") (above=\(above) page=\(others.count) gcScore=\(localSnap?.score ?? -1))")
+                Task { @MainActor in completion(rank) }
+            }
+        }
+    }
 }

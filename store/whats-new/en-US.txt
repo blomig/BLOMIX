@@ -1,4 +1,4 @@
 • COLORX: no more bars on junctions during the effect
 • Duel: no attack line if the tap doesn’t show a chain
 • Arcade: the stage screen appears before the next blox
-• Elo leaderboard: head-to-head win totals resync between both players
+• Elo leaderboard: head-to-head totals stay on the cloud (no snap-back to an old local score)

@@ -3907,7 +3907,8 @@ final class GameScene: SKScene {
         overlay.addChild(ok)
 
         let boardID = isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
-        ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: boardID) { [weak self] rank in
+        // Rang **du nouveau score**, pas `localEntry.rank` (souvent encore l’ancien, ex. 2ᵉ alors que le PB est 1ᵉʳ).
+        ScoreManager.shared.fetchGlobalRankInsertingScore(score, leaderboardID: boardID) { [weak self] rank in
             guard let self, let rank,
                   let overlay = self.childNode(withName: Self.gameOverRecordOverlayName),
                   let label = overlay.childNode(withName: "gameOverRecordRank") as? SKLabelNode

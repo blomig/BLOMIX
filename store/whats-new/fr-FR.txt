@@ -1,4 +1,4 @@
 • COLORX : plus de barres sur les jonctions pendant l’effet
 • Duel : plus de ligne d’attaque si le tap n’affiche pas de chaîne
 • Arcade : l’écran de stage s’affiche avant le blox suivant
-• Classement Elo : les scores tête-à-tête se recalent entre les deux joueurs
+• Classement Elo : les scores tête-à-tête restent calés sur le cloud (plus de retour à un ancien cumul)

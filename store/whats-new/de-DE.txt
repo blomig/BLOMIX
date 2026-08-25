@@ -1,4 +1,4 @@
 • COLORX: keine Balken mehr an den Kreuzungen während des Effekts
 • Duell: keine Angriffsreihe, wenn der Tipp keine Kette zeigt
 • Arcade: der Stage-Bildschirm erscheint vor dem nächsten Blox
-• Elo-Rangliste: die Kopf-an-Kopf-Siege gleichen sich zwischen beiden Spielern an
+• Elo-Rangliste: Kopf-an-Kopf-Siege bleiben am Cloud-Stand (kein Rückfall auf einen alten lokalen Stand)

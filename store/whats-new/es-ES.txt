@@ -1,4 +1,4 @@
 • COLORX: ya no hay barras en las uniones durante el efecto
 • Duelo: no hay línea de ataque si el toque no muestra una cadena
 • Arcade: la pantalla de etapa aparece antes del siguiente blox
-• Clasificación Elo: los totales cara a cara se recalibran entre ambos jugadores
+• Clasificación Elo: los totales cara a cara se quedan en la nube (sin volver a un acumulado local antiguo)

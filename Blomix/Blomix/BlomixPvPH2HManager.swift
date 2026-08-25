@@ -24,14 +24,15 @@
 //  `teamPlayerID`, formats `A:_…` vs hex). Le cache est multi-clés + alias ;
 //  les queries cloud tentent les combinaisons d’IDs locaux/distants.
 //
-//  Modèle produit (v6.6 / 124) — **CloudKit = vérité d’affichage** :
+//  Modèle produit (v6.6 / 126) — **CloudKit = vérité d’affichage** :
 //
-//  1) Cache local = dernier **snapshot cloud** (toutes les clés du duo à la même valeur).
-//     Plus de max(cache, plancher, grâce 24 h).
-//  2) **Pendant le match** : 0 CloudKit. Affichage = snapshot + Δ de **cette** série.
-//  3) **Fin de série** : le récap peut montrer snapshot+Δ ; on n’écrit **pas** ça dans le cache.
-//  4) **Juge** (accueil / Elo) : lecture cloud → stamp snapshot ; pending = uploads only.
-//  5) Lecture : `pairKey` A:_×A:_ puis filet `winnerID` ; IDs appris depuis pairKey si un côté est local.
+//  1) Stamp local = dernier **CLOUD-JUDGE** (seule écriture d’affichage). Cache v2 = miroir.
+//     Plus de max(cache, plancher, grâce 24 h) ; plus de préférence aveugle `A:_`.
+//  2) **Pendant le match** : 0 CloudKit. Affichage = stamp + Δ de **cette** série
+//     (jamais `live.baseline` périmé).
+//  3) **Fin de série** : récap = stamp ; clear live **sync** ; on n’écrit pas le cumul dans le cache.
+//  4) **Juge** (accueil / Elo) : lecture cloud → stamp sous **tous** les IDs appris (`A:_`+`T:_`).
+//  5) Lecture : `pairKey` A:_×A:_ puis filet `winnerID` ; IDs appris depuis pairKey.
 //  6) Handshake : bootstrap si snapshot vide — pas de MAX.
 //
 //  BlomixPvPH2HManager est @MainActor : tout CloudKit lourd pendant isGameActive = FREEZE.
@@ -90,6 +91,8 @@ final class BlomixPvPH2HManager {
     private static let knownPairKeysKey = "blomixPvPH2HKnownPairKeys_v1"
     /// Série live : baseline cloud + deltas (affichage session).
     private static let liveSeriesKey = "blomixPvPH2HLiveSeries_v1"
+    /// Dernier snapshot **jugé CloudKit** (seule vérité d’affichage hors série en cours).
+    private static let cloudStampKey = "blomixPvPH2HCloudStamp_v1"
     /// Plancher **durable** : dernier cumul session verrouillé (baseline+série) jusqu’à rattrapage cloud.
     /// Survit au kill app — évite 13-11 → 12-10 si upload encore absent.
     private static let committedFloorKey = "blomixPvPH2HCommittedFloor_v1"
@@ -235,17 +238,25 @@ final class BlomixPvPH2HManager {
         return displayedTotalsPreferringLive(againstRemoteIDs: Self.normalizedIDList(remoteIDs))
     }
 
-    /// Dernier snapshot cloud (pas de plancher, pas de max entre clés).
+    /// Dernier snapshot cloud (stamp juge, sinon cache sans préférence `A:_`).
     private func historicalTotals(againstRemoteIDs remoteIDs: [String]) -> BlomixPvPH2HTotals {
-        cachedTotals(againstRemoteIDs: expandedRemoteIDs(remoteIDs)) ?? .zero
+        let keys = expandedRemoteIDs(remoteIDs)
+        if let stamp = cloudStamp(forKeys: keys) {
+            return stamp.totals
+        }
+        return pickCloudSnapshot(from: loadCacheV2(), keys: keys) ?? .zero
     }
 
-    /// Série **en cours** : snapshot (baseline live) + Δ. Hors série : snapshot seul (pas de grâce 24 h).
+    /// Série **en cours** : stamp/cache + Δ. Hors série : stamp seul.
+    /// Ne pas utiliser `live.baseline` (peut rester à 70-75 alors que le juge a écrit 32-42).
     private func composeDisplayed(historical: BlomixPvPH2HTotals, live: LiveSeriesContext?) -> BlomixPvPH2HTotals {
         guard let live, live.isActive else { return historical }
+        let base = historical.hasHistory
+            ? historical
+            : BlomixPvPH2HTotals(localWins: live.baselineLocal, remoteWins: live.baselineRemote)
         return BlomixPvPH2HTotals(
-            localWins: live.baselineLocal + live.seriesLocal,
-            remoteWins: live.baselineRemote + live.seriesRemote
+            localWins: base.localWins + live.seriesLocal,
+            remoteWins: base.remoteWins + live.seriesRemote
         )
     }
 
@@ -512,7 +523,7 @@ final class BlomixPvPH2HManager {
         if forceNewSeries {
             clearLiveSeries(forRemoteIDs: remotes)
         }
-        // Nouvelle série : baseline propre, Δ à 0 (évite de rejouer les Δ de la série précédente).
+        // Nouvelle série : baseline = stamp cloud, Δ à 0 (évite de rejouer les Δ de la série précédente).
         let ctx = LiveSeriesContext(
             remoteKey: sessionStorageKey(forRemoteIDs: remoteIDs),
             remoteIDs: remotes,
@@ -525,7 +536,7 @@ final class BlomixPvPH2HManager {
             updatedAt: Date()
         )
         saveLiveSeries(ctx)
-        print("[H2H] series baseline seed \(base.localWins)-\(base.remoteWins) (cloud snapshot)")
+        print("[H2H] series baseline seed \(base.localWins)-\(base.remoteWins) (cloud stamp)")
     }
 
     /// Raffine la baseline via CloudKit. **Après handshake uniquement** (jamais pendant l’appariement).
@@ -556,10 +567,12 @@ final class BlomixPvPH2HManager {
         let baseline: BlomixPvPH2HTotals
         if cloud.querySucceeded {
             baseline = cloud.sum
+            let stampRemotes = Self.normalizedIDList(remotes + cloud.learnedRemoteIDs)
             if baseline.hasHistory {
-                replaceTotals(baseline, underRemoteIDs: remotes)
+                writeCloudStamp(baseline, underRemoteIDs: stampRemotes)
+                replaceTotals(baseline, underRemoteIDs: stampRemotes)
             } else {
-                clearTotals(underRemoteIDs: remotes)
+                clearTotals(underRemoteIDs: stampRemotes)
             }
         } else {
             baseline = cachedTotals(againstRemoteIDs: remotes) ?? .zero
@@ -580,10 +593,6 @@ final class BlomixPvPH2HManager {
             updatedAt: Date()
         )
         saveLiveSeries(ctx)
-        let disp = ctx.displayedTotals
-        if disp.hasHistory {
-            replaceTotals(disp, underRemoteIDs: remotes)
-        }
         print("[H2H] series baseline set \(baseline.localWins)-\(baseline.remoteWins) +série \(ctx.seriesLocal)-\(ctx.seriesRemote) (cloudOK=\(cloud.querySucceeded))")
     }
 
@@ -600,20 +609,12 @@ final class BlomixPvPH2HManager {
     ) -> BlomixPvPH2HTotals {
         let remoteIDs = Self.normalizedIDList([remoteGamePlayerID, remoteTeamPlayerID ?? ""])
         let remotes = augmentedRemoteIDs(remoteIDs, displayName: lastOpponentDisplayName)
-        let live = liveSeries(forRemoteIDs: remotes)
-        let hist = historicalTotals(againstRemoteIDs: remotes)
-        let snapshot = BlomixPvPH2HTotals(
-            localWins: live?.baselineLocal ?? hist.localWins,
-            remoteWins: live?.baselineRemote ?? hist.remoteWins
-        )
+        let snapshot = historicalTotals(againstRemoteIDs: remotes)
         print("[H2H] series-end total historique \(snapshot.localWins)-\(snapshot.remoteWins) (série session \(max(0, seriesLocalWins))-\(max(0, seriesRemoteWins)) à part) flush=\(flushPending)")
-        let doFlush = flushPending
-        let persistRemotes = remotes
-        Task { @MainActor in
-            self.clearLiveSeries(forRemoteIDs: persistRemotes)
-            if doFlush {
-                self.flushPendingEventsBestEffort()
-            }
+        // Sync : sinon l’Elo peut encore composer une vieille live.baseline (70-75) après le « bon » stamp.
+        clearLiveSeries(forRemoteIDs: remotes)
+        if flushPending {
+            flushPendingEventsBestEffort()
         }
         return snapshot
     }
@@ -711,22 +712,47 @@ final class BlomixPvPH2HManager {
         return pickCloudSnapshot(from: loadCacheV2(), keys: keys)
     }
 
-    /// Une valeur : clé `A:_` si présente (écriture cloud), sinon la première. **Pas** de max.
+    /// Une valeur pour le duo. Stamp juge d’abord ; en conflit de cache, **pas** de préférence `A:_`
+    /// (c’est lui qui restait à 70-75 alors que `T:_` avait le 32-42 du juge).
     private func pickCloudSnapshot(
         from cache: [String: BlomixPvPH2HTotals],
         keys: some Sequence<String>
     ) -> BlomixPvPH2HTotals? {
-        var preferred: BlomixPvPH2HTotals?
-        var fallback: BlomixPvPH2HTotals?
-        for key in keys {
+        let keyList = Array(keys)
+        if let stamp = cloudStamp(forKeys: keyList) {
+            return stamp.totals
+        }
+        var unique: [BlomixPvPH2HTotals] = []
+        for key in keyList {
             guard let t = cache[key], t.hasHistory else { continue }
-            if key.hasPrefix("A:_") {
-                preferred = t
-            } else if fallback == nil {
-                fallback = t
+            if !unique.contains(t) {
+                unique.append(t)
             }
         }
-        return preferred ?? fallback
+        if unique.isEmpty { return nil }
+        if unique.count == 1 { return unique[0] }
+        let picked = unique.min(by: {
+            let a = $0.localWins + $0.remoteWins
+            let b = $1.localWins + $1.remoteWins
+            if a != b { return a < b }
+            if $0.localWins != $1.localWins { return $0.localWins < $1.localWins }
+            return $0.remoteWins < $1.remoteWins
+        })
+        print("[H2H] cache conflict \(unique.map { "\($0.localWins)-\($0.remoteWins)" }.joined(separator: ",")) → \(picked.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil") (deflate, no A:_ prefer)")
+        if let picked {
+            var healed = cache
+            var changed = false
+            for key in keyList {
+                if healed[key] != picked, healed[key]?.hasHistory == true {
+                    healed[key] = picked
+                    changed = true
+                }
+            }
+            if changed {
+                saveCacheV2(healed)
+            }
+        }
+        return picked
     }
 
     /// Rafraîchit depuis CloudKit (toutes combinaisons d’IDs plausibles). Ne throw pas vers l’UI.
@@ -746,7 +772,20 @@ final class BlomixPvPH2HManager {
         registerAliases(remoteIDs)
 
         var remotes = augmentedRemoteIDs(remoteIDs, displayName: displayName)
-        remotes = Self.normalizedIDList(remotes + [lastOpponentGameID, lastOpponentTeamID])
+        let lastIDs = Self.normalizedIDList([lastOpponentGameID, lastOpponentTeamID])
+        let probe = Set(expandedRemoteIDs(remotes) + remotes)
+        let lastSet = Set(expandedRemoteIDs(lastIDs) + lastIDs)
+        let sameLastOpponentName: Bool = {
+            guard let n = displayName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                  let lastN = lastOpponentDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                  !n.isEmpty
+            else { return false }
+            return n == lastN
+        }()
+        if !probe.isDisjoint(with: lastSet) || sameLastOpponentName {
+            remotes = Self.normalizedIDList(remotes + lastIDs)
+        }
+        remotes = Self.normalizedIDList(remotes + stampIDs(relatedTo: remotes))
         guard !remotes.isEmpty else {
             print("[H2H] refresh skip — no remote IDs")
             return nil
@@ -784,12 +823,14 @@ final class BlomixPvPH2HManager {
             let cloud = cloudBundle.sum
             let complete = cloudBundle.queryComplete && pendingLeft == 0
             if cloud.hasHistory {
-                clearLiveSeries(forRemoteIDs: remotes)
-                clearCommittedFloor(forRemoteIDs: remotes)
-                replaceTotals(cloud, underRemoteIDs: remotes)
+                let stampRemotes = Self.normalizedIDList(remotes + cloudBundle.learnedRemoteIDs)
+                clearLiveSeries(forRemoteIDs: stampRemotes)
+                clearCommittedFloor(forRemoteIDs: stampRemotes)
+                writeCloudStamp(cloud, underRemoteIDs: stampRemotes)
+                replaceTotals(cloud, underRemoteIDs: stampRemotes)
                 NotificationCenter.default.post(name: .blomixH2HCacheDidChange, object: nil)
-                forceCloseSessionFloor(remoteIDs: remotes, to: cloud)
-                print("[H2H] reconcile CLOUD-JUDGE \(cloud.localWins)-\(cloud.remoteWins) complete=\(complete) pending=\(pendingLeft)")
+                forceCloseSessionFloor(remoteIDs: stampRemotes, to: cloud)
+                print("[H2H] reconcile CLOUD-JUDGE \(cloud.localWins)-\(cloud.remoteWins) complete=\(complete) pending=\(pendingLeft) keys=\(stampRemotes.count)")
                 return cloud
             }
             print("[H2H] reconcile cloud empty complete=\(complete) keep snapshot \(previous.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
@@ -869,20 +910,17 @@ final class BlomixPvPH2HManager {
         let all = loadLiveSeriesMap()
         let keys = Set(expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)])
         for k in keys {
-            if let c = all[k], c.protectsDisplay || c.isActive {
+            if let c = all[k], c.isActive {
                 return c
             }
         }
         // Scan global : l’Elo peut présenter un hex alors que la série était sous A:_…
         let expanded = Set(expandedRemoteIDs(remoteIDs))
-        for (_, c) in all where c.protectsDisplay || c.isActive {
+        for (_, c) in all where c.isActive {
             let ctxIDs = Set(expandedRemoteIDs(c.remoteIDs) + [c.remoteKey])
             if !ctxIDs.isDisjoint(with: expanded) {
                 return c
             }
-        }
-        for k in keys {
-            if let c = all[k] { return c }
         }
         return nil
     }
@@ -905,18 +943,26 @@ final class BlomixPvPH2HManager {
 
     private func clearLiveSeries(forRemoteIDs remoteIDs: [String]) {
         var all = loadLiveSeriesMap()
-        if let ctx = liveSeries(forRemoteIDs: remoteIDs) {
-            all.removeValue(forKey: ctx.remoteKey)
-            for rid in ctx.remoteIDs { all.removeValue(forKey: rid) }
+        let expanded = Set(expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)])
+        var removed = false
+        for (k, ctx) in all {
+            let ctxIDs = Set(expandedRemoteIDs(ctx.remoteIDs) + [ctx.remoteKey, k])
+            if !ctxIDs.isDisjoint(with: expanded) {
+                all.removeValue(forKey: k)
+                all.removeValue(forKey: ctx.remoteKey)
+                for rid in ctx.remoteIDs { all.removeValue(forKey: rid) }
+                removed = true
+            }
         }
-        let keys = expandedRemoteIDs(remoteIDs) + [sessionStorageKey(forRemoteIDs: remoteIDs)]
-        for k in keys { all.removeValue(forKey: k) }
+        for k in expanded { all.removeValue(forKey: k) }
         if all.isEmpty {
             UserDefaults.standard.removeObject(forKey: Self.liveSeriesKey)
         } else if let data = try? JSONEncoder().encode(all) {
             UserDefaults.standard.set(data, forKey: Self.liveSeriesKey)
         }
-        print("[H2H] live series cleared")
+        if removed || !expanded.isEmpty {
+            print("[H2H] live series cleared")
+        }
     }
 
     private func loadLiveSeriesMap() -> [String: LiveSeriesContext] {
@@ -1044,6 +1090,7 @@ final class BlomixPvPH2HManager {
         var pairKeyFailed: Int
         var winnerIDAttempted: Int = 0
         var winnerIDFailed: Int = 0
+        var learnedRemoteIDs: [String] = []
         var queryComplete: Bool {
             let attempted = pairKeyAttempted + winnerIDAttempted
             let failed = pairKeyFailed + winnerIDFailed
@@ -1080,7 +1127,8 @@ final class BlomixPvPH2HManager {
         if BlomixPublicCloudGate.shared.isBlocked {
             return CloudSumBundle(
                 sum: .zero, anyHit: false, querySucceeded: false,
-                pairKeyAttempted: 0, pairKeyFailed: 0
+                pairKeyAttempted: 0, pairKeyFailed: 0,
+                learnedRemoteIDs: []
             )
         }
 
@@ -1185,7 +1233,8 @@ final class BlomixPvPH2HManager {
             pairKeyAttempted: pairKeyAttempted,
             pairKeyFailed: pairKeyFailed,
             winnerIDAttempted: winnerIDAttempted,
-            winnerIDFailed: winnerIDFailed
+            winnerIDFailed: winnerIDFailed,
+            learnedRemoteIDs: Array(learnedRemote)
         )
     }
 
@@ -1379,10 +1428,10 @@ final class BlomixPvPH2HManager {
         }
         saveAliases(map)
 
-        // Répliquer le cache sous le petit groupe (ids + canonique), pas expanded monstre.
+        // Répliquer le **stamp juge** sous le petit groupe — jamais un `A:_` gonflé (70-75) sur le `T:_`.
         let group = Self.normalizedIDList(clean + [canonical])
-        if let best = cachedTotals(againstRemoteIDs: group), best.hasHistory {
-            replaceTotals(best, underRemoteIDs: group)
+        if let stamp = cloudStamp(forKeys: group) {
+            replaceTotals(stamp.totals, underRemoteIDs: group)
         }
     }
 
@@ -1924,15 +1973,80 @@ final class BlomixPvPH2HManager {
         }
     }
 
+    // MARK: - Cloud stamp (CLOUD-JUDGE only)
+
+    private struct CloudStamp: Codable, Equatable {
+        var localWins: Int
+        var remoteWins: Int
+        var judgedAt: Date
+
+        var totals: BlomixPvPH2HTotals {
+            BlomixPvPH2HTotals(localWins: localWins, remoteWins: remoteWins)
+        }
+    }
+
+    private func loadCloudStamps() -> [String: CloudStamp] {
+        guard let data = UserDefaults.standard.data(forKey: Self.cloudStampKey),
+              let decoded = try? JSONDecoder().decode([String: CloudStamp].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private func saveCloudStamps(_ map: [String: CloudStamp]) {
+        if map.isEmpty {
+            UserDefaults.standard.removeObject(forKey: Self.cloudStampKey)
+            return
+        }
+        if let data = try? JSONEncoder().encode(map) {
+            UserDefaults.standard.set(data, forKey: Self.cloudStampKey)
+        }
+    }
+
+    private func cloudStamp(forKeys keys: some Sequence<String>) -> CloudStamp? {
+        let stamps = loadCloudStamps()
+        var best: CloudStamp?
+        for key in keys {
+            guard let s = stamps[key], s.totals.hasHistory else { continue }
+            if let b = best {
+                if s.judgedAt > b.judgedAt { best = s }
+            } else {
+                best = s
+            }
+        }
+        return best
+    }
+
+    private func stampIDs(relatedTo remoteIDs: [String]) -> [String] {
+        let stamps = loadCloudStamps()
+        guard !stamps.isEmpty else { return [] }
+        let probe = Set(expandedRemoteIDs(remoteIDs) + Self.normalizedIDList(remoteIDs))
+        return stamps.keys.filter { probe.contains($0) }
+    }
+
+    private func writeCloudStamp(_ totals: BlomixPvPH2HTotals, underRemoteIDs remoteIDs: [String]) {
+        guard totals.hasHistory else { return }
+        var stamps = loadCloudStamps()
+        let stamp = CloudStamp(localWins: totals.localWins, remoteWins: totals.remoteWins, judgedAt: Date())
+        var keys = Set(expandedRemoteIDs(remoteIDs) + Self.normalizedIDList(remoteIDs))
+        for k in stamps.keys where keys.contains(k) {
+            keys.insert(k)
+        }
+        for rid in keys {
+            stamps[rid] = stamp
+        }
+        saveCloudStamps(stamps)
+        print("[H2H] cloud stamp \(totals.localWins)-\(totals.remoteWins) keys=\(keys.count)")
+    }
+
     /// Snapshot cloud : **même** total sous toutes les clés du duo (plus de max entre clés).
     private func replaceTotals(_ totals: BlomixPvPH2HTotals, underRemoteIDs remoteIDs: [String]) {
         var cache = loadCacheV2()
-        var keys = Set(expandedRemoteIDs(remoteIDs) + Self.normalizedIDList([lastOpponentGameID, lastOpponentTeamID]))
+        var keys = Set(expandedRemoteIDs(remoteIDs) + stampIDs(relatedTo: remoteIDs))
         let aliases = loadAliases()
         let roots = Set(keys.map { Self.aliasRoot($0, map: aliases) })
+        // Tout le duo, y compris un `A:_` non aliasé encore présent en cache (plafond freeze : taille du cache, pas 82 alias).
         for (k, _) in cache where roots.contains(Self.aliasRoot(k, map: aliases)) {
             keys.insert(k)
-            if keys.count > 16 { break }
         }
         if totals.hasHistory {
             for rid in keys {

@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.5 (local)  
+> **Version de référence** : 6.6 (local, TestFlight)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : août 2026
 
@@ -409,7 +409,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante |
+| **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante ; **jonctions H/V/D retirées avant** le 1er overlay |
 | **Timing** | `[0,10, 0,15, 0,22, 0,30, 0,50]` s/étape ; pop scale ×1,25 |
 | **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30→0,01 + fade 0,14 s ; max 8 pops audio |
 | **Audio** | `playColorxRouletteClick` + `playColorxDissolvePop` |
@@ -560,7 +560,7 @@ Pipeline unique pour **stage solo**, **intro Zen**, **tutoriel** (intro / fin) e
 
 | | |
 |---|---|
-| **Déclencheur** | Stage solo (démarrage + changement), intro Zen, intro/fin tutoriel, handshake PvP |
+| **Déclencheur** | Stage solo (démarrage + changement **avant** de relâcher `isProcessing`), intro Zen, intro/fin tutoriel, handshake PvP |
 | **Son** | `transition` (stage / Zen / tuto via `showTransitionOverlay` ; pas dans le path connecting PvP) |
 | **Fond** | **Aucun** voile — jeu visible derrière |
 | **Pop-in** | Scale **0 → ×1,14 → ×0,94 → ×1,0** en **0,45 s** ; stagger **0,07 s** entre blocs de texte |

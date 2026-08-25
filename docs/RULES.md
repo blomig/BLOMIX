@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 6.5 (local)  
+> **Version de référence** : 6.6 (local, TestFlight)  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -171,6 +171,8 @@ Un **coup** = une pose de bloc (Blox, Brix ou Magix) dont la résolution est ter
 - Si une colonne est déjà pleine au moment de l'injection → **Game Over**.
 
 En **Duel**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score. Une **barre continue 0…50** à droite du gros score (le chiffre HUD est le reste `score % 50`) montre l’approche du prochain palier ; c’est un indicateur HUD, l’envoi reste inchangé.
+
+Invariant Duel : si au **lancement** d’un blox/Brix aucune ligne n’est affichée en bas, ce coup n’injecte pas de ligne (ni pendant le vol, ni à l’atterrissage). La ligne s’affiche **tremblotante** pour le coup suivant. Si le bandeau était déjà là (9/10 ou attaque vue), la ligne part après ce coup.
 
 ---
 

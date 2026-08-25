@@ -24,13 +24,17 @@
 //  `teamPlayerID`, formats `A:_…` vs hex). Le cache est multi-clés + alias ;
 //  les queries cloud tentent les combinaisons d’IDs locaux/distants.
 //
-//  Modèle produit (v5.9 build 91+) — cumul H2H **sans freeze gameplay** :
+//  Modèle produit (v6.6) — cumul H2H **sans freeze gameplay** :
 //
 //  1) **Baseline** au lancement série = **cache local only** (0 réseau).
 //  2) **Pendant le match live** : **aucun** fetchCloudSum / flush multi / CloudKit H2H.
 //  3) **Fin de série** : LOCK baseline+série + committed floor ; flush pending **léger**.
-//  4) **Elo / hors partie** : seul endroit pour fetchCloudSum (agrégation cloud).
-//  5) Uploads des deux côtés (gagnant + perdant), même matchId ; flush hors partie.
+//  4) **Vérité d’affichage** : lecture cloud **complète** + pending vides → le snapshot
+//     cloud **remplace** cache et plancher (même s’il est plus bas). Query partielle
+//     ou pending restants → KEEP-LOCAL (max cloud/plancher).
+//  5) **Snapshot filaire** : bootstrap si historique local vide — **pas** de MAX.
+//  6) **Juge** : 1 duo au retour accueil ; **1 vague** à l’ouverture Elo (idle, ≤ 4 duos).
+//  7) Uploads des deux côtés (gagnant + perdant), même matchId ; flush hors partie.
 //
 //  BlomixPvPH2HManager est @MainActor : tout CloudKit lourd pendant isGameActive = FREEZE.
 //
@@ -106,8 +110,13 @@ final class BlomixPvPH2HManager {
     private var lastOpponentTeamID: String = ""
     private var lastOpponentDisplayName: String?
     private var homeReconcileTask: Task<Void, Never>?
+    private var eloReconcileTask: Task<Void, Never>?
     private var lastCloudReconcileAt: Date?
+    private var lastEloReconcileAt: Date?
     private static let homeReconcileMinInterval: TimeInterval = 20
+    private static let eloReconcileMinInterval: TimeInterval = 45
+    private static let eloIdleDelayNanoseconds: UInt64 = 1_200_000_000
+    private static let maxEloDuosPerWave = 4
     private static let lastOpponentPersistKey = "blomixPvPH2HLastOpponent_v1"
 
     private init() {
@@ -146,7 +155,7 @@ final class BlomixPvPH2HManager {
 
     // MARK: - Public API (best-effort)
 
-    /// Snapshot filaire (2 ints) pour merge max au contact PvP. Lecture cache pure, 0 CloudKit.
+    /// Snapshot filaire (2 ints) au contact PvP. Lecture cache pure, 0 CloudKit.
     func wireSnapshot(
         remoteGamePlayerID: String,
         remoteTeamPlayerID: String? = nil
@@ -156,7 +165,8 @@ final class BlomixPvPH2HManager {
         return (t.localWins, t.remoteWins)
     }
 
-    /// Merge max avec le snapshot du peer (event rare).
+    /// Snapshot peer (6.6) : **pas** de MAX sur l’historique (ça gonflait le plancher).
+    /// Bootstrap seulement si le local n’a aucun historique. N’écrase pas les Δ de série.
     /// - peerOwnWins : victoires que le peer s’attribue
     /// - peerClaimsOurWins : victoires qu’il nous attribue
     func mergeMaxFromPeerSnapshot(
@@ -172,44 +182,36 @@ final class BlomixPvPH2HManager {
         registerAliases(remoteIDs)
         let remotes = expandedRemoteIDs(remoteIDs)
 
-        let ours = displayedTotalsPreferringLive(againstRemoteIDs: remotes)
-        let merged = BlomixPvPH2HTotals(
-            localWins: max(ours.localWins, max(0, peerClaimsOurWins)),
-            remoteWins: max(ours.remoteWins, max(0, peerOwnWins))
+        let peer = BlomixPvPH2HTotals(
+            localWins: max(0, peerClaimsOurWins),
+            remoteWins: max(0, peerOwnWins)
         )
-        guard merged != ours else {
-            print("[H2H] peer snapshot no-op \(ours.localWins)-\(ours.remoteWins)")
-            return
-        }
 
-        // Série déjà ouverte avec des Δ : snapshot = baseline only, jamais les manches en cours.
-        if var live = liveSeries(forRemoteIDs: remotes),
+        if let live = liveSeries(forRemoteIDs: remotes),
            live.isActive,
            live.seriesLocal + live.seriesRemote > 0 {
-            live.baselineLocal = max(live.baselineLocal, max(0, merged.localWins - live.seriesLocal))
-            live.baselineRemote = max(live.baselineRemote, max(0, merged.remoteWins - live.seriesRemote))
-            live.updatedAt = Date()
-            saveLiveSeries(live)
-            let disp = live.displayedTotals
-            replaceTotals(disp, underRemoteIDs: remotes)
-            commitDisplayFloor(disp, remoteIDs: remotes)
-            print("[H2H] peer max-merge mid-series → base \(live.baselineLocal)-\(live.baselineRemote) disp \(disp.localWins)-\(disp.remoteWins)")
+            print("[H2H] peer snapshot ignored mid-series \(live.seriesLocal)-\(live.seriesRemote)")
             return
         }
 
-        replaceTotals(merged, underRemoteIDs: remotes)
-        commitDisplayFloor(merged, remoteIDs: remotes)
+        let ours = historicalTotals(againstRemoteIDs: remotes)
+        guard !ours.hasHistory, peer.hasHistory else {
+            print("[H2H] peer snapshot no max-merge ours=\(ours.localWins)-\(ours.remoteWins) peer=\(peer.localWins)-\(peer.remoteWins)")
+            return
+        }
+
+        replaceTotals(peer, underRemoteIDs: remotes)
         if var live = liveSeries(forRemoteIDs: remotes), live.isActive {
-            live.baselineLocal = merged.localWins
-            live.baselineRemote = merged.remoteWins
+            live.baselineLocal = peer.localWins
+            live.baselineRemote = peer.remoteWins
             live.updatedAt = Date()
             saveLiveSeries(live)
         } else if liveSeries(forRemoteIDs: remotes) == nil {
             let ctx = LiveSeriesContext(
                 remoteKey: sessionStorageKey(forRemoteIDs: remotes),
                 remoteIDs: remotes,
-                baselineLocal: merged.localWins,
-                baselineRemote: merged.remoteWins,
+                baselineLocal: peer.localWins,
+                baselineRemote: peer.remoteWins,
                 seriesLocal: 0,
                 seriesRemote: 0,
                 isActive: true,
@@ -218,7 +220,7 @@ final class BlomixPvPH2HManager {
             )
             saveLiveSeries(ctx)
         }
-        print("[H2H] peer max-merge \(ours.localWins)-\(ours.remoteWins) + peer claims us=\(peerClaimsOurWins) them=\(peerOwnWins) → \(merged.localWins)-\(merged.remoteWins)")
+        print("[H2H] peer snapshot bootstrap \(peer.localWins)-\(peer.remoteWins)")
     }
 
     /// Une seule vérité d’affichage (récap, Duel) : historique + Δ de série, jamais `max(cache, 1-2)`.
@@ -390,6 +392,78 @@ final class BlomixPvPH2HManager {
             displayName: lastOpponentDisplayName,
             reason: "elo"
         )
+    }
+
+    /// Juge CloudKit **1 vague** à l’ouverture Elo : dernier adversaire d’abord, puis duos
+    /// déjà présents en cache. Délai idle ; jamais en Duel ; jamais par cellule / scroll.
+    func scheduleEloIdleReconcile(idGroups: [[String]], displayNames: [String]) {
+        eloReconcileTask?.cancel()
+        let groups = idGroups
+        let names = displayNames
+        eloReconcileTask = Task { @MainActor [weak self] in
+            let extra = UInt64(max(0, BlomixPublicCloudGate.shared.retryRemainingSeconds)) * 1_000_000_000
+            try? await Task.sleep(nanoseconds: Self.eloIdleDelayNanoseconds + extra)
+            guard !Task.isCancelled else { return }
+            await self?.performEloIdleReconcile(idGroups: groups, displayNames: names)
+        }
+    }
+
+    private func performEloIdleReconcile(idGroups: [[String]], displayNames: [String]) async {
+        guard !BlomixAvailablePlayersManager.shared.isInActiveMatch else {
+            print("[H2H] elo-wave skip — match actif")
+            return
+        }
+        if BlomixPublicCloudGate.shared.isBlocked {
+            print("[H2H] elo-wave skip — CK gate")
+            return
+        }
+        if let last = lastEloReconcileAt,
+           Date().timeIntervalSince(last) < Self.eloReconcileMinInterval {
+            print("[H2H] elo-wave skip — déjà fait il y a \(Int(Date().timeIntervalSince(last)))s")
+            return
+        }
+        lastEloReconcileAt = Date()
+
+        var seen = Set<String>()
+        var duos: [(ids: [String], name: String?)] = []
+
+        func consider(_ ids: [String], name: String?) {
+            let norm = Self.normalizedIDList(ids)
+            guard !norm.isEmpty else { return }
+            let key = norm.sorted().joined(separator: "|")
+            guard !seen.contains(key) else { return }
+            seen.insert(key)
+            duos.append((norm, name))
+        }
+
+        consider([lastOpponentGameID, lastOpponentTeamID], name: lastOpponentDisplayName)
+        for (index, ids) in idGroups.enumerated() {
+            guard duos.count < Self.maxEloDuosPerWave else { break }
+            let name = index < displayNames.count ? displayNames[index] : nil
+            let hist = displayedTotalsPreferringLive(againstRemoteIDs: ids)
+            guard hist.hasHistory else { continue }
+            consider(ids, name: name)
+        }
+        duos = Array(duos.prefix(Self.maxEloDuosPerWave))
+        print("[H2H] elo-wave start duos=\(duos.count)")
+
+        var flushed = false
+        for duo in duos {
+            guard !Task.isCancelled else { return }
+            if BlomixAvailablePlayersManager.shared.isInActiveMatch
+                || BlomixPublicCloudGate.shared.isBlocked {
+                print("[H2H] elo-wave stop — gate/match")
+                return
+            }
+            _ = await refreshTotals(
+                againstRemoteIDs: duo.ids,
+                displayName: duo.name,
+                flushPending: !flushed
+            )
+            flushed = true
+            lastCloudReconcileAt = Date()
+        }
+        print("[H2H] elo-wave done")
     }
 
     private func performRememberedOpponentReconcile(
@@ -688,7 +762,8 @@ final class BlomixPvPH2HManager {
 
     func refreshTotals(
         againstRemoteIDs remoteIDs: [String],
-        displayName: String? = nil
+        displayName: String? = nil,
+        flushPending: Bool = true
     ) async -> BlomixPvPH2HTotals? {
         migrateCacheV1IfNeeded()
         if let displayName {
@@ -732,7 +807,9 @@ final class BlomixPvPH2HManager {
         }
 
         // Un flush, une lecture — pas de rafale (503 Public DB).
-        await flushPendingUntilEmptyOrAttempts(maxAttempts: 1)
+        if flushPending {
+            await flushPendingUntilEmptyOrAttempts(maxAttempts: 1)
+        }
         let pendingLeft = pendingLocalWins(localIDs: Set(localIDs), remoteIDs: Set(remotes))
         if pendingLeft > 0 {
             print("[H2H] pending still \(pendingLeft) — \(debugDumpPendingSummary())")
@@ -749,13 +826,19 @@ final class BlomixPvPH2HManager {
             let total: BlomixPvPH2HTotals
             let complete = cloudBundle.queryComplete && pendingLeft == 0
             let floor = seriesFloor ?? previous
-            if complete, Self.cloudMayReplaceLocal(cloud: cloud, floor: floor) {
+            let liveActiveWithDeltas = live?.isActive == true
+                && ((live?.seriesLocal ?? 0) + (live?.seriesRemote ?? 0) > 0)
+            if complete, cloud.hasHistory {
+                // 6.6 : snapshot cloud = vérité d’affichage, même s’il est plus bas que le plancher.
                 total = cloud
-                if floor?.hasHistory == true {
+                if !liveActiveWithDeltas {
                     clearLiveSeries(forRemoteIDs: remotes)
                     clearCommittedFloor(forRemoteIDs: remotes)
                 }
                 print("[H2H] reconcile CLOUD-JUDGE \(total.localWins)-\(total.remoteWins) floor=\(floor.map { "\($0.localWins)-\($0.remoteWins)" } ?? "nil")")
+            } else if complete, !cloud.hasHistory, let floor, floor.hasHistory {
+                total = floor
+                print("[H2H] reconcile KEEP-LOCAL \(total.localWins)-\(total.remoteWins) cloud=0-0 complete empty")
             } else if let floor, floor.hasHistory {
                 total = cloud.merging(floor)
                 print("[H2H] reconcile KEEP-LOCAL \(total.localWins)-\(total.remoteWins) cloud=\(cloud.localWins)-\(cloud.remoteWins) complete=\(complete) pending=\(pendingLeft)")
@@ -1778,20 +1861,6 @@ final class BlomixPvPH2HManager {
         }
         registerAliases(ids)
         return expandedRemoteIDs(ids)
-    }
-
-    /// Le cloud ne remplace le local que s’il est ≥ le plancher, ou à ±1 manche près.
-    /// Interdit 49–50 → 33–32.
-    private static func cloudMayReplaceLocal(cloud: BlomixPvPH2HTotals, floor: BlomixPvPH2HTotals?) -> Bool {
-        guard let floor, floor.hasHistory else { return true }
-        if !cloud.hasHistory { return false }
-        if cloud.localWins >= floor.localWins, cloud.remoteWins >= floor.remoteWins {
-            return true
-        }
-        let dL = abs(cloud.localWins - floor.localWins)
-        let dR = abs(cloud.remoteWins - floor.remoteWins)
-        let dG = abs((cloud.localWins + cloud.remoteWins) - (floor.localWins + floor.remoteWins))
-        return dL <= 1 && dR <= 1 && dG <= 1
     }
 
     /// Pont de secours : même displayName qu’un adversaire récent (ID match `A:_…`).

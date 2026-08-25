@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 6.5 (local)
+> **Version de référence** : 6.6 (local, TestFlight)
 
 ---
 

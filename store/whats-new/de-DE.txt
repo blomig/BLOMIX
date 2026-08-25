@@ -1,4 +1,4 @@
-• Neues Magix: SLASHX färbt die Diagonalen (Cousin von CROSSX)
-• Klarerer Leitfaden: Magix, Blox, Brix, Reihen, Bomben, Punkte und Duell
-• Game Over: die Platzierungsgenauigkeit ist besser lesbar
-• Aktualisiertes App-Icon (kein weißer Rand)
+• COLORX: keine Balken mehr an den Kreuzungen während des Effekts
+• Duell: keine Angriffsreihe, wenn der Tipp keine Kette zeigt
+• Arcade: der Stage-Bildschirm erscheint vor dem nächsten Blox
+• Elo-Rangliste: die Kopf-an-Kopf-Siege gleichen sich zwischen beiden Spielern an

@@ -1182,6 +1182,9 @@ final class GameScene: SKScene {
     /// `true` juste après un `dropBlock` réussi : au prochain `resolveChains()` sans chaîne, on incrémente `moveCount` et on teste la ligne des 10 coups.
     private var shouldRunPostPlacementHooks = false
 
+    /// Duel : une ligne (décennie / attaque) était déjà visible en bas au tap. Sinon ce coup n’injecte pas.
+    private var lineArmedAtDrop = false
+
     /// Évite de mettre `isProcessing = false` pendant qu’on enchaîne insertion de ligne + `resolveChains()` (appels différés).
     private var isInjectingBottomRandomLine = false
 
@@ -1566,6 +1569,7 @@ final class GameScene: SKScene {
         blockTwoAhead = nextPlayableBlockForSession()
         moveCount = 0
         shouldRunPostPlacementHooks = false
+        lineArmedAtDrop = false
         isInjectingBottomRandomLine = false
         pendingScoredChainClearCells = nil
         pendingGridWrite = nil
@@ -5055,59 +5059,72 @@ final class GameScene: SKScene {
                 moveCount += 1
                 refreshLigneCounterHUD()
                 let decade = moveCount > 0 && moveCount % 10 == 0
-                // Décennie déjà en tête (preview 9/10 avant les attaques) : elle part avant les attaques.
-                let decadeFirst = pvpDecadePreviewQueuedAheadOfAttacks
-                    && (decade || pvpNeedsDecadeLineAfterAttackInjection)
-                if decadeFirst {
-                    pvpDecadePreviewQueuedAheadOfAttacks = false
-                    pvpNeedsDecadeLineAfterAttackInjection = false
-                    switch addRandomLinePushingGridUp() {
-                    case .animating:
-                        return
-                    case .gameOver:
-                        return
-                    case .didNotRun:
-                        break
+                // Duel : sans bandeau au tap, ce coup n’injecte pas (preview + jitter pour le suivant).
+                let allowInjectThisTurn = (pvpCoordinator == nil) || lineArmedAtDrop
+                if allowInjectThisTurn {
+                    // Décennie déjà en tête (preview 9/10 avant les attaques) : elle part avant les attaques.
+                    let decadeFirst = pvpDecadePreviewQueuedAheadOfAttacks
+                        && (decade || pvpNeedsDecadeLineAfterAttackInjection)
+                    if decadeFirst {
+                        pvpDecadePreviewQueuedAheadOfAttacks = false
+                        pvpNeedsDecadeLineAfterAttackInjection = false
+                        switch addRandomLinePushingGridUp() {
+                        case .animating:
+                            return
+                        case .gameOver:
+                            return
+                        case .didNotRun:
+                            break
+                        }
                     }
-                }
-                // Ligne de décennie différée (clash attaque + décennie au bloc précédent)
-                if pvpNeedsDecadeLineAfterAttackInjection {
-                    pvpNeedsDecadeLineAfterAttackInjection = false
-                    pvpDecadePreviewQueuedAheadOfAttacks = false
-                    switch addRandomLinePushingGridUp() {
-                    case .animating:
-                        if decade { pvpNeedsDecadeLineAfterAttackInjection = true }
-                        return
-                    case .gameOver:
-                        return
-                    case .didNotRun:
-                        break
+                    // Ligne de décennie différée (clash attaque + décennie au bloc précédent)
+                    if pvpNeedsDecadeLineAfterAttackInjection {
+                        pvpNeedsDecadeLineAfterAttackInjection = false
+                        pvpDecadePreviewQueuedAheadOfAttacks = false
+                        switch addRandomLinePushingGridUp() {
+                        case .animating:
+                            if decade { pvpNeedsDecadeLineAfterAttackInjection = true }
+                            return
+                        case .gameOver:
+                            return
+                        case .didNotRun:
+                            break
+                        }
                     }
-                }
-                if let atk = pvpCoordinator?.consumeNextIncomingAttackLineIfAny() {
-                    nextBottomLine = atk
-                    switch addRandomLinePushingGridUp() {
-                    case .animating:
-                        if decade && !decadeFirst { pvpNeedsDecadeLineAfterAttackInjection = true }
-                        return
-                    case .gameOver:
-                        return
-                    case .didNotRun:
-                        break
+                    if let atk = pvpCoordinator?.consumeNextIncomingAttackLineIfAny() {
+                        nextBottomLine = atk
+                        switch addRandomLinePushingGridUp() {
+                        case .animating:
+                            if decade && !decadeFirst { pvpNeedsDecadeLineAfterAttackInjection = true }
+                            return
+                        case .gameOver:
+                            return
+                        case .didNotRun:
+                            break
+                        }
                     }
-                }
-                if decade && !decadeFirst {
-                    switch addRandomLinePushingGridUp() {
-                    case .animating:
-                        return
-                    case .gameOver:
-                        return
-                    case .didNotRun:
-                        break
+                    if decade && !decadeFirst {
+                        switch addRandomLinePushingGridUp() {
+                        case .animating:
+                            return
+                        case .gameOver:
+                            return
+                        case .didNotRun:
+                            break
+                        }
                     }
+                } else if decade {
+                    pvpNeedsDecadeLineAfterAttackInjection = true
                 }
             }
             if !isInjectingBottomRandomLine, !isGameOver {
+                // Overlay stage AVANT de relâcher la saisie (sinon le joueur lance le blox suivant).
+                let stageBeforeCheck = currentStageIndex
+                checkStageAdvance()
+                if currentStageIndex != stageBeforeCheck {
+                    drawGrid()
+                    return
+                }
                 isProcessing = false
                 pvpCoordinator?.sceneBecameIdleForLocalTurn()
                 refreshPendingBottomLinePreview()
@@ -5118,13 +5135,7 @@ final class GameScene: SKScene {
                     startPreviewJitter()
                 }
                 triggerMoveAnalysis()
-                // Vérifier passage de stage APRÈS les animations ; si avance → l'overlay relance le timer
-                // lui-même dans sa completion. Sinon on relance directement.
-                let stageBeforeCheck = currentStageIndex
-                checkStageAdvance()
-                if currentStageIndex == stageBeforeCheck {
-                    restartStageTimer()
-                }
+                restartStageTimer()
             }
             drawGrid()
             return
@@ -7450,6 +7461,7 @@ final class GameScene: SKScene {
         let placedBlock = placedKind
         pendingGridWrite = .blockPlacement(block: placedBlock, row: row, column: columnIndex)
         isProcessing = true
+        lineArmedAtDrop = childNode(withName: Self.bottomLinePreviewStripName) != nil
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
         childNode(withName: Self.hintGhostContainerName)?.removeFromParent()
 
@@ -8109,6 +8121,19 @@ final class GameScene: SKScene {
         // ── 1. COLORX consommé immédiatement.
         grid[cell.row][cell.col] = .empty
         removeBloxJunctionElementsTouching([cell])
+        // Jonctions H/V/D des blox encore présents : les overlays blancs (α 0,70)
+        // laisseraient voir les barres pendant la roulette (CROSSX les retire avant de peindre).
+        var colorCells: Set<GridAddress> = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                if case .color = grid[r][c] {
+                    colorCells.insert(GridAddress(row: r, col: c))
+                }
+            }
+        }
+        if !colorCells.isEmpty {
+            removeBloxJunctionElementsTouching(colorCells)
+        }
 
         // ── 2. Couleur finale : priorité aux couleurs présentes dans la grille.
         let presentColors: [String] = Self.colorPalette.filter { name in
@@ -13799,7 +13824,7 @@ final class GameScene: SKScene {
         blomixPvP_recordH2HOutcomeBestEffort(localWon: localWon)
     }
 
-    /// Applique un snapshot H2H reçu du peer (merge max, 0 CloudKit). Appelé depuis le fil PvP.
+    /// Applique un snapshot H2H reçu du peer (bootstrap si historique vide, 0 CloudKit). Appelé depuis le fil PvP.
     func blomixPvP_applyRemoteH2HSnapshot(peerOwnWins: Int, peerClaimsOurWins: Int) {
         let remotePlayer = pvpCoordinator?.primaryRemotePlayer
         let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
@@ -14343,9 +14368,13 @@ final class GameScene: SKScene {
     }
 
     func blomixPvP_refreshPendingAttackLinePreview() {
-        // ignoreProcessing: true → le strip apparaît même pendant une chaîne en cours,
-        // garantissant que le joueur voit toujours l'attaque adverse avant son prochain coup.
-        refreshPendingBottomLinePreview(ignoreProcessing: true)
+        // Pendant le vol d’un coup lancé SANS bandeau : ne pas faire apparaître de ligne.
+        // Elle s’affichera (jitter) à l’idle pour le blox suivant.
+        if isProcessing && !lineArmedAtDrop {
+            refreshLignePipsHUD()
+            return
+        }
+        refreshPendingBottomLinePreview(ignoreProcessing: isProcessing && lineArmedAtDrop)
         refreshLignePipsHUD()
     }
 
@@ -14452,7 +14481,7 @@ final class GameScene: SKScene {
         }
         refreshAttackPileHUD()
 
-        // Snapshot H2H max-merge : **après** que la grille soit jouable (évite freeze 1er blox).
+        // Snapshot H2H (bootstrap si historique vide) : **après** que la grille soit jouable (évite freeze 1er blox).
         // Uniquement en début de série (0 partie), pas à chaque revanche.
         if pvpSeriesGamesPlayed == 0 {
             Task { @MainActor in

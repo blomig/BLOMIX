@@ -1,4 +1,4 @@
-• Nuevo Magix: SLASHX pinta las diagonales (primo de CROSSX)
-• Guía más clara: Magix, Blox, Brix, líneas, bombas, puntuación y Duelo
-• Game Over: la precisión de colocación se lee mejor
-• Icono actualizado (sin margen blanco)
+• COLORX: ya no hay barras en las uniones durante el efecto
+• Duelo: no hay línea de ataque si el toque no muestra una cadena
+• Arcade: la pantalla de etapa aparece antes del siguiente blox
+• Clasificación Elo: los totales cara a cara se recalibran entre ambos jugadores

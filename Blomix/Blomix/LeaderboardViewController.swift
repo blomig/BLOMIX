@@ -150,7 +150,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     @objc private func handleH2HCacheDidChange() {
         guard selectedLeaderboardKind == .elo, !rows.isEmpty else { return }
-        applyLocalH2HCacheToEloRows(rows)
+        applyLocalH2HCacheToEloRows(rows, scheduleCloudJudge: false)
         tableView.reloadData()
     }
 
@@ -610,7 +610,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
             guard selectedLeaderboardKind == .elo else { return }
             eloGKPlayers = playerMap
-            applyLocalH2HCacheToEloRows(rows)
+            applyLocalH2HCacheToEloRows(rows, scheduleCloudJudge: true)
             setLoading(false)
             self.rows = rows
             statusLabel.text = rows.isEmpty
@@ -744,7 +744,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                         )
                     }
                     if selectedKind == .elo {
-                        vc.applyLocalH2HCacheToEloRows(mapped)
+                        vc.applyLocalH2HCacheToEloRows(mapped, scheduleCloudJudge: true)
                     }
                     vc.setLoading(false)
                     vc.rows = mapped
@@ -756,11 +756,18 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
-    /// H2H Elo : **un** decode cache, puis lookups. Zéro CloudKit, zéro flush, zéro reload après.
-    private func applyLocalH2HCacheToEloRows(_ rows: [LeaderboardRow]) {
+    /// H2H Elo : **un** decode cache, puis lookups. `cellForRow` / scroll = 0 CloudKit.
+    /// Le juge cloud (1 vague idle) n’est lancé qu’à l’arrivée des lignes, pas au reload cache.
+    private func applyLocalH2HCacheToEloRows(_ rows: [LeaderboardRow], scheduleCloudJudge: Bool) {
         eloH2HByLookupKey = BlomixPvPH2HManager.shared.precomputedLightTotals(
             idGroups: rows.map(\.h2hLookupIDs),
             displayNames: rows.map(\.playerName)
+        )
+        guard scheduleCloudJudge else { return }
+        let remoteRows = rows.filter { !$0.isLocalPlayer }
+        BlomixPvPH2HManager.shared.scheduleEloIdleReconcile(
+            idGroups: remoteRows.map(\.h2hLookupIDs),
+            displayNames: remoteRows.map(\.playerName)
         )
     }
 

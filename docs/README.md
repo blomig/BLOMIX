@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 6.5 (local)  
+> **Version de référence** : 6.6 (local, TestFlight)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 

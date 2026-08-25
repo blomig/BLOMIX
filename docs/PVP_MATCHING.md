@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 6.4 (build 118)  
+> **Version de référence** : 6.6 (build 121)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -55,17 +55,18 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Champs | `pairKey` (queryable), `winnerID`, `loserID`, `channel`, `clientEventId`, `createdAt`, **`matchId`** (queryable), **`reporterId`** |
 | `pairKey` | `min(gamePlayerID)\|max(gamePlayerID)` |
 | Baseline série | Cache local ; snapshot filaire **avant la 1ʳᵉ manche** seulement |
-| Snapshot H2H | `h2hSnapshot` : max baseline, 0 CloudKit ; n’écrase pas les Δ de série |
+| Snapshot H2H | `h2hSnapshot` : **bootstrap** si historique local vide — **pas** de MAX ; 0 CloudKit ; n’écrase pas les Δ de série |
 | Déco mid-match | Restant win / partant loss ; **1 `matchId`** |
 | Pendant match | **0 CloudKit H2H** (pending gagnant **et** perdant) |
 | Fin de série | LOCK = `max(baseline, historique) + série GameScene` ; 0 CloudKit |
-| Retour accueil | Juge 1 duo : cloud ne remplace que s’il est ≥ le plancher (ou ±1 manche). Query partielle 33–32 vs 49–50 → on garde le local. |
+| Vérité d’affichage (6.6) | Lecture **complète** (`pairKey` OK) + pending vides → le snapshot cloud **remplace** cache et plancher (même plus bas). Query partielle ou pending restants → KEEP-LOCAL. Cloud 0–0 complet ne wipe pas un historique local. |
+| Retour accueil | Juge **1 duo** (dernier adversaire), délai ~8 s, jamais en Duel |
+| Elo leaderboard | Précalcul cache O(1) au chargement ; `cellForRow` / scroll = 0 CloudKit ; **1 vague idle** (≤ 4 duos, dernier adversaire d’abord) pour recaler sur le cloud |
 | Alias IDs | Expansion **directe** plafonnée (**≤ 8** clés / adversaire) — pas de scan global de la map d’alias (évite freeze MainActor 20–25 s, `keys=82`) |
 | Elo fin de manche | UI = **cache local** (~0,35 s) puis boutons libres ; submit / refresh Game Center en fire-and-forget |
 | Déco pendant récap | Si `BlomixPvPSeriesEndViewController` déjà empilé : teardown réseau **sans** dismiss résultat (sinon iOS ferme le récap) |
-| Elo leaderboard | Précalcul 1 fois : cache + alias + pont nom (adversaires récents) pour **toutes** les lignes ; `cellForRow` O(1) ; 0 CloudKit |
 | Règle d’or | Jamais `fetchCloudSum` pendant match / fin de manche / scroll Elo × N ; jamais d’encode UserDefaults monstre sur le MainActor pendant l’écran score |
-| Throttle Public DB | `BlomixPublicCloudGate` : un 503 bloque H2H **et** `AvailablePlayer` / `chfrom_*` jusqu’au Retry-After ; juge H2H **pas** au foreground, ≤ 3 queries `pairKey` |
+| Throttle Public DB | `BlomixPublicCloudGate` : un 503 bloque H2H **et** `AvailablePlayer` / `chfrom_*` jusqu’au Retry-After ; juge H2H **pas** au foreground, ≤ 3 queries `pairKey` / duo |
 
 ### PvP Local — robustesse de liaison mid-match
 
@@ -488,6 +489,7 @@ Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide 
 | **PVP-24** | `inMatch as? Int` (clone PVP-4) | ✅ Corrigé — `intFromRecord` |
 | **PVP-25** | Invitation croisée Récents inbound + Elo outbound → crash | ✅ Corrigé — `targetPlayerID` Elo, un seul dismiss ; même `GKMatch` rejoué = no-op (pas de `disconnect`) |
 | **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé (105) — accueil : cloud = vérité si pending vides et lecture plausible |
+| **PVP-27** | Cumuls H2H Elo divergents (plancher MAX + snapshot handshake + juge jamais à l’onglet Elo) | ✅ Corrigé (121) — cloud = vérité si lecture complète ; plus de MAX handshake ; juge 1 vague à l’ouverture Elo |
 
 ### Protocole filaire (résumé robustesse)
 
@@ -523,7 +525,7 @@ Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 | `GameViewController.swift` | Réception défis CloudKit + invites GK |
 | `LeaderboardViewController.swift` | Défis depuis classement Elo |
 | `BlomixPvPNetworking.swift` | Coordinateur in-match (GK + local) ; `BlomixPvPAutoSearcher` relique (`startSearching` non appelé) |
-| `BlomixPvPH2HManager.swift` | H2H CloudKit, cache, juge 1 duo au retour accueil |
+| `BlomixPvPH2HManager.swift` | H2H CloudKit, cache, juge 1 duo accueil + 1 vague Elo idle |
 | `BlomixPublicCloudGate.swift` | Robinet 503 / Retry-After partagé H2H + lobby |
 | `GameScene.swift` | `setup()`, `setActiveMatch`, lancement PvP, timer tour / mode bombe |
 

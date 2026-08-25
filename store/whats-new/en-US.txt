@@ -1,4 +1,4 @@
-• New Magix: SLASHX paints the diagonals (CROSSX’s cousin)
-• Clearer in-game guide: Magix, Blox, Brix, lines, bombs, score, and Duel
-• Game Over: placement accuracy is easier to read
-• Updated app icon (no white margin)
+• COLORX: no more bars on junctions during the effect
+• Duel: no attack line if the tap doesn’t show a chain
+• Arcade: the stage screen appears before the next blox
+• Elo leaderboard: head-to-head win totals resync between both players

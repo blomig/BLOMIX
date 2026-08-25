@@ -7,9 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.5] — 2026-08 (en cours, local)
+## [6.6] — 2026-08 (en cours, TestFlight)
 
-Build **120**. 6.4 est en vente. Cahier joueur : `store/whats-new/`.
+Build **121**. 6.5 est en vente. **Pas de soumission commerciale.**
+
+### Corrigé
+- **COLORX** : jonctions H/V/D retirées avant les overlays blancs (plus de barres visibles pendant la roulette)
+- **Duel** : si aucune ligne n’est affichée au tap, pas de strip ni d’injection pendant le vol ; preview tremblotante pour le blox suivant
+- **Arcade** : overlay de Stage avant de relâcher la saisie (plus d’affichage au lancement du blox suivant)
+- **H2H** : lecture cloud complète + pending vides = vérité d’affichage (le plancher local n’empêche plus de redescendre) ; snapshot handshake **sans MAX** sur l’historique ; juge **1 vague** à l’ouverture Elo (idle, ≤ 4 duos, 0 CloudKit en match / scroll)
+
+---
+
+## [6.5] — 2026-08
+
+Build **120**. En vente. Cahier joueur : `store/whats-new/` (textes 6.5).
 
 ### Ajouté
 - **SLASHX** (X) : diagonales repeintes d’une couleur, même juice que CROSSX ; spawn 1/432 (½ de l’ancien budget CROSSX)
@@ -27,7 +39,7 @@ Build **120**. 6.4 est en vente. Cahier joueur : `store/whats-new/`.
 
 ---
 
-## [6.4] — 2026-08 (courant ASC)
+## [6.4] — 2026-08
 
 Build **119**. Cahier : [SPEC_6.4.md](SPEC_6.4.md).
 

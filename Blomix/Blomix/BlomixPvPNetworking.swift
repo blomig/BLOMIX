@@ -117,7 +117,7 @@ private enum BlomixPvPMessageKind: String, Codable {
     case rematchCancel
     case ackMsg
     case keepAlive
-    /// Snapshot H2H léger (2 ints) — merge max au contact ; clients anciens ignorent (decode fail soft).
+    /// Snapshot H2H léger (2 ints) — bootstrap si historique vide ; clients anciens ignorent (decode fail soft).
     case h2hSnapshot
 }
 

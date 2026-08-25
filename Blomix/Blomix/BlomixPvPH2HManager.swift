@@ -34,6 +34,8 @@
 //     ou pending restants → KEEP-LOCAL (max cloud/plancher).
 //  5) **Snapshot filaire** : bootstrap si historique local vide — **pas** de MAX.
 //  6) **Juge** : 1 duo au retour accueil ; **1 vague** à l’ouverture Elo (idle, ≤ 4 duos).
+//     Lecture : `pairKey` **A:_×A:_** d’abord (pas un prefix lexico `T:_`) ; si vide,
+//     filet `winnerID` (loserID n’est pas queryable — filtre duo en mémoire).
 //  7) Uploads des deux côtés (gagnant + perdant), même matchId ; flush hors partie.
 //
 //  BlomixPvPH2HManager est @MainActor : tout CloudKit lourd pendant isGameActive = FREEZE.
@@ -1129,7 +1131,13 @@ final class BlomixPvPH2HManager {
         var querySucceeded: Bool
         var pairKeyAttempted: Int
         var pairKeyFailed: Int
-        var queryComplete: Bool { pairKeyAttempted > 0 && pairKeyFailed == 0 }
+        var winnerIDAttempted: Int = 0
+        var winnerIDFailed: Int = 0
+        var queryComplete: Bool {
+            let attempted = pairKeyAttempted + winnerIDAttempted
+            let failed = pairKeyFailed + winnerIDFailed
+            return attempted > 0 && failed == 0
+        }
     }
 
     private struct H2HCloudEvent {
@@ -1165,8 +1173,10 @@ final class BlomixPvPH2HManager {
             )
         }
 
-        // Une poignée de pairKey seulement — pas de winnerID global (trop lourd / 503).
-        let pairKeys = Array(candidatePairKeys(localIDs: Array(localSet), remotes: Array(remoteSet)).prefix(3))
+        // `pairKey` A:_×A:_ d’abord — le prefix lexico prenait souvent 3 clés `T:_` vides
+        // alors que l’historique est sous `A:_local|A:_remote` (queryable en Production).
+        let pairKeys = rankedPairKeys(localIDs: Array(localSet), remotes: Array(remoteSet))
+        print("[H2H] pairKeys try \(pairKeys.map { String($0.prefix(44)) }.joined(separator: " | "))")
         for pair in pairKeys {
             pairKeyAttempted += 1
             do {
@@ -1175,13 +1185,41 @@ final class BlomixPvPH2HManager {
                 mergeCloudRecords(recs, into: &unique)
                 if !recs.isEmpty {
                     rememberPairKey(pair)
-                    print("[H2H] cloud hit pair=\(String(pair.prefix(36)))… raw=\(recs.count)")
+                    print("[H2H] cloud hit pair=\(String(pair.prefix(44)))… raw=\(recs.count)")
+                    break
+                } else {
+                    print("[H2H] cloud empty pair=\(String(pair.prefix(44)))…")
                 }
             } catch {
                 pairKeyFailed += 1
                 BlomixPublicCloudGate.shared.noteError(error)
                 print("[H2H] pairKey query fail pair=\(String(pair.prefix(24)))…: \(error.localizedDescription)")
                 if BlomixPublicCloudGate.shared.isBlocked { break }
+            }
+        }
+
+        // Filet : `loserID` n’est pas queryable. `winnerID` l’est — on prend les wins
+        // de chaque côté puis on filtre le duo en mémoire (évite le 0-0 si pairKey raté).
+        var winnerIDAttempted = 0
+        var winnerIDFailed = 0
+        if unique.isEmpty, !BlomixPublicCloudGate.shared.isBlocked {
+            let winnerIDs = Self.normalizedIDList([
+                Self.preferredCloudID(from: Array(localSet)),
+                Self.preferredCloudID(from: Array(remoteSet))
+            ].compactMap { $0 })
+            for wid in winnerIDs.prefix(2) {
+                winnerIDAttempted += 1
+                do {
+                    let recs = try await fetchRecords(predicate: NSPredicate(format: "winnerID == %@", wid))
+                    querySucceeded = true
+                    mergeCloudRecords(recs, into: &unique)
+                    print("[H2H] winnerID hit \(debugID(wid)) raw=\(recs.count)")
+                } catch {
+                    winnerIDFailed += 1
+                    BlomixPublicCloudGate.shared.noteError(error)
+                    print("[H2H] winnerID query fail \(debugID(wid)): \(error.localizedDescription)")
+                    if BlomixPublicCloudGate.shared.isBlocked { break }
+                }
             }
         }
 
@@ -1227,14 +1265,18 @@ final class BlomixPvPH2HManager {
 
         let sum = tallyDuoEvents(duoEvents, localSet: localSet, remoteSet: remoteSet)
         if !duoEvents.isEmpty {
-            print("[H2H] cloud events=\(duoEvents.count) matchIds=\(Set(duoEvents.map(\.matchId).filter { !$0.isEmpty }).count) pairsTried=\(pairKeys.count) fail=\(pairKeyFailed) → \(sum.localWins)-\(sum.remoteWins)")
+            print("[H2H] cloud events=\(duoEvents.count) matchIds=\(Set(duoEvents.map(\.matchId).filter { !$0.isEmpty }).count) pairsTried=\(pairKeyAttempted) winnerTried=\(winnerIDAttempted) fail=\(pairKeyFailed + winnerIDFailed) → \(sum.localWins)-\(sum.remoteWins)")
+        } else {
+            print("[H2H] cloud empty after pairs=\(pairKeyAttempted) winnerTried=\(winnerIDAttempted) fail=\(pairKeyFailed + winnerIDFailed)")
         }
         return CloudSumBundle(
             sum: sum,
             anyHit: sum.hasHistory,
             querySucceeded: querySucceeded,
             pairKeyAttempted: pairKeyAttempted,
-            pairKeyFailed: pairKeyFailed
+            pairKeyFailed: pairKeyFailed,
+            winnerIDAttempted: winnerIDAttempted,
+            winnerIDFailed: winnerIDFailed
         )
     }
 
@@ -1352,33 +1394,23 @@ final class BlomixPvPH2HManager {
         var cursor: CKQueryOperation.Cursor?
 
         repeat {
-            let (batch, next): ([CKRecord], CKQueryOperation.Cursor?) = try await withCheckedThrowingContinuation { cont in
-                let op: CKQueryOperation
-                if let cursor {
-                    op = CKQueryOperation(cursor: cursor)
-                } else {
-                    op = CKQueryOperation(query: query)
-                }
-                op.qualityOfService = .utility
-                op.resultsLimit = 100
-                var page: [CKRecord] = []
-                op.recordMatchedBlock = { _, result in
-                    if case .success(let rec) = result {
-                        page.append(rec)
-                    }
-                }
-                op.queryResultBlock = { result in
-                    switch result {
-                    case .success(let c):
-                        cont.resume(returning: (page, c))
-                    case .failure(let err):
-                        cont.resume(throwing: err)
-                    }
-                }
-                publicDB.add(op)
+            let page: (matchResults: [(CKRecord.ID, Result<CKRecord, Error>)], queryCursor: CKQueryOperation.Cursor?)
+            if let cursor {
+                page = try await publicDB.records(continuingMatchFrom: cursor, resultsLimit: 100)
+            } else {
+                page = try await publicDB.records(
+                    matching: query,
+                    inZoneWith: nil,
+                    desiredKeys: nil,
+                    resultsLimit: 100
+                )
             }
-            all.append(contentsOf: batch)
-            cursor = next
+            for (_, recResult) in page.matchResults {
+                if case .success(let rec) = recResult {
+                    all.append(rec)
+                }
+            }
+            cursor = page.queryCursor
         } while cursor != nil
 
         return all
@@ -1711,6 +1743,40 @@ final class BlomixPvPH2HManager {
             }
         }
         return keys.sorted()
+    }
+
+    /// `A:_`×`A:_` (historique prod) avant les variantes `T:_` — plus de `sorted().prefix(3)` lexico.
+    private func rankedPairKeys(localIDs: [String], remotes: [String]) -> [String] {
+        var keys = Set(candidatePairKeys(localIDs: localIDs, remotes: remotes))
+        if let loc = Self.preferredCloudID(from: localIDs),
+           let rem = Self.preferredCloudID(from: remotes),
+           let preferred = Self.pairKey(localID: loc, remoteID: rem) {
+            keys.insert(preferred)
+        }
+        let ranked = keys.sorted { a, b in
+            let sa = Self.pairKeyQueryScore(a)
+            let sb = Self.pairKeyQueryScore(b)
+            if sa != sb { return sa > sb }
+            return a < b
+        }
+        return Array(ranked.prefix(3))
+    }
+
+    /// 2 × `A:_` = meilleur score. Les clés `T:_`×`T:_` passent après.
+    private static func pairKeyQueryScore(_ pair: String) -> Int {
+        let parts = pair.split(separator: "|").map(String.init)
+        guard parts.count == 2 else { return 0 }
+        var score = 0
+        for part in parts {
+            if part.hasPrefix("A:_") {
+                score += 10
+            } else if part.hasPrefix("T:_") || part.hasPrefix("G:") {
+                score += 3
+            } else if part.contains(":") {
+                score += 1
+            }
+        }
+        return score
     }
 
     // MARK: - Identity

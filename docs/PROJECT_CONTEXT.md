@@ -253,7 +253,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Heartbeat / grace déco mid-game (online ~4 s ; local ~45 s + rebuild session / re-invite)
 - Local : découverte maintenue mid-match, `onTransportRestored`, silence → `forceTransportReset` (voir `PVP_MATCHING.md`)
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
-- **H2H** : 0 CloudKit en match / récap / scroll Elo ; affichage = historique + Δ ; lecture cloud complète = vérité (même plus basse que le plancher) ; snapshot peer sans MAX ; juge 1 duo accueil + 1 vague Elo idle
+- **H2H** : 0 CloudKit en match / récap / scroll Elo ; affichage = historique + Δ ; lecture cloud complète = vérité (même plus basse que le plancher) ; snapshot peer sans MAX ; juge 1 duo accueil + 1 vague Elo idle ; query `pairKey` `A:_`×`A:_` puis filet `winnerID`
 - Attaque : `score / 50` → **une** ligne chez l’adverse par `addScore` (reste `score % 50` ; HUD et pile montrent ce reste)
 - Timer tour : 10 s ; **gelé** tant que `isBombMode` (`blomixPvP_shouldRunTurnTimer`)
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**

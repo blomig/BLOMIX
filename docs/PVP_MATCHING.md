@@ -59,14 +59,15 @@ Module **`BlomixPvPH2HManager`** — **best-effort isolé** (ne bloque jamais le
 | Déco mid-match | Restant win / partant loss ; **1 `matchId`** |
 | Pendant match | **0 CloudKit H2H** (pending gagnant **et** perdant) |
 | Fin de série | LOCK = `max(baseline, historique) + série GameScene` ; 0 CloudKit |
-| Vérité d’affichage (6.6) | Lecture **complète** (`pairKey` OK) + pending vides → le snapshot cloud **remplace** cache et plancher (même plus bas). Query partielle ou pending restants → KEEP-LOCAL. Cloud 0–0 complet ne wipe pas un historique local. |
+| Vérité d’affichage (6.6) | Lecture **complète** + pending vides → le snapshot cloud **remplace** cache et plancher (même plus bas). Query partielle ou pending restants → KEEP-LOCAL. Cloud 0–0 **après filet `winnerID`** ne wipe pas un historique local. |
+| Lecture juge (122) | `pairKey` **A:_×A:_** en premier (plus de `sorted().prefix(3)` lexico) ; si 0 record → `winnerID ==` local puis remote, filtre duo en mémoire (`loserID` non queryable) |
 | Retour accueil | Juge **1 duo** (dernier adversaire), délai ~8 s, jamais en Duel |
 | Elo leaderboard | Précalcul cache O(1) au chargement ; `cellForRow` / scroll = 0 CloudKit ; **1 vague idle** (≤ 4 duos, dernier adversaire d’abord) pour recaler sur le cloud |
 | Alias IDs | Expansion **directe** plafonnée (**≤ 8** clés / adversaire) — pas de scan global de la map d’alias (évite freeze MainActor 20–25 s, `keys=82`) |
 | Elo fin de manche | UI = **cache local** (~0,35 s) puis boutons libres ; submit / refresh Game Center en fire-and-forget |
 | Déco pendant récap | Si `BlomixPvPSeriesEndViewController` déjà empilé : teardown réseau **sans** dismiss résultat (sinon iOS ferme le récap) |
 | Règle d’or | Jamais `fetchCloudSum` pendant match / fin de manche / scroll Elo × N ; jamais d’encode UserDefaults monstre sur le MainActor pendant l’écran score |
-| Throttle Public DB | `BlomixPublicCloudGate` : un 503 bloque H2H **et** `AvailablePlayer` / `chfrom_*` jusqu’au Retry-After ; juge H2H **pas** au foreground, ≤ 3 queries `pairKey` / duo |
+| Throttle Public DB | `BlomixPublicCloudGate` : un 503 bloque H2H **et** `AvailablePlayer` / `chfrom_*` jusqu’au Retry-After ; juge H2H **pas** au foreground ; ≤ 3 `pairKey` classées `A:_` puis filet ≤ 2 `winnerID` si vide |
 
 ### PvP Local — robustesse de liaison mid-match
 
@@ -490,6 +491,7 @@ Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide 
 | **PVP-25** | Invitation croisée Récents inbound + Elo outbound → crash | ✅ Corrigé — `targetPlayerID` Elo, un seul dismiss ; même `GKMatch` rejoué = no-op (pas de `disconnect`) |
 | **PVP-26** | Déco au lancement → cumuls H2H divergents (juge CK débranché) | ✅ Corrigé (105) — accueil : cloud = vérité si pending vides et lecture plausible |
 | **PVP-27** | Cumuls H2H Elo divergents (plancher MAX + snapshot handshake + juge jamais à l’onglet Elo) | ✅ Corrigé (121) — cloud = vérité si lecture complète ; plus de MAX handshake ; juge 1 vague à l’ouverture Elo |
+| **PVP-28** | Juge `pairKey` `sorted().prefix(3)` → 0 record (`T:_`) alors que l’historique est sous `A:_`×`A:_` | ✅ Corrigé (122) — `pairKey` classé `A:_` d’abord ; filet `winnerID` |
 
 ### Protocole filaire (résumé robustesse)
 

@@ -41,7 +41,7 @@ Compteur **local only** (pas de message filaire) pendant une enchaîne de revanc
 | Fin de série | Accueil / cancel / timeout revanche / déco si **≥ 1** partie → overlay `BlomixPvPSeriesEndViewController` (thème Jour/Nuit) ; empilé sur l’écran résultat (pas de flash grille) |
 | Elo | Inchangé (1 update par partie) |
 | Écran résultat manche | Score **Série** affiché entre Elo et boutons Revanche / Accueil (`BlomixPvPResultViewController`) |
-| Overlay fin de série | **Série** en haut ; **Total historique** (H2H) **sous** le bouton OK |
+| Overlay fin de série | **Série** en haut ; **Total historique** = snapshot CloudKit (même chiffre que l’Elo), **sous** le bouton OK — pas série + snapshot |
 
 ### H2H long terme (total victoires, CloudKit)
 

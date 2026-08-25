@@ -587,11 +587,9 @@ final class BlomixPvPH2HManager {
         print("[H2H] series baseline set \(baseline.localWins)-\(baseline.remoteWins) +série \(ctx.seriesLocal)-\(ctx.seriesRemote) (cloudOK=\(cloud.querySucceeded))")
     }
 
-    /// Total affiché série = baseline + deltas de série (GameScene fait foi pour les deltas en fin).
-    /// Fige la grâce post-série (Elo ne redescend pas tant que cloud n’a pas rattrapé).
-    /// Ne lance **pas** de replace par le cloud.
-    /// - Parameter flushPending: si `false`, ne lance **pas** le flush CloudKit (UI récap d’abord ;
-    ///   appeler `flushPendingEventsBestEffort()` après le present). Défaut `true` pour les autres chemins.
+    /// Total historique du récap = **snapshot cloud** (même chiffre que l’Elo).
+    /// La série de session est déjà une ligne à part ; on ne la rajoute pas ici (sinon 53–51 + 2–1 = 55–52).
+    /// - Parameter flushPending: si `false`, flush après le present du récap.
     @discardableResult
     func lockSeriesEndDisplay(
         remoteGamePlayerID: String,
@@ -604,16 +602,11 @@ final class BlomixPvPH2HManager {
         let remotes = augmentedRemoteIDs(remoteIDs, displayName: lastOpponentDisplayName)
         let live = liveSeries(forRemoteIDs: remotes)
         let hist = historicalTotals(againstRemoteIDs: remotes)
-        let seriesL = max(0, seriesLocalWins)
-        let seriesR = max(0, seriesRemoteWins)
-        // Baseline = snapshot cloud (seed), pas un max avec un vieux cache.
-        let baseL = live?.baselineLocal ?? hist.localWins
-        let baseR = live?.baselineRemote ?? hist.remoteWins
-        let final = BlomixPvPH2HTotals(
-            localWins: baseL + seriesL,
-            remoteWins: baseR + seriesR
+        let snapshot = BlomixPvPH2HTotals(
+            localWins: live?.baselineLocal ?? hist.localWins,
+            remoteWins: live?.baselineRemote ?? hist.remoteWins
         )
-        print("[H2H] series-end snapshot+Δ \(final.localWins)-\(final.remoteWins) (cloud \(baseL)-\(baseR) + série \(seriesL)-\(seriesR)) flush=\(flushPending)")
+        print("[H2H] series-end total historique \(snapshot.localWins)-\(snapshot.remoteWins) (série session \(max(0, seriesLocalWins))-\(max(0, seriesRemoteWins)) à part) flush=\(flushPending)")
         let doFlush = flushPending
         let persistRemotes = remotes
         Task { @MainActor in
@@ -622,7 +615,7 @@ final class BlomixPvPH2HManager {
                 self.flushPendingEventsBestEffort()
             }
         }
-        return final
+        return snapshot
     }
 
     /// Enregistre le résultat d’une manche. Fournir **tous** les IDs distants connus

@@ -1,4 +1,5 @@
+• Pulsanti, icone e menu: un incavo nei colori della tua skin
+• Il titolo BLOMIX è un foro nel tavolo, stesso riempimento degli incavi
+• I Magix sono tondi (come le bombe); blox e Brix restano quadrati
 • COLORX: niente più barre sulle giunzioni durante l’effetto
-• Duello: nessuna riga d’attacco se il tap non mostra una catena
-• Arcade: lo schermo di stage appare prima del blox successivo
-• Classifica Elo: i totali testa a testa restano sul cloud (niente ritorno a un vecchio cumulativo locale)
+• Duello / Elo: righe d’attacco e totali testa a testa restano corretti

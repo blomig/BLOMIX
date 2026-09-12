@@ -289,6 +289,8 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "whatsnew.title" = "Cambios en esta versión";
 "whatsnew.twistx" = "TWISTX usa ahora este símbolo";
 "whatsnew.slashx" = "Un nuevo Magix, SLASHX, hace su aparición";
+"whatsnew.chrome" = "Botones y menús: un hueco con los colores de tu skin";
+"whatsnew.magix_round" = "Los Magix son redondos, como las bombas";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */
@@ -348,7 +350,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "credits.section.palette.title" = "Paleta de color";
 "credits.section.palette.body" = "Coolors.com — inicialmente Tropical Sunset Vibes, ligeramente mejorada";
 "credits.section.beta.title" = "Beta-test";
-"credits.section.beta.body" = "Gracias a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";
+"credits.section.beta.body" = "Gracias a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben, Floridezic";
 
 "pvp.series_end_series_caption" = "Serie";
 "pvp.series_end_total_caption" = "Total histórico";

@@ -7,7 +7,8 @@
 //    chrome           : Nunito
 //      Regular   — micro-captions (< 13 pt)
 //      Medium    — corps (réglages, HUD, lobby)
-//      SemiBold  — chips / boutons
+//      SemiBold  — chrome hors boutons
+//    boutons       : Changa One (display) — puits + capsule 6.7
 //
 
 import Foundation

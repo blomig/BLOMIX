@@ -1349,6 +1349,8 @@ final class GameScene: SKScene {
 
     // Bouton SpriteKit actuellement appuyé (animation press/release).
     private weak var lastPressedSKButton: BlomixSKButtonNode?
+    /// True le temps de la remontée capsule, avant de changer d’écran.
+    private var isCommittingSKButtonAction = false
 
     // Action différée jusqu'à touchesEnded (comportement « fire on release »).
     private var pendingButtonAction: (() -> Void)?
@@ -1666,17 +1668,7 @@ final class GameScene: SKScene {
 
     /// Largeur et hauteur communes : le plus long des libellés (à `fontSize`) + marges, sans dépasser l’écran.
     private static func startScreenUnifiedChipSize(texts: [String], fontSize: CGFloat, maxOuterWidth: CGFloat) -> CGSize {
-        let font = BlomixTypography.chromeFont(size: fontSize, weight: .semibold)
-        var maxTW: CGFloat = 0
-        var maxTH: CGFloat = 0
-        for t in texts {
-            let s = (t as NSString).size(withAttributes: [.font: font])
-            maxTW = max(maxTW, ceil(s.width))
-            maxTH = max(maxTH, ceil(s.height))
-        }
-        let w = min(maxOuterWidth, maxTW + BlomixSKButtonNode.padH * 2)
-        let h = maxTH + BlomixSKButtonNode.padV * 2
-        return CGSize(width: max(w, 88), height: max(h, 40))
+        BlomixSKButtonNode.unifiedSize(for: texts, fontSize: fontSize, maxWidth: maxOuterWidth)
     }
 
     /// Délègue à `BlomixSKButtonNode` : chip chrome, libellé Nunito SemiBold.
@@ -1740,23 +1732,19 @@ final class GameScene: SKScene {
         row.position.x = size.width / 2
     }
 
-    /// Icône chrome accueil (SF Symbol, même pipeline que soleil / lune).
+    /// Icône chrome accueil : puits skin + SF Symbol dans la capsule.
     private func makeStartScreenChromeIcon(name: String, systemName: String) -> SKNode {
-        let hitSide: CGFloat = 48
-        let iconSide: CGFloat = 30
+        let side: CGFloat = 44
         let container = SKNode()
         container.name = name
-
-        let hit = SKSpriteNode(color: .clear, size: CGSize(width: hitSide, height: hitSide))
-        hit.zPosition = 0
-        container.addChild(hit)
-
-        let icon = SKSpriteNode(
-            texture: BlomixAppearance.chromeSymbolTexture(systemName: systemName, pointSize: 20, canvasSide: iconSide)
+        let btn = BlomixSKButtonNode(
+            name: name + "_chip",
+            size: CGSize(width: side, height: side),
+            systemName: systemName,
+            iconPointSize: 18,
+            cornerRadius: side / 2
         )
-        icon.size = CGSize(width: iconSide, height: iconSide)
-        icon.zPosition = 1
-        container.addChild(icon)
+        container.addChild(btn)
         return container
     }
 
@@ -1767,7 +1755,7 @@ final class GameScene: SKScene {
         lbl.fontColor = BlomixAppearance.tertiaryTextSK
         lbl.horizontalAlignmentMode = .center
         lbl.verticalAlignmentMode = .center
-        lbl.position = CGPoint(x: 0, y: -26)
+        lbl.position = CGPoint(x: 0, y: -32)
         lbl.zPosition = 2
         container.addChild(lbl)
     }
@@ -1811,7 +1799,7 @@ final class GameScene: SKScene {
         icon.size = CGSize(width: iconSide, height: iconSide)
         icon.position = CGPoint(x: iconX, y: 0)
         icon.zPosition = 2
-        btn.addChild(icon)
+        btn.capsuleContentNode?.addChild(icon)
         return btn
     }
 
@@ -1935,11 +1923,12 @@ final class GameScene: SKScene {
 
     private func applyStartScreenDiscRank(_ rank: Int, discName: String, in container: SKNode) {
         let text = "#\(rank)"
-        for suffix in [Self.rankDiscRankLabelSuffix, Self.rankDiscRankShadowSuffix] {
-            guard let node = Self.startScreenDescendant(named: discName + suffix, in: container) as? SKLabelNode else { continue }
-            node.text = text
-            node.alpha = 1
-        }
+        guard let node = Self.startScreenDescendant(
+            named: discName + Self.rankDiscRankLabelSuffix,
+            in: container
+        ) as? SKLabelNode else { return }
+        node.text = text
+        node.alpha = 1
     }
 
     private func runStartScreenGameChipEntrance(on chip: BlomixSKButtonNode, delay: TimeInterval, slideDistance: CGFloat = 14) {
@@ -2037,16 +2026,11 @@ final class GameScene: SKScene {
 
         // ── Bande 1 : branding (remonté) ───────────────────────────────────────
         let titleY: CGFloat = size.height * 0.86
-        let title = SKLabelNode(text: "BLOMIX")
-        title.name = Self.startScreenTitleLabelName
-        title.fontName = Self.displayFontName
-        title.fontSize = 40
-        title.fontColor = BlomixAppearance.primaryTextSK
-        title.horizontalAlignmentMode = .center
-        title.verticalAlignmentMode = .center
-        title.position = CGPoint(x: cx, y: titleY)
-        title.zPosition = 1
-        overlay.addChild(title)
+        let titleHost = SKNode()
+        titleHost.name = Self.startScreenTitleLabelName
+        titleHost.position = CGPoint(x: cx, y: titleY)
+        titleHost.zPosition = 1
+        overlay.addChild(titleHost)
 
         let subtitle = SKLabelNode(text: BlomixL10n.gameTagline)
         subtitle.name = Self.startScreenSubtitleLabelName
@@ -2084,11 +2068,11 @@ final class GameScene: SKScene {
         overlay.addChild(discsContainer)
 
         let rankFontSize: CGFloat = discDiameter * 0.30
-        let discSpecs: [(name: String, category: String, x: CGFloat, t: Float)] = [
-            (Self.startScreenRankDiscSoloName, BlomixL10n.rankDiscSolo, -1.5 * discStep, 0.00),
-            (Self.startScreenRankDiscAvgName,  BlomixL10n.rankDiscAvg,  -0.5 * discStep, 0.25),
-            (Self.startScreenRankDiscZenName,  BlomixL10n.rankDiscZen,   0.5 * discStep, 0.50),
-            (Self.startScreenRankDiscDuelName, BlomixL10n.rankDiscDuel,  1.5 * discStep, 0.75),
+        let discSpecs: [(name: String, category: String, x: CGFloat)] = [
+            (Self.startScreenRankDiscSoloName, BlomixL10n.rankDiscSolo, -1.5 * discStep),
+            (Self.startScreenRankDiscAvgName,  BlomixL10n.rankDiscAvg,  -0.5 * discStep),
+            (Self.startScreenRankDiscZenName,  BlomixL10n.rankDiscZen,   0.5 * discStep),
+            (Self.startScreenRankDiscDuelName, BlomixL10n.rankDiscDuel,  1.5 * discStep),
         ]
         for spec in discSpecs {
             let wrapper = SKNode()
@@ -2098,14 +2082,9 @@ final class GameScene: SKScene {
             let disc = Self.makeRankDiscNode(name: spec.name,
                                              category: spec.category,
                                              discDiameter: discDiameter,
-                                             timeOffset: spec.t)
+                                             rankFontSize: rankFontSize)
             disc.position = .zero
             wrapper.addChild(disc)
-            let rank = Self.makeStartScreenDiscRankLabels(discName: spec.name,
-                                                          at: .zero, fontSize: rankFontSize)
-            wrapper.addChild(rank.shadow)
-            wrapper.addChild(rank.label)
-            Self.runStartScreenDiscBreath(on: wrapper, phaseDelay: TimeInterval(spec.t) * 1.8)
         }
 
         // ── Rangée d'icônes : Réglages · Tutoriel · Thème · Partager · Crédits ─
@@ -2128,7 +2107,7 @@ final class GameScene: SKScene {
         let creditsIcon = makeStartScreenChromeIcon(name: Self.startScreenCreditsLinkName, systemName: "info.circle.fill")
         attachStartScreenIconCaption(to: creditsIcon, text: BlomixL10n.homeIconCredits)
         let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, creditsIcon]
-        let iconStep: CGFloat = 52
+        let iconStep: CGFloat = 56
         let iconRowWidth = CGFloat(iconItems.count - 1) * iconStep
         for (i, icon) in iconItems.enumerated() {
             icon.position = CGPoint(x: -iconRowWidth / 2 + CGFloat(i) * iconStep, y: 0)
@@ -2156,7 +2135,7 @@ final class GameScene: SKScene {
         let pairFromTip: CGFloat = 64
         var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2
         var heroY = secondaryRowY + hChip / 2 + 18 + heroH / 2
-        let iconClearance = iconRowY - 40
+        let iconClearance = iconRowY - 48
         if heroY + heroH / 2 > iconClearance {
             heroY = iconClearance - heroH / 2
             secondaryRowY = heroY - heroH / 2 - 16 - hChip / 2
@@ -2198,7 +2177,7 @@ final class GameScene: SKScene {
             sub.verticalAlignmentMode = .center
             sub.position = CGPoint(x: 0, y: -11)
             sub.zPosition = 3
-            startChip.addChild(sub)
+            startChip.capsuleContentNode?.addChild(sub)
         }
         overlay.addChild(startChip)
 
@@ -2293,10 +2272,16 @@ final class GameScene: SKScene {
 
         // ── Animations d'entrée ──────────────────────────────────────────────────
 
-        title.setScale(1)
         if playIntro {
-            // Titre BLOMIX : slot machine — chaque lettre défile puis se stabilise.
+            // Titre BLOMIX : slot machine — chaque lettre défile puis se stabilise, puis trou skin.
+            let title = SKLabelNode(text: "BLOMIX")
+            title.fontName = Self.displayFontName
+            title.fontSize = Self.homeWordmarkFontSize
+            title.fontColor = BlomixAppearance.primaryTextSK
+            title.horizontalAlignmentMode = .center
+            title.verticalAlignmentMode = .center
             title.alpha = 0
+            titleHost.addChild(title)
             let slotCorrect    = Array("BLOMIX")
             let slotAlphabet   = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
             let slotSeqLen     = 32
@@ -2313,8 +2298,8 @@ final class GameScene: SKScene {
             let slotColorSeqs: [[UIColor]] = slotCorrect.map { _ in
                 (0..<slotSeqLen).map { _ in slotColors.randomElement()! }
             }
-            let slotUIFont = UIFont(name: Self.displayFontName, size: 40)
-                          ?? UIFont.systemFont(ofSize: 40)
+            let slotUIFont = UIFont(name: Self.displayFontName, size: Self.homeWordmarkFontSize)
+                          ?? UIFont.systemFont(ofSize: Self.homeWordmarkFontSize)
             title.run(SKAction.customAction(withDuration: slotDuration) { node, elapsed in
                 guard let label = node as? SKLabelNode else { return }
                 label.alpha = CGFloat(min(Double(elapsed) / 0.13, 1.0))
@@ -2339,11 +2324,18 @@ final class GameScene: SKScene {
                 }
                 label.attributedText = attrStr
             })
+            titleHost.run(.sequence([
+                .wait(forDuration: slotDuration),
+                .run { [weak titleHost] in
+                    title.removeFromParent()
+                    let mark = BlomixCutoutWordmarkNode(fontSize: Self.homeWordmarkFontSize)
+                    mark.alpha = 0
+                    titleHost?.addChild(mark)
+                    mark.run(.fadeIn(withDuration: 0.18))
+                },
+            ]))
         } else {
-            title.alpha = 1
-            title.fontName = Self.displayFontName
-            title.fontColor = BlomixAppearance.primaryTextSK
-            title.text = "BLOMIX"
+            titleHost.addChild(BlomixCutoutWordmarkNode(fontSize: Self.homeWordmarkFontSize))
         }
 
         // Sous-titre + carte joueur : fade-in décalé.
@@ -2861,7 +2853,7 @@ final class GameScene: SKScene {
 
     private func toggleAppearanceFromStartScreen() {
         BlomixAppearance.toggle()
-        // L'icône hamburger est une texture rasterisée : invalider pour la prochaine partie.
+        // Recréer le ☰ (puits + capsule) au prochain layout.
         childNode(withName: Self.bottomMenuContainerName)?.removeFromParent()
         refreshFullscreenBackgroundColor()
         presentStartScreen()
@@ -6773,64 +6765,31 @@ final class GameScene: SKScene {
         )
     }
 
-    /// Icône hamburger lisible dans SpriteKit : glyphe thème sur fond scène (les SF Symbols seuls peuvent apparaître noirs selon le chemin de rendu).
+    /// Icône hamburger : puits skin + glyphe chrome.
     private static func makeGameOverflowMenuIconNode() -> SKNode {
-        let chipW: CGFloat = 44
-        let chipH: CGFloat = 34
-        let imgSize = CGSize(width: chipW, height: chipH)
-        let glyph = BlomixAppearance.primaryText
-        let weightCfg = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)
-        let sym = UIImage(systemName: "line.3.horizontal", withConfiguration: weightCfg.applying(
-            UIImage.SymbolConfiguration(paletteColors: [glyph])
-        ))?.withTintColor(glyph, renderingMode: .alwaysOriginal)
-            ?? UIImage(systemName: "line.3.horizontal", withConfiguration: weightCfg)?
-                .withTintColor(glyph, renderingMode: .alwaysOriginal)
-
-        let format = UIGraphicsImageRendererFormat()
-        format.opaque = true
-        format.scale = UIScreen.main.scale
-        let flat = UIGraphicsImageRenderer(size: imgSize, format: format).image { _ in
-            BlomixAppearance.sceneBackground.setFill()
-            UIBezierPath(rect: CGRect(origin: .zero, size: imgSize)).fill()
-            guard let s = sym else {
-                let attrs: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: 20, weight: .semibold),
-                    .foregroundColor: glyph,
-                ]
-                let t = "≡" as NSString
-                let sz = t.size(withAttributes: attrs)
-                t.draw(
-                    at: CGPoint(x: (imgSize.width - sz.width) / 2, y: (imgSize.height - sz.height) / 2 - 1),
-                    withAttributes: attrs
-                )
-                return
-            }
-            let insetW = imgSize.width * 0.22
-            let insetH = imgSize.height * 0.2
-            let drawRect = CGRect(
-                x: insetW,
-                y: insetH,
-                width: imgSize.width - 2 * insetW,
-                height: imgSize.height - 2 * insetH
-            )
-            s.draw(in: drawRect)
-        }
-
-        let tex = SKTexture(image: flat)
-        let sprite = SKSpriteNode(texture: tex)
-        sprite.size = imgSize
-        sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        return sprite
+        BlomixSKButtonNode(
+            name: hudGameMenuIconName,
+            size: CGSize(width: 44, height: 36),
+            systemName: "line.3.horizontal",
+            iconPointSize: 16
+        )
     }
 
-    /// Ordonnée du haut des lettres du titre « BLOMIX » (repère scène), pour aligner le chip menu.
-    private func gameplayTitleTopY() -> CGFloat {
-        if let title = childNode(withName: Self.titleNodeName) as? SKLabelNode, !title.isHidden {
-            return title.frame.maxY
-        }
-        let titleLiftFromTop: CGFloat = 56
-        let titleY = size.height - titleLiftFromTop - GridLayout.cellPoints
-        return titleY + 15
+    private static let gameplayWordmarkFontSize: CGFloat = 36
+    private static let homeWordmarkFontSize: CGFloat = 60
+    private static let gameplayTitleLiftFromTop: CGFloat = 56
+    /// Écart centre titre → centre sous-titre en jeu (inchangé).
+    private static let gameplayTitleSubtitleOffset: CGFloat = 30
+
+    /// Centre historique du titre en jeu (avant le trou / le pad du wordmark).
+    private func gameplayTitleCenterY() -> CGFloat {
+        size.height - Self.gameplayTitleLiftFromTop - GridLayout.cellPoints
+    }
+
+    /// Haut du bouton ☰ — ancre d’alignement du wordmark (ne suit pas le canvas du trou).
+    private func gameplayHeaderTopY() -> CGFloat {
+        let canvasH = BlomixButtonRelief.wordmarkLayout(fontSize: Self.gameplayWordmarkFontSize).canvas.height
+        return gameplayTitleCenterY() + canvasH / 2
     }
 
     /// Recrée le menu overflow (icône + dropdown) selon le thème chrome courant.
@@ -6856,34 +6815,33 @@ final class GameScene: SKScene {
         dropdown.isHidden = true
         dropdown.zPosition = 2
 
-        let panelW = min(280, max(200, size.width - 28))
-        let rowH: CGFloat = 34
         let entries: [(text: String, name: String)] = [
             (BlomixL10n.menuNewGame, Self.bottomMenuNewGameName),
             (BlomixL10n.menuScores, Self.bottomMenuScoresName),
             (BlomixL10n.menuTutorial, Self.bottomMenuTutorialName),
             (BlomixL10n.menuSettings, Self.bottomMenuSettingsName),
         ]
-        let panelH = CGFloat(entries.count) * rowH + 20
-        let panel = SKSpriteNode(color: BlomixAppearance.panelFillTranslucent, size: CGSize(width: panelW, height: panelH))
-        panel.name = Self.hudGameMenuPanelName
-        panel.anchorPoint = CGPoint(x: 1, y: 1)
-        panel.position = .zero
-        panel.zPosition = 0
-        dropdown.addChild(panel)
-
-        let fontSize: CGFloat = size.width < 360 ? 12 : 14
+        let fontSize: CGFloat = size.width < 360 ? 13 : 15
+        let maxChipW = min(220, max(160, size.width - 40))
+        let chipSize = BlomixSKButtonNode.unifiedSize(
+            for: entries.map(\.text),
+            fontSize: fontSize,
+            maxWidth: maxChipW
+        )
+        let rowGap: CGFloat = 8
         for (i, entry) in entries.enumerated() {
-            let label = SKLabelNode(text: entry.text)
-            label.name = entry.name
-            label.fontName = Self.customUIFontPostScriptName
-            label.fontSize = fontSize
-            label.fontColor = BlomixAppearance.primaryTextSK
-            label.horizontalAlignmentMode = .right
-            label.verticalAlignmentMode = .center
-            label.position = CGPoint(x: -14, y: -18 - CGFloat(i) * rowH - rowH / 2)
-            label.zPosition = 1
-            dropdown.addChild(label)
+            let btn = BlomixSKButtonNode(
+                name: entry.name,
+                text: entry.text,
+                size: chipSize,
+                fontSize: fontSize
+            )
+            btn.position = CGPoint(
+                x: -chipSize.width / 2,
+                y: -chipSize.height / 2 - CGFloat(i) * (chipSize.height + rowGap)
+            )
+            btn.zPosition = 1
+            dropdown.addChild(btn)
         }
 
         container.addChild(dropdown)
@@ -6898,33 +6856,36 @@ final class GameScene: SKScene {
         let margin: CGFloat = 14
         let rightX = size.width - margin
         let chipW: CGFloat = 44
-        let chipH: CGFloat = 34
-        let titleTop = gameplayTitleTopY()
-        let iconCenterY = titleTop - chipH / 2
+        let chipH: CGFloat = 36
+        let iconCenterY = gameplayHeaderTopY() - chipH / 2
         icon.position = CGPoint(x: rightX - chipW / 2, y: iconCenterY)
 
-        let panelW = min(280, max(200, size.width - 28))
-        let rowH: CGFloat = 34
         let names = [
             Self.bottomMenuNewGameName,
             Self.bottomMenuScoresName,
             Self.bottomMenuTutorialName,
             Self.bottomMenuSettingsName,
         ]
-        let panelH = CGFloat(names.count) * rowH + 20
-        if let panel = dropdown.childNode(withName: Self.hudGameMenuPanelName) as? SKSpriteNode {
-            panel.size = CGSize(width: panelW, height: panelH)
-        }
-
-        let gapBelowChip: CGFloat = 6
+        let fontSize: CGFloat = size.width < 360 ? 13 : 15
+        let maxChipW = min(220, max(160, size.width - 40))
+        let texts = [
+            BlomixL10n.menuNewGame,
+            BlomixL10n.menuScores,
+            BlomixL10n.menuTutorial,
+            BlomixL10n.menuSettings,
+        ]
+        let itemSize = BlomixSKButtonNode.unifiedSize(for: texts, fontSize: fontSize, maxWidth: maxChipW)
+        let rowGap: CGFloat = 8
+        let gapBelowChip: CGFloat = 8
         let iconBottomY = iconCenterY - chipH / 2 - gapBelowChip
         dropdown.position = CGPoint(x: rightX, y: iconBottomY)
 
-        let fontSize: CGFloat = size.width < 360 ? 12 : 14
         for (i, name) in names.enumerated() {
-            guard let label = dropdown.childNode(withName: name) as? SKLabelNode else { continue }
-            label.fontSize = fontSize
-            label.position = CGPoint(x: -14, y: -18 - CGFloat(i) * rowH - rowH / 2)
+            guard let btn = dropdown.childNode(withName: name) else { continue }
+            btn.position = CGPoint(
+                x: -itemSize.width / 2,
+                y: -itemSize.height / 2 - CGFloat(i) * (itemSize.height + rowGap)
+            )
         }
     }
 
@@ -6980,9 +6941,9 @@ final class GameScene: SKScene {
         guard gameOverflowMenuDropdownIsOpen(),
               let container = childNode(withName: Self.bottomMenuContainerName),
               let drop = container.childNode(withName: Self.hudGameMenuDropdownName),
-              let label = drop.childNode(withName: name) as? SKLabelNode,
+              let node = drop.childNode(withName: name),
               !container.isHidden else { return false }
-        return sceneHitRect(for: label, minWidth: max(140, label.frame.width + 28), minHeight: 36, padding: 6).contains(scenePoint)
+        return sceneHitRect(forMenuNode: node, padding: 4).contains(scenePoint)
     }
 
     /// Centre d’une case en coordonnées **locales** du nœud `gridContainer` (identique au calcul dans `drawGrid()`).
@@ -7636,7 +7597,11 @@ final class GameScene: SKScene {
             // Fusion en deux étapes : c1↔c2 dominants, c3 subtile.
             vec3 ab=mix(c1,c2,wx);
             vec3 col=mix(ab,c3,wy*0.38);
-            gl_FragColor=vec4(col,1.0);
+            // Disque inscrit + couronne noire (même recette que la bombe).
+            float d=distance(uv,vec2(0.5,0.5));
+            float a=1.0-smoothstep(0.46,0.50,d);
+            float ring=1.0-smoothstep(0.38,0.43,d);
+            gl_FragColor=vec4(col*ring*a,a);
         }
         """
         // Aucun uniforme personnalisé : les couleurs sont compilées dans le shader.
@@ -7717,76 +7682,31 @@ final class GameScene: SKScene {
         return SKTexture(image: image)
     }
 
-    /// Nœud SK complet représentant un classement : disque animé (shader MAGIX via SKCropNode circulaire)
-    /// + halo radial + rang centré + label catégorie en dessous.
-    /// Le rang est vide ("") à la construction ; il est mis à jour après le fetch Game Center.
-    /// - Parameters:
-    ///   - name:         Identifiant unique du nœud racine.
-    ///   - category:     Texte affiché sous le disque ("SOLO", "MOY.", "ZEN").
-    ///   - discDiameter: Diamètre du disque en pts.
+    /// Pastille de rang : même charte que les boutons (puits skin + capsule chrome, ronde).
+    /// Pas de halo ni de respiration. Le `#rang` est rempli après le fetch Game Center.
     private static func makeRankDiscNode(name: String, category: String, discDiameter: CGFloat,
-                                          timeOffset: Float = 0.0) -> SKNode {
+                                          rankFontSize: CGFloat) -> SKNode {
         let container = SKNode()
-        container.name = name
+        let radius = discDiameter / 2
 
-        let radius      = discDiameter / 2
-        let haloSpread: CGFloat = 12
+        let btn = BlomixSKButtonNode(
+            name: name,
+            labelName: name + rankDiscRankLabelSuffix,
+            text: "",
+            size: CGSize(width: discDiameter, height: discDiameter),
+            fontSize: rankFontSize,
+            cornerRadius: radius
+        )
+        container.addChild(btn)
 
-        // ── Halo radial ───────────────────────────────────────────────────────
-        // Texture pré-générée (paramètres fixes) : évite un rendu Core Graphics à chaque appel.
-        let haloTex = (radius == 30 && haloSpread == 12)
-            ? rankDiscHaloTextureCached()
-            : makeRankDiscHaloTexture(discRadius: radius, spread: haloSpread)
-        let haloSide = (radius + haloSpread) * 2
-        let halo     = SKSpriteNode(texture: haloTex, size: CGSize(width: haloSide, height: haloSide))
-        halo.alpha     = BlomixAppearance.rankDiscHaloBaseAlpha
-        halo.zPosition = -2
-        halo.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.fadeAlpha(to: BlomixAppearance.rankDiscHaloPulseHigh, duration: 1.2),
-            SKAction.fadeAlpha(to: BlomixAppearance.rankDiscHaloPulseLow, duration: 1.2),
-        ])))
-        container.addChild(halo)
-
-        // ── Disque animé : shader MAGIX (éprouvé) clipé par SKCropNode ────────
-        // Le clip circulaire est délégué à SKCropNode + masque SKShapeNode,
-        // évitant tout problème de compilation GLSL lié à un early-return.
-        let cropNode  = SKCropNode()
-        cropNode.zPosition = 0
-
-        let maskCircle = SKShapeNode(circleOfRadius: radius)
-        maskCircle.fillColor   = .white
-        maskCircle.strokeColor = .clear
-        cropNode.maskNode = maskCircle
-
-        let disc = SKSpriteNode(texture: magixShaderBaseTexture,
-                                size: CGSize(width: discDiameter, height: discDiameter))
-        disc.colorBlendFactor = 0
-        disc.color  = .white
-        disc.shader = makeMagixPaletteShader(timeOffset: timeOffset)
-        cropNode.addChild(disc)
-        container.addChild(cropNode)
-
-        // ── Bordure circulaire (jaune du set joueur) ───────────────────────────
-        let borderColor = bloxSolidFillColor(colorName: "yellow")
-            ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
-        let border = SKShapeNode(circleOfRadius: radius)
-        border.fillColor   = .clear
-        border.strokeColor = borderColor
-        border.lineWidth   = 2.5
-        border.zPosition   = 1.5
-        container.addChild(border)
-
-        // ── Rang centré dans le disque : rendu par `makeStartScreenDiscRankLabels` (sibling z 200+).
-
-        // ── Catégorie sous le disque ──────────────────────────────────────────
         let catLabel = SKLabelNode(text: category)
-        catLabel.fontName                = customUIFontPostScriptName
-        catLabel.fontSize                = discDiameter * 0.21
-        catLabel.fontColor               = BlomixAppearance.tertiaryTextSK
+        catLabel.fontName = displayFontName
+        catLabel.fontSize = discDiameter * 0.21
+        catLabel.fontColor = BlomixAppearance.tertiaryTextSK
         catLabel.horizontalAlignmentMode = .center
-        catLabel.verticalAlignmentMode   = .top
-        catLabel.position                = CGPoint(x: 0, y: -(radius + 6))
-        catLabel.zPosition               = 1
+        catLabel.verticalAlignmentMode = .top
+        catLabel.position = CGPoint(x: 0, y: -(radius + 6))
+        catLabel.zPosition = 1
         container.addChild(catLabel)
 
         return container
@@ -7799,6 +7719,7 @@ final class GameScene: SKScene {
         sprite.colorBlendFactor = 0   // le shader fournit 100 % de la couleur
         sprite.color            = .white
         sprite.size             = size
+        sprite.blendMode        = .alpha
         sprite.shader           = makeMagixPaletteShader()
 
         // ── Halo dégradé radial (glow) — blanc en sombre, noir en clair ────────
@@ -10679,15 +10600,12 @@ final class GameScene: SKScene {
         childNode(withName: Self.titleNodeName)?.removeFromParent()
         childNode(withName: Self.gameplaySubtitleUnderTitleName)?.removeFromParent()
 
-        let titleLiftFromTop: CGFloat = 56
-        let titleY = size.height - titleLiftFromTop - GridLayout.cellPoints
-        let title = SKLabelNode(text: "BLOMIX")
+        let headerTop = gameplayHeaderTopY()
+        let layout = BlomixButtonRelief.wordmarkLayout(fontSize: Self.gameplayWordmarkFontSize)
+        let letterTopFromCenter = layout.canvas.height / 2 - BlomixButtonRelief.wordmarkPad
+        let titleY = headerTop - letterTopFromCenter
+        let title = BlomixCutoutWordmarkNode(fontSize: Self.gameplayWordmarkFontSize)
         title.name = Self.titleNodeName
-        title.fontName = Self.displayFontName
-        title.fontSize = 36
-        title.fontColor = BlomixAppearance.primaryTextSK
-        title.horizontalAlignmentMode = .center
-        title.verticalAlignmentMode = .center
         title.position = CGPoint(x: size.width / 2, y: titleY)
         title.zPosition = 5
         addChild(title)
@@ -10703,12 +10621,9 @@ final class GameScene: SKScene {
         subtitle.fontColor = BlomixAppearance.primaryTextSK
         subtitle.horizontalAlignmentMode = .center
         subtitle.verticalAlignmentMode = .center
-        let titleHalfApprox: CGFloat = 18
-        let gapTitleSubtitle: CGFloat = 6
-        let subtitleHalfApprox: CGFloat = 6
         subtitle.position = CGPoint(
             x: size.width / 2,
-            y: titleY - titleHalfApprox - gapTitleSubtitle - subtitleHalfApprox
+            y: titleY - Self.gameplayTitleSubtitleOffset
         )
         subtitle.zPosition = 5
         addChild(subtitle)
@@ -11006,7 +10921,7 @@ final class GameScene: SKScene {
     }
 
 
-    /// Carré couleur unie 36×36 (ou `pixelSize`) : blox classique ou Priks + chiffre.
+    /// Blox / Brix : carré couleur unie. Magix : disque shader (même taille `cell − 4` que la bombe).
     private static func makeSolidGameplayBlockSprite(
         block: BlockType,
         pixelSize: CGSize? = nil,
@@ -11034,22 +10949,7 @@ final class GameScene: SKScene {
             s.addChild(digit)
             return s
         case .magix(let kind):
-            // Grille : apparition brève (~0.3 s pendant le bounce) → couleur statique aléatoire suffit.
-            let c = colorPalette.randomElement().flatMap { bloxSolidFillColor(colorName: $0) }
-                    ?? SKColor(white: 0.75, alpha: 1)
-            let s = SKSpriteNode(color: c, size: size)
-            s.colorBlendFactor = 1
-            s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            let sym = SKLabelNode(text: MagixRules.symbol(for: kind))
-            sym.fontName                = gridFontName
-            sym.fontSize                = size.height * 0.69
-            sym.fontColor               = .black
-            sym.horizontalAlignmentMode = .center
-            sym.verticalAlignmentMode   = .center
-            sym.position                = .zero
-            sym.zPosition               = 5
-            s.addChild(sym)
-            return s
+            return makeMagixShaderSprite(size: size, kind: kind)
         case .empty:
             let s = SKSpriteNode(color: .clear, size: size)
             s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
@@ -13408,6 +13308,7 @@ final class GameScene: SKScene {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
+        if isCommittingSKButtonAction { return }
         let location = touch.location(in: self)
 
         // Mémorisé dès le début ; utilisé pour la détection de sortie de zone dans touchesMoved.
@@ -13672,15 +13573,28 @@ final class GameScene: SKScene {
     /// Fin du contact (lift) : place la bombe ou pose le bloc selon le mode actif.
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         // Animation release sur le bouton SpriteKit précédemment appuyé.
-        lastPressedSKButton?.animateReleased()
+        let pressed = lastPressedSKButton
+        pressed?.animateReleased()
         lastPressedSKButton = nil
 
-        // Exécuter l'action différée du bouton SpriteKit (fire on release) + son de tap.
+        // Exécuter l'action différée : son immédiat, navigation après la remontée visuelle.
         if let action = pendingButtonAction {
             pendingButtonAction = nil
             pendingButtonTouchOrigin = nil
             playMatchSound(.connectE)
-            action()
+            if pressed != nil {
+                isCommittingSKButtonAction = true
+                let delay = BlomixUIDestinationButtonStyle.actionCommitDelay
+                run(.sequence([
+                    .wait(forDuration: delay),
+                    .run { [weak self] in
+                        self?.isCommittingSKButtonAction = false
+                        action()
+                    },
+                ]))
+            } else {
+                action()
+            }
             return
         }
 
@@ -13708,6 +13622,7 @@ final class GameScene: SKScene {
         // Annulation : l'action ne s'exécute pas.
         pendingButtonAction = nil
         pendingButtonTouchOrigin = nil
+        isCommittingSKButtonAction = false
         lastPressedSKButton?.animateReleased()
         lastPressedSKButton = nil
         cancelGhostPreview()

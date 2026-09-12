@@ -289,6 +289,8 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "whatsnew.title" = "Novità di questa versione";
 "whatsnew.twistx" = "TWISTX usa ora questo simbolo";
 "whatsnew.slashx" = "Un nuovo Magix, SLASHX, fa la sua comparsa";
+"whatsnew.chrome" = "Pulsanti e menu: un incavo nei colori della tua skin";
+"whatsnew.magix_round" = "I Magix sono tondi, come le bombe";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */
@@ -348,7 +350,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "credits.section.palette.title" = "Palette colori";
 "credits.section.palette.body" = "Coolors.com — inizialmente Tropical Sunset Vibes, leggermente arricchita";
 "credits.section.beta.title" = "Beta-test";
-"credits.section.beta.body" = "Grazie a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";
+"credits.section.beta.body" = "Grazie a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben, Floridezic";
 
 "pvp.series_end_series_caption" = "Serie";
 "pvp.series_end_total_caption" = "Totale storico";

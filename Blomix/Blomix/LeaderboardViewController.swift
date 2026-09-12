@@ -366,9 +366,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     private func applyTabSelectionStyle(button: UIButton, selected: Bool) {
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: button)
-        button.alpha = selected ? 1.0 : 0.7
-        button.layer.borderColor = (selected ? BlomixAppearance.primaryText : BlomixUIDestinationButtonStyle.borderColor).cgColor
-        button.layer.borderWidth = selected ? 1.0 : BlomixUIDestinationButtonStyle.hairlineBorderWidth
+        BlomixUIDestinationButtonStyle.applySelectionChrome(to: button, selected: selected)
     }
 
     private func setLoading(_ loading: Bool) {
@@ -831,6 +829,9 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         btn.tag = rowIndex
         btn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
         btn.sizeToFit()
+        let btnW = ceil(btn.bounds.width * 1.5)
+        let btnH = btn.bounds.height
+        btn.frame = CGRect(origin: .zero, size: CGSize(width: btnW, height: btnH))
 
         guard let totals = h2h, totals.hasHistory else {
             return btn
@@ -851,8 +852,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         let scoreW = max(ceil(scoreLabel.bounds.width), 18)
 
         let gap: CGFloat = 8
-        let h = max(scoreLabel.bounds.height, btn.bounds.height, 34)
-        let w = scoreW + gap + ceil(btn.bounds.width)
+        let h = max(scoreLabel.bounds.height, btnH, 34)
+        let w = scoreW + gap + btnW
         let container = UIView(frame: CGRect(x: 0, y: 0, width: w, height: h))
         container.isUserInteractionEnabled = true
         scoreLabel.frame = CGRect(
@@ -863,9 +864,9 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         )
         btn.frame = CGRect(
             x: scoreW + gap,
-            y: (h - btn.bounds.height) / 2,
-            width: ceil(btn.bounds.width),
-            height: btn.bounds.height
+            y: (h - btnH) / 2,
+            width: btnW,
+            height: btnH
         )
         container.addSubview(scoreLabel)
         container.addSubview(btn)
@@ -1428,7 +1429,7 @@ final class SoundMixSettingsViewController: UIViewController {
 
         titleLabel.text = BlomixL10n.settingsSoundMixTitle
         titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = FontTheme.gameFont(size: 28, weight: .bold)
+        titleLabel.font = BlomixTypography.displayFont(size: 28, weight: .bold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleLabel)
 
@@ -1501,7 +1502,7 @@ private final class BlomixMasterVolumeRowView: UIView {
         directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
 
         titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = BlomixTypography.uiFont(size: 15, weight: .medium)
+        titleLabel.font = BlomixTypography.displayFont(size: 15)
 
         percentLabel.textColor = BlomixAppearance.secondaryText
         percentLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
@@ -1671,7 +1672,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     private func configureSectionHeading(_ label: UILabel, text: String) {
         label.text = text
         label.textColor = BlomixAppearance.secondaryText
-        label.font = FontTheme.gameFont(size: 16, weight: .semibold)
+        label.font = BlomixTypography.displayFont(size: 16)
     }
 
     private func refreshTypography() {
@@ -1703,10 +1704,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         btn.setTitle(title, for: .normal)
         BlomixUIDestinationButtonStyle.apply(to: btn, fontSize: 16, weight: .medium)
         BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16), to: btn)
-        if selected {
-            btn.layer.borderWidth = 1.5
-            btn.layer.borderColor = BlomixAppearance.primaryText.cgColor
-        }
+        BlomixUIDestinationButtonStyle.applySelectionChrome(to: btn, selected: selected)
         btn.addTarget(self, action: action, for: .touchUpInside)
         return btn
     }

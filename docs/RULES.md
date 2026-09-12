@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 6.6 (local, TestFlight)  
+> **Version de référence** : 6.7 (local)  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille

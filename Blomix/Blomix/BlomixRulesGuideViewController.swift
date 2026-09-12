@@ -116,7 +116,7 @@ final class BlomixRulesGuideViewController: UIViewController {
         titleLabel.text = section.title
         titleLabel.textColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange")
             ?? UIColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
-        titleLabel.font = BlomixTypography.uiFont(size: 17, weight: .semibold)
+        titleLabel.font = BlomixTypography.displayFont(size: 17)
         titleLabel.numberOfLines = 1
         textStack.addArrangedSubview(titleLabel)
 

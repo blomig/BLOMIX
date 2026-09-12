@@ -314,6 +314,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "whatsnew.title" = "Changement dans cette version";
 "whatsnew.twistx" = "Le TWISTX a désormais ce symbole";
 "whatsnew.slashx" = "Un nouveau Magix, SLASHX, fait son apparition";
+"whatsnew.chrome" = "Boutons et menus : un creux aux couleurs de ton skin";
+"whatsnew.magix_round" = "Les Magix sont ronds, comme les bombes";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */
@@ -373,7 +375,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "credits.section.palette.title" = "Palette";
 "credits.section.palette.body" = "Coolors.com — initialement Tropical Sunset Vibes, légèrement augmentée";
 "credits.section.beta.title" = "Beta-test";
-"credits.section.beta.body" = "Merci à Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben";
+"credits.section.beta.body" = "Merci à Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben, Floridezic";
 
 "pvp.series_end_series_caption" = "Série";
 "pvp.series_end_total_caption" = "Total historique";

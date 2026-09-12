@@ -1,4 +1,5 @@
+• Botones, iconos y menús: un hueco con los colores de tu skin
+• El título BLOMIX es un recorte en la mesa, el mismo fondo que los huecos
+• Los Magix son redondos (como las bombas); blox y Brix siguen cuadrados
 • COLORX: ya no hay barras en las uniones durante el efecto
-• Duelo: no hay línea de ataque si el toque no muestra una cadena
-• Arcade: la pantalla de etapa aparece antes del siguiente blox
-• Clasificación Elo: los totales cara a cara se quedan en la nube (sin volver a un acumulado local antiguo)
+• Duelo / Elo: las líneas de ataque y los totales cara a cara siguen siendo justos

@@ -26,32 +26,40 @@ enum BlomixUIDestinationButtonStyle {
 
     // MARK: - Géométrie (UIKit ET SpriteKit)
 
-    /// Rayon des coins arrondis — partagé UIKit + SpriteKit.
-    static let cornerRadius: CGFloat = 10
-    /// Padding horizontal intérieur (texte → bord) — partagé UIKit + SpriteKit.
+    /// Rayon des coins du puits — partagé UIKit + SpriteKit.
+    static let cornerRadius: CGFloat = 14
+    /// Bande colorée visible autour de la capsule (gouttière du puits).
+    static let wellInset: CGFloat = 6
+    static let wellInsetCompact: CGFloat = 4
+    static func wellInset(for size: CGSize) -> CGFloat {
+        min(size.width, size.height) < 48 ? wellInsetCompact : wellInset
+    }
+    /// Padding horizontal intérieur (texte → bord de la capsule).
     static let padH: CGFloat = 20
-    /// Padding vertical intérieur (texte → bord) — partagé UIKit + SpriteKit.
+    /// Padding vertical intérieur (texte → bord de la capsule).
     static let padV: CGFloat = 10
 
     // MARK: - Animation press/release (UIKit ET SpriteKit)
 
     // ── Appui ────────────────────────────────────────────────────────────────
-    /// Échelle à l'état appuyé.
-    static let pressScale: CGFloat = 0.92
-    /// Translation vers le bas en pts lors de l'appui (simule l'enfoncement).
-    static let pressTranslateY: CGFloat = 3
+    /// Échelle de la capsule à l'état appuyé (le puits ne bouge pas).
+    static let pressScale: CGFloat = 0.90
+    /// Conservé pour compat ; l’enfoncement 6.7 est un scale, pas une translation.
+    static let pressTranslateY: CGFloat = 0
     /// Durée de la phase d'appui.
     static let pressAnimDuration: TimeInterval = 0.07
 
     // ── Relâchement ──────────────────────────────────────────────────────────
-    /// Échelle maximale de l'overshoot au relâchement.
-    static let releaseOvershootScale: CGFloat = 1.05
-    /// Durée de la phase d'overshoot (scale 1.05, retour position).
+    /// Échelle maximale de l'overshoot au relâchement (calmé vs 1,07 historique).
+    static let releaseOvershootScale: CGFloat = 1.04
+    /// Durée de la phase d'overshoot.
     static let releasePhase1Duration: TimeInterval = 0.09
-    /// Durée de la phase de stabilisation (1.05 → 1.0).
+    /// Durée de la phase de stabilisation.
     static let releasePhase2Duration: TimeInterval = 0.07
     /// Durée totale du relâchement (≈ 0.16 s).
     static var releaseTotalDuration: TimeInterval { releasePhase1Duration + releasePhase2Duration }
+    /// Attendre la remontée visuelle avant de changer d’écran.
+    static var actionCommitDelay: TimeInterval { releaseTotalDuration + 0.04 }
 
     // MARK: - "Vie" des boutons : couleur réactive, ombre portée, ressort
 
@@ -87,7 +95,7 @@ enum BlomixUIDestinationButtonStyle {
     static let navigationTitleFontSize: CGFloat = 17
 
     static func titleFont(size: CGFloat, weight: UIFont.Weight = .semibold) -> UIFont {
-        BlomixTypography.chromeFont(size: size, weight: .semibold)
+        BlomixTypography.displayFont(size: size, weight: weight)
     }
 
     // MARK: - Application du style
@@ -97,24 +105,29 @@ enum BlomixUIDestinationButtonStyle {
         apply(to: button, fontSize: navigationTitleFontSize, weight: weight)
     }
 
-    /// Texte / fond / bordure selon le thème chrome courant.
+    /// Puits skin + capsule chrome selon le thème courant.
     static func apply(to button: UIButton, fontSize: CGFloat, weight: UIFont.Weight = .semibold, cornerRadius: CGFloat = -1) {
         let cr = cornerRadius >= 0 ? cornerRadius : Self.cornerRadius
-        // Style classique (layer / backgroundColor) : pas de UIButton.Configuration.
         button.configuration = nil
         button.setTitleColor(titleColor, for: .normal)
         button.tintColor = titleColor
-        button.backgroundColor = backgroundColor
+        button.backgroundColor = .clear
         button.titleLabel?.font = titleFont(size: fontSize, weight: weight)
         button.layer.cornerRadius = cr
-        button.layer.borderWidth  = hairlineBorderWidth
-        button.layer.borderColor  = borderColor.cgColor
-        // clipsToBounds = false pour laisser l'ombre portée se dessiner hors des limites du bouton.
-        button.clipsToBounds      = false
-        button.layer.shadowColor   = BlomixAppearance.chipShadowColor.cgColor
-        button.layer.shadowOpacity = shadowOpacity
-        button.layer.shadowOffset  = shadowOffset
-        button.layer.shadowRadius  = shadowRadius
+        button.layer.borderWidth = 0
+        button.layer.borderColor = UIColor.clear.cgColor
+        button.clipsToBounds = false
+        button.layer.shadowOpacity = 0
+        button.layer.shadowRadius = 0
+        button.layer.shadowPath = nil
+        if let blomix = button as? BlomixUIButton {
+            blomix.installWellIfNeeded(cornerRadius: cr)
+            blomix.refreshWellChrome()
+        } else {
+            button.backgroundColor = backgroundColor
+            button.layer.borderWidth = hairlineBorderWidth
+            button.layer.borderColor = borderColor.cgColor
+        }
     }
 
     /// Padding intérieur sans `contentEdgeInsets` (déprécié iOS 15 / ignoré avec Configuration).
@@ -136,6 +149,19 @@ enum BlomixUIDestinationButtonStyle {
 
     /// Fond pastille pour `SKShapeNode` / pastilles d'accueil (aligné sur UIKit).
     static var startScreenChipFillSKColor: SKColor { BlomixAppearance.chipFillSK }
+
+    /// Distingue l’option sélectionnée (onglets classement, Sombre/Clair).
+    /// Clair : non sélectionné plus atténué — le liseré seul ne suffisait pas sur le puits coloré.
+    static func applySelectionChrome(to button: UIButton, selected: Bool) {
+        button.alpha = selected ? 1 : (BlomixAppearance.isDark ? 0.70 : 0.55)
+        if selected {
+            button.layer.borderWidth = 2.0
+            button.layer.borderColor = BlomixAppearance.primaryText.cgColor
+        } else {
+            button.layer.borderWidth = 0
+            button.layer.borderColor = UIColor.clear.cgColor
+        }
+    }
 }
 
 // MARK: - Notification
@@ -167,6 +193,15 @@ class BlomixUIButton: UIButton {
         }
     }
 
+    fileprivate let wellView = UIView()
+    fileprivate let capsuleView = UIView()
+    fileprivate let wellGradient = BlomixSkinGradientLayer()
+    fileprivate let wellInnerShadow = CALayer()
+    fileprivate let capsuleBevel = CALayer()
+    private var wellInstalled = false
+    private var wellCornerRadius: CGFloat = BlomixUIDestinationButtonStyle.cornerRadius
+    private var lastReliefSize: CGSize = .zero
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupTapSound()
@@ -175,6 +210,45 @@ class BlomixUIButton: UIButton {
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         setupTapSound()
+    }
+
+    fileprivate func installWellIfNeeded(cornerRadius: CGFloat) {
+        wellCornerRadius = cornerRadius
+        guard !wellInstalled else {
+            wellView.layer.cornerRadius = cornerRadius
+            return
+        }
+        wellInstalled = true
+        wellView.isUserInteractionEnabled = false
+        capsuleView.isUserInteractionEnabled = false
+        wellView.clipsToBounds = true
+        wellView.layer.cornerRadius = cornerRadius
+        wellView.layer.addSublayer(wellGradient)
+        wellInnerShadow.contentsGravity = .resize
+        wellInnerShadow.actions = ["contents": NSNull()]
+        wellView.layer.addSublayer(wellInnerShadow)
+        BlomixSkinGradientClock.shared.register(wellGradient)
+        capsuleView.backgroundColor = BlomixUIDestinationButtonStyle.backgroundColor
+        capsuleView.clipsToBounds = false
+        capsuleView.layer.masksToBounds = false
+        capsuleView.layer.shadowColor = UIColor.black.cgColor
+        capsuleView.layer.shadowOffset = CGSize(width: 0, height: BlomixButtonRelief.contactShadowOffsetY)
+        capsuleView.layer.shadowRadius = 2.2
+        capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
+        capsuleBevel.contentsGravity = .resize
+        capsuleBevel.masksToBounds = true
+        capsuleBevel.actions = ["contents": NSNull()]
+        capsuleView.layer.addSublayer(capsuleBevel)
+        insertSubview(wellView, at: 0)
+        insertSubview(capsuleView, at: 1)
+    }
+
+    fileprivate func refreshWellChrome() {
+        capsuleView.backgroundColor = BlomixUIDestinationButtonStyle.backgroundColor
+        wellView.layer.cornerRadius = wellCornerRadius
+        capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
+        lastReliefSize = .zero
+        setNeedsLayout()
     }
 
     /// Agrandit le bouton autour du titre centré (équivalent pratique de contentEdgeInsets
@@ -206,11 +280,35 @@ class BlomixUIButton: UIButton {
     override func layoutSubviews() {
         super.layoutSubviews()
         guard !bounds.isEmpty else { return }
-        // Fournir un shadowPath explicite : Core Animation dessine l'ombre sans recalcul coûteux.
-        layer.shadowPath = UIBezierPath(
-            roundedRect: bounds,
-            cornerRadius: layer.cornerRadius
+        wellView.frame = bounds
+        wellGradient.frame = wellView.bounds
+        wellInnerShadow.frame = wellView.bounds
+        wellInnerShadow.cornerRadius = wellCornerRadius
+        let inset = BlomixUIDestinationButtonStyle.wellInset(for: bounds.size)
+        capsuleView.frame = bounds.insetBy(dx: inset, dy: inset)
+        let capR = max(4, wellCornerRadius - inset * 0.45)
+        capsuleView.layer.cornerRadius = capR
+        capsuleView.layer.shadowPath = UIBezierPath(
+            roundedRect: capsuleView.bounds,
+            cornerRadius: capR
         ).cgPath
+        capsuleBevel.frame = capsuleView.bounds
+        capsuleBevel.cornerRadius = capR
+        let reliefKey = CGSize(width: bounds.width.rounded(), height: bounds.height.rounded())
+        if reliefKey != lastReliefSize, bounds.width > 1, bounds.height > 1 {
+            lastReliefSize = reliefKey
+            wellInnerShadow.contents = BlomixButtonRelief.wellInnerShadowImage(
+                size: bounds.size,
+                cornerRadius: wellCornerRadius
+            ).cgImage
+            capsuleBevel.contents = BlomixButtonRelief.capsuleBevelImage(
+                size: capsuleView.bounds.size,
+                cornerRadius: capR
+            ).cgImage
+        }
+        bringSubviewToFront(capsuleView)
+        if let imageView { bringSubviewToFront(imageView) }
+        if let titleLabel { bringSubviewToFront(titleLabel) }
     }
 
     override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
@@ -219,14 +317,40 @@ class BlomixUIButton: UIButton {
         return result
     }
 
+    private var blomixDeferringTouchUp = false
+
     override func endTracking(_ touch: UITouch?, with event: UIEvent?) {
-        super.endTracking(touch, with: event)
+        let inside = isTouchInside
         blomixAnimateRelease()
+        blomixDeferringTouchUp = inside
+        super.endTracking(touch, with: event)
+        blomixDeferringTouchUp = false
     }
 
     override func cancelTracking(with event: UIEvent?) {
+        blomixDeferringTouchUp = false
         super.cancelTracking(with: event)
         blomixAnimateRelease()
+    }
+
+    override func sendAction(_ action: Selector, to target: Any?, for event: UIEvent?) {
+        if blomixDeferringTouchUp, action != #selector(blomixPostTapSound) {
+            let sel = action
+            let tgt = target as AnyObject?
+            let delay = BlomixUIDestinationButtonStyle.actionCommitDelay
+            isUserInteractionEnabled = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak tgt] in
+                guard let self else { return }
+                self.isUserInteractionEnabled = true
+                self.blomixSendActionNow(sel, to: tgt)
+            }
+            return
+        }
+        super.sendAction(action, to: target, for: event)
+    }
+
+    private func blomixSendActionNow(_ action: Selector, to target: AnyObject?) {
+        super.sendAction(action, to: target, for: nil)
     }
 
     // MARK: - CALayer animations
@@ -238,100 +362,77 @@ class BlomixUIButton: UIButton {
     private static let blomixCAKey = "blomixBtn"
     private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
-    /// Valeur courante du scale dans la couche de présentation (ou modèle si pas d'animation).
-    private func blomixCurrentScale() -> Double {
-        let src = layer.presentation() ?? layer
+    /// Scale courant de la capsule (présentation ou modèle).
+    private func blomixCapsuleScale() -> Double {
+        let src = capsuleView.layer.presentation() ?? capsuleView.layer
         return (src.value(forKeyPath: "transform.scale") as? NSNumber)?.doubleValue ?? 1.0
     }
 
-    /// Valeur courante de la translation Y dans la couche de présentation.
-    private func blomixCurrentTranslateY() -> Double {
-        let src = layer.presentation() ?? layer
-        return (src.value(forKeyPath: "transform.translation.y") as? NSNumber)?.doubleValue ?? 0.0
+    private func blomixAddCapsuleScale(from: Double, to: Double, duration: TimeInterval, timing: CAMediaTimingFunctionName) {
+        let anim = CABasicAnimation(keyPath: "transform.scale")
+        anim.fromValue = from
+        anim.toValue = to
+        anim.duration = duration
+        anim.timingFunction = CAMediaTimingFunction(name: timing)
+        anim.fillMode = .forwards
+        anim.isRemovedOnCompletion = false
+        for target in blomixCapsuleTargets() {
+            target.removeAnimation(forKey: Self.blomixCAKey)
+            target.add(anim, forKey: Self.blomixCAKey)
+        }
+    }
+
+    private func blomixCapsuleTargets() -> [CALayer] {
+        var layers = [capsuleView.layer]
+        if let titleLabel { layers.append(titleLabel.layer) }
+        if let imageView { layers.append(imageView.layer) }
+        return layers
     }
 
     private func blomixAnimatePress() {
         Self.haptic.impactOccurred()
         Self.haptic.prepare()
-        let fromScale = blomixCurrentScale()
-        let fromDY    = blomixCurrentTranslateY()
-        layer.removeAnimation(forKey: Self.blomixCAKey)
-
+        let fromScale = blomixCapsuleScale()
         let toScale = Double(BlomixUIDestinationButtonStyle.pressScale)
-        let toDY    = Double(BlomixUIDestinationButtonStyle.pressTranslateY)
-        let dur     = BlomixUIDestinationButtonStyle.pressAnimDuration
-
-        // ── Scale + translate (CAAnimation explicite) ────────────────────────
-        let scaleAnim            = CABasicAnimation(keyPath: "transform.scale")
-        scaleAnim.fromValue      = fromScale
-        scaleAnim.toValue        = toScale
-        scaleAnim.timingFunction = CAMediaTimingFunction(name: .easeIn)
-
-        let txAnim               = CABasicAnimation(keyPath: "transform.translation.y")
-        txAnim.fromValue         = fromDY
-        txAnim.toValue           = toDY
-        txAnim.timingFunction    = CAMediaTimingFunction(name: .easeIn)
-
-        let group                    = CAAnimationGroup()
-        group.animations             = [scaleAnim, txAnim]
-        group.duration               = dur
-        group.fillMode               = .forwards
-        group.isRemovedOnCompletion  = false
-        layer.add(group, forKey: Self.blomixCAKey)
-
-        // ── Fond + ombre (UIView animation implicite) ────────────────────────
-        UIView.animate(withDuration: dur, delay: 0,
-                       options: [.allowUserInteraction, .beginFromCurrentState]) {
-            self.backgroundColor        = BlomixUIDestinationButtonStyle.pressedBackgroundColor
-            self.layer.shadowOpacity    = 0
-            self.layer.shadowOffset     = .zero
-        }
+        blomixAddCapsuleScale(
+            from: fromScale,
+            to: toScale,
+            duration: BlomixUIDestinationButtonStyle.pressAnimDuration,
+            timing: .easeIn
+        )
+        let dur = BlomixUIDestinationButtonStyle.pressAnimDuration
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(dur)
+        capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlphaPressed)
+        CATransaction.commit()
     }
 
     private func blomixAnimateRelease() {
-        let fromScale = blomixCurrentScale()
-        let fromDY    = blomixCurrentTranslateY()
-        layer.removeAnimation(forKey: Self.blomixCAKey)
-
-        // ── CASpringAnimation : scale + translate ────────────────────────────
-        // Le ressort produit un léger overshoot organique sans courbe codée en dur.
+        let fromScale = blomixCapsuleScale()
         let d = BlomixUIDestinationButtonStyle.springDamping
         let k = BlomixUIDestinationButtonStyle.springStiffness
         let m = BlomixUIDestinationButtonStyle.springMass
         let v = BlomixUIDestinationButtonStyle.springInitialVelocity
 
         let scaleAnim = CASpringAnimation(keyPath: "transform.scale")
-        scaleAnim.damping         = d
-        scaleAnim.stiffness       = k
-        scaleAnim.mass            = m
+        scaleAnim.damping = d
+        scaleAnim.stiffness = k
+        scaleAnim.mass = m
         scaleAnim.initialVelocity = v
-        scaleAnim.fromValue       = fromScale
-        scaleAnim.toValue         = 1.0
+        scaleAnim.fromValue = fromScale
+        scaleAnim.toValue = 1.0
+        scaleAnim.fillMode = .forwards
+        scaleAnim.isRemovedOnCompletion = false
+        scaleAnim.duration = scaleAnim.settlingDuration
 
-        let txAnim = CASpringAnimation(keyPath: "transform.translation.y")
-        txAnim.damping         = d
-        txAnim.stiffness       = k
-        txAnim.mass            = m
-        txAnim.initialVelocity = -v * 0.6   // kick vers le haut
-        txAnim.fromValue       = fromDY
-        txAnim.toValue         = 0.0
-
-        let springDur = max(scaleAnim.settlingDuration, txAnim.settlingDuration)
-
-        let group                   = CAAnimationGroup()
-        group.animations            = [scaleAnim, txAnim]
-        group.duration              = springDur
-        group.fillMode              = .forwards
-        group.isRemovedOnCompletion = false
-        layer.add(group, forKey: Self.blomixCAKey)
-
-        // ── Fond + ombre (UIView animation implicite) ────────────────────────
-        UIView.animate(withDuration: 0.22, delay: 0,
-                       options: [.allowUserInteraction, .beginFromCurrentState]) {
-            self.backgroundColor     = BlomixUIDestinationButtonStyle.backgroundColor
-            self.layer.shadowOpacity = BlomixUIDestinationButtonStyle.shadowOpacity
-            self.layer.shadowOffset  = BlomixUIDestinationButtonStyle.shadowOffset
+        for target in blomixCapsuleTargets() {
+            target.removeAnimation(forKey: Self.blomixCAKey)
+            target.add(scaleAnim, forKey: Self.blomixCAKey)
         }
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(0.18)
+        capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
+        CATransaction.commit()
     }
 }
 

@@ -1,4 +1,5 @@
+• Boutons, icônes et menus : un creux aux couleurs de ton skin
+• Le titre BLOMIX est un trou dans la table, même fond que les gouttières
+• Les Magix sont ronds (comme les bombes) ; blox et Brix restent carrés
 • COLORX : plus de barres sur les jonctions pendant l’effet
-• Duel : plus de ligne d’attaque si le tap n’affiche pas de chaîne
-• Arcade : l’écran de stage s’affiche avant le blox suivant
-• Classement Elo : les scores tête-à-tête restent calés sur le cloud (plus de retour à un ancien cumul)
+• Duel / Elo : lignes d’attaque et totaux tête-à-tête plus justes

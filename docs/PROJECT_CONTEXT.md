@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.6 (local, TestFlight)  
+> **Version de référence** : 6.7 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -322,7 +322,7 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 
 - Toggle **uniquement sur l’accueil** (icône soleil / lune) ; pas de suivi du mode système iOS
 - Splash studio : toujours noir ; thème appliqué après
-- Boutons : chips inversés selon le thème (`BlomixSKButtonNode`, `BlomixUIDestinationButtonStyle`)
+- Boutons : puits (dégradé skin) + capsule chrome (`BlomixSKButtonNode`, `BlomixUIButton`) — voir [SPEC_6.7.md](SPEC_6.7.md)
 - Transitions stage / Zen / PvP / tutoriel : fill **orange skin** inchangé ; **contour seul** via `transitionOutlineColor` (pas de halo)
 
 ### Accueil — liens utilitaires & crédits
@@ -339,7 +339,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - Arcade **pleine largeur** (hero skin) ; Duel + Zen en paire
-- 4 disques de rang : Arc. / Moy. / Zen / Duel
+- 4 pastilles de rang (rondes, puits skin + capsule chrome, Changa, sans halo ni respiration) : Arc. / Moy. / Zen / Duel
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) ; `credits.txt` legacy non branché UI
@@ -387,7 +387,7 @@ Deux visages figés (plus de picker joueur) :
 
 ### Chips boutons
 
-Tokens `BlomixAppearance` (fill / bordure / titre inversés Sombre ↔ Clair), radius 10 pt (`BlomixSKButtonNode`).
+Puits (dégradé vivant du skin, plus lent que Magix) + capsule chrome (fill / titre Sombre ↔ Clair). Radius 14 pt, gouttière **6 pt** (4 pt compact). Liseré haut + ombre bas sur la capsule ; ombre de rebord et de contact dans le puits. Police **Changa One**. Appui : scale 0,90 de la capsule seule. `BlomixSkinGradient` + `BlomixSKButtonNode` / `BlomixUIButton`.
 
 ---
 
@@ -425,6 +425,9 @@ Blomix/Blomix/
 ├── BlomixL10n.swift              # Pont typé localisation
 ├── BlomixTypography.swift        # Police joueur
 ├── BlomixAppearance.swift        # Thème chrome Sombre / Clair (+ icône partage custom)
+├── BlomixSkinGradient.swift      # Dégradé skin des puits (SK shader + bitmap UIKit)
+├── BlomixSKButtonNode.swift      # Boutons SpriteKit (puits + capsule)
+├── BlomixUIButtonStyle.swift     # Boutons UIKit (même grammaire)
 ├── BlomixShareComposer.swift     # Messages + carte 1:1 + items share sheet (accueil: texte+URL ; GO: +image)
 ├── BlomixPvPNetworking.swift     # GKMatch / Multipeer, RNG, attaques
 ├── BlomixPvPLocalSession.swift   # PvP Local (MultipeerConnectivity)

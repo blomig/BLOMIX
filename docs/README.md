@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 6.6 (local, TestFlight)  
+> **Version de référence** : 6.7 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -34,6 +34,7 @@
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Conventions de contribution et maintenance doc |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
 | [SPEC_6.4.md](SPEC_6.4.md) | Cahier 6.4 / build 118 (accueil, HUD, guide) |
+| [SPEC_6.7.md](SPEC_6.7.md) | Cahier 6.7 / build 127 (chrome tactile : puits + capsule) |
 | [privacy-policy.html](privacy-policy.html) | Politique de confidentialité (FR/EN) |
 
 ---

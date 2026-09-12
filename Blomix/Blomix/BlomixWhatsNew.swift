@@ -12,7 +12,7 @@ import UIKit
 @MainActor
 enum BlomixWhatsNew {
     /// Identifiant de cette note (pas seulement MARKETING_VERSION : 6.6 sans note ne réaffiche pas).
-    static let campaignID = "6.5_slashx_twistx"
+    static let campaignID = "6.7_chrome_magix"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Fermeture Ok : ne plus montrer jusqu’au prochain cold start.
@@ -39,7 +39,7 @@ enum BlomixWhatsNew {
     }
 }
 
-/// Dialogue changelog 6.5 : voile + panneau Sombre/Clair, pastilles Magix shader.
+/// Dialogue changelog 6.7 : voile + panneau Sombre/Clair.
 @MainActor
 final class BlomixWhatsNewDialogView: UIView {
 
@@ -93,13 +93,13 @@ final class BlomixWhatsNewDialogView: UIView {
         let title = UILabel()
         title.text = BlomixL10n.whatsNewTitle
         title.textColor = BlomixAppearance.primaryText
-        title.font = BlomixTypography.uiFont(size: 18, weight: .semibold)
+        title.font = BlomixTypography.displayFont(size: 18)
         title.textAlignment = .center
         title.numberOfLines = 0
         title.translatesAutoresizingMaskIntoConstraints = false
 
-        let twistRow = makeFactRow(text: BlomixL10n.whatsNewTwistx, magix: .twistx)
-        let slashRow = makeFactRow(text: BlomixL10n.whatsNewSlashx, magix: .slashx)
+        let chromeRow = makeFactRow(text: BlomixL10n.whatsNewChrome, magix: nil)
+        let magixRow = makeFactRow(text: BlomixL10n.whatsNewMagixRound, magix: .chromax)
 
         let okButton = makeButton(title: BlomixL10n.ok, isSecondary: false)
         okButton.addTarget(self, action: #selector(okTapped), for: .touchUpInside)
@@ -111,7 +111,7 @@ final class BlomixWhatsNewDialogView: UIView {
         buttons.spacing = 10
         buttons.translatesAutoresizingMaskIntoConstraints = false
 
-        let facts = UIStackView(arrangedSubviews: [twistRow, slashRow])
+        let facts = UIStackView(arrangedSubviews: [chromeRow, magixRow])
         facts.axis = .vertical
         facts.spacing = 14
         facts.translatesAutoresizingMaskIntoConstraints = false
@@ -148,7 +148,7 @@ final class BlomixWhatsNewDialogView: UIView {
         ])
     }
 
-    private func makeFactRow(text: String, magix: MagixKind) -> UIView {
+    private func makeFactRow(text: String, magix: MagixKind?) -> UIView {
         let row = UIStackView()
         row.axis = .horizontal
         row.alignment = .center
@@ -162,15 +162,16 @@ final class BlomixWhatsNewDialogView: UIView {
         label.numberOfLines = 0
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        let token = MagixWhatsNewTokenView(kind: magix)
-        token.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            token.widthAnchor.constraint(equalToConstant: 56),
-            token.heightAnchor.constraint(equalToConstant: 56),
-        ])
-
         row.addArrangedSubview(label)
-        row.addArrangedSubview(token)
+        if let magix {
+            let token = MagixWhatsNewTokenView(kind: magix)
+            token.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                token.widthAnchor.constraint(equalToConstant: 56),
+                token.heightAnchor.constraint(equalToConstant: 56),
+            ])
+            row.addArrangedSubview(token)
+        }
         return row
     }
 

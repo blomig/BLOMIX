@@ -142,7 +142,7 @@ final class BlomixCreditsViewController: UIViewController {
         let titleLabel = UILabel()
         titleLabel.text = section.title
         titleLabel.textColor = Self.sectionTitleAccentColor()
-        titleLabel.font = BlomixTypography.uiFont(size: 17, weight: .semibold)
+        titleLabel.font = BlomixTypography.displayFont(size: 17)
         titleLabel.numberOfLines = 1
         stack.addArrangedSubview(titleLabel)
 

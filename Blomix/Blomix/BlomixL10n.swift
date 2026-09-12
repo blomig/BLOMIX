@@ -665,6 +665,8 @@ enum BlomixL10n {
     static var whatsNewTitle: String { tr("whatsnew.title", comment: "Version changes dialog title on home") }
     static var whatsNewTwistx: String { tr("whatsnew.twistx", comment: "TWISTX new glyph §") }
     static var whatsNewSlashx: String { tr("whatsnew.slashx", comment: "SLASHX introduction") }
+    static var whatsNewChrome: String { tr("whatsnew.chrome", comment: "6.7 — buttons in colored wells") }
+    static var whatsNewMagixRound: String { tr("whatsnew.magix_round", comment: "6.7 — Magix are round") }
     static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
 
     // MARK: - Generic

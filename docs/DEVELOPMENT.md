@@ -1,7 +1,7 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 6.6 (local, TestFlight)  
-> **Dernière mise à jour** : août 2026
+> **Version de référence** : 6.7 (local)  
+> **Dernière mise à jour** : septembre 2026
 
 ---
 
@@ -31,8 +31,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 6.6 (local) |
-| `CURRENT_PROJECT_VERSION` | 126 |
+| `MARKETING_VERSION` | 6.7 (local) |
+| `CURRENT_PROJECT_VERSION` | 127 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |

@@ -7,7 +7,17 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.6] — 2026-08 (en cours, TestFlight)
+## [6.7] — 2026-09
+
+Build **127**. Soumission commerciale (6.5 était en vente).
+
+### Modifié
+- **Chrome tactile** : boutons, icônes, menu ☰, pastilles de rang et overlays — puits en dégradé du skin joueur + capsule chrome. L’appui n’enfonce que la face intérieure. Police des boutons : **Changa One**. Icônes et pastilles **rondes** (sans halo ni respiration). Titres de rubriques (réglages, guide, crédits) en Changa. Wordmark **BLOMIX** (accueil + grille) en trou skin. Magix **ronds** (disque inscrit + liseré noir type bombe) ; blox/Brix inchangés.
+- **Crédits** : Floridezic ajouté aux beta-testeurs.
+
+---
+
+## [6.6] — 2026-08 (TestFlight)
 
 Build **126**. 6.5 est en vente. **Pas de soumission commerciale.**
 

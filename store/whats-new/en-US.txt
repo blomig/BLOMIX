@@ -1,4 +1,5 @@
+• Buttons, icons and menus: a well in your skin colors
+• The BLOMIX title is a cutout in the table, same fill as the wells
+• Magix are round (like bombs); blox and Brix stay square
 • COLORX: no more bars on junctions during the effect
-• Duel: no attack line if the tap doesn’t show a chain
-• Arcade: the stage screen appears before the next blox
-• Elo leaderboard: head-to-head totals stay on the cloud (no snap-back to an old local score)
+• Duel / Elo: attack lines and head-to-head totals stay accurate

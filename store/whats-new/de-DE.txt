@@ -1,4 +1,5 @@
+• Buttons, Icons und Menüs: eine Vertiefung in deinen Skin-Farben
+• Der BLOMIX-Titel ist ein Loch in der Fläche, gleiche Füllung wie die Vertiefungen
+• Magix sind rund (wie Bomben); Blox und Brix bleiben quadratisch
 • COLORX: keine Balken mehr an den Kreuzungen während des Effekts
-• Duell: keine Angriffsreihe, wenn der Tipp keine Kette zeigt
-• Arcade: der Stage-Bildschirm erscheint vor dem nächsten Blox
-• Elo-Rangliste: Kopf-an-Kopf-Siege bleiben am Cloud-Stand (kein Rückfall auf einen alten lokalen Stand)
+• Duell / Elo: Angriffsreihen und Kopf-an-Kopf-Stände bleiben korrekt

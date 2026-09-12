@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.6 (local, TestFlight)  
+> **Version de référence** : 6.7 (local)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : août 2026
 
@@ -203,14 +203,17 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 | Élément | Paramètres |
 |---|---|
+| Forme | **Disque inscrit** (taille bombe : `cell − 4 pt`) + couronne noire (même recette shader que la bombe) |
 | Shader | Dégradé 6 couleurs animé via `u_time` (GLSL) |
 | Halo (`magixGlow`) | Spread **16 pt**, α pulse 0,28↔0,55, cycle **1,2 s** |
 | Particules orbitales | Spawn toutes **0,175 ± 0,09 s** ; dot r 1,0–1,8 pt ; fade in 0,28 s, hold 0,35 s, out 0,62 s ; drift 6–12 pt en **1,25 s** |
 | Symbole | Police ×0,69 hauteur bloc, noir, z 5 |
 | En chute | Même rendu via `makeMagixShaderSprite` |
+| Après effet | Blox / Brix restants **carrés** |
 
 ### 2.4 Bombe (sprite HUD + chute)
 
+- Disque + couronne noire (shader)
 - Shader noir → rouge → jaune (cycle 3 couleurs)
 - Chiffre « nuke » si stage ≥ 2
 - Activation : `bombLoad` ; tremblement pré-explosion **0,3 s** (±6 pt, 6 oscillations × 0,05 s)
@@ -631,29 +634,31 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Effet | Paramètres |
 |---|---|
 | Tips rotation | toutes les **5 s**, fade swap texte |
-| Titre slot machine | cycle **2,0 s**, ease custom |
+| Titre slot machine | cycle **2,0 s**, ease custom ; puis wordmark **trou** (dégradé skin + ombre interne) |
+| Wordmark BLOMIX | accueil 40 pt / jeu 36 pt ; puits clipé sur Changa One |
 | Boutons jeu | stagger PvP+Zen **0,22 s**, Solo **0,35 s** (dernier) ; slide **16 pt**, scale 1,15→1,0, fade **0,12 s** |
-| Disques rang | visibles immédiatement ; `#rang` blanc (Sombre et Clair) rempli async après fetch GC ; souffle scale **1,0↔1,08** en **1,8 s**/phase, `easeInEaseOut`, décalage selon `timeOffset` |
+| Pastilles rang | puits rond + capsule chrome (même charte que les boutons) ; `#rang` Changa `chipTitle` rempli async après fetch GC ; **pas** de halo ni de souffle |
 | Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
 
-**Bouton Solo hero** (`applyHeroAccent`)
+**Bouton Solo hero** (même puits que Duel/Zen ; se distingue par la taille)
 
 | Propriété | Valeur |
 |---|---|
-| Bordure | 1re couleur blox du skin actif (secours bleu `#5999F2`) |
-| Épaisseur bordure | **2 pt** (vs hairline `#444444` sur PvP/Zen) |
-| Fond | `#232323` + **22 %** de la couleur accent |
-| Texte | blanc, police jeu, ~12 % plus grand que les chips PvP/Zen |
+| Empreinte | pleine largeur, hauteur × 1,22 vs secondaires |
+| Puits | dégradé skin (`BlomixSkinGradient`) |
+| Capsule | chrome `chipFill` |
+| Texte | Changa One, ~12 % plus grand que Duel/Zen |
 
-### 11.2 Boutons (`BlomixSKButtonNode`)
+### 11.2 Boutons (`BlomixSKButtonNode` / `BlomixUIButton`)
+
+Puits (dégradé skin, `wellTimeScale` 0,035) immobile. Capsule chrome seule animée. Gouttière 6 pt (4 pt compact). Liseré haut + ombre bas sur la capsule ; ombre sous le rebord du puits et ombre de contact sous la capsule (alpha réduite à l’appui). Son `connectE`. Police Changa One.
 
 | Phase | Durée | Détail |
 |---|---|---|
-| Press | `pressAnimDuration` | scale down + move Y ; fond `#2D2D2D` |
-| Release phase 1 | `releasePhase1Duration` | scale 1,07 + retour position |
-| Under-shoot | 0,06 s | scale 0,98 |
-| Settle | 0,04 s | scale 1,0 |
-| Hero release | — | restaure bordure/fond accent (`restingFillColor` / `restingBorderColor`) |
+| Press | `pressAnimDuration` (0,07 s) | capsule scale **0,90** (le puits ne bouge pas) |
+| Release phase 1 | `releasePhase1Duration` (0,09 s) | capsule scale **1,04** |
+| Settle | `releasePhase2Duration` (0,07 s) | scale 1,0 |
+| UIKit | ressort | `CASpringAnimation` sur capsule + titre, pas sur le puits |
 
 ### 11.3 Blocs ambiants (`BlomixAmbientBlocksView` + SpriteKit)
 

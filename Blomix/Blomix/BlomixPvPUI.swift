@@ -2868,7 +2868,7 @@ final class BlomixInAppDialogView: UIView {
         btn.titleLabel?.textAlignment = .center
         btn.titleLabel?.lineBreakMode = .byWordWrapping
 
-        let titleFont = FontTheme.gameFont(size: 16, weight: .semibold)
+        let titleFont = BlomixTypography.displayFont(size: 16)
         let subFont = FontTheme.gameFont(size: 12, weight: .regular)
         let titleColor = BlomixAppearance.chipTitle
         let subColor = BlomixAppearance.secondaryText

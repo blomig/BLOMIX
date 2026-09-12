@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **6.6** (build 125, local) — **6.5** (build 120) en vente |
+| Version courante | **6.7** (build 127, local) — **6.5** (build 120) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -100,6 +100,8 @@ La logique gameplay est concentrée dans :
 | `ScoreManager.swift` / `GameCenterManager.swift` | Classements GC |
 | `BlomixL10n.swift` | Pont typé localisation |
 | `BlomixAppearance.swift` | Thème chrome Sombre / Clair |
+| `BlomixSkinGradient.swift` | Dégradé skin des puits de boutons |
+| `BlomixSKButtonNode.swift` | Boutons SpriteKit (puits + capsule) |
 | `BlomixTypography.swift` | Typo 2 visages (Changa display/grille, Nunito chrome) |
 | `BlomixProceduralSFX.swift` | SFX Magix procéduraux |
 | `BlomixMusicPlayer.swift` | Musique par stage |

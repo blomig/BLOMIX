@@ -2,23 +2,8 @@
 //  BlomixSKButtonNode.swift
 //  Blomix
 //
-//  Composant SpriteKit réutilisable pour tous les boutons du jeu (écran d'accueil,
-//  game over, tutoriel…). Toutes les constantes de style proviennent de
-//  `BlomixUIDestinationButtonStyle` — source de vérité unique.
-//
-//  Usage :
-//    let btn = BlomixSKButtonNode(
-//        name: "myButton",
-//        labelName: "myButtonLabel",   // nil = pas de name sur le label
-//        text: "JOUER",
-//        size: CGSize(width: 160, height: 44),
-//        fontSize: 17
-//    )
-//    btn.position = ...
-//    parentNode.addChild(btn)
-//
-//  L'animation press/release est déclenchée depuis GameScene.touchesBegan/Ended
-//  via `animatePressed()` / `animateReleased()`.
+//  Bouton SpriteKit : puits (dégradé skin) + capsule chrome. L’appui scale
+//  uniquement la capsule. Style : `BlomixUIDestinationButtonStyle`.
 //
 
 import SpriteKit
@@ -26,41 +11,35 @@ import SpriteKit
 @MainActor
 final class BlomixSKButtonNode: SKNode {
 
-    // MARK: - Style constants (délèguent vers BlomixUIDestinationButtonStyle)
+    // MARK: - Style constants
 
-    /// Rayon des coins arrondis — lit la valeur globale.
     static var cornerRadius: CGFloat { BlomixUIDestinationButtonStyle.cornerRadius }
-    /// Taille de police par défaut.
     static var defaultFontSize: CGFloat { BlomixUIDestinationButtonStyle.navigationTitleFontSize }
-    /// Padding horizontal (texte → bord du fond).
     static var padH: CGFloat { BlomixUIDestinationButtonStyle.padH }
-    /// Padding vertical (texte → bord du fond).
     static var padV: CGFloat { BlomixUIDestinationButtonStyle.padV }
 
     // MARK: - Sub-node access
 
-    /// Nœud de fond (`SKShapeNode`) — exposé pour animations éventuelles.
+    /// Contenu cliquable (capsule + libellé + icône) — seul ce nœud scale à l’appui.
+    private(set) weak var capsuleContentNode: SKNode?
     private(set) weak var backgroundNode: SKShapeNode?
-    /// Nœud de libellé (`SKLabelNode`) — exposé pour mise à jour du texte.
     private(set) weak var labelNode: SKLabelNode?
-    /// Nœud d'ombre portée — même chemin que `backgroundNode`, légèrement décalé vers le bas.
-    private(set) weak var shadowNode: SKShapeNode?
+    private(set) weak var wellNode: SKCropNode?
+    private weak var contactShadowNode: SKShapeNode?
+    private weak var bevelNode: SKSpriteNode?
+    private var capsuleSize: CGSize = .zero
+    private var capsuleRadius: CGFloat = 8
 
-    /// Couleurs de repos pour un bouton hero (accent skin) — restaurées après press/release.
+    private var buttonSize: CGSize = .zero
+    private var wellTimeOffset: Float = 0
+    private var skinObserver: NSObjectProtocol?
+
     private var restingFillColor = BlomixAppearance.chipFillSK
-    private var restingBorderColor = BlomixAppearance.chipBorderSK
-    private var restingBorderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
+    private var restingBorderColor = SKColor.clear
+    private var restingBorderWidth: CGFloat = 0
 
-    // MARK: - Init
+    // MARK: - Init texte
 
-    /// Crée un bouton avec fond arrondi et libellé centré.
-    /// - Parameters:
-    ///   - name:         Identifiant du conteneur (utilisé par `touchesBegan` pour hit-test).
-    ///   - labelName:    Identifiant du `SKLabelNode` (nil = pas de name sur le label).
-    ///   - text:         Texte affiché.
-    ///   - size:         Taille du fond (width × height).
-    ///   - fontSize:     Taille de police (défaut : `defaultFontSize`).
-    ///   - cornerRadius: Rayon des coins (défaut : `BlomixSKButtonNode.cornerRadius`).
     init(
         name: String,
         labelName: String? = nil,
@@ -70,165 +49,271 @@ final class BlomixSKButtonNode: SKNode {
         cornerRadius: CGFloat = -1
     ) {
         super.init()
-
         self.name = name
-
-        let resolvedFontSize = fontSize > 0      ? fontSize     : Self.defaultFontSize
-        let resolvedCorner   = cornerRadius >= 0 ? cornerRadius : Self.cornerRadius
-
-        // ── Fond arrondi ──────────────────────────────────────────────────────
-        let rect = CGRect(
-            x: -size.width  / 2,
-            y: -size.height / 2,
-            width:  size.width,
-            height: size.height
+        assemble(
+            size: size,
+            cornerRadius: cornerRadius,
+            text: text,
+            labelName: labelName,
+            fontSize: fontSize,
+            systemName: nil
         )
-        let path = CGPath(
-            roundedRect: rect,
-            cornerWidth:  resolvedCorner,
-            cornerHeight: resolvedCorner,
-            transform: nil
-        )
-        // ── Ombre portée ──────────────────────────────────────────────────────
-        let shadow = SKShapeNode(path: path)
-        shadow.fillColor   = BlomixAppearance.skChipShadowFillSK
-        shadow.strokeColor = .clear
-        shadow.position    = CGPoint(x: 1, y: -4)
-        shadow.zPosition   = -1
-        addChild(shadow)
-        shadowNode = shadow
+    }
 
-        // ── Fond arrondi ──────────────────────────────────────────────────────
-        let bg = SKShapeNode(path: path)
-        bg.fillColor   = BlomixAppearance.chipFillSK
-        bg.strokeColor = BlomixAppearance.chipBorderSK
-        bg.lineWidth   = BlomixUIDestinationButtonStyle.hairlineBorderWidth
-        bg.zPosition   = 0
-        addChild(bg)
-        backgroundNode = bg
-        restingFillColor   = bg.fillColor
-        restingBorderColor = bg.strokeColor
-        restingBorderWidth = bg.lineWidth
-
-        // ── Libellé centré ────────────────────────────────────────────────────
-        let label = SKLabelNode(text: text)
-        label.name                    = labelName
-        label.fontName                = BlomixTypography.chromePostScriptName(
-            size: resolvedFontSize,
-            weight: .semibold
+    /// Puits + capsule + SF Symbol (icônes accueil, hamburger).
+    init(
+        name: String,
+        size: CGSize,
+        systemName: String,
+        iconPointSize: CGFloat = 18,
+        cornerRadius: CGFloat = -1
+    ) {
+        super.init()
+        self.name = name
+        assemble(
+            size: size,
+            cornerRadius: cornerRadius,
+            text: "",
+            labelName: nil,
+            fontSize: 0,
+            systemName: systemName,
+            iconPointSize: iconPointSize
         )
-        label.fontSize                = resolvedFontSize
-        label.fontColor               = BlomixAppearance.chipTitleSK
-        label.horizontalAlignmentMode = .center
-        label.verticalAlignmentMode   = .center
-        label.position                = .zero
-        label.zPosition               = 1
-        addChild(label)
-        labelNode = label
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
-    // MARK: - Press / Release animation
+    // MARK: - Construction
+
+    private func assemble(
+        size: CGSize,
+        cornerRadius: CGFloat,
+        text: String,
+        labelName: String?,
+        fontSize: CGFloat,
+        systemName: String?,
+        iconPointSize: CGFloat = 18
+    ) {
+        buttonSize = size
+        wellTimeOffset = Self.timeOffset(for: name ?? text)
+        let maxCorner = min(size.width, size.height) / 2
+        let resolvedCorner = min(cornerRadius >= 0 ? cornerRadius : Self.cornerRadius, maxCorner)
+        let inset = BlomixUIDestinationButtonStyle.wellInset(for: size)
+        let resolvedFontSize = fontSize > 0 ? fontSize : Self.defaultFontSize
+
+        let well = BlomixSkinGradient.makeWellNode(
+            size: size,
+            cornerRadius: resolvedCorner,
+            timeOffset: wellTimeOffset
+        )
+        well.zPosition = 0
+        addChild(well)
+        wellNode = well
+
+        let inner = SKNode()
+        inner.name = "blomixCapsuleContent"
+        inner.zPosition = 1
+        addChild(inner)
+        capsuleContentNode = inner
+
+        let capSize = CGSize(
+            width: max(8, size.width - inset * 2),
+            height: max(8, size.height - inset * 2)
+        )
+        let isCircle = resolvedCorner >= maxCorner - 0.5
+        let capRadius = isCircle
+            ? min(capSize.width, capSize.height) / 2
+            : max(4, resolvedCorner - inset * 0.45)
+        capsuleSize = capSize
+        capsuleRadius = capRadius
+        let capRect = CGRect(
+            x: -capSize.width / 2,
+            y: -capSize.height / 2,
+            width: capSize.width,
+            height: capSize.height
+        )
+        let capPath = CGPath(
+            roundedRect: capRect,
+            cornerWidth: capRadius,
+            cornerHeight: capRadius,
+            transform: nil
+        )
+        let shadow = SKShapeNode(path: capPath)
+        shadow.name = "blomixCapsuleShadow"
+        shadow.fillColor = .black
+        shadow.strokeColor = .clear
+        shadow.alpha = BlomixButtonRelief.contactShadowAlpha
+        shadow.position = CGPoint(x: 0, y: -BlomixButtonRelief.contactShadowOffsetY)
+        shadow.zPosition = -1
+        inner.addChild(shadow)
+        contactShadowNode = shadow
+
+        let bg = SKShapeNode(path: capPath)
+        bg.fillColor = BlomixAppearance.chipFillSK
+        bg.strokeColor = .clear
+        bg.lineWidth = 0
+        bg.zPosition = 0
+        inner.addChild(bg)
+        backgroundNode = bg
+        restingFillColor = bg.fillColor
+        restingBorderColor = .clear
+        restingBorderWidth = 0
+
+        let bevel = SKSpriteNode(
+            texture: BlomixButtonRelief.capsuleBevelTexture(size: capSize, cornerRadius: capRadius),
+            size: capSize
+        )
+        bevel.name = "blomixCapsuleBevel"
+        bevel.zPosition = 0.5
+        inner.addChild(bevel)
+        bevelNode = bevel
+
+        if !text.isEmpty || labelName != nil {
+            let label = SKLabelNode(text: text)
+            label.name = labelName
+            label.fontName = BlomixTypography.fontName(.display)
+            label.fontSize = resolvedFontSize
+            label.fontColor = BlomixAppearance.chipTitleSK
+            label.horizontalAlignmentMode = .center
+            label.verticalAlignmentMode = .center
+            // Changa One : le centre optique est un cran bas.
+            label.position = CGPoint(x: 0, y: 1)
+            label.zPosition = 1
+            inner.addChild(label)
+            labelNode = label
+        }
+
+        if let systemName {
+            let iconSide = min(capSize.width, capSize.height) * 0.58
+            let icon = SKSpriteNode(
+                texture: BlomixAppearance.chromeSymbolTexture(
+                    systemName: systemName,
+                    pointSize: iconPointSize,
+                    canvasSide: max(iconSide, 18)
+                )
+            )
+            icon.name = "blomixButtonIcon"
+            icon.size = CGSize(width: iconSide, height: iconSide)
+            icon.zPosition = 1
+            icon.userData = NSMutableDictionary()
+            icon.userData?["systemName"] = systemName
+            inner.addChild(icon)
+        }
+
+        skinObserver = NotificationCenter.default.addObserver(
+            forName: .blomixSkinDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshSkinGradient()
+            }
+        }
+        _ = NotificationCenter.default.addObserver(
+            forName: .blomixAppearanceDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshChrome()
+            }
+        }
+    }
+
+    func refreshSkinGradient() {
+        BlomixSkinGradient.invalidateShaderCache()
+        BlomixSkinGradient.refreshWellNode(self, timeOffset: wellTimeOffset)
+    }
+
+    func refreshChrome() {
+        backgroundNode?.fillColor = BlomixAppearance.chipFillSK
+        restingFillColor = BlomixAppearance.chipFillSK
+        labelNode?.fontColor = BlomixAppearance.chipTitleSK
+        contactShadowNode?.alpha = BlomixButtonRelief.contactShadowAlpha
+        contactShadowNode?.fillColor = .black
+        if let bevelNode, capsuleSize.width > 0 {
+            bevelNode.texture = BlomixButtonRelief.capsuleBevelTexture(
+                size: capsuleSize,
+                cornerRadius: capsuleRadius
+            )
+        }
+        if let well = wellNode {
+            BlomixSkinGradient.refreshWellNode(well, timeOffset: wellTimeOffset)
+        }
+        if let icon = capsuleContentNode?.childNode(withName: "blomixButtonIcon") as? SKSpriteNode,
+           let systemName = icon.userData?["systemName"] as? String {
+            let side = icon.size.width
+            icon.texture = BlomixAppearance.chromeSymbolTexture(
+                systemName: systemName,
+                pointSize: 18,
+                canvasSide: max(side, 18)
+            )
+        }
+    }
+
+    private static func timeOffset(for name: String) -> Float {
+        var h: UInt64 = 5381
+        for b in name.utf8 { h = ((h << 5) &+ h) &+ UInt64(b) }
+        return Float(h % 1000) / 1000
+    }
+
+    // MARK: - Press / Release
 
     private static let pressActionKey = "blomixSKBtnPress"
     private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
-    /// Position enregistrée au moment de l'appui pour un retour précis.
-    private var positionBeforePress: CGPoint?
-
-    /// Joue l'animation d'appui : scale 0.92 + descente + fond éclairci + ombre compressée.
     func animatePressed() {
         Self.haptic.impactOccurred()
         Self.haptic.prepare()
-        removeAction(forKey: Self.pressActionKey)
-        positionBeforePress = position
+        guard let inner = capsuleContentNode else { return }
+        inner.removeAction(forKey: Self.pressActionKey)
 
-        let s   = BlomixUIDestinationButtonStyle.pressScale
-        let dy  = BlomixUIDestinationButtonStyle.pressTranslateY
+        let s = BlomixUIDestinationButtonStyle.pressScale
         let dur = BlomixUIDestinationButtonStyle.pressAnimDuration
-
         let scaleDown = SKAction.scale(to: s, duration: dur)
         scaleDown.timingMode = .easeIn
-        let moveDown = SKAction.moveBy(x: 0, y: -dy, duration: dur)
-        moveDown.timingMode = .easeIn
-        run(.group([scaleDown, moveDown]), withKey: Self.pressActionKey)
-
-        // Fond légèrement plus clair (instantané — la durée de press est 70 ms).
-        backgroundNode?.fillColor = BlomixUIDestinationButtonStyle.pressedBackgroundSKColor
-        // L'ombre se comprime naturellement via le scale parent ;
-        // on réduit aussi son alpha pour accentuer l'effet d'enfoncement.
-        shadowNode?.alpha = 0.05
+        inner.run(scaleDown, withKey: Self.pressActionKey)
+        let fade = SKAction.fadeAlpha(to: BlomixButtonRelief.contactShadowAlphaPressed, duration: dur)
+        fade.timingMode = .easeIn
+        contactShadowNode?.run(fade)
     }
 
-    /// Joue l'animation de relâchement : ressort 3 phases + restauration fond + ombre.
-    /// Appelé depuis GameScene.touchesEnded / touchesCancelled.
     func animateReleased() {
-        removeAction(forKey: Self.pressActionKey)
-        let origin = positionBeforePress ?? position
-        positionBeforePress = nil
+        guard let inner = capsuleContentNode else { return }
+        inner.removeAction(forKey: Self.pressActionKey)
 
         let dur1 = BlomixUIDestinationButtonStyle.releasePhase1Duration
+        let overshoot = BlomixUIDestinationButtonStyle.releaseOvershootScale
 
-        // ── Ressort 3 phases (overshoot → undershoot → stabilisation) ────────
-        // Produit un rebond organique sans courbe prédéfinie.
-        let scaleUp  = SKAction.scale(to: 1.07, duration: dur1)
-        scaleUp.timingMode  = .easeOut
-        let moveBack = SKAction.move(to: origin, duration: dur1)
-        moveBack.timingMode = .easeOut
-        let phase1 = SKAction.group([scaleUp, moveBack])
-
-        let underShoot = SKAction.scale(to: 0.98, duration: 0.06)
-        underShoot.timingMode = .easeInEaseOut
-
-        let settle = SKAction.scale(to: 1.0, duration: 0.04)
+        let scaleUp = SKAction.scale(to: overshoot, duration: dur1)
+        scaleUp.timingMode = .easeOut
+        let settle = SKAction.scale(to: 1.0, duration: BlomixUIDestinationButtonStyle.releasePhase2Duration)
         settle.timingMode = .easeInEaseOut
-
-        run(.sequence([phase1, underShoot, settle]), withKey: Self.pressActionKey)
-
-        // Restaure le fond et l'ombre.
-        backgroundNode?.fillColor   = restingFillColor
-        backgroundNode?.strokeColor = restingBorderColor
-        backgroundNode?.lineWidth   = restingBorderWidth
-        let restoreAlpha = SKAction.fadeAlpha(to: 1, duration: dur1)
-        restoreAlpha.timingMode = .easeOut
-        shadowNode?.run(restoreAlpha)
+        inner.run(.sequence([scaleUp, settle]), withKey: Self.pressActionKey)
+        let fade = SKAction.fadeAlpha(to: BlomixButtonRelief.contactShadowAlpha, duration: dur1)
+        fade.timingMode = .easeOut
+        contactShadowNode?.run(fade)
     }
 
     // MARK: - Helpers
 
-    /// Accentue un bouton hero (bordure teintée skin + fond légèrement teinté).
+    /// 6.7 : le puits skin remplace l’ancien accent hero (bordure teintée). No-op conservé.
     func applyHeroAccent(borderColor: SKColor, fillTint: SKColor? = nil) {
-        restingBorderColor = borderColor
-        restingBorderWidth = 2.0
-        backgroundNode?.strokeColor = borderColor
-        backgroundNode?.lineWidth   = restingBorderWidth
-        if let fillTint {
-            restingFillColor = fillTint
-            backgroundNode?.fillColor = fillTint
-        }
+        _ = borderColor
+        _ = fillTint
     }
 
-    /// Met à jour le texte affiché sans reconstruire le nœud.
     func setText(_ text: String) {
         labelNode?.text = text
     }
 
-    /// Calcule la taille minimale nécessaire pour afficher `text` à `fontSize`
-    /// avec les marges standard (`padH` / `padV`), sans dépasser `maxWidth`.
     static func fittingSize(for text: String, fontSize: CGFloat, maxWidth: CGFloat = .greatestFiniteMagnitude) -> CGSize {
-        let font = BlomixTypography.chromeFont(size: fontSize, weight: .semibold)
-        let measured = (text as NSString).size(withAttributes: [.font: font])
-        let w = min(maxWidth, ceil(measured.width)  + padH * 2)
-        let h = ceil(measured.height) + padV * 2
-        return CGSize(width: max(w, 88), height: max(h, 40))
+        unifiedSize(for: [text], fontSize: fontSize, maxWidth: maxWidth)
     }
 
-    /// Calcule la taille commune pour un ensemble de libellés (la plus grande),
-    /// sans dépasser `maxWidth`. Utile pour aligner plusieurs boutons de même largeur.
     static func unifiedSize(for texts: [String], fontSize: CGFloat, maxWidth: CGFloat = .greatestFiniteMagnitude) -> CGSize {
-        let font = BlomixTypography.chromeFont(size: fontSize, weight: .semibold)
+        let font = BlomixTypography.displayFont(size: fontSize)
         var maxW: CGFloat = 0
         var maxH: CGFloat = 0
         for t in texts {
@@ -236,8 +321,9 @@ final class BlomixSKButtonNode: SKNode {
             maxW = max(maxW, ceil(s.width))
             maxH = max(maxH, ceil(s.height))
         }
-        let w = min(maxWidth, maxW + padH * 2)
-        let h = maxH + padV * 2
-        return CGSize(width: max(w, 88), height: max(h, 40))
+        let gutter = BlomixUIDestinationButtonStyle.wellInset * 2
+        let w = min(maxWidth, maxW + padH * 2 + gutter)
+        let h = maxH + padV * 2 + gutter
+        return CGSize(width: max(w, 88), height: max(h, 44))
     }
 }

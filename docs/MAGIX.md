@@ -1,6 +1,6 @@
 # BLOMIX — Magix
 
-> **Version de référence** : 6.5 (local)  
+> **Version de référence** : 6.7 (local)  
 > Catalogue des blocs Magix **en jeu** et pistes **non implémentées**.  
 > Les règles joueur font foi dans [RULES.md](RULES.md) §2c ; constantes et spawn dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7 ; juice dans [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) §6.
 
@@ -11,6 +11,7 @@ Noms Magix **non traduits** (UI, doc, ASC). Code : `MagixKind` / `MagixRules` da
 ## Commun à toutes les variantes
 
 - Effet au **atterrissage** (colonne choisie, première case vide depuis le haut).
+- **Forme** : disque inscrit (même taille que la bombe, `cell − 4 pt`) + couronne noire. Halo, respiration et particules inchangés. Après l’effet, blox / Brix restants restent **carrés**.
 - **Jamais** dans les lignes entrantes du bas, **jamais** en **Duel**.
 - Cumul de spawn ≈ **2,9 %** du tirage file (pondéré par variante).
 - Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix.

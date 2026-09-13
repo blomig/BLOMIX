@@ -1,5 +1,3 @@
-• Inicio: BLOMIX se recorta en la mesa, título en el centro
-• Tus rangos y paleta: números y colores en hueco
-• Sonido y música: un control deslizante en los colores de tu skin
-• SAINTX se convierte en un Brix que cuenta hasta el total
-• Los blox de ambiente pasan por los huecos
+• Inicio: iconos arriba, BLOMIX en el centro
+• Títulos de Ajustes, Guía y Créditos: el mismo hueco de color que BLOMIX
+• Los blox de ambiente se ven bien en los huecos

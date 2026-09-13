@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.8 (local)  
+> **Version de référence** : 6.9 (local)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : septembre 2026
 
@@ -673,7 +673,7 @@ Puits (dégradé skin, `wellTimeScale` 0,035) immobile. Capsule chrome seule ani
 | | |
 |---|---|
 | Plaque | fantômes alpha **0,20** |
-| Puits / wordmark / rangs | copie clipée dans `blomixWell` / `blomixWordmarkWell`, alpha **0,70**, z **0,5** (entre fill et lèvre) |
+| Puits / wordmark / rangs | copie carrée clipée dans `blomixWell` / `blomixWordmarkWell`, alpha **0,90**, z **0,5** (entre fill et lèvre) |
 | Spawn | **0,45…1,3** s |
 | Vitesse | multi **1/3…1,6×** |
 | Autres écrans | même fantôme α **0,20** ; pas de copies gouttière. Spawn SK `0…1` s, multi **1/3…3×** ; UIKit densité low/high inchangée |

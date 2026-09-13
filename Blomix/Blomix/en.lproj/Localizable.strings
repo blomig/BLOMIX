@@ -305,6 +305,8 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "whatsnew.magix_round" = "Magix are round, like bombs";
 "whatsnew.home" = "Home: BLOMIX punches through the table, title in the center";
 "whatsnew.saintx" = "SAINTX becomes a Brix that counts up to the total";
+"whatsnew.layout" = "Home: icons at the top, BLOMIX in the center";
+"whatsnew.cutout_titles" = "Settings, Guide and Credits: the same well as BLOMIX";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */

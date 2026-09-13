@@ -629,6 +629,99 @@ final class BlomixCutoutWordmarkNode: SKNode {
     }
 }
 
+// MARK: - Titre trou UIKit (Réglages / Guide / Crédits)
+
+/// Même matière que `BlomixCutoutWordmarkNode` : masque glyphe + dégradé skin + ombre interne.
+@MainActor
+final class BlomixCutoutTitleView: UIView {
+    private var text: String
+    private let fontSize: CGFloat
+    private let pad: CGFloat
+    private let gradient = BlomixSkinGradientLayer()
+    private let lip = CALayer()
+    private let maskLayer = CALayer()
+    private var lastSize: CGSize = .zero
+
+    init(text: String, fontSize: CGFloat, pad: CGFloat = 6) {
+        self.text = text
+        self.fontSize = fontSize
+        self.pad = pad
+        super.init(frame: .zero)
+        isOpaque = false
+        backgroundColor = .clear
+        isUserInteractionEnabled = false
+        isAccessibilityElement = true
+        accessibilityTraits = .header
+        accessibilityLabel = text
+        translatesAutoresizingMaskIntoConstraints = false
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentHuggingPriority(.required, for: .vertical)
+        setContentCompressionResistancePriority(.required, for: .horizontal)
+        setContentCompressionResistancePriority(.required, for: .vertical)
+
+        gradient.actions = ["contents": NSNull()]
+        layer.addSublayer(gradient)
+        BlomixSkinGradientClock.shared.register(gradient)
+
+        lip.contentsGravity = .resize
+        lip.actions = ["contents": NSNull()]
+        layer.addSublayer(lip)
+
+        maskLayer.contentsGravity = .resize
+        maskLayer.actions = ["contents": NSNull()]
+        layer.mask = maskLayer
+
+        _ = NotificationCenter.default.addObserver(
+            forName: .blomixAppearanceDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.lastSize = .zero
+                self?.setNeedsLayout()
+            }
+        }
+        _ = NotificationCenter.default.addObserver(
+            forName: .blomixSkinDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.lastSize = .zero
+                self?.setNeedsLayout()
+            }
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    override var intrinsicContentSize: CGSize {
+        BlomixButtonRelief.cutoutLayout(text: text, fontSize: fontSize, pad: pad).canvas
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let size = bounds.size
+        gradient.frame = bounds
+        lip.frame = bounds
+        maskLayer.frame = bounds
+        let key = CGSize(width: size.width.rounded(), height: size.height.rounded())
+        guard key != lastSize, size.width > 1, size.height > 1 else { return }
+        lastSize = key
+        maskLayer.contents = BlomixButtonRelief.cutoutMaskImage(
+            text: text,
+            fontSize: fontSize,
+            pad: pad
+        ).cgImage
+        lip.contents = BlomixButtonRelief.cutoutInnerShadowImage(
+            text: text,
+            fontSize: fontSize,
+            pad: pad
+        ).cgImage
+    }
+}
+
 // MARK: - Horloge UIKit (bitmap partagé)
 
 @MainActor

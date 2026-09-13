@@ -75,13 +75,16 @@ final class BlomixRulesGuideViewController: UIViewController {
     }
 
     private func buildContent() {
-        let title = UILabel()
-        title.text = BlomixL10n.guideTitle
-        title.textColor = BlomixAppearance.primaryText
-        title.font = BlomixTypography.displayFont(size: 28, weight: .bold)
-        title.textAlignment = .center
-        contentStack.addArrangedSubview(title)
-        contentStack.setCustomSpacing(18, after: title)
+        let title = BlomixCutoutTitleView(text: BlomixL10n.guideTitle, fontSize: 28)
+        let titleWrap = UIView()
+        titleWrap.addSubview(title)
+        NSLayoutConstraint.activate([
+            title.centerXAnchor.constraint(equalTo: titleWrap.centerXAnchor),
+            title.topAnchor.constraint(equalTo: titleWrap.topAnchor),
+            title.bottomAnchor.constraint(equalTo: titleWrap.bottomAnchor),
+        ])
+        contentStack.addArrangedSubview(titleWrap)
+        contentStack.setCustomSpacing(18, after: titleWrap)
 
         for (index, section) in BlomixL10n.guideSections.enumerated() {
             let kind = BlomixGuideIllustrationKind(rawValue: index) ?? .blox

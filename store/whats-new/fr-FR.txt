@@ -1,5 +1,3 @@
-• Accueil : BLOMIX se perce dans la table, titre au centre
-• Tes rangs et ta palette : des chiffres et des couleurs en gouttière
-• Sons et musique : une tirette creusée aux couleurs de ton skin
-• SAINTX devient un Brix qui compte jusqu’au total
-• Les blox d’ambiance glissent dans les creux
+• Accueil : icônes en haut, BLOMIX au centre
+• Titres Réglages, Guide et Crédits : même gouttière colorée que BLOMIX
+• Les blox d’ambiance sont bien visibles dans les creux

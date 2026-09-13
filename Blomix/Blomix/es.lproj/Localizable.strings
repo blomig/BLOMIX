@@ -293,6 +293,8 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "whatsnew.magix_round" = "Los Magix son redondos, como las bombas";
 "whatsnew.home" = "Inicio: BLOMIX se recorta en la mesa, título en el centro";
 "whatsnew.saintx" = "SAINTX se convierte en un Brix que cuenta hasta el total";
+"whatsnew.layout" = "Inicio: iconos arriba, BLOMIX en el centro";
+"whatsnew.cutout_titles" = "Ajustes, Guía y Créditos: el mismo hueco que BLOMIX";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */

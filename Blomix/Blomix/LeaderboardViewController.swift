@@ -1589,7 +1589,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     }
 
     private let closeButton       = BlomixUIButton()
-    private let titleLabel        = UILabel()
+    private let titleView         = BlomixCutoutTitleView(text: BlomixL10n.settingsTitle, fontSize: 28)
     private let scrollView        = UIScrollView()
     private let contentStack      = UIStackView()
     private let soundsVolumeRow   = BlomixMasterVolumeRowView()
@@ -1607,11 +1607,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground(density: .low)
 
-        titleLabel.text = BlomixL10n.settingsTitle
-        titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = BlomixTypography.displayFont(size: 28, weight: .bold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(titleLabel)
+        view.addSubview(titleView)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -1672,10 +1668,11 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
 
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
 
-            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            scrollView.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 20),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
             scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
@@ -1695,8 +1692,6 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     }
 
     private func refreshTypography() {
-        titleLabel.font = BlomixTypography.displayFont(size: 28, weight: .bold)
-        titleLabel.textColor = BlomixAppearance.primaryText
         view.backgroundColor = BlomixAppearance.sceneBackground
         configureSectionHeading(soundSectionLabel, text: BlomixL10n.settingsSoundSection)
         configureSectionHeading(appearanceSectionLabel, text: BlomixL10n.settingsAppearanceSection)

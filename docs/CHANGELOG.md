@@ -7,9 +7,20 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [6.9] — 2026-09 (en cours, local)
+
+Build **129**. 6.8 (128) est en review ; 6.7 est en vente.
+
+### Modifié
+- **Accueil — gouttières** : copie carrée du blox dans le puits, α **0,90** (plus de tache ronde).
+- **Accueil — layout** : +24 pt de marge au-dessus des icônes ; nom + rangs descendent d’autant.
+- **Réglages / Guide / Crédits** : titres en trou gouttière (dégradé skin + ombre interne), comme BLOMIX.
+
+---
+
 ## [6.8] — 2026-09
 
-Build **128** (bump ASC si besoin). Soumission commerciale (6.7 était en vente).
+Build **128**. Soumission commerciale (6.7 était en vente).
 
 ### Modifié
 - **Accueil — rangs** : plus de pastilles-boutons ; chiffre (sans `#`, ×2) et libellé 3 lettres en trou gouttière, toujours cliquables.

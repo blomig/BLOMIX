@@ -318,6 +318,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "whatsnew.magix_round" = "Les Magix sont ronds, comme les bombes";
 "whatsnew.home" = "Accueil : BLOMIX se perce dans la table, titre au centre";
 "whatsnew.saintx" = "SAINTX devient un Brix qui compte jusqu’au total";
+"whatsnew.layout" = "Accueil : icônes en haut, BLOMIX au centre";
+"whatsnew.cutout_titles" = "Réglages, Guide et Crédits : même gouttière que BLOMIX";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */

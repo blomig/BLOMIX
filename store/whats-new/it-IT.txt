@@ -1,5 +1,3 @@
-• Home: BLOMIX si ritaglia nel tavolo, titolo al centro
-• Classifiche e palette: numeri e colori a incavo
-• Suoni e musica: un cursore nei colori della tua skin
-• SAINTX diventa un Brix che conta fino al totale
-• I blox d’atmosfera scorrono negli incavi
+• Home: icone in alto, BLOMIX al centro
+• Titoli di Impostazioni, Guida e Crediti: lo stesso incavo colorato di BLOMIX
+• I blox d’atmosfera si vedono bene negli incavi

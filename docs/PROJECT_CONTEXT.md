@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.8 (local)  
+> **Version de référence** : 6.9 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -345,6 +345,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70). Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
 - Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.
 - Réglages palettes : swatches 16 pt de la peau **sélectionnée** en gouttière (couleur fixe + ombre interne).
+- Titres Réglages / Guide / Crédits : `BlomixCutoutTitleView` (même trou dégradé que BLOMIX).
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) ; `credits.txt` legacy non branché UI

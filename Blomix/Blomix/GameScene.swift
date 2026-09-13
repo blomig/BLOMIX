@@ -2062,7 +2062,9 @@ final class GameScene: SKScene {
         let gapNameToDiscs: CGFloat = 56
         let subtitleOffset: CGFloat = 42
         let minBandGap: CGFloat = 16
-        let topInset = max(view?.safeAreaInsets.top ?? 0, 47) + 8
+        /// Marge extra sous la safe area : icônes plus bas, nom + rangs suivent (resserre l’air au-dessus de BLOMIX).
+        let topBandExtra: CGFloat = 24
+        let topInset = max(view?.safeAreaInsets.top ?? 0, 47) + 8 + topBandExtra
 
         // ── Bande 2b : icônes (haut) ───────────────────────────────────────────
         let iconRowY = size.height - topInset - iconSide / 2
@@ -2460,7 +2462,7 @@ final class GameScene: SKScene {
 
     private enum StartScreenAmbientReveal {
         static let ghostAlpha: CGFloat = BlomixAmbientBlocksView.travelingBlockAlpha
-        static let windowAlpha: CGFloat = 0.70
+        static let windowAlpha: CGFloat = 0.90
         static let echoZ: CGFloat = 0.5
         static let speedMultiplier: ClosedRange<CGFloat> = (1.0 / 3.0)...1.6
     }

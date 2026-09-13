@@ -89,12 +89,7 @@ final class BlomixCreditsViewController: UIViewController {
         stack.alignment = .center
         stack.spacing = 8
 
-        let title = UILabel()
-        title.text = "BLOMIX"
-        title.textColor = BlomixAppearance.primaryText
-        title.font = BlomixTypography.displayFont(size: 34, weight: .bold)
-        title.textAlignment = .center
-        title.numberOfLines = 1
+        let title = BlomixCutoutTitleView(text: BlomixButtonRelief.wordmarkText, fontSize: 34, pad: 8)
 
         let tagline = UILabel()
         tagline.text = BlomixL10n.creditsTagline

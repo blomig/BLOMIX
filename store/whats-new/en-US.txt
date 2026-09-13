@@ -1,5 +1,3 @@
-• Home: BLOMIX punches through the table, title in the center
-• Your ranks and palette: numbers and colors as cutouts
-• Sound and music: a recessed slider in your skin colors
-• SAINTX becomes a Brix that counts up to the total
-• Ambient blox slide through the wells
+• Home: icons at the top, BLOMIX in the center
+• Settings, Guide and Credits titles: the same colored well as BLOMIX
+• Ambient blox show clearly in the wells

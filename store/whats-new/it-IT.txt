@@ -1,5 +1,5 @@
-• Pulsanti, icone e menu: un incavo nei colori della tua skin
-• Il titolo BLOMIX è un foro nel tavolo, stesso riempimento degli incavi
-• I Magix sono tondi (come le bombe); blox e Brix restano quadrati
-• COLORX: niente più barre sulle giunzioni durante l’effetto
-• Duello / Elo: righe d’attacco e totali testa a testa restano corretti
+• Home: BLOMIX si ritaglia nel tavolo, titolo al centro
+• Classifiche e palette: numeri e colori a incavo
+• Suoni e musica: un cursore nei colori della tua skin
+• SAINTX diventa un Brix che conta fino al totale
+• I blox d’atmosfera scorrono negli incavi

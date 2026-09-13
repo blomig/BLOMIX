@@ -282,22 +282,34 @@ enum BlomixButtonRelief {
     }
 
     static func wordmarkLayout(fontSize: CGFloat) -> (font: UIFont, canvas: CGSize, drawOrigin: CGPoint) {
+        cutoutLayout(text: wordmarkText, fontSize: fontSize, pad: wordmarkPad)
+    }
+
+    static func cutoutLayout(
+        text: String,
+        fontSize: CGFloat,
+        pad: CGFloat = wordmarkPad
+    ) -> (font: UIFont, canvas: CGSize, drawOrigin: CGPoint) {
         let font = wordmarkFont(size: fontSize)
-        let sz = (wordmarkText as NSString).size(withAttributes: [.font: font])
+        let sz = (text as NSString).size(withAttributes: [.font: font])
         let canvas = CGSize(
-            width: ceil(sz.width) + wordmarkPad * 2,
-            height: ceil(sz.height) + wordmarkPad * 2
+            width: max(1, ceil(sz.width) + pad * 2),
+            height: max(1, ceil(sz.height) + pad * 2)
         )
-        return (font, canvas, CGPoint(x: wordmarkPad, y: wordmarkPad))
+        return (font, canvas, CGPoint(x: pad, y: pad))
     }
 
     static func wordmarkMaskImage(fontSize: CGFloat) -> UIImage {
-        let layout = wordmarkLayout(fontSize: fontSize)
+        cutoutMaskImage(text: wordmarkText, fontSize: fontSize, pad: wordmarkPad)
+    }
+
+    static func cutoutMaskImage(text: String, fontSize: CGFloat, pad: CGFloat = wordmarkPad) -> UIImage {
+        let layout = cutoutLayout(text: text, fontSize: fontSize, pad: pad)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
         format.scale = 3
         return UIGraphicsImageRenderer(size: layout.canvas, format: format).image { _ in
-            (wordmarkText as NSString).draw(
+            (text as NSString).draw(
                 at: layout.drawOrigin,
                 withAttributes: [
                     .font: layout.font,
@@ -307,15 +319,31 @@ enum BlomixButtonRelief {
         }
     }
 
-    /// Contour des glyphes en coordonnées UIKit (Y vers le bas), pour le même inner-shadow que les puits.
     static func wordmarkGlyphPath(fontSize: CGFloat) -> (path: CGPath, canvas: CGSize) {
-        let layout = wordmarkLayout(fontSize: fontSize)
+        cutoutGlyphPath(text: wordmarkText, fontSize: fontSize, pad: wordmarkPad)
+    }
+
+    /// Un glyphe du wordmark, chemin en coordonnées UIKit (Y vers le bas) du canvas complet.
+    struct CutoutGlyphSlice {
+        let character: Character
+        let path: CGPath
+        let bounds: CGRect
+    }
+
+    static func cutoutGlyphSlices(
+        text: String,
+        fontSize: CGFloat,
+        pad: CGFloat = wordmarkPad
+    ) -> (slices: [CutoutGlyphSlice], canvas: CGSize) {
+        let layout = cutoutLayout(text: text, fontSize: fontSize, pad: pad)
         let ctFont = layout.font as CTFont
         let line = CTLineCreateWithAttributedString(
-            NSAttributedString(string: wordmarkText, attributes: [.font: layout.font])
+            NSAttributedString(string: text, attributes: [.font: layout.font])
         )
-        let path = CGMutablePath()
         let baselineY = layout.drawOrigin.y + layout.font.ascender
+        let chars = Array(text)
+        var charIndex = 0
+        var slices: [CutoutGlyphSlice] = []
         let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
         for run in runs {
             let count = CTRunGetGlyphCount(run)
@@ -330,19 +358,70 @@ enum BlomixButtonRelief {
                 runFont = (f as! CTFont)
             }
             for i in 0..<count {
+                let ch: Character = charIndex < chars.count ? chars[charIndex] : "?"
+                if charIndex < chars.count { charIndex += 1 }
                 guard let gpath = CTFontCreatePathForGlyph(runFont, glyphs[i], nil) else { continue }
                 var t = CGAffineTransform.identity
                 t = t.translatedBy(x: layout.drawOrigin.x + positions[i].x, y: baselineY)
                 t = t.scaledBy(x: 1, y: -1)
-                path.addPath(gpath, transform: t)
+                let mapped = CGMutablePath()
+                mapped.addPath(gpath, transform: t)
+                let bounds = mapped.boundingBoxOfPath
+                guard bounds.width > 0.4, bounds.height > 0.4 else { continue }
+                slices.append(CutoutGlyphSlice(character: ch, path: mapped, bounds: bounds))
             }
         }
-        return (path, layout.canvas)
+        return (slices, layout.canvas)
+    }
+
+    /// Contour des glyphes en coordonnées UIKit (Y vers le bas), pour le même inner-shadow que les puits.
+    static func cutoutGlyphPath(
+        text: String,
+        fontSize: CGFloat,
+        pad: CGFloat = wordmarkPad
+    ) -> (path: CGPath, canvas: CGSize) {
+        let (slices, canvas) = cutoutGlyphSlices(text: text, fontSize: fontSize, pad: pad)
+        let path = CGMutablePath()
+        for slice in slices {
+            path.addPath(slice.path)
+        }
+        return (path, canvas)
+    }
+
+    /// Masque serré d’une lettre (blanc = plein) pour intro poinçon / crop par glyphe.
+    static func cutoutLetterMaskImage(
+        slice: CutoutGlyphSlice,
+        pad: CGFloat = 2
+    ) -> (image: UIImage, size: CGSize) {
+        let bounds = slice.bounds
+        let size = CGSize(
+            width: max(1, ceil(bounds.width + pad * 2)),
+            height: max(1, ceil(bounds.height + pad * 2))
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = 3
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            let cg = ctx.cgContext
+            cg.translateBy(x: -bounds.origin.x + pad, y: -bounds.origin.y + pad)
+            cg.setFillColor(UIColor.white.cgColor)
+            cg.addPath(slice.path)
+            cg.drawPath(using: .eoFill)
+        }
+        return (image, size)
+    }
+
+    static func wordmarkInnerShadowImage(fontSize: CGFloat) -> UIImage {
+        cutoutInnerShadowImage(text: wordmarkText, fontSize: fontSize, pad: wordmarkPad)
     }
 
     /// Ombre sous le rebord haut du trou (même recette que `wellInnerShadowImage`). Pas de liseré clair.
-    static func wordmarkInnerShadowImage(fontSize: CGFloat) -> UIImage {
-        let (letterPath, canvas) = wordmarkGlyphPath(fontSize: fontSize)
+    static func cutoutInnerShadowImage(
+        text: String,
+        fontSize: CGFloat,
+        pad: CGFloat = wordmarkPad
+    ) -> UIImage {
+        let (letterPath, canvas) = cutoutGlyphPath(text: text, fontSize: fontSize, pad: pad)
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
         format.scale = 3
@@ -371,12 +450,20 @@ enum BlomixButtonRelief {
 
 @MainActor
 final class BlomixCutoutWordmarkNode: SKNode {
+    private var text: String
     private let fontSize: CGFloat
     private let timeOffset: Float
+    private let pad: CGFloat
 
-    init(fontSize: CGFloat, timeOffset: Float = 0.08) {
+    convenience init(fontSize: CGFloat, timeOffset: Float = 0.08) {
+        self.init(text: BlomixButtonRelief.wordmarkText, fontSize: fontSize, timeOffset: timeOffset)
+    }
+
+    init(text: String, fontSize: CGFloat, timeOffset: Float = 0.08, pad: CGFloat = BlomixButtonRelief.wordmarkPad) {
+        self.text = text
         self.fontSize = fontSize
         self.timeOffset = timeOffset
+        self.pad = pad
         super.init()
         rebuild()
         _ = NotificationCenter.default.addObserver(
@@ -398,15 +485,22 @@ final class BlomixCutoutWordmarkNode: SKNode {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
+    func setText(_ newText: String) {
+        guard newText != text else { return }
+        text = newText
+        rebuild()
+    }
+
     func rebuild() {
         removeAllChildren()
-        let layout = BlomixButtonRelief.wordmarkLayout(fontSize: fontSize)
+        guard !text.isEmpty else { return }
+        let layout = BlomixButtonRelief.cutoutLayout(text: text, fontSize: fontSize, pad: pad)
         let canvas = layout.canvas
 
         let crop = SKCropNode()
         crop.name = "blomixWordmarkWell"
 
-        let maskTex = SKTexture(image: BlomixButtonRelief.wordmarkMaskImage(fontSize: fontSize))
+        let maskTex = SKTexture(image: BlomixButtonRelief.cutoutMaskImage(text: text, fontSize: fontSize, pad: pad))
         maskTex.filteringMode = .linear
         let mask = SKSpriteNode(texture: maskTex, size: canvas)
         crop.maskNode = mask
@@ -418,13 +512,120 @@ final class BlomixCutoutWordmarkNode: SKNode {
         fill.shader = BlomixSkinGradient.makeShader(timeOffset: timeOffset)
         crop.addChild(fill)
 
-        let lipTex = SKTexture(image: BlomixButtonRelief.wordmarkInnerShadowImage(fontSize: fontSize))
+        let lipTex = SKTexture(image: BlomixButtonRelief.cutoutInnerShadowImage(text: text, fontSize: fontSize, pad: pad))
         lipTex.filteringMode = .linear
         let lip = SKSpriteNode(texture: lipTex, size: canvas)
+        lip.name = "blomixWordmarkLip"
         lip.zPosition = 1
         crop.addChild(lip)
 
         addChild(crop)
+    }
+
+    /// Cold launch accueil : six poinçons L→R (~2 s).
+    static let punchIntroDuration: TimeInterval = 2.0
+
+    private enum PunchIntro {
+        static let firstPunchAt: TimeInterval = 0.20
+        static let interval: TimeInterval = 0.22
+        static let settleDuration: TimeInterval = 0.16
+        static let afterLastBeat: TimeInterval = 0.12
+        static let impactScaleX: CGFloat = 1.18
+        static let impactScaleY: CGFloat = 0.86
+        static let impactDrop: CGFloat = 2.0
+    }
+
+    /// Délai avant le reste de l’accueil (dernier poinçon + settle + un temps de lecture).
+    static var punchIntroChromeDelay: TimeInterval {
+        let gaps = max(0, BlomixButtonRelief.wordmarkText.count - 1)
+        return PunchIntro.firstPunchAt
+            + PunchIntro.interval * TimeInterval(gaps)
+            + PunchIntro.settleDuration
+            + PunchIntro.afterLastBeat
+    }
+
+    /// Le mot n’existe pas encore : chaque glyphe s’ouvre d’un coup (trou skin + lèvre), squash type atterrissage Brix.
+    func playPunchIntro(onPunch: @escaping () -> Void) {
+        guard let crop = childNode(withName: "blomixWordmarkWell") as? SKCropNode else { return }
+        let layout = BlomixButtonRelief.cutoutLayout(text: text, fontSize: fontSize, pad: pad)
+        let canvas = layout.canvas
+        let slices = BlomixButtonRelief.cutoutGlyphSlices(text: text, fontSize: fontSize, pad: pad).slices
+        guard !slices.isEmpty else { return }
+
+        let maskRoot = SKNode()
+        maskRoot.name = "blomixWordmarkPunchMask"
+        var letterMasks: [SKSpriteNode] = []
+        letterMasks.reserveCapacity(slices.count)
+
+        for (i, slice) in slices.enumerated() {
+            let (maskImg, letterSize) = BlomixButtonRelief.cutoutLetterMaskImage(slice: slice)
+            let skCenter = CGPoint(
+                x: slice.bounds.midX - canvas.width / 2,
+                y: canvas.height / 2 - slice.bounds.midY
+            )
+            let maskTex = SKTexture(image: maskImg)
+            maskTex.filteringMode = .linear
+            let letter = SKSpriteNode(texture: maskTex, size: letterSize)
+            letter.name = "blomixWordmarkPunchLetter\(i)"
+            letter.position = skCenter
+            letter.xScale = 0.001
+            letter.yScale = 0.001
+            letter.isHidden = true
+            maskRoot.addChild(letter)
+            letterMasks.append(letter)
+        }
+        crop.maskNode = maskRoot
+
+        func eased(_ action: SKAction, _ mode: SKActionTimingMode) -> SKAction {
+            action.timingMode = mode
+            return action
+        }
+
+        for (i, letter) in letterMasks.enumerated() {
+            let rest = letter.position
+            let punchAt = PunchIntro.firstPunchAt + PunchIntro.interval * TimeInterval(i)
+            let impact = SKAction.run { [weak letter] in
+                guard let letter else { return }
+                letter.isHidden = false
+                letter.position = CGPoint(x: rest.x, y: rest.y - PunchIntro.impactDrop)
+                letter.xScale = PunchIntro.impactScaleX
+                letter.yScale = PunchIntro.impactScaleY
+                onPunch()
+            }
+            let settle = SKAction.group([
+                eased(SKAction.scaleX(to: 1.0, duration: PunchIntro.settleDuration), .easeOut),
+                eased(SKAction.scaleY(to: 1.0, duration: PunchIntro.settleDuration), .easeOut),
+                eased(SKAction.move(to: rest, duration: PunchIntro.settleDuration), .easeOut),
+            ])
+            letter.run(.sequence([
+                .wait(forDuration: punchAt),
+                impact,
+                settle,
+            ]))
+        }
+
+        let lastPunchAt = PunchIntro.firstPunchAt + PunchIntro.interval * TimeInterval(letterMasks.count - 1)
+        let punchWindow = lastPunchAt + PunchIntro.settleDuration
+        // SKCropNode ne suit pas les enfants du masque : on le ré-assigne chaque frame.
+        crop.run(SKAction.customAction(withDuration: punchWindow) { node, _ in
+            guard let crop = node as? SKCropNode else { return }
+            let mask = crop.maskNode
+            crop.maskNode = nil
+            crop.maskNode = mask
+        })
+        run(.sequence([
+            .wait(forDuration: punchWindow + 0.04),
+            .run { [weak self, weak crop] in
+                guard let self, let crop else { return }
+                let maskTex = SKTexture(image: BlomixButtonRelief.cutoutMaskImage(
+                    text: self.text,
+                    fontSize: self.fontSize,
+                    pad: self.pad
+                ))
+                maskTex.filteringMode = .linear
+                crop.maskNode = SKSpriteNode(texture: maskTex, size: canvas)
+            },
+        ]))
     }
 }
 

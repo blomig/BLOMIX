@@ -1,8 +1,8 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.7 (local)  
+> **Version de référence** : 6.8 (local)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
-> **Dernière mise à jour** : août 2026
+> **Dernière mise à jour** : septembre 2026
 
 ---
 
@@ -424,7 +424,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 |---|---|
 | **Visuel** | Overlay blanc 0,1→1,0 sur toutes les cases, **2,0 s** ; cycle couleurs 0,40 s/bloc |
 | **Dissolution** | Fade overlay 0,20 s ; pop particules + scale 1,30→0,01 |
-| **Transform** | Sprite CLEANX → Brix(N) visuel |
+| **Transform** | Dès l’atterrissage : SAINTX → Brix visuel **0** ; le chiffre défile linéairement jusqu’à **N** pile à l’explosion (2,2 s) |
 | **Audio** | `cleanx` |
 | **Score** | +200 pts + Brix(N) sur grille |
 
@@ -620,9 +620,9 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 
 | Zone | Contenu |
 |---|---|
-| Branding | `BLOMIX` + tagline (`titleY = 86 %` hauteur) |
+| Liens utilitaires | Rangée d’icônes SF en haut (Réglages, Tutoriel, thème, Partager, Crédits) |
 | Carte joueur | Nom GC, 4 disques ARC. / MOY. / ZEN / DUEL |
-| Liens utilitaires | Rangée d’icônes SF (Réglages, Tutoriel, thème, Partager, Crédits) |
+| Branding | `BLOMIX` + tagline, de préférence **50 %** hauteur (clampé entre rangs et hero) |
 | Zone de jeu | Bouton hero **Arcade** pleine largeur, puis **Duel** et **Zen** côte à côte |
 | Tip | Ancré en bas (`10 %` hauteur) |
 
@@ -634,10 +634,10 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Effet | Paramètres |
 |---|---|
 | Tips rotation | toutes les **5 s**, fade swap texte |
-| Titre slot machine | cycle **2,0 s**, ease custom ; puis wordmark **trou** (dégradé skin + ombre interne) |
-| Wordmark BLOMIX | accueil 40 pt / jeu 36 pt ; puits clipé sur Changa One |
-| Boutons jeu | stagger PvP+Zen **0,22 s**, Solo **0,35 s** (dernier) ; slide **16 pt**, scale 1,15→1,0, fade **0,12 s** |
-| Pastilles rang | puits rond + capsule chrome (même charte que les boutons) ; `#rang` Changa `chipTitle` rempli async après fetch GC ; **pas** de halo ni de souffle |
+| Titre accueil (cold launch) | **~2,0 s** poinçon L→R : 0,20 s vide, puis 6 frappes (intervalle **0,22 s**). Chaque glyphe s’ouvre d’un coup (trou dégradé + lèvre), squash **1,18 / 0,86** type atterrissage Brix, settle 0,16 s easeOut. Son `place` à chaque impact. Le reste de l’accueil (tagline, rangs, icônes, boutons, blox ambiants, tip) n’apparaît qu’après le dernier poinçon (`punchIntroChromeDelay` ≈ 1,58 s). Retours ☰ / GO : trou + chrome court. |
+| Wordmark BLOMIX | accueil **60 pt** / jeu 36 pt ; puits clipé sur Changa One |
+| Boutons jeu | cold launch : après le wordmark (`punchIntroChromeDelay` + 0,16 / 0,28 s) ; retour ☰ : PvP+Zen **0,06 s**, Solo **0,10 s**. Slide **14 pt**, scale 1,15→1,0, fade **0,12 s** |
+| Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; rempli async après fetch GC |
 | Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
 
 **Bouton Solo hero** (même puits que Duel/Zen ; se distingue par la taille)
@@ -664,10 +664,19 @@ Puits (dégradé skin, `wellTimeScale` 0,035) immobile. Capsule chrome seule ani
 
 - SpriteKit (accueil, Game Over) et UIKit (réglages, classements, lobby PvP, …)
 - Montée bas → haut, courbe linéaire ; **pas** de rotation ni rebond
-- Forme : carré plein (UIKit aligné SK : sans coins / bordure) ; alpha **0,92**
-- Taille aléatoire **9…18** pt ; spawn densifié ×2 (SK `0…1` s, UIKit `0,125…1,0` s) ; pas de plafond de présence
-- Vitesse : multi **1/3…3×** (bases SK / UIKit inchangées)
+- Forme : carré plein (UIKit aligné SK : sans coins / bordure)
+- Taille aléatoire **9…18** pt ; pas de plafond de présence
 - z 0,5 SK (entre fond et contenu) ; UIKit en `insertSubview` index 0
+
+**Accueil SK (hybride gouttières)** — `gutterReveal`
+
+| | |
+|---|---|
+| Plaque | fantômes alpha **0,20** |
+| Puits / wordmark / rangs | copie clipée dans `blomixWell` / `blomixWordmarkWell`, alpha **0,70**, z **0,5** (entre fill et lèvre) |
+| Spawn | **0,45…1,3** s |
+| Vitesse | multi **1/3…1,6×** |
+| Autres écrans | même fantôme α **0,20** ; pas de copies gouttière. Spawn SK `0…1` s, multi **1/3…3×** ; UIKit densité low/high inchangée |
 
 ### 11.4 Compteur LIGNE x/10
 

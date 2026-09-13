@@ -1,5 +1,5 @@
-• Buttons, icons and menus: a well in your skin colors
-• The BLOMIX title is a cutout in the table, same fill as the wells
-• Magix are round (like bombs); blox and Brix stay square
-• COLORX: no more bars on junctions during the effect
-• Duel / Elo: attack lines and head-to-head totals stay accurate
+• Home: BLOMIX punches through the table, title in the center
+• Your ranks and palette: numbers and colors as cutouts
+• Sound and music: a recessed slider in your skin colors
+• SAINTX becomes a Brix that counts up to the total
+• Ambient blox slide through the wells

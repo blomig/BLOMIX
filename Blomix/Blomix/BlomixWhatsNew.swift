@@ -12,7 +12,7 @@ import UIKit
 @MainActor
 enum BlomixWhatsNew {
     /// Identifiant de cette note (pas seulement MARKETING_VERSION : 6.6 sans note ne réaffiche pas).
-    static let campaignID = "6.7_chrome_magix"
+    static let campaignID = "6.8_home_saintx"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Fermeture Ok : ne plus montrer jusqu’au prochain cold start.
@@ -39,7 +39,7 @@ enum BlomixWhatsNew {
     }
 }
 
-/// Dialogue changelog 6.7 : voile + panneau Sombre/Clair.
+/// Dialogue changelog 6.8 : voile + panneau Sombre/Clair.
 @MainActor
 final class BlomixWhatsNewDialogView: UIView {
 
@@ -98,8 +98,8 @@ final class BlomixWhatsNewDialogView: UIView {
         title.numberOfLines = 0
         title.translatesAutoresizingMaskIntoConstraints = false
 
-        let chromeRow = makeFactRow(text: BlomixL10n.whatsNewChrome, magix: nil)
-        let magixRow = makeFactRow(text: BlomixL10n.whatsNewMagixRound, magix: .chromax)
+        let homeRow = makeFactRow(text: BlomixL10n.whatsNewHome, magix: nil)
+        let saintxRow = makeFactRow(text: BlomixL10n.whatsNewSaintx, magix: .cleanx)
 
         let okButton = makeButton(title: BlomixL10n.ok, isSecondary: false)
         okButton.addTarget(self, action: #selector(okTapped), for: .touchUpInside)
@@ -111,7 +111,7 @@ final class BlomixWhatsNewDialogView: UIView {
         buttons.spacing = 10
         buttons.translatesAutoresizingMaskIntoConstraints = false
 
-        let facts = UIStackView(arrangedSubviews: [chromeRow, magixRow])
+        let facts = UIStackView(arrangedSubviews: [homeRow, saintxRow])
         facts.axis = .vertical
         facts.spacing = 14
         facts.translatesAutoresizingMaskIntoConstraints = false

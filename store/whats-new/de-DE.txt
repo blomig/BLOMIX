@@ -1,5 +1,5 @@
-• Buttons, Icons und Menüs: eine Vertiefung in deinen Skin-Farben
-• Der BLOMIX-Titel ist ein Loch in der Fläche, gleiche Füllung wie die Vertiefungen
-• Magix sind rund (wie Bomben); Blox und Brix bleiben quadratisch
-• COLORX: keine Balken mehr an den Kreuzungen während des Effekts
-• Duell / Elo: Angriffsreihen und Kopf-an-Kopf-Stände bleiben korrekt
+• Start: BLOMIX stanzt sich in die Platte, Titel in der Mitte
+• Ränge und Palette: Zahlen und Farben als Vertiefung
+• Sound und Musik: ein Schieberegler in deinen Skin-Farben
+• SAINTX wird zum Brix, der bis zur Summe hochzählt
+• Ambient-Blox gleiten durch die Vertiefungen

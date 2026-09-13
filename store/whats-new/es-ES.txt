@@ -1,5 +1,5 @@
-• Botones, iconos y menús: un hueco con los colores de tu skin
-• El título BLOMIX es un recorte en la mesa, el mismo fondo que los huecos
-• Los Magix son redondos (como las bombas); blox y Brix siguen cuadrados
-• COLORX: ya no hay barras en las uniones durante el efecto
-• Duelo / Elo: las líneas de ataque y los totales cara a cara siguen siendo justos
+• Inicio: BLOMIX se recorta en la mesa, título en el centro
+• Tus rangos y paleta: números y colores en hueco
+• Sonido y música: un control deslizante en los colores de tu skin
+• SAINTX se convierte en un Brix que cuenta hasta el total
+• Los blox de ambiente pasan por los huecos

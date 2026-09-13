@@ -1232,29 +1232,41 @@ fileprivate func blomixSettingsHexUIColor(_ raw: String) -> UIColor? {
 final class BlomixGridSoundSlider: UIView {
 
     var value: Float = 1 {
-        didSet { setNeedsLayout(); updateThumb(animated: false); updateSegmentFill() }
+        didSet { setNeedsLayout(); updateThumb(animated: false); updateFill() }
     }
 
     var onValueChange: ((Float) -> Void)?
 
-    private let segmentCount = 10
-    private let segmentGap: CGFloat = 2
-    private let segmentHeight: CGFloat = 6
+    private let trackHeight: CGFloat = 6
+    private let thumbW: CGFloat = 22
+    private let thumbH: CGFloat = 22
 
-    private var segmentViews: [UIView] = []
+    private let track = UIView()
+    private let gradient = BlomixSkinGradientLayer()
+    private let grayFill = CALayer()
+    private let lip = CALayer()
     private let thumb = UIView()
+    private var lastLipSize: CGSize = .zero
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
-        for _ in 0..<segmentCount {
-            let v = UIView()
-            v.backgroundColor = BlomixAppearance.progressTrack
-            v.layer.cornerRadius = 1
-            addSubview(v)
-            segmentViews.append(v)
-        }
-        thumb.backgroundColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange") ?? blomixSettingsHexUIColor("#F4A261") ?? .orange
+
+        track.isUserInteractionEnabled = false
+        track.clipsToBounds = true
+        track.layer.addSublayer(gradient)
+        grayFill.backgroundColor = BlomixAppearance.progressTrack.cgColor
+        grayFill.actions = ["position": NSNull(), "bounds": NSNull(), "frame": NSNull()]
+        track.layer.addSublayer(grayFill)
+        lip.contentsGravity = .resize
+        lip.actions = ["contents": NSNull()]
+        track.layer.addSublayer(lip)
+        BlomixSkinGradientClock.shared.register(gradient)
+        addSubview(track)
+
+        thumb.backgroundColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange")
+            ?? blomixSettingsHexUIColor("#F4A261")
+            ?? .orange
         thumb.layer.cornerRadius = 4
         thumb.layer.borderWidth = 1
         thumb.layer.borderColor = BlomixAppearance.chipBorder.cgColor
@@ -1270,30 +1282,34 @@ final class BlomixGridSoundSlider: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let h = segmentHeight
         let cy = bounds.midY
-        let totalGaps = segmentGap * CGFloat(segmentCount - 1)
-        let segW = (bounds.width - totalGaps) / CGFloat(segmentCount)
-        var x: CGFloat = 0
-        for v in segmentViews {
-            v.frame = CGRect(x: x, y: cy - h / 2, width: segW, height: h)
-            x += segW + segmentGap
+        track.frame = CGRect(x: 0, y: cy - trackHeight / 2, width: bounds.width, height: trackHeight)
+        let cap = trackHeight / 2
+        track.layer.cornerRadius = cap
+        gradient.frame = track.bounds
+        lip.frame = track.bounds
+        let lipKey = CGSize(width: track.bounds.width.rounded(), height: track.bounds.height.rounded())
+        if lipKey != lastLipSize, track.bounds.width > 1, track.bounds.height > 1 {
+            lastLipSize = lipKey
+            lip.contents = BlomixButtonRelief.wellInnerShadowImage(
+                size: track.bounds.size,
+                cornerRadius: cap
+            ).cgImage
         }
+        updateFill()
         updateThumb(animated: false)
-        updateSegmentFill()
+        bringSubviewToFront(thumb)
     }
 
     private func thumbX(for value: Float) -> CGFloat {
         let t = CGFloat(min(1, max(0, value)))
-        let thumbW: CGFloat = 22
         let inset = thumbW / 2
         return inset + (bounds.width - thumbW * 2) * t + thumbW / 2
     }
 
     private func updateThumb(animated: Bool) {
         let tx = thumbX(for: value)
-        let thumbH: CGFloat = 22
-        let r = CGRect(x: tx - 11, y: bounds.midY - thumbH / 2, width: 22, height: thumbH)
+        let r = CGRect(x: tx - thumbW / 2, y: bounds.midY - thumbH / 2, width: thumbW, height: thumbH)
         if animated {
             UIView.animate(withDuration: 0.12) { self.thumb.frame = r }
         } else {
@@ -1301,22 +1317,25 @@ final class BlomixGridSoundSlider: UIView {
         }
     }
 
-    private func updateSegmentFill() {
-        let filled = Int(round(CGFloat(value) * CGFloat(segmentCount)))
-        let fill = BlomixAppearance.progressFill
-        let dim = BlomixAppearance.progressTrack
-        for (i, v) in segmentViews.enumerated() {
-            v.backgroundColor = i < filled ? fill : dim
-        }
+    /// Gauche du curseur : puits dégradé skin. Droite : gouttière `progressTrack`.
+    private func updateFill() {
+        let split = min(max(thumbX(for: value), 0), track.bounds.width)
+        grayFill.frame = CGRect(
+            x: split,
+            y: 0,
+            width: max(0, track.bounds.width - split),
+            height: trackHeight
+        )
     }
 
     func refreshChrome() {
+        grayFill.backgroundColor = BlomixAppearance.progressTrack.cgColor
         thumb.layer.borderColor = BlomixAppearance.chipBorder.cgColor
-        updateSegmentFill()
+        lastLipSize = .zero
+        setNeedsLayout()
     }
 
     private func valueFromSceneX(_ x: CGFloat) -> Float {
-        let thumbW: CGFloat = 22
         let inset = thumbW / 2
         let usable = bounds.width - thumbW * 2
         guard usable > 1 else { return 0 }
@@ -1860,12 +1879,7 @@ private final class SkinChoiceRowView: UIView {
                 default: hex = skin.blox[slot.rawValue]
                 }
                 guard let h = hex, let c = blomixSettingsHexUIColor(h) else { continue }
-                let dot = UIView()
-                dot.translatesAutoresizingMaskIntoConstraints = false
-                dot.backgroundColor = c
-                dot.layer.cornerRadius = 3
-                dot.widthAnchor.constraint(equalToConstant: 16).isActive = true
-                dot.heightAnchor.constraint(equalToConstant: 16).isActive = true
+                let dot = Self.makeSwatch(color: c, recessed: isSelected, hairline: slot == .prikstext)
                 dot.accessibilityIdentifier = slot.rawValue
                 let tap = UITapGestureRecognizer(target: self, action: #selector(persoSwatchTapped(_:)))
                 dot.addGestureRecognizer(tap)
@@ -1875,45 +1889,26 @@ private final class SkinChoiceRowView: UIView {
                 if slot == .prikstext, let priV = lastPriksFill {
                     swatchStack.setCustomSpacing(5, after: priV)
                 }
-                if slot == .prikstext {
-                    dot.layer.borderWidth = 1
-                    dot.layer.borderColor = UIColor(white: 1, alpha: 0.22).cgColor
-                }
             }
         } else {
             for key in BlomixSkinCatalog.bloxDisplayOrder {
                 if let hex = skin.blox[key.lowercased()],
                    let c = blomixSettingsHexUIColor(hex) {
-                    let dot = UIView()
-                    dot.translatesAutoresizingMaskIntoConstraints = false
-                    dot.backgroundColor = c
-                    dot.layer.cornerRadius = 3
-                    dot.widthAnchor.constraint(equalToConstant: 16).isActive = true
-                    dot.heightAnchor.constraint(equalToConstant: 16).isActive = true
-                    swatchStack.addArrangedSubview(dot)
+                    swatchStack.addArrangedSubview(Self.makeSwatch(color: c, recessed: isSelected))
                 }
             }
-            let pri = UIView()
-            pri.translatesAutoresizingMaskIntoConstraints = false
-            pri.backgroundColor = blomixSettingsHexUIColor(skin.priks) ?? UIColor(white: 0.45, alpha: 1)
-            pri.layer.cornerRadius = 3
-            pri.widthAnchor.constraint(equalToConstant: 16).isActive = true
-            pri.heightAnchor.constraint(equalToConstant: 16).isActive = true
+            let pri = Self.makeSwatch(
+                color: blomixSettingsHexUIColor(skin.priks) ?? UIColor(white: 0.45, alpha: 1),
+                recessed: isSelected
+            )
             swatchStack.addArrangedSubview(pri)
-
-            let priText = UIView()
-            priText.translatesAutoresizingMaskIntoConstraints = false
+            let priTextColor: UIColor
             if let raw = skin.prikstext, let c = blomixSettingsHexUIColor(raw) {
-                priText.backgroundColor = c
+                priTextColor = c
             } else {
-                priText.backgroundColor = .white
+                priTextColor = .white
             }
-            priText.layer.cornerRadius = 3
-            priText.layer.borderWidth = 1
-            priText.layer.borderColor = UIColor(white: 1, alpha: 0.22).cgColor
-            priText.widthAnchor.constraint(equalToConstant: 16).isActive = true
-            priText.heightAnchor.constraint(equalToConstant: 16).isActive = true
-            swatchStack.addArrangedSubview(priText)
+            swatchStack.addArrangedSubview(Self.makeSwatch(color: priTextColor, recessed: isSelected, hairline: true))
             swatchStack.setCustomSpacing(5, after: pri)
         }
 
@@ -1967,6 +1962,37 @@ private final class SkinChoiceRowView: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    /// Carré 16 pt. Palette active : même teinte, ombre interne gouttière (trou).
+    private static let swatchSize: CGFloat = 16
+    private static let swatchRadius: CGFloat = 3
+
+    private static func makeSwatch(color: UIColor, recessed: Bool, hairline: Bool = false) -> UIView {
+        let dot = UIView()
+        dot.translatesAutoresizingMaskIntoConstraints = false
+        dot.backgroundColor = color
+        dot.layer.cornerRadius = swatchRadius
+        dot.clipsToBounds = true
+        dot.widthAnchor.constraint(equalToConstant: swatchSize).isActive = true
+        dot.heightAnchor.constraint(equalToConstant: swatchSize).isActive = true
+        if hairline {
+            dot.layer.borderWidth = 1
+            dot.layer.borderColor = UIColor(white: 1, alpha: 0.22).cgColor
+        }
+        if recessed {
+            let size = CGSize(width: swatchSize, height: swatchSize)
+            let lip = CALayer()
+            lip.frame = CGRect(origin: .zero, size: size)
+            lip.contentsGravity = .resize
+            lip.actions = ["contents": NSNull()]
+            lip.contents = BlomixButtonRelief.wellInnerShadowImage(
+                size: size,
+                cornerRadius: swatchRadius
+            ).cgImage
+            dot.layer.addSublayer(lip)
+        }
+        return dot
+    }
 
     @objc private func tapped() {
         onSelect(skinId)

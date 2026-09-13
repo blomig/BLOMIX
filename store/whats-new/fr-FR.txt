@@ -1,5 +1,5 @@
-• Boutons, icônes et menus : un creux aux couleurs de ton skin
-• Le titre BLOMIX est un trou dans la table, même fond que les gouttières
-• Les Magix sont ronds (comme les bombes) ; blox et Brix restent carrés
-• COLORX : plus de barres sur les jonctions pendant l’effet
-• Duel / Elo : lignes d’attaque et totaux tête-à-tête plus justes
+• Accueil : BLOMIX se perce dans la table, titre au centre
+• Tes rangs et ta palette : des chiffres et des couleurs en gouttière
+• Sons et musique : une tirette creusée aux couleurs de ton skin
+• SAINTX devient un Brix qui compte jusqu’au total
+• Les blox d’ambiance glissent dans les creux

@@ -31,6 +31,8 @@ final class BlomixSKButtonNode: SKNode {
     private var capsuleRadius: CGFloat = 8
 
     private var buttonSize: CGSize = .zero
+    /// Emprise tactile / layout (hors descendants ambiants clipés dans le puits).
+    var layoutSize: CGSize { buttonSize }
     private var wellTimeOffset: Float = 0
     private var skinObserver: NSObjectProtocol?
 

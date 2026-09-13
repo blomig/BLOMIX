@@ -22,6 +22,9 @@ final class BlomixAmbientBlocksView: UIView {
 
     var density: Density = .high
 
+    /// Fantômes sur la plaque (accueil SK + tous les fonds UIKit / Game Over).
+    nonisolated static let travelingBlockAlpha: CGFloat = 0.20
+
     /// Aligné sur SpriteKit (`GameScene.spawnAmbientBlock`) : max 18 pt, min = max/2.
     private let blockSizeMax: CGFloat = 18
     private var blockSizeMin: CGFloat { blockSizeMax / 2 }
@@ -82,7 +85,7 @@ final class BlomixAmbientBlocksView: UIView {
         let block = UIView()
         block.backgroundColor = color
         block.layer.cornerRadius = 0
-        block.alpha = 0.92
+        block.alpha = Self.travelingBlockAlpha
 
         let xInset = blockSize / 2 + 8
         let maxX = w - xInset - blockSize

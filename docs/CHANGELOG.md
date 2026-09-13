@@ -7,6 +7,25 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [6.8] — 2026-09
+
+Build **128** (bump ASC si besoin). Soumission commerciale (6.7 était en vente).
+
+### Modifié
+- **Accueil — rangs** : plus de pastilles-boutons ; chiffre (sans `#`, ×2) et libellé 3 lettres en trou gouttière, toujours cliquables.
+- **Accueil — intro BLOMIX** : plus de machine à sous. Cold launch : six poinçons L→R (son `place`), puis seulement après le reste de l’accueil. Retours ☰ / GO inchangés (trou + chrome court).
+- **Réglages — Sons / Musique** : tirettes en gouttière 6 pt (puits dégradé skin à gauche du curseur, `progressTrack` à droite, ombre interne).
+- **Réglages — palettes** : les carrés de la peau sélectionnée sont en gouttière (même couleur, ombre interne).
+- **Accueil — blox ambiants** : fantômes sur la plaque ; ils se voient vraiment en traversant les gouttières (boutons, BLOMIX, rangs). Autres écrans inchangés.
+- **Accueil — Continuer / Crédits / icônes** : plus de dialog « tu vas perdre la save » (échos ambiants hors masque restaient cliquables et gonflaient Duel/Zen).
+- **SAINTX** : devient un Brix(0) dès l’atterrissage ; le chiffre défile jusqu’à N au moment où le reste de la grille explose.
+- **Accueil — rangs** : écart chiffre / Arc. Moy. Zen Duel réduit de moitié (libellés remontés, chiffres fixes).
+- **Menu ☰ en jeu** : les boutons passent au-dessus du liseré de la grille (z menu 80 > outline ~51).
+- **Accueil — layout** : icônes en haut, puis nom + rangs, BLOMIX + tagline au centre ; Duel/Zen/hero/conseils inchangés.
+- **Blox ambiants** : même transparence fantôme (α 0,20) sur tous les écrans hors grille.
+
+---
+
 ## [6.7] — 2026-09
 
 Build **127**. Soumission commerciale (6.5 était en vente).

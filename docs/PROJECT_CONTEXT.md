@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.7 (local)  
+> **Version de référence** : 6.8 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -339,7 +339,12 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - Arcade **pleine largeur** (hero skin) ; Duel + Zen en paire
-- 4 pastilles de rang (rondes, puits skin + capsule chrome, Changa, sans halo ni respiration) : Arc. / Moy. / Zen / Duel
+- 4 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé 3 lettres (Arc. / Moy. / Zen / Duel)
+- Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
+- Accueil layout : icônes → nom/rangs → BLOMIX centré → hero/Duel/Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
+- Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70). Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
+- Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.
+- Réglages palettes : swatches 16 pt de la peau **sélectionnée** en gouttière (couleur fixe + ombre interne).
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) ; `credits.txt` legacy non branché UI

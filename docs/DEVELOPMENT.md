@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 6.9 (local)  
+> **Version de référence** : 6.10 (local)  
 > **Dernière mise à jour** : septembre 2026
 
 ---
@@ -31,8 +31,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 6.9 (local) |
-| `CURRENT_PROJECT_VERSION` | 129 |
+| `MARKETING_VERSION` | 6.10 (local) |
+| `CURRENT_PROJECT_VERSION` | 130 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
@@ -211,6 +211,10 @@ bundle exec fastlane submit      # envoi à la review (irréversible)
 | `EDIT_LIVE=1` | `metadata` : écrit le promo sur la version **en vente** |
 
 `release` et `beta` bumpent `CURRENT_PROJECT_VERSION` : `max(local, dernier build ASC + 1)`. **Committer le pbxproj** après un bump.
+
+`release` / `metadata` / `submit` **refusent** de tourner si ASC a déjà une version éditable (review, Pending Developer Release, etc.) dont le numéro **diffère** de `MARKETING_VERSION`. `deliver` avec `skip_app_version_update: false` **renomme** cette fiche au lieu d’en créer une nouvelle, et n’attache pas le nouveau binaire (incident 6.9 : fiche 6.8 → 6.9, build 128 conservé).
+
+Apple n’attache un IPA qu’à une fiche dont le `CFBundleShortVersionString` correspond. Un build TestFlight 6.9 ne peut pas servir une fiche 6.10 : retamper (nouveau `CURRENT_PROJECT_VERSION`).
 
 Fastlane nomme l’italien `it` (pas `it-IT`) dans le dossier généré ; les fichiers `store/**/it-IT.txt` restent la source de vérité.
 

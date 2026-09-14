@@ -7,11 +7,24 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [6.9] — 2026-09 (en cours, local)
+## [6.10] — 2026-09
 
-Build **129**. 6.8 (128) est en review ; 6.7 est en vente.
+Build **130** — même code que 129, retampé `6.10` (Apple n’attache pas un IPA `CFBundleShortVersionString` 6.9 à une fiche magasin 6.10).
+
+Livraison commerciale du lot 6.9 : la fiche ASC **6.9** est sortie avec le binaire **128** (6.8) après un `fastlane release` lancé pendant la review.
 
 ### Modifié
+- **Accueil — gouttières** : copie carrée du blox dans le puits, α **0,90** (plus de tache ronde).
+- **Accueil — layout** : +24 pt de marge au-dessus des icônes ; nom + rangs descendent d’autant.
+- **Réglages / Guide / Crédits** : titres en trou gouttière (dégradé skin + ombre interne), comme BLOMIX.
+
+---
+
+## [6.9] — 2026-09 (fiche ASC, binaire 128)
+
+Build **129** uploadé TestFlight (code 6.9). Non vendu : `deliver` a renommé la fiche 6.8 en review → 6.9 **sans** re-sélectionner le binaire. 6.9 `READY_FOR_SALE` = build **128**.
+
+### Modifié (dans 129 / 130, pas dans le 6.9 magasin)
 - **Accueil — gouttières** : copie carrée du blox dans le puits, α **0,90** (plus de tache ronde).
 - **Accueil — layout** : +24 pt de marge au-dessus des icônes ; nom + rangs descendent d’autant.
 - **Réglages / Guide / Crédits** : titres en trou gouttière (dégradé skin + ombre interne), comme BLOMIX.

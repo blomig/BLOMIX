@@ -12,7 +12,7 @@ import UIKit
 @MainActor
 enum BlomixWhatsNew {
     /// Identifiant de cette note (pas seulement MARKETING_VERSION : 6.6 sans note ne réaffiche pas).
-    static let campaignID = "6.9_titles_home"
+    static let campaignID = "6.10_titles_home"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Fermeture Ok : ne plus montrer jusqu’au prochain cold start.
@@ -39,7 +39,7 @@ enum BlomixWhatsNew {
     }
 }
 
-/// Dialogue changelog 6.9 : voile + panneau Sombre/Clair.
+/// Dialogue changelog 6.10 : voile + panneau Sombre/Clair.
 @MainActor
 final class BlomixWhatsNewDialogView: UIView {
 

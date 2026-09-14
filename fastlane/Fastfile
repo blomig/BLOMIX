@@ -47,6 +47,7 @@ platform :ios do
     end
     api = connect_api_key!
     version = marketing_version
+    assert_editable_version_is_ours!(version)
     UI.message("Version ASC visée : #{version}")
     upload_to_app_store(
       **deliver_common(api, version).merge(
@@ -80,6 +81,7 @@ platform :ios do
   lane :release do
     validate_project!(require_store: true)
     api = connect_api_key!
+    assert_editable_version_is_ours!(marketing_version)
     bump_build_number!(api)
     ipa = archive_release_ipa!
     generated = generate_deliver_metadata!
@@ -102,10 +104,13 @@ platform :ios do
     api = connect_api_key!
     generated = generate_deliver_metadata!
     version = marketing_version
-    UI.important("Soumission #{version} (build #{get_build_number(xcodeproj: XCODEPROJ)}) -- automatic_release=false")
+    build = get_build_number(xcodeproj: XCODEPROJ)
+    assert_editable_version_is_ours!(version)
+    UI.important("Soumission #{version} (build #{build}) -- automatic_release=false")
     upload_to_app_store(
       **deliver_common(api, version).merge(
         skip_binary_upload: true,
+        build_number: build,
         metadata_path: generated,
         skip_metadata: false,
         submit_for_review: true,
@@ -196,6 +201,37 @@ def marketing_version
   UI.user_error!("MARKETING_VERSION introuvable dans le pbxproj") if versions.empty?
   UI.user_error!("MARKETING_VERSION incohérent : #{versions.join(', ')}") if versions.size > 1
   versions.first
+end
+
+# deliver(skip_app_version_update: false) renomme la version éditable ASC
+# au lieu d'en créer une à côté (6.9 vendue avec le binaire 6.8 / 128).
+def assert_editable_version_is_ours!(intended)
+  app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+  UI.user_error!("App #{BUNDLE_ID} introuvable sur ASC") unless app
+
+  blocking = %w[
+    PREPARE_FOR_SUBMISSION
+    WAITING_FOR_REVIEW
+    IN_REVIEW
+    PENDING_DEVELOPER_RELEASE
+    PENDING_APPLE_RELEASE
+    DEVELOPER_REJECTED
+    REJECTED
+    METADATA_REJECTED
+    INVALID_BINARY
+  ]
+  app.get_app_store_versions(filter: { platform: "IOS" }, limit: 8).each do |v|
+    state = v.app_store_state.to_s
+    next unless blocking.include?(state)
+    next if v.version_string.to_s == intended.to_s
+
+    UI.user_error!(
+      "ASC a déjà #{v.version_string} en #{state}. " \
+      "`release`/`submit`/`metadata` avec app_version=#{intended} " \
+      "renommerait cette fiche sans attacher le nouveau binaire " \
+      "(incident 6.9 / build 128). Attendre READY_FOR_SALE, ou retirer la version dans ASC."
+    )
+  end
 end
 
 def bump_build_number!(api)

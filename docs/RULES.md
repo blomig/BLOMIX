@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 6.8 (local)  
+> **Version de référence** : 6.10 (local)  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille

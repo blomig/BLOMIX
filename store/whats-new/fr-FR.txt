@@ -1,3 +1,4 @@
-• Accueil : icônes en haut, BLOMIX au centre
-• Titres Réglages, Guide et Crédits : même gouttière colorée que BLOMIX
-• Les blox d’ambiance sont bien visibles dans les creux
+• Arcade : le +500 de grille vide est multiplié par le stage
+• Palette Alea plus vive (jaunes, oranges) ; le chiffre des Brix reste lisible
+• Accueil : BLOMIX se pose avec des paillettes à chaque lettre
+• Titres Score et Multijoueur en gouttière ; « OK pour être défié » dans le même style

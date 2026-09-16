@@ -320,6 +320,9 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "whatsnew.saintx" = "SAINTX devient un Brix qui compte jusqu’au total";
 "whatsnew.layout" = "Accueil : icônes en haut, BLOMIX au centre";
 "whatsnew.cutout_titles" = "Réglages, Guide et Crédits : même gouttière que BLOMIX";
+"whatsnew.empty_grid" = "Arcade : le +500 grille vide est multiplié par le stage";
+"whatsnew.alea" = "Palette Alea plus vive ; le chiffre des Brix reste lisible";
+"whatsnew.punch" = "Accueil : BLOMIX se pose avec des paillettes à chaque lettre";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */

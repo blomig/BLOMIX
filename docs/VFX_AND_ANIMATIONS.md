@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 6.10 (local)  
+> **Version de référence** : 7.0 (local)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : septembre 2026
 
@@ -176,7 +176,8 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | **Visuel** | Colonne : cases vides `#444` α 0,9 ; bloc fantôme α **0,55** |
 | **z** | container **18** |
 | **Audio** | — |
-| **Réf.** | `showGhostPreview`, `ghostHoldTimer` |
+| **Réf.** | `showGhostPreview`, `ghostHoldTimer`, `hideDropGhostVisuals` |
+| **Sortie** | Masqué ☰ / overlay quitter / accueil (`clearAutoDropAim`). Colonne auto-drop conservée pendant pause chrome ; réaffichée si ≤ 2 s. |
 
 ### 1.4 Colonne invalide
 
@@ -634,7 +635,7 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Effet | Paramètres |
 |---|---|
 | Tips rotation | toutes les **5 s**, fade swap texte |
-| Titre accueil (cold launch) | **~2,0 s** poinçon L→R : 0,20 s vide, puis 6 frappes (intervalle **0,22 s**). Chaque glyphe s’ouvre d’un coup (trou dégradé + lèvre), squash **1,18 / 0,86** type atterrissage Brix, settle 0,16 s easeOut. Son `place` à chaque impact. Le reste de l’accueil (tagline, rangs, icônes, boutons, blox ambiants, tip) n’apparaît qu’après le dernier poinçon (`punchIntroChromeDelay` ≈ 1,58 s). Retours ☰ / GO : trou + chrome court. |
+| Titre accueil (cold launch) | **~2,0 s** poinçon L→R : 0,20 s vide, B puis L à cadence régulière (~0,26 s), ensuite O-M-I-X légèrement accélérés (dernier impact inchangé ≈ 1,30 s). Squash **1,18 / 0,86**, settle 0,16 s easeOut. Son `place` + paillettes (14 éjections + 32 poussières, couleur blox du skin) à chaque impact. Chrome accueil après `punchIntroChromeDelay` ≈ 1,58 s. Retours ☰ / GO : trou + chrome court. |
 | Wordmark BLOMIX | accueil **60 pt** / jeu 36 pt ; puits clipé sur Changa One |
 | Boutons jeu | cold launch : après le wordmark (`punchIntroChromeDelay` + 0,16 / 0,28 s) ; retour ☰ : PvP+Zen **0,06 s**, Solo **0,10 s**. Slide **14 pt**, scale 1,15→1,0, fade **0,12 s** |
 | Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; rempli async après fetch GC |

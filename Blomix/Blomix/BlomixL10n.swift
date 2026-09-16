@@ -671,6 +671,9 @@ enum BlomixL10n {
     static var whatsNewSaintx: String { tr("whatsnew.saintx", comment: "6.8 — SAINTX counts up as Brix") }
     static var whatsNewLayout: String { tr("whatsnew.layout", comment: "6.10 — home icons top, title center") }
     static var whatsNewCutoutTitles: String { tr("whatsnew.cutout_titles", comment: "6.10 — Settings/Guide/Credits cutout titles") }
+    static var whatsNewEmptyGrid: String { tr("whatsnew.empty_grid", comment: "7.0 — empty-board 500 × Arcade stage") }
+    static var whatsNewAlea: String { tr("whatsnew.alea", comment: "7.0 — vivid random palette, readable Brix digit") }
+    static var whatsNewPunch: String { tr("whatsnew.punch", comment: "7.0 — BLOMIX punch sparkles on home") }
     static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
 
     // MARK: - Generic

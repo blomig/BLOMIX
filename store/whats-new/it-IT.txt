@@ -1,3 +1,4 @@
-• Home: icone in alto, BLOMIX al centro
-• Titoli di Impostazioni, Guida e Crediti: lo stesso incavo colorato di BLOMIX
-• I blox d’atmosfera si vedono bene negli incavi
+• Arcade: il +500 di griglia vuota è moltiplicato per lo stage
+• Palette Alea più vivida (gialli, aranci); la cifra dei Brix resta leggibile
+• Home: BLOMIX atterra con scintille su ogni lettera
+• Titoli Punteggio e Multigiocatore in incavo; «OK per essere sfidato» nello stesso stile

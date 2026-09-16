@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 6.10 (local)
+> **Version de référence** : 7.0 (local)
 
 ---
 
@@ -94,7 +94,7 @@
 | **Score de chaîne** | Points pour une chaîne (taille, couleur, multiplicateur) |
 | **Bonus Brix** | +20 pts quand un Brix atteint 0 |
 | **Bonus SAINTX** | +200 pts (× stage en Arcade) en plus du Brix laissé sur la grille |
-| **Bonus grille vide** | +500 pts plats (hors ×stage) si une vague vide toute la grille — Arcade / Zen |
+| **Bonus grille vide** | +500 pts (× stage en Arcade) si une vague vide toute la grille — Arcade / Zen |
 | **Milestone** | Seuils HUD 100 / 1000 (animation score) |
 | **Best score** | Record personnel (Game Center + local) |
 | **Elo** | Classement compétitif Duel (`BlomixEloManager`) |

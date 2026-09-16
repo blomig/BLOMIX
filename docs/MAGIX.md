@@ -1,6 +1,6 @@
 # BLOMIX — Magix
 
-> **Version de référence** : 6.10 (local)  
+> **Version de référence** : 7.0 (local)  
 > Catalogue des blocs Magix **en jeu** et pistes **non implémentées**.  
 > Les règles joueur font foi dans [RULES.md](RULES.md) §2c ; constantes et spawn dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7 ; juice dans [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) §6.
 

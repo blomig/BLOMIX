@@ -307,6 +307,9 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "whatsnew.saintx" = "SAINTX wird zum Brix, der bis zur Summe hochzählt";
 "whatsnew.layout" = "Start: Icons oben, BLOMIX in der Mitte";
 "whatsnew.cutout_titles" = "Einstellungen, Guide und Credits: dieselbe Vertiefung wie BLOMIX";
+"whatsnew.empty_grid" = "Arcade: der +500-Bonus für leeres Feld wird mit dem Stage multipliziert";
+"whatsnew.alea" = "Alea-Palette kräftiger; Brix-Ziffern bleiben lesbar";
+"whatsnew.punch" = "Start: BLOMIX setzt mit Funkeln auf jedem Buchstaben auf";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */

@@ -96,7 +96,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     var onMatch: ((GKMatch) -> Void)?
 
     // MARK: - UI principale
-    private let titleLabel = UILabel()
+    private let titleView = BlomixCutoutTitleView(text: BlomixL10n.leaderboardTitle, fontSize: 28)
     private let subtitleLabel = UILabel()
     private let closeButton = BlomixUIButton()
     private let tabsStack = UIStackView()
@@ -164,11 +164,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     }
 
     private func setupUI() {
-        titleLabel.text = BlomixL10n.leaderboardTitle
-        titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = FontTheme.gameFont(size: 28, fallbackWeight: .bold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(titleLabel)
+        view.addSubview(titleView)
 
         subtitleLabel.text = BlomixL10n.leaderboardSubtitle
         subtitleLabel.textColor = BlomixAppearance.secondaryText
@@ -300,11 +296,12 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
 
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
 
-            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
-            subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            subtitleLabel.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 4),
+            subtitleLabel.leadingAnchor.constraint(equalTo: titleView.leadingAnchor),
 
             tabsStack.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 14),
             tabsStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),

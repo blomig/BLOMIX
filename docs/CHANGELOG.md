@@ -7,6 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.0] — 2026-09
+
+Build **131**. Soumission commerciale (6.10 était en vente).
+
+### Modifié
+- **Arcade** : le bonus grille vide (+500) passe par le multiplicateur de stage (comme SAINTX).
+- **Duel** : toggle « OK pour être défié » en gouttière (dégradé skin allumé, `progressTrack` éteint).
+- **Duel** : plus de liseré bleu autour de « Joueurs disponibles ».
+- **Score / Multijoueur** : titres en trou gouttière, comme Réglages / Guide / Crédits.
+- **Palette Alea** : couleurs plus vives (sat haute, jaune/orange plus clairs) ; chiffre Brix contrasté (luminance WCAG ≥ 4,5).
+- **Ghost visée Arcade** : masqué à l’ouverture ☰ / overlay quitter / accueil ; réaffiché si le timer est encore ≤ 2 s.
+- **Accueil — poinçon BLOMIX** : B et L à cadence régulière, puis accélération légère ; paillettes à chaque lettre (comme l’atterrissage blox).
+
+---
+
 ## [6.10] — 2026-09
 
 Build **130** — même code que 129, retampé `6.10` (Apple n’attache pas un IPA `CFBundleShortVersionString` 6.9 à une fiche magasin 6.10).

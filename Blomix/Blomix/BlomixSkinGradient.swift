@@ -527,12 +527,36 @@ final class BlomixCutoutWordmarkNode: SKNode {
 
     private enum PunchIntro {
         static let firstPunchAt: TimeInterval = 0.20
+        /// Cadence uniforme historique — fixe encore l’instant du dernier impact.
         static let interval: TimeInterval = 0.22
+        /// Écart B → L (un peu plus posé que l’uniforme, pour laisser accélérer la suite).
+        static let regularGap: TimeInterval = interval * 1.18
         static let settleDuration: TimeInterval = 0.16
         static let afterLastBeat: TimeInterval = 0.12
         static let impactScaleX: CGFloat = 1.18
         static let impactScaleY: CGFloat = 0.86
         static let impactDrop: CGFloat = 2.0
+
+        /// Deux premières lettres à cadence régulière, ensuite accélération légère. Dernier impact inchangé.
+        static func punchDelay(index i: Int, count n: Int) -> TimeInterval {
+            let first = firstPunchAt
+            let last = first + interval * TimeInterval(max(0, n - 1))
+            if n <= 2 || i <= 1 {
+                let gap = n <= 2 ? interval : regularGap
+                return first + gap * TimeInterval(i)
+            }
+            let t1 = first + regularGap
+            let steps = n - 2
+            let span = last - t1
+            let startGap = regularGap * 0.92
+            let sumK = TimeInterval(steps * (steps - 1) / 2)
+            let d = sumK > 0 ? (TimeInterval(steps) * startGap - span) / sumK : 0
+            var acc: TimeInterval = 0
+            for k in 0..<(i - 1) {
+                acc += startGap - TimeInterval(k) * d
+            }
+            return t1 + acc
+        }
     }
 
     /// Délai avant le reste de l’accueil (dernier poinçon + settle + un temps de lecture).
@@ -555,7 +579,9 @@ final class BlomixCutoutWordmarkNode: SKNode {
         let maskRoot = SKNode()
         maskRoot.name = "blomixWordmarkPunchMask"
         var letterMasks: [SKSpriteNode] = []
+        var letterRadii: [CGFloat] = []
         letterMasks.reserveCapacity(slices.count)
+        letterRadii.reserveCapacity(slices.count)
 
         for (i, slice) in slices.enumerated() {
             let (maskImg, letterSize) = BlomixButtonRelief.cutoutLetterMaskImage(slice: slice)
@@ -573,6 +599,7 @@ final class BlomixCutoutWordmarkNode: SKNode {
             letter.isHidden = true
             maskRoot.addChild(letter)
             letterMasks.append(letter)
+            letterRadii.append(min(letterSize.width, letterSize.height) / 2)
         }
         crop.maskNode = maskRoot
 
@@ -581,16 +608,24 @@ final class BlomixCutoutWordmarkNode: SKNode {
             return action
         }
 
+        let palette = BlomixSkinCatalog.shared.bloxSKColors()
+        let count = letterMasks.count
+
         for (i, letter) in letterMasks.enumerated() {
             let rest = letter.position
-            let punchAt = PunchIntro.firstPunchAt + PunchIntro.interval * TimeInterval(i)
-            let impact = SKAction.run { [weak letter] in
+            let punchAt = PunchIntro.punchDelay(index: i, count: count)
+            let sparkleColor = palette.isEmpty
+                ? SKColor(white: 0.92, alpha: 1)
+                : palette[i % palette.count]
+            let sparkleRadius = letterRadii[i]
+            let impact = SKAction.run { [weak self, weak letter] in
                 guard let letter else { return }
                 letter.isHidden = false
                 letter.position = CGPoint(x: rest.x, y: rest.y - PunchIntro.impactDrop)
                 letter.xScale = PunchIntro.impactScaleX
                 letter.yScale = PunchIntro.impactScaleY
                 onPunch()
+                self?.spawnPunchSparkles(at: rest, radius: sparkleRadius, color: sparkleColor)
             }
             let settle = SKAction.group([
                 eased(SKAction.scaleX(to: 1.0, duration: PunchIntro.settleDuration), .easeOut),
@@ -604,7 +639,7 @@ final class BlomixCutoutWordmarkNode: SKNode {
             ]))
         }
 
-        let lastPunchAt = PunchIntro.firstPunchAt + PunchIntro.interval * TimeInterval(letterMasks.count - 1)
+        let lastPunchAt = PunchIntro.punchDelay(index: count - 1, count: count)
         let punchWindow = lastPunchAt + PunchIntro.settleDuration
         // SKCropNode ne suit pas les enfants du masque : on le ré-assigne chaque frame.
         crop.run(SKAction.customAction(withDuration: punchWindow) { node, _ in
@@ -627,9 +662,85 @@ final class BlomixCutoutWordmarkNode: SKNode {
             },
         ]))
     }
+
+    /// Paillettes d’impact (version discrète de l’atterrissage blox), hors masque pour rester visibles.
+    private func spawnPunchSparkles(at center: CGPoint, radius: CGFloat, color: SKColor) {
+        let blockRadius = max(7, radius * 0.52)
+
+        let ejectDuration: TimeInterval = 0.22
+        for _ in 0..<14 {
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let startDist = CGFloat.random(in: (blockRadius - 2)...(blockRadius + 2))
+            let endDist = startDist + CGFloat.random(in: 8...16)
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.6...1.4))
+            spark.fillColor = color
+            spark.strokeColor = .clear
+            spark.alpha = 0
+            spark.zPosition = 6
+            spark.position = CGPoint(
+                x: center.x + cos(angle) * startDist,
+                y: center.y + sin(angle) * startDist
+            )
+            addChild(spark)
+            let move = SKAction.move(
+                to: CGPoint(
+                    x: center.x + cos(angle) * endDist,
+                    y: center.y + sin(angle) * endDist
+                ),
+                duration: ejectDuration
+            )
+            move.timingMode = .easeOut
+            spark.run(.sequence([
+                .group([
+                    move,
+                    .sequence([
+                        .fadeAlpha(to: 0.90, duration: 0.03),
+                        .fadeAlpha(to: 0, duration: ejectDuration - 0.03),
+                    ]),
+                ]),
+                .removeFromParent(),
+            ]))
+        }
+
+        let cloudDuration: TimeInterval = 0.55
+        for _ in 0..<32 {
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let startDist = CGFloat.random(in: (blockRadius - 4)...(blockRadius + 3))
+            let drift = CGFloat.random(in: 1...4)
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.4...0.9))
+            spark.fillColor = color
+            spark.strokeColor = .clear
+            spark.alpha = 0
+            spark.zPosition = 5
+            spark.position = CGPoint(
+                x: center.x + cos(angle) * startDist,
+                y: center.y + sin(angle) * startDist
+            )
+            addChild(spark)
+            let move = SKAction.move(
+                to: CGPoint(
+                    x: center.x + cos(angle) * (startDist + drift),
+                    y: center.y + sin(angle) * (startDist + drift) + CGFloat.random(in: 0...2)
+                ),
+                duration: cloudDuration
+            )
+            move.timingMode = .easeOut
+            let peak = CGFloat.random(in: 0.55...0.90)
+            spark.run(.sequence([
+                .group([
+                    move,
+                    .sequence([
+                        .fadeAlpha(to: peak, duration: 0.05),
+                        .fadeAlpha(to: 0, duration: cloudDuration - 0.05),
+                    ]),
+                ]),
+                .removeFromParent(),
+            ]))
+        }
+    }
 }
 
-// MARK: - Titre trou UIKit (Réglages / Guide / Crédits)
+// MARK: - Titre trou UIKit (Réglages / Guide / Crédits / Score / Multijoueur)
 
 /// Même matière que `BlomixCutoutWordmarkNode` : masque glyphe + dégradé skin + ombre interne.
 @MainActor

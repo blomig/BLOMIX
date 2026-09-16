@@ -313,7 +313,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
 
     // MARK: - UI
 
-    private let titleLabel = UILabel()
+    private let titleView = BlomixCutoutTitleView(text: BlomixL10n.pvpLobbyTitle, fontSize: 28)
     private let closeButton = BlomixUIButton()
     private let searchBlocksView = BlomixPvPSearchBlocksView()
     private let statusLabel = UILabel()
@@ -814,11 +814,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
     // MARK: - Layout
 
     private func buildLayout() {
-        titleLabel.text = BlomixL10n.pvpLobbyTitle
-        titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = FontTheme.gameFont(size: 26, weight: .semibold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(titleLabel)
+        view.addSubview(titleView)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -858,10 +854,6 @@ final class BlomixPvPLobbyViewController: UIViewController {
             btn.titleLabel?.font = FontTheme.gameFont(size: hero ? 19 : 17, weight: .semibold)
         }
         styleModeButton(modeAvailableButton, title: BlomixL10n.pvpModeAvailableDesc, hero: true)
-        let heroAccent = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "blue")
-            ?? UIColor(red: 0.35, green: 0.55, blue: 0.95, alpha: 1)
-        modeAvailableButton.layer.borderWidth = 2
-        modeAvailableButton.layer.borderColor = heroAccent.cgColor
         styleModeButton(modeQuickButton, title: BlomixL10n.pvpQuickMatchOnlineTitle, hero: false)
         styleModeButton(modeLocalButton, title: BlomixL10n.pvpQuickMatchLocalTitle, hero: false)
         modeAvailableButton.addTarget(self, action: #selector(modeAvailableTapped), for: .touchUpInside)
@@ -921,8 +913,9 @@ final class BlomixPvPLobbyViewController: UIViewController {
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
 
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
 
             searchBlocksView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             searchBlocksView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),

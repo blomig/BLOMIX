@@ -157,8 +157,7 @@ final class BlomixSkinCatalog: @unchecked Sendable {
 
     // MARK: - Alea : génération aléatoire de couleurs
 
-    /// Convertit HSL (0…1, 0…1, 0…1) en `#RRGGBB`.
-    private static func hslToHex(h: Double, s: Double, l: Double) -> String {
+    private static func hslToRgb(h: Double, s: Double, l: Double) -> (r: Double, g: Double, b: Double) {
         let c = (1 - abs(2 * l - 1)) * s
         let x = c * (1 - abs((h * 6).truncatingRemainder(dividingBy: 2) - 1))
         let m = l - c / 2
@@ -171,44 +170,116 @@ final class BlomixSkinCatalog: @unchecked Sendable {
         case 4: (r1, g1, b1) = (x, 0, c)
         default: (r1, g1, b1) = (c, 0, x)
         }
-        return String(format: "#%02X%02X%02X",
-                      Int(((r1 + m) * 255).rounded()),
-                      Int(((g1 + m) * 255).rounded()),
-                      Int(((b1 + m) * 255).rounded()))
+        return (r1 + m, g1 + m, b1 + m)
+    }
+
+    /// Convertit HSL (0…1, 0…1, 0…1) en `#RRGGBB`.
+    private static func hslToHex(h: Double, s: Double, l: Double) -> String {
+        let rgb = hslToRgb(h: h, s: s, l: l)
+        func byte(_ v: Double) -> Int { Int((min(1, max(0, v)) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", byte(rgb.r), byte(rgb.g), byte(rgb.b))
+    }
+
+    private static func srgbToLinear(_ c: Double) -> Double {
+        let x = min(1, max(0, c))
+        return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+    }
+
+    /// Luminance relative WCAG (0…1) d’une couleur HSL.
+    private static func relativeLuminance(h: Double, s: Double, l: Double) -> Double {
+        let rgb = hslToRgb(h: h, s: s, l: l)
+        return 0.2126 * srgbToLinear(rgb.r)
+             + 0.7152 * srgbToLinear(rgb.g)
+             + 0.0722 * srgbToLinear(rgb.b)
+    }
+
+    private static func contrastRatio(_ y1: Double, _ y2: Double) -> Double {
+        (max(y1, y2) + 0.05) / (min(y1, y2) + 0.05)
+    }
+
+    /// Le jaune / orange HSL à L≈0,45 devient kaki / rouille : on remonte L pour ces teintes.
+    private static func aleaLightnessRange(hueDegrees: Double) -> ClosedRange<Double> {
+        let h = (hueDegrees.truncatingRemainder(dividingBy: 360) + 360)
+            .truncatingRemainder(dividingBy: 360)
+        switch h {
+        case 38..<72:           return 0.54...0.70
+        case 18..<38:           return 0.50...0.64
+        case 0..<18, 345..<360: return 0.48...0.60
+        case 72..<160:          return 0.40...0.56
+        case 160..<200:         return 0.42...0.58
+        case 200..<255:         return 0.44...0.60
+        case 255..<300:         return 0.46...0.62
+        default:                return 0.48...0.62
+        }
     }
 
     /// Écrit un set de couleurs aléatoires en UserDefaults pour le skin Alea (sans notifier).
     private static func writeRandomAleaColorsToDefaults() {
-        // 6 couleurs de blox : cercle chromatique en 6 secteurs de 60° + jitter ±20°.
-        // Sat/L couplés : en HSL le chroma perçu est max vers L≈0.5 ; une sat élevée
-        // dans cette zone donne des teintes « criardes ». On tire une sat douce
-        // (0.32…0.65), puis on resserre L vers le bas quand la sat monte.
+        // 6 teintes autour du cercle (60°) + jitter ±14°. Saturation haute.
+        // L selon la teinte pour que jaune / orange restent vifs.
         let baseHue = Double.random(in: 0..<360)
         for (i, key) in bloxDisplayOrder.enumerated() {
-            var rawHue = baseHue + Double(i) * 60.0 + Double.random(in: -20...20)
-            rawHue = (rawHue.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+            var rawHue = baseHue + Double(i) * 60.0 + Double.random(in: -14...14)
+            rawHue = (rawHue.truncatingRemainder(dividingBy: 360) + 360)
+                .truncatingRemainder(dividingBy: 360)
             let hue = rawHue / 360.0
-            let sat = Double.random(in: 0.32...0.65)
-            let t = (sat - 0.32) / (0.65 - 0.32) // 0 = peu saturé, 1 = plus saturé
-            let lightMin = 0.38
-            let lightMax = 0.66 - t * 0.16        // sat haute → L max ≈ 0.50 (évite le néon)
-            let light = Double.random(in: lightMin...lightMax)
-            UserDefaults.standard.set(hslToHex(h: hue, s: sat, l: light),
-                                      forKey: udPersoHexKey(key, skinId: aleaSkinId))
+            let sat = Double.random(in: 0.62...0.90)
+            let light = Double.random(in: aleaLightnessRange(hueDegrees: rawHue))
+            UserDefaults.standard.set(
+                hslToHex(h: hue, s: sat, l: light),
+                forKey: udPersoHexKey(key, skinId: aleaSkinId)
+            )
         }
-        // Brix fond : tirage indépendant.
+
+        // Brix : éviter le gris moyen (chiffre illisible). Sombre le plus souvent.
         let priksH = Double.random(in: 0..<1)
-        let priksS = Double.random(in: 0.30...0.60)
-        let priksL = Double.random(in: 0.28...0.52)
-        UserDefaults.standard.set(hslToHex(h: priksH, s: priksS, l: priksL),
-                                  forKey: udPersoHexKey("priks", skinId: aleaSkinId))
-        // Brix texte : contraste garanti (clair si fond sombre, sombre si fond clair).
-        let textL = priksL > 0.42 ? Double.random(in: 0.10...0.25) : Double.random(in: 0.75...0.92)
-        var textH = priksH + Double.random(in: -0.08...0.08)
-        textH = (textH.truncatingRemainder(dividingBy: 1.0) + 1.0).truncatingRemainder(dividingBy: 1.0)
-        let textS = Double.random(in: 0.10...0.40)
-        UserDefaults.standard.set(hslToHex(h: textH, s: textS, l: textL),
-                                  forKey: udPersoHexKey("prikstext", skinId: aleaSkinId))
+        let priksS = Double.random(in: 0.35...0.70)
+        var priksL = Double.random(in: 0.16...0.38)
+        if Double.random(in: 0..<1) < 0.22 {
+            priksL = Double.random(in: 0.62...0.78)
+        }
+
+        let white = (h: 0.08, s: 0.04, l: 0.96)
+        let black = (h: 0.07, s: 0.12, l: 0.10)
+        let gold  = (h: 46.0 / 360.0, s: 0.88, l: 0.56)
+        let minContrast = 4.5
+
+        func fillY() -> Double { relativeLuminance(h: priksH, s: priksS, l: priksL) }
+        func textY(_ t: (h: Double, s: Double, l: Double)) -> Double {
+            relativeLuminance(h: t.h, s: t.s, l: t.l)
+        }
+        func bestFillContrast() -> Double {
+            max(
+                contrastRatio(fillY(), textY(white)),
+                contrastRatio(fillY(), textY(black))
+            )
+        }
+
+        while bestFillContrast() < minContrast, priksL > 0.10 {
+            priksL -= 0.03
+        }
+
+        UserDefaults.standard.set(
+            hslToHex(h: priksH, s: priksS, l: priksL),
+            forKey: udPersoHexKey("priks", skinId: aleaSkinId)
+        )
+
+        let y = fillY()
+        let wr = contrastRatio(y, textY(white))
+        let br = contrastRatio(y, textY(black))
+        let gr = contrastRatio(y, textY(gold))
+        let text: (h: Double, s: Double, l: Double)
+        if y < 0.38, gr >= minContrast, gr >= wr * 0.82 {
+            text = gold
+        } else if wr >= br {
+            text = white
+        } else {
+            text = black
+        }
+        UserDefaults.standard.set(
+            hslToHex(h: text.h, s: text.s, l: text.l),
+            forKey: udPersoHexKey("prikstext", skinId: aleaSkinId)
+        )
     }
 
     /// Génère des couleurs Alea uniquement si aucune n'existe encore en UserDefaults.
@@ -2014,6 +2085,7 @@ final class GameScene: SKScene {
     /// Fond scène plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
     /// `playIntro` : poinçon wordmark uniquement à froid (splash). Retours GO / ☰ : entrée courte.
     private func presentStartScreen(playIntro: Bool = false) {
+        clearAutoDropAim()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
 
         isStartScreen = true
@@ -2901,7 +2973,10 @@ final class GameScene: SKScene {
         if let pvpOpponent = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode {
             pvpOpponent.isHidden = hidden || pvpCoordinator == nil
         }
-        if hidden { closeGameOverflowMenu() }
+        if hidden {
+            closeGameOverflowMenu()
+            clearAutoDropAim()
+        }
     }
 
     private func playMatchSound(_ sfx: BlomixMatchSFX, playbackRate: Float = 1.0) {
@@ -3492,6 +3567,7 @@ final class GameScene: SKScene {
     /// Bloque les entrées ; joue `end.wav` puis affiche l’overlay de fin (avec pré-animation ciblée si `focusPoint` est fourni).
     private func triggerGameOver(focusPoint: CGPoint? = nil) {
         guard !isGameOver else { return }
+        clearAutoDropAim()
         cancelGhostPreview()
 
         if pvpCoordinator != nil {
@@ -4677,6 +4753,7 @@ final class GameScene: SKScene {
         // pour éviter qu'un willResignActiveNotification écrase la sauvegarde solo
         // avec un état transitoire (grille vide, modèle PvP, etc.).
         isWindingDown = true
+        clearAutoDropAim()
         // Retour à la piste de base quelle que soit la situation (fin de partie solo stagée, PvP, tuto…).
         BlomixMusicPlayer.shared.resetToBase()
         blomixPvP_teardown()
@@ -4829,10 +4906,17 @@ final class GameScene: SKScene {
 
         overlay.alpha = 0
         overlay.run(SKAction.fadeIn(withDuration: 0.16))
+        hideDropGhostVisuals()
     }
 
-    private func dismissQuitConfirmOverlay() {
+    private func dismissQuitConfirmOverlay(restoreAimGhost: Bool = true) {
         childNode(withName: Self.quitConfirmOverlayName)?.removeFromParent()
+        guard restoreAimGhost else { return }
+        if isStageTimerPausedForChrome {
+            resumeStageTimerForChrome()
+        } else {
+            restoreAutoDropGhostIfNeeded()
+        }
     }
 
     // MARK: - Chaînes (résolution)
@@ -5646,7 +5730,7 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Points du bonus « grille entièrement vide » (solo + Zen) — hors multiplicateur de stage.
+    /// Points du bonus « grille entièrement vide » (solo + Zen) — × stage en Arcade.
     private static let fullyClearedBoardBonusPoints = 500
 
     /// `true` si aucune case jouable n’est occupée.
@@ -5662,7 +5746,7 @@ final class GameScene: SKScene {
     }
 
     /// +10 par colonne passée entièrement vide alors qu’elle contenait au moins un bloc avant cette vague.
-    /// Si la grille entière est vide après coup (solo/Zen), +500 plats en plus des bonus colonnes.
+    /// Si la grille entière est vide après coup (solo/Zen), +500 (× stage en Arcade) en plus des bonus colonnes.
     private func awardFullyClearedColumnBonuses(columnHadBlockBefore: [Bool]) {
         let hadAnyBlockBefore = columnHadBlockBefore.contains(true)
 
@@ -5701,8 +5785,7 @@ final class GameScene: SKScene {
                 self.addScore(
                     points: Self.fullyClearedBoardBonusPoints,
                     chainMultiplier: 0,
-                    floatAt: self.gridAreaCenter,
-                    applyStageMultiplier: false
+                    floatAt: self.gridAreaCenter
                 )
             },
         ]))
@@ -5737,7 +5820,7 @@ final class GameScene: SKScene {
 
     /// Ajoute les points au total, met à jour le label ; `chainMultiplier` = `chainSeriesLevel` **utilisé** pour ce gain (animation un peu plus forte en combo).
     /// `floatAt` : affiche « +N » à cet endroit (fade légèrement plus lent pour une meilleure lisibilité).
-    /// `applyStageMultiplier` : si `false`, les points sont ajoutés tels quels même en solo stagé (ex. bonus grille vide = 500 plats).
+    /// `applyStageMultiplier` : si `false`, les points sont ajoutés tels quels même en solo stagé.
     private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true) {
         guard points > 0 else { return }
         let multipliedPoints = (applyStageMultiplier && isInStagedSoloMode) ? points * currentStageConfig.multiplier : points
@@ -7523,6 +7606,7 @@ final class GameScene: SKScene {
 
     private func refreshAutoDropGhostIfNeeded() {
         guard isInStagedSoloMode, !isStartScreen, !isGameOver, !isProcessing, !isBombMode else { return }
+        guard !dropGhostChromeBlocksDisplay else { return }
         guard !ghostTouchIsLive else { return }
         if let locked = autoDropLockedColumn, highestEmptyRow(inColumn: locked) != nil {
             showGhostPreview(column: locked)
@@ -11677,8 +11761,7 @@ final class GameScene: SKScene {
               isPlayableGridCompletelyEmpty() else { return }
         addScoreSynchronously(
             points: Self.fullyClearedBoardBonusPoints,
-            chainMultiplier: 0,
-            applyStageMultiplier: false
+            chainMultiplier: 0
         )
     }
 
@@ -12132,17 +12215,42 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Retire le ghost et nettoie tout l'état de tracking (appelé sur drop, cancel ou interruption).
-    private func cancelGhostPreview() {
+    /// Chrome hors grille : ne pas afficher (ni redessiner) le ghost de visée.
+    private var dropGhostChromeBlocksDisplay: Bool {
+        gameOverflowMenuDropdownIsOpen()
+            || isStageTimerPausedForChrome
+            || childNode(withName: Self.quitConfirmOverlayName) != nil
+    }
+
+    /// Masque le ghost de pré-visée. Ne touche pas à `autoDropLockedColumn` (reprise ☰ / modal).
+    private func hideDropGhostVisuals() {
         ghostTouchIsLive = false
         ghostHoldTimer?.invalidate()
         ghostHoldTimer = nil
         ghostPreviewColumn = nil
         childNode(withName: Self.ghostContainerName)?.removeFromParent()
+        if childNode(withName: Self.previewNodeName)?.isHidden != true {
+            childNode(withName: Self.previewNodeName)?.position.x = size.width / 2
+        }
+    }
+
+    /// Sortie de grille : masque le ghost et oublie la colonne figée d'auto-drop.
+    private func clearAutoDropAim() {
+        autoDropLockedColumn = nil
+        hideDropGhostVisuals()
+    }
+
+    /// Réaffiche le ghost auto-drop si le timer est encore dans la zone rouge.
+    private func restoreAutoDropGhostIfNeeded() {
+        guard stageTimerSecondsRemaining <= 2, stageTimerSecondsRemaining > 0 else { return }
+        refreshAutoDropGhostIfNeeded()
+    }
+
+    /// Retire le ghost et nettoie tout l'état de tracking (appelé sur drop, cancel ou interruption).
+    private func cancelGhostPreview() {
+        hideDropGhostVisuals()
         childNode(withName: Self.hintGhostContainerName)?.removeFromParent()
         pendingHintRequest = false
-        // Recentre le sprite preview à sa position d'origine (annulation sans drop).
-        childNode(withName: Self.previewNodeName)?.position.x = size.width / 2
     }
 
     // MARK: - Hint
@@ -12208,6 +12316,7 @@ final class GameScene: SKScene {
     private func showGhostPreview(column: Int) {
         childNode(withName: Self.ghostContainerName)?.removeFromParent()
         guard !isProcessing, !isGameOver, !isStartScreen else { return }
+        guard !dropGhostChromeBlocksDisplay else { return }
         guard column >= 0, column < GridLayout.columnCount else { return }
         guard !checkGameOver(forNormalDropInColumn: column) || isBombMode else { return }
 
@@ -12472,6 +12581,7 @@ final class GameScene: SKScene {
     }
 
     private func pauseStageTimerForChrome() {
+        hideDropGhostVisuals()
         guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
         stopStageTimer()
         isStageTimerPausedForChrome = true
@@ -12482,6 +12592,7 @@ final class GameScene: SKScene {
         isStageTimerPausedForChrome = false
         guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
         resumeStageTimerKeepingRemaining()
+        restoreAutoDropGhostIfNeeded()
     }
 
     /// Reprend le décompte sur les secondes restantes (ne pas appeler `restartStageTimer`).
@@ -13541,7 +13652,7 @@ final class GameScene: SKScene {
             if tappedBtn?.name == Self.quitConfirmBtnQuitName {
                 pendingButtonAction = { [weak self] in
                     guard let self else { return }
-                    self.dismissQuitConfirmOverlay()
+                    self.dismissQuitConfirmOverlay(restoreAimGhost: false)
                     ScoreManager.shared.recordGameScore(self.score)
                     if self.pvpCoordinator == nil, !self.isGameOver {
                         self.saveCurrentSoloGameState()
@@ -13664,7 +13775,7 @@ final class GameScene: SKScene {
 
         if gameOverflowMenuDropdownIsOpen() {
             if touchHitsOverflowMenuItem(named: Self.bottomMenuNewGameName, scenePoint: location) {
-                closeGameOverflowMenu()
+                closeGameOverflowMenu(resumeTimer: false)
                 pendingButtonAction = { [weak self] in self?.returnToStartScreenFromNewGameButton() }
                 return
             }

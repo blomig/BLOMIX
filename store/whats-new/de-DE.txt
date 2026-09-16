@@ -1,3 +1,4 @@
-• Start: Icons oben, BLOMIX in der Mitte
-• Titel von Einstellungen, Guide und Credits: dieselbe farbige Vertiefung wie BLOMIX
-• Ambient-Blox sind in den Vertiefungen klar sichtbar
+• Arcade: der +500-Bonus für leeres Feld wird mit dem Stage multipliziert
+• Alea-Palette kräftiger (Gelb, Orange); Brix-Ziffern bleiben lesbar
+• Start: BLOMIX setzt mit Funkeln auf jedem Buchstaben auf
+• Titel von Score und Mehrspieler in der Vertiefung; „OK für Herausforderung“ im gleichen Stil

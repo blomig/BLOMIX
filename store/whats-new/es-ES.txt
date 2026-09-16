@@ -1,3 +1,4 @@
-• Inicio: iconos arriba, BLOMIX en el centro
-• Títulos de Ajustes, Guía y Créditos: el mismo hueco de color que BLOMIX
-• Los blox de ambiente se ven bien en los huecos
+• Arcade: el +500 de tablero vacío se multiplica por el stage
+• Paleta Alea más viva (amarillos, naranjas); la cifra de los Brix se lee bien
+• Inicio: BLOMIX aterriza con destellos en cada letra
+• Títulos de Puntuación y Multijugador en hueco; «OK para ser retado» en el mismo estilo

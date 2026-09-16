@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 6.10 (local)
+> **Version de référence** : 7.0 (local)
 
 ---
 
@@ -111,15 +111,16 @@ Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lpr
 
 Détail release : `store/whats-new/README.md`.
 
-### Popup in-app (accueil 6.10)
+### Popup in-app (accueil 7.0)
 
-Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew_dont_show_6.10_titles_home`) :
+Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew_dont_show_7.0_arcade_alea_home`) :
 
 | Clé | Usage |
 |---|---|
 | `whatsnew.title` | Titre |
-| `whatsnew.layout` | Accueil : icônes en haut, BLOMIX au centre |
-| `whatsnew.cutout_titles` | Titres Réglages / Guide / Crédits en gouttière |
+| `whatsnew.empty_grid` | Arcade : +500 grille vide × stage |
+| `whatsnew.alea` | Palette Alea plus vive ; chiffre Brix lisible |
+| `whatsnew.punch` | Accueil : paillettes à chaque lettre BLOMIX |
 | `whatsnew.dont_show` | Bouton définitif ; `generic.ok` = cette session seulement |
 
 Ce n’est **pas** le champ ASC Nouveautés.

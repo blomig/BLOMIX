@@ -1,3 +1,4 @@
-• Home: icons at the top, BLOMIX in the center
-• Settings, Guide and Credits titles: the same colored well as BLOMIX
-• Ambient blox show clearly in the wells
+• Arcade: the +500 empty-board bonus is multiplied by the stage
+• Alea palette is more vivid (yellows, oranges); Brix digits stay readable
+• Home: BLOMIX lands with sparkles on each letter
+• Score and Multiplayer titles use the same well as BLOMIX; “OK to be challenged” matches

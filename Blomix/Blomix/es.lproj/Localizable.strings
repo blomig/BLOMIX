@@ -295,6 +295,9 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "whatsnew.saintx" = "SAINTX se convierte en un Brix que cuenta hasta el total";
 "whatsnew.layout" = "Inicio: iconos arriba, BLOMIX en el centro";
 "whatsnew.cutout_titles" = "Ajustes, Guía y Créditos: el mismo hueco que BLOMIX";
+"whatsnew.empty_grid" = "Arcade: el +500 de tablero vacío se multiplica por el stage";
+"whatsnew.alea" = "Paleta Alea más viva; la cifra de los Brix se lee bien";
+"whatsnew.punch" = "Inicio: BLOMIX aterriza con destellos en cada letra";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */

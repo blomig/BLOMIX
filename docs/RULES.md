@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 6.10 (local)  
+> **Version de référence** : 7.0 (local)  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -127,7 +127,7 @@ Exemples :
 
 Si plusieurs composantes indépendantes existent dans la même vague, elles partagent le même `chainSeriesLevel`.
 
-En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à ×6), **sauf** le bonus grille vide (§ ci-dessous), qui est plat.
+En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à ×6), y compris le bonus grille vide.
 
 ### Brix
 
@@ -150,7 +150,7 @@ En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à
 
 ### Grille entièrement vide (Arcade / Zen)
 
-Si une vague part d’une grille **non vide** et la laisse **entièrement vide** : **+500 pts** plats (hors ×stage), **en plus** des +10 par colonne. Absent en Duel et en tutoriel.
+Si une vague part d’une grille **non vide** et la laisse **entièrement vide** : **+500 pts** (**× le multiplicateur du stage** en Arcade ; plat en Zen), **en plus** des +10 par colonne. Absent en Duel et en tutoriel.
 
 ### SAINTX (cleanx)
 

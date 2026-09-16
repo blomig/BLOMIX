@@ -307,6 +307,9 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "whatsnew.saintx" = "SAINTX becomes a Brix that counts up to the total";
 "whatsnew.layout" = "Home: icons at the top, BLOMIX in the center";
 "whatsnew.cutout_titles" = "Settings, Guide and Credits: the same well as BLOMIX";
+"whatsnew.empty_grid" = "Arcade: the +500 empty-board bonus is multiplied by the stage";
+"whatsnew.alea" = "Alea palette is more vivid; Brix digits stay readable";
+"whatsnew.punch" = "Home: BLOMIX lands with sparkles on each letter";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */

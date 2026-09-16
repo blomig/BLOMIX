@@ -295,6 +295,9 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "whatsnew.saintx" = "SAINTX diventa un Brix che conta fino al totale";
 "whatsnew.layout" = "Home: icone in alto, BLOMIX al centro";
 "whatsnew.cutout_titles" = "Impostazioni, Guida e Crediti: lo stesso incavo di BLOMIX";
+"whatsnew.empty_grid" = "Arcade: il +500 di griglia vuota è moltiplicato per lo stage";
+"whatsnew.alea" = "Palette Alea più vivida; la cifra dei Brix resta leggibile";
+"whatsnew.punch" = "Home: BLOMIX atterra con scintille su ogni lettera";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */

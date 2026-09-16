@@ -438,7 +438,7 @@ class BlomixUIButton: UIButton {
 
 // MARK: - Interrupteur chrome BLOMIX (pas UISwitch système)
 
-/// Piste + pastille, tokens `BlomixAppearance`, press + haptique light.
+/// Piste gouttière (dégradé skin ON / `progressTrack` OFF) + pastille chrome, haptique light.
 @MainActor
 final class BlomixChromeSwitch: UIControl {
 
@@ -447,9 +447,13 @@ final class BlomixChromeSwitch: UIControl {
     }
 
     private let track = UIView()
+    private let gradient = BlomixSkinGradientLayer()
+    private let lip = CALayer()
     private let knob = UIView()
     private var knobLeading: NSLayoutConstraint?
+    private var lastLipSize: CGSize = .zero
     private static let haptic = UIImpactFeedbackGenerator(style: .light)
+    private static let knobSize: CGFloat = 26
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -462,8 +466,23 @@ final class BlomixChromeSwitch: UIControl {
         translatesAutoresizingMaskIntoConstraints = false
         track.isUserInteractionEnabled = false
         knob.isUserInteractionEnabled = false
+        track.clipsToBounds = true
         track.translatesAutoresizingMaskIntoConstraints = false
         knob.translatesAutoresizingMaskIntoConstraints = false
+
+        gradient.actions = ["contents": NSNull()]
+        track.layer.addSublayer(gradient)
+        BlomixSkinGradientClock.shared.register(gradient)
+        lip.contentsGravity = .resize
+        lip.actions = ["contents": NSNull()]
+        track.layer.addSublayer(lip)
+
+        knob.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
+        knob.layer.shadowColor = UIColor.black.cgColor
+        knob.layer.shadowOffset = CGSize(width: 0, height: 1.5)
+        knob.layer.shadowRadius = 1.6
+        knob.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
+
         addSubview(track)
         addSubview(knob)
 
@@ -478,20 +497,53 @@ final class BlomixChromeSwitch: UIControl {
             track.topAnchor.constraint(equalTo: topAnchor),
             track.bottomAnchor.constraint(equalTo: bottomAnchor),
             knob.centerYAnchor.constraint(equalTo: track.centerYAnchor),
-            knob.widthAnchor.constraint(equalToConstant: 26),
-            knob.heightAnchor.constraint(equalToConstant: 26),
+            knob.widthAnchor.constraint(equalToConstant: Self.knobSize),
+            knob.heightAnchor.constraint(equalToConstant: Self.knobSize),
             leading,
         ])
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
         addGestureRecognizer(tap)
+
+        _ = NotificationCenter.default.addObserver(
+            forName: .blomixAppearanceDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshChrome() }
+        }
+        _ = NotificationCenter.default.addObserver(
+            forName: .blomixSkinDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshChrome() }
+        }
+
         applyState(animated: false)
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        track.layer.cornerRadius = bounds.height / 2
-        knob.layer.cornerRadius = 13
+        let cap = bounds.height / 2
+        track.layer.cornerRadius = cap
+        gradient.frame = track.bounds
+        lip.frame = track.bounds
+        let lipKey = CGSize(width: bounds.width.rounded(), height: bounds.height.rounded())
+        if lipKey != lastLipSize, bounds.width > 1, bounds.height > 1 {
+            lastLipSize = lipKey
+            lip.contents = BlomixButtonRelief.wellInnerShadowImage(
+                size: bounds.size,
+                cornerRadius: cap
+            ).cgImage
+        }
+        knob.layer.cornerRadius = Self.knobSize / 2
+        knob.layer.shadowPath = UIBezierPath(
+            roundedRect: CGRect(origin: .zero, size: CGSize(width: Self.knobSize, height: Self.knobSize)),
+            cornerRadius: Self.knobSize / 2
+        ).cgPath
+        bringSubviewToFront(knob)
+        updateKnobTravel()
     }
 
     @objc private func tapped() {
@@ -501,19 +553,19 @@ final class BlomixChromeSwitch: UIControl {
         sendActions(for: .valueChanged)
     }
 
+    private func updateKnobTravel() {
+        let travel = track.bounds.width - Self.knobSize - 6
+        knobLeading?.constant = isOn ? max(3, travel) : 3
+    }
+
     private func applyState(animated: Bool) {
-        let onColor = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
         let changes = {
-            self.track.backgroundColor = self.isOn
-                ? onColor.withAlphaComponent(BlomixAppearance.isDark ? 0.85 : 0.90)
-                : BlomixAppearance.chipFill
-            self.track.layer.borderWidth = BlomixUIDestinationButtonStyle.hairlineBorderWidth
-            self.track.layer.borderColor = self.isOn
-                ? onColor.cgColor
-                : BlomixAppearance.chipBorder.cgColor
-            self.knob.backgroundColor = BlomixAppearance.primaryText
-            let travel = self.track.bounds.width - 26 - 6
-            self.knobLeading?.constant = self.isOn ? max(3, travel) : 3
+            self.gradient.opacity = self.isOn ? 1 : 0
+            self.track.backgroundColor = self.isOn ? .clear : BlomixAppearance.progressTrack
+            self.knob.backgroundColor = BlomixAppearance.chipFill
+            self.knob.layer.borderColor = BlomixAppearance.chipBorder.cgColor
+            self.knob.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
+            self.updateKnobTravel()
             self.layoutIfNeeded()
         }
         if animated {
@@ -524,6 +576,8 @@ final class BlomixChromeSwitch: UIControl {
     }
 
     func refreshChrome() {
+        lastLipSize = .zero
         applyState(animated: false)
+        setNeedsLayout()
     }
 }

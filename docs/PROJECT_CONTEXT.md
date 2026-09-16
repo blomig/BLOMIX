@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 6.10 (local)  
+> **Version de référence** : 7.0 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -207,9 +207,9 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 | Bombe utilisée | 10 |
 | Colonne vidée | 10 par colonne |
 | SAINTX | 200 (via `addScore` → × stage en Arcade) |
-| Grille 100 % vide (Arcade / Zen) | **500** plats (`fullyClearedBoardBonusPoints`, `applyStageMultiplier: false`) — en plus des +10 / colonne |
+| Grille 100 % vide (Arcade / Zen) | **500** (`fullyClearedBoardBonusPoints`, × stage en Arcade via `addScore`) — en plus des +10 / colonne |
 
-**Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`, sauf le bonus grille vide.
+**Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`.
 
 **Game Over** : `finalScore = score` (pas de bonus de fin Brix). Overlay record perso : rang = 1 + joueurs du top 100 dont le score est **strictement supérieur** au nouveau PB (pas `localEntry.rank` encore non indexé).
 
@@ -345,7 +345,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70). Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
 - Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.
 - Réglages palettes : swatches 16 pt de la peau **sélectionnée** en gouttière (couleur fixe + ombre interne).
-- Titres Réglages / Guide / Crédits : `BlomixCutoutTitleView` (même trou dégradé que BLOMIX).
+- Titres Réglages / Guide / Crédits / Score / Multijoueur : `BlomixCutoutTitleView` (même trou dégradé que BLOMIX).
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) ; `credits.txt` legacy non branché UI
@@ -379,6 +379,8 @@ Deux visages figés (plus de picker joueur) :
 ### Skins couleur
 
 `color_skins.json` — skin Default + Perso (couleurs custom). Indépendant du thème chrome.
+
+Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) : 6 teintes à 60° (jitter ±14°), saturation 0,62–0,90, **L selon la teinte** (jaune/orange plus clairs, sinon kaki). Brix : fond plutôt sombre (parfois clair) ; chiffre blanc / noir / or choisi par **luminance WCAG** (contraste ≥ 4,5).
 
 ### HUD en jeu
 

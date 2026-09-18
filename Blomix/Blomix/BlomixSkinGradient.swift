@@ -47,16 +47,21 @@ enum BlomixSkinGradient {
         return tex
     }()
 
+    /// Décalage de phase par nœud (un seul programme Metal pour tous les puits).
+    static let timeOffsetAttributeName = "a_timeOffset"
+
     private static var shaderCache: [String: SKShader] = [:]
 
     static func invalidateShaderCache() {
         shaderCache.removeAll()
+        BlomixButtonRelief.invalidateRasterCaches()
     }
 
     static func makeShader(timeScale: Float = wellTimeScale, timeOffset: Float = 0) -> SKShader {
+        _ = timeOffset
         let colors = paletteSKColors()
         let n = colors.count
-        let key = "\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)|\(timeScale)|\(timeOffset)"
+        let key = "\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)|\(timeScale)"
         if let cached = shaderCache[key] { return cached }
 
         func v3(_ c: SKColor) -> String {
@@ -89,7 +94,7 @@ enum BlomixSkinGradient {
         }
         void main(){
             vec2 uv=v_tex_coord;
-            float t=u_time*\(String(format: "%.4f", timeScale))+\(String(format: "%.4f", timeOffset));
+            float t=u_time*\(String(format: "%.4f", timeScale))+a_timeOffset;
             vec3 c1=mgxPal(t);
             vec3 c2=mgxPal(t+0.333);
             vec3 c3=mgxPal(t+0.667);
@@ -101,8 +106,20 @@ enum BlomixSkinGradient {
         }
         """
         let shader = SKShader(source: src)
+        shader.attributes = [
+            SKAttribute(name: timeOffsetAttributeName, type: .float)
+        ]
         shaderCache[key] = shader
         return shader
+    }
+
+    static func applyShader(to sprite: SKSpriteNode, timeOffset: Float = 0) {
+        sprite.shader = makeShader()
+        sprite.colorBlendFactor = 0
+        sprite.color = .white
+        sprite.setValue(SKAttributeValue(float: timeOffset), forAttribute: timeOffsetAttributeName)
+        sprite.userData = sprite.userData ?? NSMutableDictionary()
+        sprite.userData?["timeOffset"] = timeOffset
     }
 
     /// Puits SpriteKit : sprite shader clipé en rectangle arrondi. Ne pas scaler ce nœud à l’appui.
@@ -111,18 +128,17 @@ enum BlomixSkinGradient {
         crop.name = "blomixWell"
         crop.userData = NSMutableDictionary()
         crop.userData?["cornerRadius"] = cornerRadius
+        crop.userData?["timeOffset"] = timeOffset
 
-        let rect = CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height)
-        let mask = SKShapeNode(rect: rect, cornerRadius: cornerRadius)
-        mask.fillColor = .white
-        mask.strokeColor = .clear
+        let mask = SKSpriteNode(
+            texture: BlomixButtonRelief.roundedRectMaskTexture(size: size, cornerRadius: cornerRadius),
+            size: size
+        )
         crop.maskNode = mask
 
         let fill = SKSpriteNode(texture: shaderBaseTexture, size: size)
         fill.name = "blomixWellFill"
-        fill.colorBlendFactor = 0
-        fill.color = .white
-        fill.shader = makeShader(timeOffset: timeOffset)
+        applyShader(to: fill, timeOffset: timeOffset)
         crop.addChild(fill)
 
         let lip = SKSpriteNode(
@@ -137,7 +153,18 @@ enum BlomixSkinGradient {
 
     static func refreshWellNode(_ root: SKNode, timeOffset: Float = 0) {
         if let fill = root.childNode(withName: "//blomixWellFill") as? SKSpriteNode {
-            fill.shader = makeShader(timeOffset: timeOffset)
+            applyShader(to: fill, timeOffset: timeOffset)
+        }
+        if let crop = (root as? SKCropNode) ?? root.childNode(withName: "//blomixWell") as? SKCropNode {
+            crop.userData?["timeOffset"] = timeOffset
+            if let mask = crop.maskNode as? SKSpriteNode, mask.size.width > 1 {
+                let stored = (crop.userData?["cornerRadius"] as? CGFloat)
+                    ?? BlomixUIDestinationButtonStyle.cornerRadius
+                mask.texture = BlomixButtonRelief.roundedRectMaskTexture(
+                    size: mask.size,
+                    cornerRadius: stored
+                )
+            }
         }
         if let lip = root.childNode(withName: "//blomixWellInnerShadow") as? SKSpriteNode {
             let size = lip.size
@@ -158,6 +185,43 @@ enum BlomixButtonRelief {
     static let contactShadowOffsetY: CGFloat = 2.5
     static var highlightAlpha: CGFloat { BlomixAppearance.isDark ? 0.42 : 0.55 }
     static var capsuleBottomShadeAlpha: CGFloat { BlomixAppearance.isDark ? 0.28 : 0.14 }
+
+    private static var maskTextureCache: [String: SKTexture] = [:]
+    private static var innerShadowTextureCache: [String: SKTexture] = [:]
+    private static var bevelTextureCache: [String: SKTexture] = [:]
+
+    static func invalidateRasterCaches() {
+        maskTextureCache.removeAll()
+        innerShadowTextureCache.removeAll()
+        bevelTextureCache.removeAll()
+    }
+
+    private static func rasterCacheKey(_ prefix: String, size: CGSize, corner: CGFloat, appearance: Bool) -> String {
+        let w = (size.width * 10).rounded() / 10
+        let h = (size.height * 10).rounded() / 10
+        let r = (corner * 10).rounded() / 10
+        if appearance {
+            return "\(prefix)|\(w)x\(h)|r\(r)|\(BlomixAppearance.mode.rawValue)"
+        }
+        return "\(prefix)|\(w)x\(h)|r\(r)"
+    }
+
+    /// Masque blanc rectangle arrondi (texture, pas SKShapeNode) — une entrée par taille.
+    static func roundedRectMaskTexture(size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        let key = rasterCacheKey("mask", size: size, corner: cornerRadius, appearance: false)
+        if let cached = maskTextureCache[key] { return cached }
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = 2
+        let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            UIColor.white.setFill()
+            UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: cornerRadius).fill()
+        }
+        let tex = SKTexture(image: image)
+        tex.filteringMode = .linear
+        maskTextureCache[key] = tex
+        return tex
+    }
 
     static func wellInnerShadowImage(size: CGSize, cornerRadius: CGFloat) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
@@ -202,8 +266,11 @@ enum BlomixButtonRelief {
     }
 
     static func wellInnerShadowTexture(size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        let key = rasterCacheKey("inner", size: size, corner: cornerRadius, appearance: true)
+        if let cached = innerShadowTextureCache[key] { return cached }
         let tex = SKTexture(image: wellInnerShadowImage(size: size, cornerRadius: cornerRadius))
         tex.filteringMode = .linear
+        innerShadowTextureCache[key] = tex
         return tex
     }
 
@@ -267,8 +334,11 @@ enum BlomixButtonRelief {
     }
 
     static func capsuleBevelTexture(size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        let key = rasterCacheKey("bevel", size: size, corner: cornerRadius, appearance: true)
+        if let cached = bevelTextureCache[key] { return cached }
         let tex = SKTexture(image: capsuleBevelImage(size: size, cornerRadius: cornerRadius))
         tex.filteringMode = .linear
+        bevelTextureCache[key] = tex
         return tex
     }
 
@@ -507,9 +577,7 @@ final class BlomixCutoutWordmarkNode: SKNode {
 
         let fill = SKSpriteNode(texture: BlomixSkinGradient.shaderBaseTexture, size: canvas)
         fill.name = "blomixWellFill"
-        fill.colorBlendFactor = 0
-        fill.color = .white
-        fill.shader = BlomixSkinGradient.makeShader(timeOffset: timeOffset)
+        BlomixSkinGradient.applyShader(to: fill, timeOffset: timeOffset)
         crop.addChild(fill)
 
         let lipTex = SKTexture(image: BlomixButtonRelief.cutoutInnerShadowImage(text: text, fontSize: fontSize, pad: pad))
@@ -641,11 +709,15 @@ final class BlomixCutoutWordmarkNode: SKNode {
 
         let lastPunchAt = PunchIntro.punchDelay(index: count - 1, count: count)
         let punchWindow = lastPunchAt + PunchIntro.settleDuration
-        // SKCropNode ne suit pas les enfants du masque : on le ré-assigne chaque frame.
-        crop.run(SKAction.customAction(withDuration: punchWindow) { node, _ in
+        // SKCropNode ne suit pas les enfants du masque. Ré-assigner sans `nil`
+        // (évite d’allouer une nouvelle texture GPU) et au plus ~20 Hz.
+        crop.userData = crop.userData ?? NSMutableDictionary()
+        crop.run(SKAction.customAction(withDuration: punchWindow) { node, elapsed in
             guard let crop = node as? SKCropNode else { return }
+            let last = crop.userData?["maskRefreshAt"] as? CGFloat ?? -1
+            guard elapsed - last >= 0.048 else { return }
+            crop.userData?["maskRefreshAt"] = elapsed
             let mask = crop.maskNode
-            crop.maskNode = nil
             crop.maskNode = mask
         })
         run(.sequence([
@@ -663,6 +735,30 @@ final class BlomixCutoutWordmarkNode: SKNode {
         ]))
     }
 
+    /// Disque blanc 8×8 partagé — évite un SKShapeNode (texture GPU) par paillette.
+    private static let sparkleDotTexture: SKTexture = {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = 2
+        let img = UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.cgContext.fillEllipse(in: CGRect(x: 0.5, y: 0.5, width: 7, height: 7))
+        }
+        let tex = SKTexture(image: img)
+        tex.filteringMode = .linear
+        return tex
+    }()
+
+    private func makePunchSparkle(radius: CGFloat, color: SKColor, z: CGFloat) -> SKSpriteNode {
+        let side = max(1.2, radius * 2)
+        let spark = SKSpriteNode(texture: Self.sparkleDotTexture, size: CGSize(width: side, height: side))
+        spark.color = color
+        spark.colorBlendFactor = 1
+        spark.alpha = 0
+        spark.zPosition = z
+        return spark
+    }
+
     /// Paillettes d’impact (version discrète de l’atterrissage blox), hors masque pour rester visibles.
     private func spawnPunchSparkles(at center: CGPoint, radius: CGFloat, color: SKColor) {
         let blockRadius = max(7, radius * 0.52)
@@ -672,11 +768,7 @@ final class BlomixCutoutWordmarkNode: SKNode {
             let angle = CGFloat.random(in: 0...(2 * .pi))
             let startDist = CGFloat.random(in: (blockRadius - 2)...(blockRadius + 2))
             let endDist = startDist + CGFloat.random(in: 8...16)
-            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.6...1.4))
-            spark.fillColor = color
-            spark.strokeColor = .clear
-            spark.alpha = 0
-            spark.zPosition = 6
+            let spark = makePunchSparkle(radius: CGFloat.random(in: 0.6...1.4), color: color, z: 6)
             spark.position = CGPoint(
                 x: center.x + cos(angle) * startDist,
                 y: center.y + sin(angle) * startDist
@@ -707,11 +799,7 @@ final class BlomixCutoutWordmarkNode: SKNode {
             let angle = CGFloat.random(in: 0...(2 * .pi))
             let startDist = CGFloat.random(in: (blockRadius - 4)...(blockRadius + 3))
             let drift = CGFloat.random(in: 1...4)
-            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.4...0.9))
-            spark.fillColor = color
-            spark.strokeColor = .clear
-            spark.alpha = 0
-            spark.zPosition = 5
+            let spark = makePunchSparkle(radius: CGFloat.random(in: 0.4...0.9), color: color, z: 5)
             spark.position = CGPoint(
                 x: center.x + cos(angle) * startDist,
                 y: center.y + sin(angle) * startDist

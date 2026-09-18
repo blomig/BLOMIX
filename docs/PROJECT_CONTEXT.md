@@ -342,7 +342,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - 4 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé 3 lettres (Arc. / Moy. / Zen / Duel)
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
 - Accueil layout : icônes → nom/rangs → BLOMIX centré → hero/Duel/Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
-- Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70). Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
+- Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
 - Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.
 - Réglages palettes : swatches 16 pt de la peau **sélectionnée** en gouttière (couleur fixe + ombre interne).
 - Titres Réglages / Guide / Crédits / Score / Multijoueur : `BlomixCutoutTitleView` (même trou dégradé que BLOMIX).
@@ -396,6 +396,8 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
 ### Chips boutons
 
 Puits (dégradé vivant du skin, plus lent que Magix) + capsule chrome (fill / titre Sombre ↔ Clair). Radius 14 pt, gouttière **6 pt** (4 pt compact). Liseré haut + ombre bas sur la capsule ; ombre de rebord et de contact dans le puits. Police **Changa One**. Appui : scale 0,90 de la capsule seule. `BlomixSkinGradient` + `BlomixSKButtonNode` / `BlomixUIButton`.
+
+SpriteKit : **un** `SKShader` puits (et un Magix), décalage de phase via `SKAttribute` `a_timeOffset` — pas un programme Metal par bouton. Masque de crop = texture rectangle arrondi (pas `SKShapeNode`). Échos ambiants : trajet **local** dans le puits (jamais un enfant full-screen du `SKCropNode`, sinon cible GPU ~écran × N puits → jetsam `highwater` ~2 Go sur iPhone 13). Dropdown ☰ : shaders coupés tant que le menu est fermé.
 
 ---
 

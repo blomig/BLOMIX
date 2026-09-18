@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.0] — 2026-09
 
-Build **131**. Soumission commerciale (6.10 était en vente).
+Build **132**. Soumission commerciale (6.10 était en vente).
 
 ### Modifié
 - **Arcade** : le bonus grille vide (+500) passe par le multiplicateur de stage (comme SAINTX).
@@ -19,6 +19,7 @@ Build **131**. Soumission commerciale (6.10 était en vente).
 - **Palette Alea** : couleurs plus vives (sat haute, jaune/orange plus clairs) ; chiffre Brix contrasté (luminance WCAG ≥ 4,5).
 - **Ghost visée Arcade** : masqué à l’ouverture ☰ / overlay quitter / accueil ; réaffiché si le timer est encore ≤ 2 s.
 - **Accueil — poinçon BLOMIX** : B et L à cadence régulière, puis accélération légère ; paillettes à chaque lettre (comme l’atterrissage blox).
+- **Chrome GPU** : un shader puits / Magix (phase en `SKAttribute`) ; masques sprite ; échos gouttière bornés au puits (plus de cible plein écran dans le `SKCropNode`). Corrige le jetsam `highwater` ~2 Go à l’apparition des boutons / au retour ☰ (iPhone 13).
 
 ---
 

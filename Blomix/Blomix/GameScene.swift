@@ -2613,17 +2613,47 @@ final class GameScene: SKScene {
             guard let frameInContainer = gutterWindowFrame(window, in: container) else { continue }
             guard pathRect.intersects(frameInContainer) else { continue }
 
+            guard let fill = window.childNode(withName: "blomixWellFill") as? SKSpriteNode else { continue }
+            let wellH = fill.size.height
+            let wellW = fill.size.width
+            guard wellH > 1, wellW > 1 else { continue }
+
+            let startLocal = window.convert(start, from: container)
+            let endLocal = window.convert(end, from: container)
+            let x = startLocal.x
+            let halfW = wellW / 2
+            if x + size.width / 2 < -halfW || x - size.width / 2 > halfW { continue }
+
+            let halfH = wellH / 2
+            let halfBlock = size.height / 2
+            let yEnter = -halfH - halfBlock
+            let yExit = halfH + halfBlock
+            let travelY = end.y - start.y
+            let localSpan = abs(endLocal.y - startLocal.y)
+            guard travelY > 1, localSpan > 1, duration > 0 else { continue }
+            let speed = travelY / CGFloat(duration)
+            let localSpeed = localSpan / CGFloat(duration)
+            let enterInContainer = container.convert(CGPoint(x: 0, y: yEnter), from: window)
+            let delay = TimeInterval(max(0, (enterInContainer.y - start.y) / speed))
+            guard delay < duration + 0.5 else { continue }
+            let crossDuration = TimeInterval((yExit - yEnter) / max(localSpeed, 0.001))
+
             let echo = BlomixAmbientEchoSprite(color: color, size: size)
             echo.name = "blomixAmbientEcho"
             echo.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             echo.alpha = StartScreenAmbientReveal.windowAlpha
             echo.zPosition = StartScreenAmbientReveal.echoZ
-            echo.position = window.convert(start, from: container)
+            echo.position = CGPoint(x: x, y: yEnter)
+            echo.isHidden = true
             window.addChild(echo)
-            let endLocal = window.convert(end, from: container)
-            let travel = SKAction.move(to: endLocal, duration: duration)
+            let travel = SKAction.move(to: CGPoint(x: x, y: yExit), duration: crossDuration)
             travel.timingMode = .linear
-            echo.run(SKAction.sequence([travel, SKAction.removeFromParent()]))
+            echo.run(SKAction.sequence([
+                SKAction.wait(forDuration: delay),
+                SKAction.unhide(),
+                travel,
+                SKAction.removeFromParent(),
+            ]))
         }
     }
 
@@ -2703,19 +2733,20 @@ final class GameScene: SKScene {
         backdrop.alpha = 1.0
         overlay.addChild(backdrop)
 
-        // Pré-chauffe les 3 shaders des disques de ranking pendant le splash.
-        // Chaque timeOffset produit un source GLSL distinct → Metal doit compiler 3 programmes.
-        // Les sprites sont hors-écran (alpha 0.01, position négative) mais rendus,
-        // ce qui déclenche la compilation GPU avant l'affichage de l'écran d'accueil.
-        for (i, offset) in [Float(0.0), Float(0.25), Float(0.50), Float(0.75)].enumerated() {
-            let w = SKSpriteNode(texture: Self.magixShaderBaseTexture,
-                                 size: CGSize(width: 2, height: 2))
-            w.shader    = Self.makeMagixPaletteShader(timeOffset: offset)
-            w.position  = CGPoint(x: -1000, y: -1000 - CGFloat(i) * 3)
-            w.alpha     = 0.01
-            w.zPosition = -200
-            overlay.addChild(w)
-        }
+        // Un sprite Magix + un puits : un seul programme Metal chacun (phase via SKAttribute).
+        let magixWarmup = SKSpriteNode(texture: Self.magixShaderBaseTexture, size: CGSize(width: 2, height: 2))
+        Self.attachMagixPaletteShader(to: magixWarmup, timeOffset: 0)
+        magixWarmup.position = CGPoint(x: -1000, y: -1000)
+        magixWarmup.alpha = 0.01
+        magixWarmup.zPosition = -200
+        overlay.addChild(magixWarmup)
+
+        let wellWarmup = SKSpriteNode(texture: BlomixSkinGradient.shaderBaseTexture, size: CGSize(width: 8, height: 8))
+        BlomixSkinGradient.applyShader(to: wellWarmup, timeOffset: 0)
+        wellWarmup.position = CGPoint(x: -1000, y: -1010)
+        wellWarmup.alpha = 0.01
+        wellWarmup.zPosition = -200
+        overlay.addChild(wellWarmup)
 
         // Crée le logo via SKSpriteNode(imageNamed:) pour conserver le comportement
         // de sizing d'origine (gestion x1/x2/x3 identique à avant).
@@ -3327,6 +3358,7 @@ final class GameScene: SKScene {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
+                Self.magixShaderCache.removeAll()
                 guard let self else { return }
                 guard !self.isStartScreen else { return }
                 self.drawGrid()
@@ -7073,6 +7105,7 @@ final class GameScene: SKScene {
                 y: -chipSize.height / 2 - CGFloat(i) * (chipSize.height + rowGap)
             )
             btn.zPosition = 1
+            btn.setWellShaderEnabled(false)
             dropdown.addChild(btn)
         }
 
@@ -7130,6 +7163,7 @@ final class GameScene: SKScene {
     private func closeGameOverflowMenu(resumeTimer: Bool = true) {
         childNode(withName: Self.bottomMenuContainerName)?
             .childNode(withName: Self.hudGameMenuDropdownName)?.isHidden = true
+        setOverflowMenuDropdownShadersEnabled(false)
         if resumeTimer { resumeStageTimerForChrome() }
     }
 
@@ -7137,10 +7171,19 @@ final class GameScene: SKScene {
         guard let drop = childNode(withName: Self.bottomMenuContainerName)?
             .childNode(withName: Self.hudGameMenuDropdownName) else { return }
         drop.isHidden.toggle()
+        setOverflowMenuDropdownShadersEnabled(!drop.isHidden)
         if drop.isHidden {
             resumeStageTimerForChrome()
         } else {
             pauseStageTimerForChrome()
+        }
+    }
+
+    private func setOverflowMenuDropdownShadersEnabled(_ enabled: Bool) {
+        guard let drop = childNode(withName: Self.bottomMenuContainerName)?
+            .childNode(withName: Self.hudGameMenuDropdownName) else { return }
+        for child in drop.children {
+            (child as? BlomixSKButtonNode)?.setWellShaderEnabled(enabled)
         }
     }
 
@@ -7770,7 +7813,16 @@ final class GameScene: SKScene {
     /// Principe : une texture 1D encode les 6 couleurs du skin en un dégradé continu (avec wrap).
     /// Trois coordonnées de sample glissent dans des directions différentes, créant à tout instant
     /// un mélange de ~3 couleurs qui évolue en continu.
+    private static var magixShaderCache: [String: SKShader] = [:]
+    private static let magixTimeOffsetAttributeName = "a_timeOffset"
+
+    private static func attachMagixPaletteShader(to sprite: SKSpriteNode, timeOffset: Float = 0) {
+        sprite.shader = makeMagixPaletteShader()
+        sprite.setValue(SKAttributeValue(float: timeOffset), forAttribute: magixTimeOffsetAttributeName)
+    }
+
     private static func makeMagixPaletteShader(timeOffset: Float = 0.0) -> SKShader {
+        _ = timeOffset
         // Les couleurs de la palette sont intégrées directement dans le source GLSL
         // pour éviter tout problème de mapping de sampler (SpriteKit peut remapper
         // les uniformes de type texture sur la texture du sprite).
@@ -7780,6 +7832,8 @@ final class GameScene: SKScene {
                SKColor.yellow, SKColor(red: 0.6, green: 0, blue: 0.9, alpha: 1), SKColor.orange]
             : uiColors
         let n = safeColors.count
+        let cacheKey = "\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)"
+        if let cached = magixShaderCache[cacheKey] { return cached }
 
         // Convertit une SKColor en littéral vec3 GLSL.
         func v3(_ c: SKColor) -> String {
@@ -7818,7 +7872,7 @@ final class GameScene: SKScene {
         void main(){
             vec2 uv=v_tex_coord;
             // t pilote le cycle couleur (lent) ; la position dans la palette avance doucement.
-            float t=u_time*0.09+\(String(format: "%.4f", timeOffset));
+            float t=u_time*0.09+a_timeOffset;
             // 3 couleurs equidistantes dans la palette — toujours 3 teintes distinctes.
             vec3 c1=mgxPal(t);
             vec3 c2=mgxPal(t+0.333);
@@ -7837,8 +7891,12 @@ final class GameScene: SKScene {
             gl_FragColor=vec4(col*ring*a,a);
         }
         """
-        // Aucun uniforme personnalisé : les couleurs sont compilées dans le shader.
-        return SKShader(source: src)
+        let shader = SKShader(source: src)
+        shader.attributes = [
+            SKAttribute(name: magixTimeOffsetAttributeName, type: .float)
+        ]
+        magixShaderCache[cacheKey] = shader
+        return shader
     }
 
     /// Cache halo disques de ranking (rayon 30, spread 12), une entrée par mode d'apparence.
@@ -7973,7 +8031,7 @@ final class GameScene: SKScene {
         sprite.color            = .white
         sprite.size             = size
         sprite.blendMode        = .alpha
-        sprite.shader           = makeMagixPaletteShader()
+        Self.attachMagixPaletteShader(to: sprite, timeOffset: 0)
 
         // ── Halo dégradé radial (glow) — blanc en sombre, noir en clair ────────
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)

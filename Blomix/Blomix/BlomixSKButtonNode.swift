@@ -224,8 +224,17 @@ final class BlomixSKButtonNode: SKNode {
     }
 
     func refreshSkinGradient() {
-        BlomixSkinGradient.invalidateShaderCache()
         BlomixSkinGradient.refreshWellNode(self, timeOffset: wellTimeOffset)
+    }
+
+    /// Retire le shader GPU des puits invisibles (dropdown ☰ fermé).
+    func setWellShaderEnabled(_ enabled: Bool) {
+        guard let fill = wellNode?.childNode(withName: "blomixWellFill") as? SKSpriteNode else { return }
+        if enabled {
+            BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+        } else {
+            fill.shader = nil
+        }
     }
 
     func refreshChrome() {

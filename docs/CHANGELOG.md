@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.0] — 2026-09
 
-Build **132**. Soumission commerciale (6.10 était en vente).
+Build **132**. En review (6.10 était en vente). Binaire 131 retiré (jetsam chrome GPU).
 
 ### Modifié
 - **Arcade** : le bonus grille vide (+500) passe par le multiplicateur de stage (comme SAINTX).

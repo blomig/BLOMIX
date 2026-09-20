@@ -1,7 +1,7 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 7.0 (local)  
+> **Version de référence** : 7.1 (local)  
 > **Dernière revue** : août 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
@@ -204,6 +204,13 @@ BlomixPvPAvailablePlayersViewController.loadAvailablePlayers()
 ```
 
 Un joueur **en match** (`inMatch == 1`) apparaît dans la liste avec le badge « En match » — le bouton « Défier » est absent.
+
+### Accueil — pastille Duel (7.1)
+
+Même query que la liste (heartbeat 5 min, pas soi, **y compris `inMatch`**).  
+`startHomePresencePolling()` tant que l’écran d’accueil est visible (8 s, indépendant du toggle local).  
+Si `hasVisibleAvailablePeers` : icône `person.fill` verte qui respire **à droite du libellé Duel**, dans la capsule.  
+Stop : quitter l’accueil, `setActiveMatch(true)`, `willResignActive`. Pas de schéma CloudKit nouveau.
 
 ### Phase 3 — Envoyer un défi (challenger)
 

@@ -1,4 +1,3 @@
-• Arcade: el +500 de tablero vacío se multiplica por el stage
-• Paleta Alea más viva (amarillos, naranjas); la cifra de los Brix se lee bien
-• Inicio: BLOMIX aterriza con destellos en cada letra
-• Títulos de Puntuación y Multijugador en hueco; «OK para ser retado» en el mismo estilo
+• Desafío del día: la misma partida Arcade para todos, una vez al día
+• Clasificación del día en el hub, puntos de podio al día siguiente
+• Inicio: un muñeco verde respira en Duelo si hay jugadores en Jugadores disponibles

@@ -298,6 +298,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "whatsnew.empty_grid" = "Arcade: il +500 di griglia vuota è moltiplicato per lo stage";
 "whatsnew.alea" = "Palette Alea più vivida; la cifra dei Brix resta leggibile";
 "whatsnew.punch" = "Home: BLOMIX atterra con scintille su ogni lettera";
+"whatsnew.duel_presence" = "Home: omino verde su Duel se ci sono giocatori in Giocatori disponibili";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */
@@ -398,3 +399,20 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "guide.section.score.body" = "Catene: 5 punti per una catena di 5 blox, fino a 20 per una catena molto lunga. +10 per una catena in cascata.\nColonna vuota: +10. Griglia del tutto vuota: +500 (Arcade/Zen, senza ×livello).";
 "guide.section.duel.title" = "Duello";
 "guide.section.duel.body" = "Il numero grande e la barra sono il metro d’attacco (0…50): ogni 50 punti invia una riga all’altro giocatore.\nPiazzare una bomba congela il timer del turno.";
+
+/* Sfida del giorno */
+"start.daily" = "Sfida del giorno";
+"start.daily_ranking" = "Classifica della sfida";
+"start.hero_mode_daily" = "Continua";
+"rank_disc.daily" = "SFIDA";
+"leaderboard.daily_tab" = "Sfida";
+"daily.hub_title" = "Sfida del giorno";
+"daily.cta_play" = "Sfida!";
+"daily.cta_continue" = "Continua";
+"daily.cta_tomorrow" = "Torna domani";
+"daily.hub_empty" = "Nessun punteggio per oggi.";
+"daily.hub_error" = "Classifica di oggi non disponibile.";
+"daily.game_over_rank_format" = "Posizione n. %lld";
+"daily.game_over_rank_first" = "1° per ora";
+"daily.game_over_rank_unavailable" = "Posizione non disponibile";
+"daily.career_points_format" = "%lld pt";

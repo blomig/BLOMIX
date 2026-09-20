@@ -17,6 +17,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case averageScore
         case zenScore
         case elo
+        case dailyWins
     }
 
     var initialTab: InitialTab = .mainScore
@@ -53,6 +54,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case elo
         case averageScore
         case zenScore
+        case dailyWins
 
         var title: String {
             switch self {
@@ -60,6 +62,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .elo:          return BlomixL10n.leaderboardEloTab
             case .averageScore: return BlomixL10n.leaderboardAvgTab
             case .zenScore:     return BlomixL10n.leaderboardZenTab
+            case .dailyWins:    return BlomixL10n.leaderboardDailyTab
             }
         }
 
@@ -69,6 +72,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .elo:          return "elotype"
             case .averageScore: return ScoreManager.averageLeaderboardID
             case .zenScore:     return ScoreManager.zenLeaderboardID
+            case .dailyWins:    return ScoreManager.dailyLeaderboardID
             }
         }
 
@@ -78,6 +82,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .elo:          return "elotype"
             case .averageScore: return ScoreManager.averageLeaderboardID
             case .zenScore:     return ScoreManager.zenLeaderboardID
+            case .dailyWins:    return ScoreManager.dailyLeaderboardID
             }
         }
 
@@ -87,6 +92,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .elo:          return BlomixL10n.leaderboardElo(score)
             case .averageScore: return BlomixL10n.leaderboardAverage(score)
             case .zenScore:     return BlomixL10n.leaderboardPoints(score)
+            case .dailyWins:    return BlomixL10n.dailyCareerPoints(score)
             }
         }
     }
@@ -104,6 +110,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private let eloTabButton  = BlomixUIButton()
     private let avgTabButton  = BlomixUIButton()
     private let zenTabButton  = BlomixUIButton()
+    private let dailyTabButton = BlomixUIButton()
     private let statusLabel = UILabel()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let spinner = BlomixPvPSearchBlocksView()
@@ -160,6 +167,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case .averageScore: return .averageScore
         case .zenScore:     return .zenScore
         case .elo:          return .elo
+        case .dailyWins:    return .dailyWins
         }
     }
 
@@ -173,7 +181,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         view.addSubview(subtitleLabel)
 
         tabsStack.axis = .horizontal
-        tabsStack.spacing = 10
+        tabsStack.spacing = 6
         tabsStack.distribution = .fillEqually
         tabsStack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tabsStack)
@@ -182,18 +190,21 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         eloTabButton.setTitle(BlomixL10n.leaderboardEloTab,  for: .normal)
         avgTabButton.setTitle(BlomixL10n.leaderboardAvgTab,  for: .normal)
         zenTabButton.setTitle(BlomixL10n.leaderboardZenTab,  for: .normal)
-        [mainTabButton, eloTabButton, avgTabButton, zenTabButton].forEach {
+        dailyTabButton.setTitle(BlomixL10n.leaderboardDailyTab, for: .normal)
+        [mainTabButton, eloTabButton, avgTabButton, zenTabButton, dailyTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
-            BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8), to: $0)
+            BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4), to: $0)
         }
         mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
         eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
         avgTabButton.addTarget(self,  action: #selector(avgTabTapped),  for: .touchUpInside)
         zenTabButton.addTarget(self,  action: #selector(zenTabTapped),  for: .touchUpInside)
+        dailyTabButton.addTarget(self, action: #selector(dailyTabTapped), for: .touchUpInside)
         tabsStack.addArrangedSubview(mainTabButton)
         tabsStack.addArrangedSubview(eloTabButton)
         tabsStack.addArrangedSubview(avgTabButton)
         tabsStack.addArrangedSubview(zenTabButton)
+        tabsStack.addArrangedSubview(dailyTabButton)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -344,6 +355,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         switchToLeaderboard(.zenScore)
     }
 
+    @objc private func dailyTabTapped() {
+        switchToLeaderboard(.dailyWins)
+    }
+
     private func switchToLeaderboard(_ kind: LeaderboardKind) {
         guard selectedLeaderboardKind != kind else { return }
         selectedLeaderboardKind = kind
@@ -359,6 +374,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
         applyTabSelectionStyle(button: avgTabButton,  selected: selectedLeaderboardKind == .averageScore)
         applyTabSelectionStyle(button: zenTabButton,  selected: selectedLeaderboardKind == .zenScore)
+        applyTabSelectionStyle(button: dailyTabButton, selected: selectedLeaderboardKind == .dailyWins)
     }
 
     private func applyTabSelectionStyle(button: UIButton, selected: Bool) {

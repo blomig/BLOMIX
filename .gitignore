@@ -44,6 +44,14 @@ fastlane/screenshots/**/*.png
 fastlane/test_output/
 fastlane/metadata/.generated/
 
+# Captures ASC brutes / export (le README du dossier est versionné)
+store/asc-assets/inbox/**
+!store/asc-assets/inbox/.gitkeep
+store/asc-assets/out/
+
+# Diagnostics iPhone (Jetsam / panic) — ne pas versionner
+**/Bug_jetsam/
+
 # Éditeurs / IDE
 .idea/
 .vscode/

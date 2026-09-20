@@ -310,6 +310,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "whatsnew.empty_grid" = "Arcade: der +500-Bonus für leeres Feld wird mit dem Stage multipliziert";
 "whatsnew.alea" = "Alea-Palette kräftiger; Brix-Ziffern bleiben lesbar";
 "whatsnew.punch" = "Start: BLOMIX setzt mit Funkeln auf jedem Buchstaben auf";
+"whatsnew.duel_presence" = "Start: grünes Männchen auf Duell, wenn Spieler unter Verfügbare Spieler sind";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */
@@ -410,3 +411,20 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "guide.section.score.body" = "Ketten: 5 Punkte für eine Kette aus 5 Blox, bis zu 20 für eine sehr lange Kette. +10 für eine Kaskadenkette.\nLeere Spalte: +10. Komplett leeres Feld: +500 (Arcade/Zen, ohne Stufenmultiplikator).";
 "guide.section.duel.title" = "Duell";
 "guide.section.duel.body" = "Die große Zahl und der Balken sind der Angriffsmesser (0…50): alle 50 Punkte geht eine Reihe an den Gegner.\nEine Bombe zu legen hält deinen Zug-Timer an.";
+
+/* Tägliche Challenge */
+"start.daily" = "Tägliche Challenge";
+"start.daily_ranking" = "Challenge-Rangliste";
+"start.hero_mode_daily" = "Weiter";
+"rank_disc.daily" = "TAG";
+"leaderboard.daily_tab" = "Tag";
+"daily.hub_title" = "Tägliche Challenge";
+"daily.cta_play" = "Challenge!";
+"daily.cta_continue" = "Weiter";
+"daily.cta_tomorrow" = "Komm morgen wieder";
+"daily.hub_empty" = "Heute noch keine Punkte.";
+"daily.hub_error" = "Die Rangliste von heute ist nicht verfügbar.";
+"daily.game_over_rank_format" = "Rang #%lld";
+"daily.game_over_rank_first" = "Vorläufig 1.";
+"daily.game_over_rank_unavailable" = "Rang nicht verfügbar";
+"daily.career_points_format" = "%lld Pkt.";

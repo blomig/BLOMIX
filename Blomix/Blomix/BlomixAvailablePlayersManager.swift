@@ -100,6 +100,9 @@ final class BlomixAvailablePlayersManager {
     /// le temps que la suppression CloudKit se propage.
     private var challengeSuppressTimer:   Timer?
     private var isSetup                   = false
+    /// Accueil : au moins un pair visible dans la liste « Joueurs disponibles ».
+    private(set) var hasVisibleAvailablePeers = false
+    private var homePresenceTimer: Timer?
 
     /// Positionné à true quand une partie PvP est active — suspend la bannière de défi entrant.
     /// Mis à jour par GameScene via `setActiveMatch(_:)`.
@@ -118,6 +121,7 @@ final class BlomixAvailablePlayersManager {
             // Suspension du polling pendant la partie pour économiser les ressources et
             // éviter les bannières intempestives.
             stopChallengePolling()
+            stopHomePresencePolling()
         } else {
             // Reprise du polling dès la fin de partie, si le joueur est toujours disponible.
             if isAvailableForChallenge {
@@ -164,6 +168,7 @@ final class BlomixAvailablePlayersManager {
         // si le joueur quitte vraiment l'app sans la rouvrir.
         stopHeartbeat()
         stopChallengePolling()
+        stopHomePresenceTimer()
     }
 
     @objc private func handleBecomeActive() {
@@ -219,7 +224,9 @@ final class BlomixAvailablePlayersManager {
             guard let self else { return }
             let challenge: BlomixIncomingChallenge?
             do {
-                (_, challenge) = try await self.fetchAvailablePlayersAndChallenge()
+                let players: [BlomixAvailablePlayer]
+                (players, challenge) = try await self.fetchAvailablePlayersAndChallenge()
+                self.setHasVisibleAvailablePeers(!players.isEmpty)
             } catch {
                 BlomixPublicCloudGate.shared.noteError(error)
                 print("[Available] poll error: \(error.localizedDescription)")
@@ -433,6 +440,49 @@ final class BlomixAvailablePlayersManager {
             }
             self.publicDB.add(op)
         }
+    }
+
+    // MARK: - Présence accueil (pastille Duel)
+
+    /// Poll CloudKit tant que l’accueil est visible — indépendant du toggle « OK pour être défié ».
+    func startHomePresencePolling() {
+        stopHomePresenceTimer()
+        Task { @MainActor [weak self] in await self?.refreshHomePresence() }
+        let t = Timer.scheduledTimer(withTimeInterval: 8, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in await self?.refreshHomePresence() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        homePresenceTimer = t
+    }
+
+    func stopHomePresencePolling() {
+        stopHomePresenceTimer()
+    }
+
+    private func stopHomePresenceTimer() {
+        homePresenceTimer?.invalidate()
+        homePresenceTimer = nil
+    }
+
+    private func refreshHomePresence() async {
+        guard !isInActiveMatch else { return }
+        if BlomixPublicCloudGate.shared.isBlocked { return }
+        guard GKLocalPlayer.local.isAuthenticated else {
+            setHasVisibleAvailablePeers(false)
+            return
+        }
+        do {
+            let (players, _) = try await fetchAvailablePlayersAndChallenge()
+            setHasVisibleAvailablePeers(!players.isEmpty)
+        } catch {
+            // On conserve le dernier état (évite un clignotement sur erreur réseau).
+        }
+    }
+
+    private func setHasVisibleAvailablePeers(_ on: Bool) {
+        guard hasVisibleAvailablePeers != on else { return }
+        hasVisibleAvailablePeers = on
+        NotificationCenter.default.post(name: .blomixAvailablePresenceChanged, object: nil)
     }
 
     // MARK: - Fetch

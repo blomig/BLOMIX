@@ -235,6 +235,10 @@ Sauvegarde automatique à la mise en arrière-plan (reprise : voir [PROJECT_CONT
 
 Sans timer, sans stages, bombes **3×3** uniquement. Classement Game Center dédié (`ZenMode`). Multiplicateur ×1.
 
+### Défi du jour
+
+Même accélération qu’**Arcade** (timer, stages, bombe, Magix). Tout le monde joue la **même file** ce jour-là (UTC) : blox, Magix, lignes des 10. Une seule partie par jour. Le score compte **aussi** comme une partie Arcade (meilleur score + moyenne). Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **le lendemain**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+
 ### Duel (1 vs 1)
 
 Via **Game Center** (en ligne) ou **Multipeer** (Local) :
@@ -274,7 +278,9 @@ Le jeu se termine quand :
 - Une ligne entrante (ou d’attaque) provoque un débordement (colonne pleine)
 - En Arcade, le timer expire alors qu’aucune colonne n’est jouable
 
-L'écran affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
+L'écran Arcade / Zen affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
+
+En **Défi du jour** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer.
 
 ---
 

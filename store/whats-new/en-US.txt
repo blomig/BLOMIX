@@ -1,4 +1,3 @@
-• Arcade: the +500 empty-board bonus is multiplied by the stage
-• Alea palette is more vivid (yellows, oranges); Brix digits stay readable
-• Home: BLOMIX lands with sparkles on each letter
-• Score and Multiplayer titles use the same well as BLOMIX; “OK to be challenged” matches
+• Daily Challenge: the same Arcade game for everyone, once a day
+• Today's ranking in the hub, podium points the next day
+• Home: a green person icon breathes on Duel when players are in Available Players

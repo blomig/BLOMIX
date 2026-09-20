@@ -310,6 +310,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "whatsnew.empty_grid" = "Arcade: the +500 empty-board bonus is multiplied by the stage";
 "whatsnew.alea" = "Alea palette is more vivid; Brix digits stay readable";
 "whatsnew.punch" = "Home: BLOMIX lands with sparkles on each letter";
+"whatsnew.duel_presence" = "Home: a green person on Duel when players are in Available Players";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */
@@ -410,3 +411,20 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "guide.section.score.body" = "Chains: 5 points for a chain of 5 blox, up to 20 for a very long chain. +10 for a cascade chain.\nCleared column: +10. Fully empty board: +500 (Arcade/Zen, no stage multiplier).";
 "guide.section.duel.title" = "Duel";
 "guide.section.duel.body" = "The big number and the bar are the attack meter (0…50): every 50 points sends a line to the other player.\nPlacing a bomb freezes your turn timer.";
+
+/* Daily Challenge */
+"start.daily" = "Daily Challenge";
+"start.daily_ranking" = "Challenge ranking";
+"start.hero_mode_daily" = "Continue";
+"rank_disc.daily" = "DAY";
+"leaderboard.daily_tab" = "Day";
+"daily.hub_title" = "Daily Challenge";
+"daily.cta_play" = "Challenge!";
+"daily.cta_continue" = "Continue";
+"daily.cta_tomorrow" = "Come back tomorrow";
+"daily.hub_empty" = "No scores yet today.";
+"daily.hub_error" = "Today's ranking is unavailable.";
+"daily.game_over_rank_format" = "Rank #%lld";
+"daily.game_over_rank_first" = "1st for now";
+"daily.game_over_rank_unavailable" = "Rank unavailable";
+"daily.career_points_format" = "%lld pts";

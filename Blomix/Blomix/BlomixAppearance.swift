@@ -335,9 +335,10 @@ enum BlomixAppearance {
     static func chromeSymbolTexture(
         systemName: String,
         pointSize: CGFloat = 22,
-        canvasSide: CGFloat = 32
+        canvasSide: CGFloat = 32,
+        tint: UIColor? = nil
     ) -> SKTexture {
-        let glyph = primaryText
+        let glyph = tint ?? primaryText
         let config = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .medium)
         let base = UIImage(systemName: systemName, withConfiguration: config)
             ?? UIImage(systemName: "circle.fill", withConfiguration: config)

@@ -69,6 +69,9 @@
 		100000000000000000000283 /* BlomixGuideIllustrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000282 /* BlomixGuideIllustrationView.swift */; };
 		100000000000000000000291 /* BlomixReviewPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000290 /* BlomixReviewPrompt.swift */; };
 		1000000000000000000002B1 /* BlomixWhatsNew.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002B0 /* BlomixWhatsNew.swift */; };
+		1000000000000000000002E1 /* BlomixDailyRNG.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E0 /* BlomixDailyRNG.swift */; };
+		1000000000000000000002E3 /* BlomixDailyChallenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E2 /* BlomixDailyChallenge.swift */; };
+		1000000000000000000002E5 /* BlomixDailyHubViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E4 /* BlomixDailyHubViewController.swift */; };
 		10000000000000000000021C /* tips_of_day.json in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* tips_of_day.json */; };
 		10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* BlomixAvailablePlayersManager.swift */; };
 		100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* BlomixSKButtonNode.swift */; };
@@ -170,6 +173,9 @@
 		100000000000000000000282 /* BlomixGuideIllustrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixGuideIllustrationView.swift; sourceTree = "<group>"; };
 		100000000000000000000290 /* BlomixReviewPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixReviewPrompt.swift; sourceTree = "<group>"; };
 		1000000000000000000002B0 /* BlomixWhatsNew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixWhatsNew.swift; sourceTree = "<group>"; };
+		1000000000000000000002E0 /* BlomixDailyRNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyRNG.swift; sourceTree = "<group>"; };
+		1000000000000000000002E2 /* BlomixDailyChallenge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyChallenge.swift; sourceTree = "<group>"; };
+		1000000000000000000002E4 /* BlomixDailyHubViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyHubViewController.swift; sourceTree = "<group>"; };
 		10000000000000000000021A /* en */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = en; path = en.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000021B /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = fr; path = fr.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000021F /* BlomixAvailablePlayersManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAvailablePlayersManager.swift; sourceTree = "<group>"; };
@@ -263,6 +269,9 @@
 				100000000000000000000282 /* BlomixGuideIllustrationView.swift */,
 				100000000000000000000290 /* BlomixReviewPrompt.swift */,
 				1000000000000000000002B0 /* BlomixWhatsNew.swift */,
+				1000000000000000000002E0 /* BlomixDailyRNG.swift */,
+				1000000000000000000002E2 /* BlomixDailyChallenge.swift */,
+				1000000000000000000002E4 /* BlomixDailyHubViewController.swift */,
 				1000000000000000000001C0 /* BlomixTypography.swift */,
 				100000000000000000000241 /* BlomixAppearance.swift */,
 				100000000000000000000250 /* BlomixShareComposer.swift */,
@@ -529,6 +538,9 @@
 				100000000000000000000283 /* BlomixGuideIllustrationView.swift in Sources */,
 				100000000000000000000291 /* BlomixReviewPrompt.swift in Sources */,
 				1000000000000000000002B1 /* BlomixWhatsNew.swift in Sources */,
+				1000000000000000000002E1 /* BlomixDailyRNG.swift in Sources */,
+				1000000000000000000002E3 /* BlomixDailyChallenge.swift in Sources */,
+				1000000000000000000002E5 /* BlomixDailyHubViewController.swift in Sources */,
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
 				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
 				100000000000000000000251 /* BlomixShareComposer.swift in Sources */,
@@ -753,7 +765,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -763,7 +775,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.0;
+				MARKETING_VERSION = 7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -784,7 +796,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/BlomixRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 132;
+				CURRENT_PROJECT_VERSION = 133;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -794,7 +806,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.0;
+				MARKETING_VERSION = 7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

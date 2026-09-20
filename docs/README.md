@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 7.0 (local)  
+> **Version de référence** : 7.1 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -14,6 +14,8 @@
 |---|---|
 | [RULES.md](RULES.md) | Règles du jeu (mécaniques, scoring, modes) |
 | [MAGIX.md](MAGIX.md) | Catalogue Magix en jeu + pistes non codées |
+| [MODE_PISTES.md](MODE_PISTES.md) | Pistes de 4ᵉ mode (Contrats, Graine du jour, Marée, Poche Magix, Duo, Atelier) |
+| [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md) | Défi du jour — graine UTC, hub, CloudKit, points podium |
 | [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Juice Spec : animations, particules, sons, timings |
 | [GLOSSARY.md](GLOSSARY.md) | Terminologie canonique (code ↔ joueur ↔ UI) |
 
@@ -46,6 +48,7 @@
 **Modes principaux :**
 - **Solo stagé** — timer par coup, multiplicateur de score progressif (6 stages)
 - **Zen** — sans timer ni stages, classement dédié
+- **Défi du jour** — même Arcade, file seedée UTC, 1 run / jour
 - **PvP** — 1 vs 1 via Game Center, RNG partagé, attaques par paliers de score
 - **Tutoriel** — séquence guidée au premier lancement
 

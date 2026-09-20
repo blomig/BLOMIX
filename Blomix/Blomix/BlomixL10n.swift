@@ -42,6 +42,9 @@ enum BlomixL10n {
     static var startAbandonSaveConfirm: String { tr("start.abandon_save_confirm", comment: "Home — proceed anyway") }
     static var startHeroModeArcade: String { tr("start.hero_mode_arcade", comment: "Tiny subtitle under Continuer") }
     static var startHeroModeZen: String { tr("start.hero_mode_zen", comment: "Tiny subtitle under Continuer") }
+    static var startDaily: String { tr("start.daily", comment: "Home hero — Daily Challenge") }
+    static var startDailyRanking: String { tr("start.daily_ranking", comment: "Home hero after finishing today's challenge") }
+    static var startHeroModeDaily: String { tr("start.hero_mode_daily", comment: "Tiny subtitle under Daily chip when a run is in progress") }
     static var homeIconSettings: String { tr("home.icon.settings", comment: "8pt caption under home settings icon") }
     static var homeIconTutorial: String { tr("home.icon.tutorial", comment: "8pt caption under home tutorial icon") }
     static var homeIconTheme: String { tr("home.icon.theme", comment: "8pt caption under home theme toggle") }
@@ -214,6 +217,7 @@ enum BlomixL10n {
     static var leaderboardEloTab:  String { tr("leaderboard.elo_tab",  comment: "Elo leaderboard tab") }
     static var leaderboardAvgTab:  String { tr("leaderboard.avg_tab",  comment: "Average score leaderboard tab") }
     static var leaderboardZenTab:  String { tr("leaderboard.zen_tab",  comment: "Zen mode leaderboard tab") }
+    static var leaderboardDailyTab: String { tr("leaderboard.daily_tab", comment: "Daily challenge career points tab") }
     static func leaderboardAverage(_ score: Int) -> String {
         String(format: tr("leaderboard.avg_format", comment: "Row secondary for avg leaderboard; %lld = avg score"), score)
     }
@@ -517,6 +521,28 @@ enum BlomixL10n {
     static var rankDiscAvg: String { tr("rank_disc.avg", comment: "Start screen rank disc — average score") }
     static var rankDiscZen: String { tr("rank_disc.zen", comment: "Start screen rank disc — zen mode") }
     static var rankDiscDuel: String { tr("rank_disc.duel", comment: "Start screen rank disc — Duel / Elo") }
+    static var rankDiscDaily: String { tr("rank_disc.daily", comment: "Start screen rank disc — daily career points") }
+
+    // MARK: - Défi du jour
+
+    static var dailyHubTitle: String { tr("daily.hub_title", comment: "Daily challenge hub title") }
+    static var dailyCTAPlay: String { tr("daily.cta_play", comment: "Hub CTA — start today's run") }
+    static var dailyCTAContinue: String { tr("daily.cta_continue", comment: "Hub CTA — resume today's run") }
+    static var dailyCTATomorrow: String { tr("daily.cta_tomorrow", comment: "Hub CTA after finishing — greyed") }
+    static var dailyHubEmpty: String { tr("daily.hub_empty", comment: "No CloudKit scores yet today") }
+    static var dailyHubError: String { tr("daily.hub_error", comment: "CloudKit ranking unavailable") }
+    static func dailyGameOverRank(_ rank: Int) -> String {
+        String(format: tr("daily.game_over_rank_format", comment: "Live rank on daily GO; %lld = rank"), rank)
+    }
+    static var dailyGameOverRankFirst: String {
+        tr("daily.game_over_rank_first", comment: "Daily GO when player is currently 1st")
+    }
+    static var dailyGameOverRankUnavailable: String {
+        tr("daily.game_over_rank_unavailable", comment: "Daily GO when CloudKit rank failed")
+    }
+    static func dailyCareerPoints(_ points: Int) -> String {
+        String(format: tr("daily.career_points_format", comment: "GC tab secondary; %lld = career podium points"), points)
+    }
 
     // MARK: - Tutoriel interactif
     static var menuTutorial: String { tr("menu.tutorial", comment: "Tutorial button on home screen and overflow menu") }
@@ -674,6 +700,7 @@ enum BlomixL10n {
     static var whatsNewEmptyGrid: String { tr("whatsnew.empty_grid", comment: "7.0 — empty-board 500 × Arcade stage") }
     static var whatsNewAlea: String { tr("whatsnew.alea", comment: "7.0 — vivid random palette, readable Brix digit") }
     static var whatsNewPunch: String { tr("whatsnew.punch", comment: "7.0 — BLOMIX punch sparkles on home") }
+    static var whatsNewDuelPresence: String { tr("whatsnew.duel_presence", comment: "7.1 — green person badge on Duel when peers are listed") }
     static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
 
     // MARK: - Generic

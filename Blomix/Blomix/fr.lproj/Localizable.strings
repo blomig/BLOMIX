@@ -323,6 +323,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "whatsnew.empty_grid" = "Arcade : le +500 grille vide est multiplié par le stage";
 "whatsnew.alea" = "Palette Alea plus vive ; le chiffre des Brix reste lisible";
 "whatsnew.punch" = "Accueil : BLOMIX se pose avec des paillettes à chaque lettre";
+"whatsnew.duel_presence" = "Accueil : un bonhomme vert sur Duel si des joueurs sont dans Joueurs disponibles";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */
@@ -423,3 +424,20 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "guide.section.score.body" = "Chaînes : 5 points pour une chaîne de 5 blox, et jusqu’à 20 points pour une chaîne très longue. +10 pour une chaîne en cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen, hors ×stage).";
 "guide.section.duel.title" = "Duel";
 "guide.section.duel.body" = "Le gros chiffre et la barre sont le mètre d’attaque (0…50) : tous les 50 points, ça envoie une ligne à l’autre joueur.\nPlacer une bombe gèle votre timer de tour.";
+
+/* Défi du jour */
+"start.daily" = "Défi du jour";
+"start.daily_ranking" = "Classement du défi";
+"start.hero_mode_daily" = "Continuer";
+"rank_disc.daily" = "DÉFI";
+"leaderboard.daily_tab" = "Défi";
+"daily.hub_title" = "Défi du jour";
+"daily.cta_play" = "Défi !";
+"daily.cta_continue" = "Continuer";
+"daily.cta_tomorrow" = "Revenez demain";
+"daily.hub_empty" = "Aucun score pour l’instant.";
+"daily.hub_error" = "Classement du jour indisponible.";
+"daily.game_over_rank_format" = "Rang n°%lld";
+"daily.game_over_rank_first" = "1er pour l’instant";
+"daily.game_over_rank_unavailable" = "Rang indisponible";
+"daily.career_points_format" = "%lld pts";

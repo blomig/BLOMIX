@@ -12,7 +12,7 @@ import UIKit
 @MainActor
 enum BlomixWhatsNew {
     /// Identifiant de cette note (pas seulement MARKETING_VERSION : 6.6 sans note ne réaffiche pas).
-    static let campaignID = "7.0_arcade_alea_home"
+    static let campaignID = "7.1_duel_presence"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Fermeture Ok : ne plus montrer jusqu’au prochain cold start.
@@ -39,7 +39,7 @@ enum BlomixWhatsNew {
     }
 }
 
-/// Dialogue changelog 7.0 : voile + panneau Sombre/Clair.
+/// Dialogue changelog 7.1 : voile + panneau Sombre/Clair.
 @MainActor
 final class BlomixWhatsNewDialogView: UIView {
 
@@ -98,9 +98,7 @@ final class BlomixWhatsNewDialogView: UIView {
         title.numberOfLines = 0
         title.translatesAutoresizingMaskIntoConstraints = false
 
-        let emptyGridRow = makeFactRow(text: BlomixL10n.whatsNewEmptyGrid, magix: nil)
-        let aleaRow = makeFactRow(text: BlomixL10n.whatsNewAlea, magix: nil)
-        let punchRow = makeFactRow(text: BlomixL10n.whatsNewPunch, magix: nil)
+        let presenceRow = makeFactRow(text: BlomixL10n.whatsNewDuelPresence, magix: nil)
 
         let okButton = makeButton(title: BlomixL10n.ok, isSecondary: false)
         okButton.addTarget(self, action: #selector(okTapped), for: .touchUpInside)
@@ -112,7 +110,7 @@ final class BlomixWhatsNewDialogView: UIView {
         buttons.spacing = 10
         buttons.translatesAutoresizingMaskIntoConstraints = false
 
-        let facts = UIStackView(arrangedSubviews: [emptyGridRow, aleaRow, punchRow])
+        let facts = UIStackView(arrangedSubviews: [presenceRow])
         facts.axis = .vertical
         facts.spacing = 14
         facts.translatesAutoresizingMaskIntoConstraints = false

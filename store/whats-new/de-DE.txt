@@ -1,4 +1,3 @@
-• Arcade: der +500-Bonus für leeres Feld wird mit dem Stage multipliziert
-• Alea-Palette kräftiger (Gelb, Orange); Brix-Ziffern bleiben lesbar
-• Start: BLOMIX setzt mit Funkeln auf jedem Buchstaben auf
-• Titel von Score und Mehrspieler in der Vertiefung; „OK für Herausforderung“ im gleichen Stil
+• Tägliche Challenge: dasselbe Arcade-Spiel für alle, einmal pro Tag
+• Rangliste des Tages im Hub, Podiumspunkte am nächsten Tag
+• Start: ein grünes Männchen atmet auf Duell, wenn Spieler unter Verfügbare Spieler sind

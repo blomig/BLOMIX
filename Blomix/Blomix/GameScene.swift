@@ -38,6 +38,8 @@ extension Notification.Name {
     /// Publié quand un défi entrant est détecté dans CloudKit (polling global).
     /// userInfo: challengerGamePlayerID, challengerDisplayName, matchPlayerGroup.
     static let blomixIncomingChallengeDetected = Notification.Name("blomixIncomingChallengeDetected")
+    /// Publié quand la présence « Joueurs disponibles » (accueil / pastille Duel) change.
+    static let blomixAvailablePresenceChanged = Notification.Name("blomixAvailablePresenceChanged")
 }
 
 /// Gain appliqué à chaque `AVAudioPlayer` des bruitages de partie (le volume système reste celui de l’appareil).
@@ -901,6 +903,7 @@ final class GameScene: SKScene {
     private static let startScreenRankDiscAvgName        = "startScreenRankDiscAvg"
     private static let startScreenRankDiscZenName        = "startScreenRankDiscZen"
     private static let startScreenRankDiscDuelName       = "startScreenRankDiscDuel"
+    private static let startScreenRankDiscDailyName      = "startScreenRankDiscDaily"
     /// Suffixe ajouté au nom du disc pour nommer le SKLabelNode du rang (enfant direct de `discsContainer`).
     private static let rankDiscRankLabelSuffix           = "_rank"
     private static let rankDiscRankShadowSuffix          = "_rankShadow"
@@ -911,8 +914,14 @@ final class GameScene: SKScene {
     private static let startScreenPvPLabelName = "startScreenPvPLabel"
     private static let startScreenZenLabelName = "startScreenZenLabel"
     private static let startScreenStartChipName = "startScreenStartChip"
+    private static let startScreenDailyChipName = "startScreenDailyChip"
+    private static let startScreenDailyLabelName = "startScreenDailyLabel"
+    private static let startScreenDailySubtitleName = "startScreenDailySubtitle"
+    private static let gameOverDailyRankLabelName = "gameOverDailyRankLabel"
     private static let startScreenScoresChipName = "startScreenScoresChip"
     private static let startScreenPvPChipName = "startScreenPvPChip"
+    private static let startScreenPvPPresenceBadgeName = "startScreenPvPPresenceBadge"
+    private static let startScreenPvPPresenceBreatheKey = "pvpPresenceBreathe"
     private static let startScreenSettingsChipName = "startScreenSettingsChip"
     private static let startScreenZenChipName = "startScreenZenChip"
     private static let startScreenRulesLabelName = "startScreenRulesLabel"
@@ -1452,6 +1461,9 @@ final class GameScene: SKScene {
 
     private var isTutorialMode:       Bool          = false
     private var isZenMode:            Bool          = false
+    private var isDailyChallengeMode: Bool          = false
+    private var dailyLockedDay:       String?
+    private var dailyFileRNG:         BlomixDailyFileRNG?
     private var tutorialStep:         TutorialStep  = .intro
     private var tutorialStepDrops:    Int           = 0
     private var tutorialBombUnlocked: Bool          = false
@@ -1496,6 +1508,10 @@ final class GameScene: SKScene {
     nonisolated(unsafe) private var modalWillDismissObserver: NSObjectProtocol?
     /// Rejoue les animations d'accueil quand un modal se ferme vers l'écran d'accueil.
     nonisolated(unsafe) private var modalDismissObserver: NSObjectProtocol?
+    /// Pastille Duel : présence CloudKit « Joueurs disponibles ».
+    nonisolated(unsafe) private var availablePresenceObserver: NSObjectProtocol?
+    /// Relance le poll présence au retour foreground si l’accueil est visible.
+    nonisolated(unsafe) private var homePresenceForegroundObserver: NSObjectProtocol?
 
     deinit {
         if let observer = gameCenterAuthObserver {
@@ -1517,6 +1533,12 @@ final class GameScene: SKScene {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = modalDismissObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = availablePresenceObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = homePresenceForegroundObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -1591,6 +1613,8 @@ final class GameScene: SKScene {
             }
         }
         BlomixAvailablePlayersManager.shared.setup()
+        BlomixDailyChallenge.shared.setup()
+        registerAvailablePresenceObserverIfNeeded()
 
         stopStageTimer()
         isProcessing = false
@@ -1694,7 +1718,56 @@ final class GameScene: SKScene {
             blomixPvP_matchFailed(nil, userMessage: BlomixL10n.pvpConnectionFailedMessage)
             return .color("blue")
         }
+        if isDailyChallengeMode {
+            return consumeDailyFileBlock()
+        }
         return Self.randomNextPlayableBlock()
+    }
+
+    private func consumeDailyFileBlock() -> BlockType {
+        guard var rng = dailyFileRNG else { return Self.randomNextPlayableBlock() }
+        let block = Self.randomNextPlayableBlock(using: &rng)
+        dailyFileRNG = rng
+        return block
+    }
+
+    private func consumeDailyFileColorBlock() -> BlockType {
+        guard var rng = dailyFileRNG else { return Self.randomBottomLineColorOnlyBlock() }
+        let block = Self.randomBottomLineColorOnlyBlock(using: &rng)
+        dailyFileRNG = rng
+        return block
+    }
+
+    private static func randomNextPlayableBlock(using rng: inout BlomixDailyFileRNG) -> BlockType {
+        let r = rng.nextUnitDouble()
+        if r < MagixRules.spawnProbability {
+            var cumul = 0.0
+            var chosenKind: MagixKind = .chromax
+            for entry in MagixRules.spawnProbabilityByKind {
+                cumul += entry.p
+                if r < cumul { chosenKind = entry.kind; break }
+            }
+            return .magix(chosenKind)
+        }
+        if r < MagixRules.spawnProbability + PriksRules.spawnProbability {
+            return .priks(PriksRules.initialHitsRemaining)
+        }
+        return .color(rng.pick(colorPalette) ?? "red")
+    }
+
+    private static func randomBottomLineColorOnlyBlock(using rng: inout BlomixDailyFileRNG) -> BlockType {
+        .color(rng.pick(colorPalette) ?? "red")
+    }
+
+    private func makeDailyEffectRNG(event: String, at cell: GridAddress) -> BlomixDailyEffectRNG? {
+        guard isDailyChallengeMode, let seed = dailyFileRNG?.seed else { return nil }
+        return BlomixDailyEffectRNG(
+            daySeed: seed,
+            event: event,
+            moveCount: moveCount,
+            row: cell.row,
+            col: cell.col
+        )
     }
 
     private func nextTutorialBlock() -> BlockType {
@@ -1711,6 +1784,8 @@ final class GameScene: SKScene {
                 blomixPvP_matchFailed(nil, userMessage: BlomixL10n.pvpConnectionFailedMessage)
                 baseRow = (0..<GridLayout.columnCount).map { _ in BlockType.color("blue") }
             }
+        } else if isDailyChallengeMode {
+            baseRow = (0..<GridLayout.columnCount).map { _ in consumeDailyFileBlock() }
         } else {
             baseRow = Self.generateNextRandomLineRowIndependentCells()
         }
@@ -1718,10 +1793,13 @@ final class GameScene: SKScene {
         // Magix : jamais dans les lignes du bas (effet trop brutal), tous modes.
         // Brix (Priks) : exclus en tutoriel — la ligne des 10 arrive avant l'étape Brix ;
         // remplacer par un blox couleur (pas `randomNextPlayableBlock`, qui peut redonner un Brix/Magix).
+        // Défi : le remplacement Magix → couleur consomme la File (même suite pour tout le monde).
         row = row.map { block in
             switch block {
             case .magix:
-                return Self.randomBottomLineColorOnlyBlock()
+                return isDailyChallengeMode
+                    ? consumeDailyFileColorBlock()
+                    : Self.randomBottomLineColorOnlyBlock()
             case .priks where isTutorialMode:
                 return Self.randomBottomLineColorOnlyBlock()
             default:
@@ -2085,6 +2163,7 @@ final class GameScene: SKScene {
     /// Fond scène plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
     /// `playIntro` : poinçon wordmark uniquement à froid (splash). Retours GO / ☰ : entrée courte.
     private func presentStartScreen(playIntro: Bool = false) {
+        BlomixDailyChallenge.shared.claimPodiumIfNeeded()
         clearAutoDropAim()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
 
@@ -2122,10 +2201,13 @@ final class GameScene: SKScene {
         let catCanvases = [
             BlomixL10n.rankDiscSolo, BlomixL10n.rankDiscAvg,
             BlomixL10n.rankDiscZen, BlomixL10n.rankDiscDuel,
+            BlomixL10n.rankDiscDaily,
         ].map { BlomixButtonRelief.cutoutLayout(text: $0, fontSize: catFontSize, pad: catPad).canvas }
         let maxCatW = catCanvases.map(\.width).max() ?? discDiameter
         let maxCatH = catCanvases.map(\.height).max() ?? 16
-        let discStep = max(discDiameter + 10, rankCanvas.width + 8, maxCatW + 8)
+        let rawDiscStep = max(discDiameter + 6, rankCanvas.width + 4, maxCatW + 4)
+        let maxDiscRowW = size.width - 16
+        let discStep = min(rawDiscStep, (maxDiscRowW - discDiameter) / 4)
         let discBottomExtent = rankCanvas.height / 2 - rankPad + rankCatGap - catPad + maxCatH
 
         let iconSide: CGFloat = 44
@@ -2163,8 +2245,14 @@ final class GameScene: SKScene {
 
         let tipAnchorY = size.height * 0.10
         let pairFromTip: CGFloat = 64
+        let heroGap: CGFloat = 10
+        let newGameLinkSlack: CGFloat = {
+            if case .continueSave = startHeroKind() { return 16 }
+            return 0
+        }()
         var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2
-        var heroY = secondaryRowY + hChip / 2 + 18 + heroH / 2
+        var arcadeHeroY = secondaryRowY + hChip / 2 + 16 + newGameLinkSlack + heroH / 2
+        var dailyHeroY = arcadeHeroY + heroH / 2 + heroGap + heroH / 2
         let minSecondaryY = tipAnchorY + 40 + hChip / 2
 
         // ── Bande 1 : BLOMIX + tagline, de préférence au centre écran ──────────
@@ -2175,17 +2263,21 @@ final class GameScene: SKScene {
         let preferredTitleY = size.height * 0.5
 
         let heroTopMax = ranksBottom - minBandGap - titleBlockH - minBandGap
-        if heroY + heroH / 2 > heroTopMax {
-            heroY = heroTopMax - heroH / 2
-            secondaryRowY = heroY - heroH / 2 - 16 - hChip / 2
+        if dailyHeroY + heroH / 2 > heroTopMax {
+            let overflow = dailyHeroY + heroH / 2 - heroTopMax
+            dailyHeroY -= overflow
+            arcadeHeroY -= overflow
+            secondaryRowY -= overflow
             if secondaryRowY < minSecondaryY {
+                let lift = minSecondaryY - secondaryRowY
                 secondaryRowY = minSecondaryY
-                heroY = secondaryRowY + hChip / 2 + 16 + heroH / 2
+                arcadeHeroY += lift
+                dailyHeroY += lift
             }
         }
 
         let maxTitleY = ranksBottom - minBandGap - titleTopExtent
-        let minTitleY = heroY + heroH / 2 + minBandGap + subtitleBottomExtent
+        let minTitleY = dailyHeroY + heroH / 2 + minBandGap + subtitleBottomExtent
         let titleY: CGFloat
         if minTitleY <= maxTitleY {
             titleY = min(max(preferredTitleY, minTitleY), maxTitleY)
@@ -2228,10 +2320,11 @@ final class GameScene: SKScene {
         overlay.addChild(discsContainer)
 
         let discSpecs: [(name: String, category: String, x: CGFloat)] = [
-            (Self.startScreenRankDiscSoloName, BlomixL10n.rankDiscSolo, -1.5 * discStep),
-            (Self.startScreenRankDiscAvgName,  BlomixL10n.rankDiscAvg,  -0.5 * discStep),
-            (Self.startScreenRankDiscZenName,  BlomixL10n.rankDiscZen,   0.5 * discStep),
-            (Self.startScreenRankDiscDuelName, BlomixL10n.rankDiscDuel,  1.5 * discStep),
+            (Self.startScreenRankDiscSoloName,  BlomixL10n.rankDiscSolo,  -2.0 * discStep),
+            (Self.startScreenRankDiscAvgName,   BlomixL10n.rankDiscAvg,   -1.0 * discStep),
+            (Self.startScreenRankDiscZenName,   BlomixL10n.rankDiscZen,    0.0 * discStep),
+            (Self.startScreenRankDiscDuelName,  BlomixL10n.rankDiscDuel,   1.0 * discStep),
+            (Self.startScreenRankDiscDailyName, BlomixL10n.rankDiscDaily,  2.0 * discStep),
         ]
         for spec in discSpecs {
             let wrapper = SKNode()
@@ -2289,6 +2382,46 @@ final class GameScene: SKScene {
             heroTitle = BlomixL10n.startButton
             heroSubtitle = nil
         }
+        let dailyCTA = BlomixDailyChallenge.shared.hubCTA
+        let dailyTitle: String
+        let dailySubtitle: String?
+        switch dailyCTA {
+        case .play:
+            dailyTitle = BlomixL10n.startDaily
+            dailySubtitle = nil
+        case .resume:
+            dailyTitle = BlomixL10n.startDaily
+            dailySubtitle = BlomixL10n.startHeroModeDaily
+        case .finished:
+            dailyTitle = BlomixL10n.startDailyRanking
+            dailySubtitle = nil
+        }
+        let dailyChip = makeStartScreenButtonChip(
+            chipName: Self.startScreenDailyChipName,
+            labelName: Self.startScreenDailyLabelName,
+            text: dailyTitle,
+            chipSize: heroSize,
+            fontSize: heroFont
+        )
+        let heroAccent = Self.startScreenHeroAccentColor()
+        dailyChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
+        dailyChip.position = CGPoint(x: cx, y: dailyHeroY)
+        dailyChip.zPosition = 2
+        if let dailySubtitle {
+            dailyChip.labelNode?.position.y = 7
+            let sub = SKLabelNode(text: dailySubtitle)
+            sub.name = Self.startScreenDailySubtitleName
+            sub.fontName = Self.customUIFontPostScriptName
+            sub.fontSize = 9
+            sub.fontColor = BlomixAppearance.primaryTextSK
+            sub.horizontalAlignmentMode = .center
+            sub.verticalAlignmentMode = .center
+            sub.position = CGPoint(x: 0, y: -11)
+            sub.zPosition = 3
+            dailyChip.capsuleContentNode?.addChild(sub)
+        }
+        overlay.addChild(dailyChip)
+
         let startChip = makeStartScreenButtonChip(
             chipName: Self.startScreenStartChipName,
             labelName: Self.startScreenStartLabelName,
@@ -2296,9 +2429,8 @@ final class GameScene: SKScene {
             chipSize: heroSize,
             fontSize: heroFont
         )
-        let heroAccent = Self.startScreenHeroAccentColor()
         startChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
-        startChip.position = CGPoint(x: cx, y: heroY)
+        startChip.position = CGPoint(x: cx, y: arcadeHeroY)
         startChip.zPosition = 2
         if let heroSubtitle {
             startChip.labelNode?.position.y = 7
@@ -2323,7 +2455,7 @@ final class GameScene: SKScene {
             newGame.fontColor = BlomixAppearance.secondaryTextSK
             newGame.horizontalAlignmentMode = .center
             newGame.verticalAlignmentMode = .center
-            newGame.position = CGPoint(x: cx, y: heroY - heroH / 2 - 14)
+            newGame.position = CGPoint(x: cx, y: arcadeHeroY - heroH / 2 - 14)
             newGame.zPosition = 2
             overlay.addChild(newGame)
         }
@@ -2338,6 +2470,7 @@ final class GameScene: SKScene {
         pvpChip.position = CGPoint(x: cx - pairChipW / 2 - pairGap / 2, y: secondaryRowY)
         pvpChip.zPosition = 2
         overlay.addChild(pvpChip)
+        attachStartScreenPvPPresenceBadge(to: pvpChip, chipSize: pairChipSize)
 
         let zenChip = makeStartScreenButtonChip(
             chipName: Self.startScreenZenChipName,
@@ -2433,6 +2566,7 @@ final class GameScene: SKScene {
             newGameLink?.run(.sequence([.wait(forDuration: t + 0.28), .fadeIn(withDuration: 0.22)]))
             runStartScreenGameChipEntrance(on: pvpChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: zenChip, delay: t + 0.16)
+            runStartScreenGameChipEntrance(on: dailyChip, delay: t + 0.28)
             runStartScreenGameChipEntrance(on: startChip, delay: t + 0.28)
             tipContainer.run(.sequence([.wait(forDuration: t + 0.35), .fadeIn(withDuration: 0.5)]))
         } else {
@@ -2447,6 +2581,7 @@ final class GameScene: SKScene {
             iconRow.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.20)]))
             runStartScreenGameChipEntrance(on: pvpChip, delay: 0.06)
             runStartScreenGameChipEntrance(on: zenChip, delay: 0.06)
+            runStartScreenGameChipEntrance(on: dailyChip, delay: 0.10)
             runStartScreenGameChipEntrance(on: startChip, delay: 0.10)
             tipContainer.run(.sequence([.wait(forDuration: 0.40), .fadeIn(withDuration: 0.5)]))
         }
@@ -2458,6 +2593,9 @@ final class GameScene: SKScene {
         } else if playIntro {
             scheduleWhatsNewDialogAfterIntro()
         }
+
+        BlomixAvailablePlayersManager.shared.startHomePresencePolling()
+        refreshStartScreenPvPPresenceBadge()
     }
 
     /// Après le splash + poinçon + entrée chrome accueil. Ok = session ; Ne plus montrer = définitif.
@@ -2832,6 +2970,7 @@ final class GameScene: SKScene {
 
     private func continueSavedGameFromHome() {
         guard isStartScreen, let save = pendingHomeSave() else { return }
+        clearDailyChallengeSessionFlags()
         pvpSuspendedSoloSave = nil
         restoreFromSoloSave(save)
     }
@@ -2862,9 +3001,9 @@ final class GameScene: SKScene {
         BlomixSoloSaveManager.shared.clear()
     }
 
-    /// Zen / Duel depuis l’accueil : si une save Arcade ou Zen existe, confirmer qu’on l’abandonne.
-    private func confirmAbandonHomeSaveThen(_ action: @escaping () -> Void) {
-        guard isStartScreen, pendingHomeSave() != nil else {
+    /// Arcade / Zen / Duel : si un défi est en cours, confirmer l’abandon du slot daily.
+    private func confirmAbandonDailyRunThen(_ action: @escaping () -> Void) {
+        guard isStartScreen, BlomixDailyChallenge.shared.hasInProgressRun else {
             action()
             return
         }
@@ -2875,10 +3014,88 @@ final class GameScene: SKScene {
             message: BlomixL10n.startAbandonSaveMessage,
             actions: [
                 BlomixInAppDialogAction(title: BlomixL10n.startAbandonSaveConfirm) {
+                    BlomixDailyChallenge.shared.clearRun()
                     action()
                 },
             ]
         )
+    }
+
+    /// Zen / Duel depuis l’accueil : défi en cours d’abord, puis save Arcade ou Zen.
+    private func confirmAbandonHomeSaveThen(_ action: @escaping () -> Void) {
+        confirmAbandonDailyRunThen { [weak self] in
+            guard let self else { return }
+            guard self.isStartScreen, self.pendingHomeSave() != nil else {
+                action()
+                return
+            }
+            guard let host = self.view else { return }
+            BlomixInAppDialogView.presentChoices(
+                in: host,
+                title: BlomixL10n.startAbandonSaveTitle,
+                message: BlomixL10n.startAbandonSaveMessage,
+                actions: [
+                    BlomixInAppDialogAction(title: BlomixL10n.startAbandonSaveConfirm) {
+                        action()
+                    },
+                ]
+            )
+        }
+    }
+
+    private func clearDailyChallengeSessionFlags() {
+        isDailyChallengeMode = false
+        dailyLockedDay = nil
+        dailyFileRNG = nil
+    }
+
+    private func showDailyHub() {
+        let vc = BlomixDailyHubViewController()
+        vc.onPlay = { [weak self] in self?.beginDailyChallengeMatch() }
+        vc.onContinue = { [weak self] in self?.continueDailyChallengeFromHome() }
+        presentFullScreenModal(vc)
+    }
+
+    private func beginDailyChallengeMatch() {
+        guard isStartScreen else { return }
+        cancelGhostPreview()
+        let locked = BlomixDailyChallenge.shared.seedForNewRun()
+        dailyLockedDay = locked.day
+        dailyFileRNG = BlomixDailyFileRNG(seed: locked.seed)
+        isDailyChallengeMode = true
+        isZenMode = false
+        isTutorialMode = false
+        childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+        isStartScreen = false
+        BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
+        layoutGameCenterStatusLabel()
+        hapticSoft()
+
+        resetSessionModelForNewMatch()
+
+        addTopTitle()
+        setupBombHUD()
+        setupScoreHUD()
+        drawGrid()
+        updatePreviewSprite()
+        rebuildGameOverflowMenu()
+        setGameplayNodesHidden(false)
+
+        soundBank.play(.begin)
+        refreshGameCenterStatusLabelText()
+        NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+        if isInStagedSoloMode {
+            startStagedSoloSession()
+        }
+    }
+
+    private func continueDailyChallengeFromHome() {
+        guard isStartScreen, let run = BlomixDailyChallenge.shared.loadRun() else { return }
+        isDailyChallengeMode = true
+        isZenMode = false
+        dailyLockedDay = run.utcDay
+        dailyFileRNG = BlomixDailyFileRNG(seed: run.seed, state: run.fileRNGState)
+        restoreFromSoloSave(run.game)
     }
 
     /// Duel depuis l’accueil après accord : la save n’est plus reprise (le joueur a confirmé).
@@ -2891,6 +3108,9 @@ final class GameScene: SKScene {
         guard isStartScreen else { return }
 
         cancelGhostPreview()
+        if !isDailyChallengeMode {
+            clearDailyChallengeSessionFlags()
+        }
         // En mode tutoriel : on conserve la sauvegarde de la partie précédente (restaurée à la fin du tuto).
         if !isTutorialMode {
             BlomixSoloSaveManager.shared.clear()
@@ -2899,6 +3119,7 @@ final class GameScene: SKScene {
         }
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
+        BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
         layoutGameCenterStatusLabel()
         hapticSoft()
 
@@ -2928,11 +3149,13 @@ final class GameScene: SKScene {
         guard isStartScreen else { return }
 
         cancelGhostPreview()
+        clearDailyChallengeSessionFlags()
         BlomixSoloSaveManager.shared.clear()
         pvpSuspendedSoloSave = nil
         restoreSoloAfterPvP = false
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
+        BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
         layoutGameCenterStatusLabel()
         hapticSoft()
 
@@ -3067,6 +3290,10 @@ final class GameScene: SKScene {
 
     private func touchHitsStartButton(_ scenePoint: CGPoint) -> Bool {
         sceneHitRectForStartScreenChip(named: Self.startScreenStartChipName).contains(scenePoint)
+    }
+
+    private func touchHitsDailyButton(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForStartScreenChip(named: Self.startScreenDailyChipName).contains(scenePoint)
     }
 
     private func touchHitsStartScreenSettingsButton(_ scenePoint: CGPoint) -> Bool {
@@ -3317,6 +3544,7 @@ final class GameScene: SKScene {
             (ScoreManager.averageLeaderboardID, Self.startScreenRankDiscAvgName),
             (ScoreManager.zenLeaderboardID,     Self.startScreenRankDiscZenName),
             ("elotype",                         Self.startScreenRankDiscDuelName),
+            (ScoreManager.dailyLeaderboardID,   Self.startScreenRankDiscDailyName),
         ]
 
         for (_, discName) in specs {
@@ -3346,6 +3574,9 @@ final class GameScene: SKScene {
             // Closure NotificationCenter = @Sendable nonisolée ; redispatch MainActor.
             Task { @MainActor [weak self] in
                 self?.refreshGameCenterStatusLabelText()
+                if self?.isStartScreen == true {
+                    BlomixAvailablePlayersManager.shared.startHomePresencePolling()
+                }
             }
         }
     }
@@ -3366,6 +3597,87 @@ final class GameScene: SKScene {
                 self.refreshUpcomingQueueSlots()
                 self.refreshBombHudIcon()
             }
+        }
+    }
+
+    private func registerAvailablePresenceObserverIfNeeded() {
+        if availablePresenceObserver == nil {
+            availablePresenceObserver = NotificationCenter.default.addObserver(
+                forName: .blomixAvailablePresenceChanged,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.refreshStartScreenPvPPresenceBadge()
+                }
+            }
+        }
+        if homePresenceForegroundObserver == nil {
+            homePresenceForegroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self, self.isStartScreen else { return }
+                    BlomixAvailablePlayersManager.shared.startHomePresencePolling()
+                }
+            }
+        }
+    }
+
+    /// Bonhomme vert à droite du libellé Duel, dans la capsule, centré en hauteur.
+    private func attachStartScreenPvPPresenceBadge(to chip: SKNode, chipSize: CGSize) {
+        _ = chipSize
+        let host = (chip as? BlomixSKButtonNode)?.capsuleContentNode ?? chip
+        host.childNode(withName: Self.startScreenPvPPresenceBadgeName)?.removeFromParent()
+        chip.childNode(withName: Self.startScreenPvPPresenceBadgeName)?.removeFromParent()
+        let side: CGFloat = 13
+        let badge = SKSpriteNode(
+            texture: BlomixAppearance.chromeSymbolTexture(
+                systemName: "person.fill",
+                pointSize: 10,
+                canvasSide: side,
+                tint: UIColor(red: 0.20, green: 0.74, blue: 0.38, alpha: 1)
+            )
+        )
+        badge.name = Self.startScreenPvPPresenceBadgeName
+        badge.size = CGSize(width: side, height: side)
+        badge.zPosition = 20
+        badge.isHidden = true
+        host.addChild(badge)
+        refreshStartScreenPvPPresenceBadge()
+    }
+
+    private func refreshStartScreenPvPPresenceBadge() {
+        guard isStartScreen,
+              let overlay = childNode(withName: Self.startScreenOverlayName),
+              let btn = overlay.childNode(withName: Self.startScreenPvPChipName) as? BlomixSKButtonNode,
+              let label = btn.labelNode
+        else { return }
+        let host = btn.capsuleContentNode ?? btn
+        guard let badge = host.childNode(withName: Self.startScreenPvPPresenceBadgeName) as? SKSpriteNode
+        else { return }
+        let on = BlomixAvailablePlayersManager.shared.hasVisibleAvailablePeers
+        badge.removeAction(forKey: Self.startScreenPvPPresenceBreatheKey)
+        badge.isHidden = !on
+        let labelY: CGFloat = 1
+        if on {
+            let side = badge.size.width
+            let gap: CGFloat = 5
+            let textW = label.frame.width
+            let cluster = textW + gap + side
+            label.position = CGPoint(x: -cluster / 2 + textW / 2, y: labelY)
+            badge.position = CGPoint(x: cluster / 2 - side / 2, y: labelY)
+            badge.setScale(1)
+            let up = SKAction.scale(to: 1.16, duration: 0.70)
+            up.timingMode = .easeInEaseOut
+            let down = SKAction.scale(to: 1.00, duration: 0.70)
+            down.timingMode = .easeInEaseOut
+            badge.run(.repeatForever(.sequence([up, down])), withKey: Self.startScreenPvPPresenceBreatheKey)
+        } else {
+            label.position = CGPoint(x: 0, y: labelY)
+            badge.setScale(1)
         }
     }
 
@@ -3607,7 +3919,11 @@ final class GameScene: SKScene {
             return
         }
 
-        BlomixSoloSaveManager.shared.clear()
+        if isDailyChallengeMode, let day = dailyLockedDay {
+            BlomixDailyChallenge.shared.finishRun(day: day, score: score)
+        } else {
+            BlomixSoloSaveManager.shared.clear()
+        }
         isGameOver = true
         isProcessing = true
         stopStageTimer()
@@ -3643,6 +3959,10 @@ final class GameScene: SKScene {
     }
 
     private func presentGameOverOverlay(finalScore: Int) {
+        if isDailyChallengeMode {
+            presentDailyGameOverOverlay(finalScore: finalScore)
+            return
+        }
 
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
         let overlay = SKNode()
@@ -4050,13 +4370,163 @@ final class GameScene: SKScene {
         scheduleAppStoreReviewPromptIfNeeded()
     }
 
+    /// GO Défi : score + rang live + Accueil + Classement (hub). Pas de récap justesse ni Rejouer.
+    private func presentDailyGameOverOverlay(finalScore: Int) {
+        childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
+        let overlay = SKNode()
+        overlay.name = Self.gameOverOverlayName
+        overlay.zPosition = 200
+        addChild(overlay)
+
+        let dim = SKSpriteNode(color: BlomixAppearance.gameOverDimColorSK, size: size)
+        dim.name = Self.gameOverDimBackgroundName
+        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        dim.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dim.alpha = BlomixAppearance.gameOverDimAlpha
+        dim.zPosition = 0
+        overlay.addChild(dim)
+
+        let gameOverAmbient = SKNode()
+        gameOverAmbient.name = Self.gameOverAmbientBlocksContainerName
+        gameOverAmbient.zPosition = 0.5
+        overlay.addChild(gameOverAmbient)
+        startAmbientBlocksAnimation(
+            in: overlay,
+            containerName: Self.gameOverAmbientBlocksContainerName,
+            actionKey: Self.gameOverAmbientBlocksSpawnActionKey
+        )
+
+        let title = SKLabelNode(text: BlomixL10n.gameOverTitle)
+        title.name = Self.gameOverTitleLabelName
+        title.fontName = Self.displayFontName
+        title.fontSize = 32
+        title.fontColor = BlomixAppearance.gameOverPrimaryTextSK
+        title.horizontalAlignmentMode = .center
+        title.verticalAlignmentMode = .center
+        title.position = CGPoint(x: size.width / 2, y: size.height / 2 + 56)
+        title.setScale(0.2)
+        title.zPosition = 10
+        overlay.addChild(title)
+        let popIn = SKAction.scale(to: 1.0, duration: 0.4)
+        popIn.timingMode = .easeOut
+        title.run(popIn)
+
+        let scoreLine = SKLabelNode(text: BlomixL10n.gameOverScore(finalScore))
+        scoreLine.name = Self.gameOverScoreLabelName
+        scoreLine.fontName = Self.displayFontName
+        scoreLine.fontSize = 36
+        scoreLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
+        scoreLine.horizontalAlignmentMode = .center
+        scoreLine.verticalAlignmentMode = .center
+        scoreLine.position = CGPoint(x: size.width / 2, y: size.height / 2 + 8)
+        scoreLine.alpha = 0
+        scoreLine.zPosition = 10
+        overlay.addChild(scoreLine)
+        scoreLine.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.2),
+            SKAction.fadeIn(withDuration: 0.22),
+        ]))
+
+        let rankLine = SKLabelNode(text: BlomixL10n.loading)
+        rankLine.name = Self.gameOverDailyRankLabelName
+        rankLine.fontName = Self.customUIFontPostScriptName
+        rankLine.fontSize = 16
+        rankLine.fontColor = BlomixAppearance.gameOverSecondaryTextSK
+        rankLine.horizontalAlignmentMode = .center
+        rankLine.verticalAlignmentMode = .center
+        rankLine.position = CGPoint(x: size.width / 2, y: size.height / 2 - 28)
+        rankLine.alpha = 0
+        rankLine.zPosition = 10
+        overlay.addChild(rankLine)
+        rankLine.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.28),
+            SKAction.fadeIn(withDuration: 0.22),
+        ]))
+
+        let goButtonFontSize = BlomixUIDestinationButtonStyle.navigationTitleFontSize
+        let heroWidth = size.width - 48
+        let homeSize = BlomixSKButtonNode.fittingSize(for: BlomixL10n.gameOverRestart, fontSize: goButtonFontSize, maxWidth: heroWidth)
+        let rankingSize = BlomixSKButtonNode.fittingSize(for: BlomixL10n.gameOverLeaderboard, fontSize: goButtonFontSize, maxWidth: heroWidth)
+        let btnH = max(homeSize.height, rankingSize.height)
+        let fullSize = CGSize(width: heroWidth, height: max(btnH, 44))
+
+        let restart = BlomixSKButtonNode(
+            name: Self.gameOverRestartLabelName,
+            text: BlomixL10n.gameOverRestart,
+            size: fullSize,
+            fontSize: goButtonFontSize
+        )
+        let heroAccent = Self.startScreenHeroAccentColor()
+        restart.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
+        restart.position = CGPoint(x: size.width / 2, y: size.height / 2 - 88)
+        restart.alpha = 0
+        restart.zPosition = 10
+        overlay.addChild(restart)
+        restart.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.38),
+            SKAction.fadeIn(withDuration: 0.2),
+        ]))
+
+        let leaderboard = BlomixSKButtonNode(
+            name: Self.gameOverLeaderboardLabelName,
+            text: BlomixL10n.gameOverLeaderboard,
+            size: fullSize,
+            fontSize: goButtonFontSize
+        )
+        leaderboard.position = CGPoint(x: size.width / 2, y: size.height / 2 - 88 - fullSize.height / 2 - 12 - fullSize.height / 2)
+        leaderboard.alpha = 0
+        leaderboard.zPosition = 10
+        overlay.addChild(leaderboard)
+        leaderboard.run(SKAction.sequence([
+            SKAction.wait(forDuration: 0.44),
+            SKAction.fadeIn(withDuration: 0.22),
+        ]))
+
+        let lockedDay = dailyLockedDay ?? BlomixDailyChallenge.shared.utcToday
+        let playerID = GKLocalPlayer.local.gamePlayerID
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var entries = await BlomixDailyChallenge.shared.fetchScores(day: lockedDay)
+            if !playerID.isEmpty,
+               !entries.contains(where: { $0.gamePlayerID == playerID }) {
+                let name = GKLocalPlayer.local.displayName.isEmpty
+                    ? BlomixL10n.startScreenPlayerUnknown
+                    : GKLocalPlayer.local.displayName
+                entries.append(BlomixDailyScoreEntry(gamePlayerID: playerID, displayName: name, score: finalScore))
+                entries.sort { $0.score > $1.score }
+            }
+            let text: String
+            if let rank = BlomixDailyChallenge.denseRank(of: playerID, in: entries) {
+                text = rank == 1 ? BlomixL10n.dailyGameOverRankFirst : BlomixL10n.dailyGameOverRank(rank)
+            } else if entries.isEmpty {
+                text = BlomixL10n.dailyGameOverRankUnavailable
+            } else {
+                text = BlomixL10n.dailyGameOverRankFirst
+            }
+            (self.childNode(withName: Self.gameOverOverlayName)?
+                .childNode(withName: Self.gameOverDailyRankLabelName) as? SKLabelNode)?.text = text
+        }
+
+        // Même pipeline Arcade : highscore `BlomixMainScore_v3` + moyenne, overlay record si PB.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
+            ScoreManager.shared.submitScore(finalScore, completion: nil)
+            ScoreManager.shared.recordGameScore(finalScore)
+            if isNewPB {
+                self.gameOverShareIsNewPB = true
+                self.presentPersonalBestOverlay(score: finalScore)
+            }
+        }
+    }
+
     private static let appStoreReviewPromptActionKey = "appStoreReviewPrompt"
 
     /// Compte la partie (Arcade / Zen) et, si le seuil est atteint, demande un avis après une pause.
     /// Tutoriel et Duel exclus. Pas de boîte custom — uniquement `AppStore.requestReview`.
     private func scheduleAppStoreReviewPromptIfNeeded() {
         removeAction(forKey: Self.appStoreReviewPromptActionKey)
-        guard !isTutorialMode, pvpCoordinator == nil else { return }
+        guard !isTutorialMode, pvpCoordinator == nil, !isDailyChallengeMode else { return }
         BlomixReviewPrompt.recordCompletedGame()
         guard BlomixReviewPrompt.shouldRequestAfterGameOver() else { return }
         run(
@@ -4785,6 +5255,7 @@ final class GameScene: SKScene {
         // pour éviter qu'un willResignActiveNotification écrase la sauvegarde solo
         // avec un état transitoire (grille vide, modèle PvP, etc.).
         isWindingDown = true
+        clearDailyChallengeSessionFlags()
         clearAutoDropAim()
         // Retour à la piste de base quelle que soit la situation (fin de partie solo stagée, PvP, tuto…).
         BlomixMusicPlayer.shared.resetToBase()
@@ -8378,7 +8849,11 @@ final class GameScene: SKScene {
             }
         }
         let candidatePool = presentColors.isEmpty ? Self.colorPalette : presentColors
-        let finalColor    = candidatePool.randomElement() ?? Self.colorPalette.randomElement() ?? "red"
+        var fxRNG = makeDailyEffectRNG(event: "colorx", at: cell)
+        let finalColor = fxRNG?.pick(candidatePool)
+            ?? candidatePool.randomElement()
+            ?? Self.colorPalette.randomElement()
+            ?? "red"
 
         // ── 3. Séquence de couleurs intermédiaires (4 couleurs ≠ finale, puis finale).
         //    Durées croissantes → effet de "ralentissement sur la couleur choisie".
@@ -8387,7 +8862,8 @@ final class GameScene: SKScene {
         var tempPool = Self.colorPalette.filter { $0 != finalColor }
         for _ in 0..<(stepDurations.count - 1) {
             if tempPool.isEmpty { tempPool = Self.colorPalette.filter { $0 != finalColor } }
-            if let c = tempPool.randomElement() {
+            let picked = fxRNG?.pick(tempPool) ?? tempPool.randomElement()
+            if let c = picked {
                 cycleColors.append(c)
                 tempPool.removeAll { $0 == c }
             }
@@ -8735,7 +9211,8 @@ final class GameScene: SKScene {
                 }
             }
         }
-        guard let chosenColor = presentColors.randomElement() else {
+        var twistRNG = makeDailyEffectRNG(event: "twistx", at: cell)
+        guard let chosenColor = twistRNG?.pick(presentColors) ?? presentColors.randomElement() else {
             // Aucune couleur dans la grille → rien à faire.
             isProcessing = false
             return
@@ -8824,7 +9301,8 @@ final class GameScene: SKScene {
     /// (y compris la case d'atterrissage) en `chosenColor`, anime la propagation cellule par cellule,
     /// puis appelle `resolveChains()` pour déclencher la chaîne.
     private func applyMagixEffect_chromax(at startCell: GridAddress) {
-        let chosenColor = Self.colorPalette.randomElement() ?? "red"
+        var chromaxRNG = makeDailyEffectRNG(event: "chromax", at: startCell)
+        let chosenColor = chromaxRNG?.pick(Self.colorPalette) ?? Self.colorPalette.randomElement() ?? "red"
 
         // ── 1. Marche aléatoire 8-connexe ─────────────────────────────────────
         var path: [GridAddress] = [startCell]
@@ -8842,7 +9320,7 @@ final class GameScene: SKScene {
                 return addr
             }
             guard !candidates.isEmpty else { break }
-            let next = candidates.randomElement()!
+            let next = chromaxRNG?.pick(candidates) ?? candidates.randomElement()!
             path.append(next)
             visited.insert(next)
             current = next
@@ -9054,7 +9532,8 @@ final class GameScene: SKScene {
         cells: [GridAddress],
         ringDistance: (GridAddress) -> Int
     ) {
-        let chosenColor = Self.colorPalette.randomElement() ?? "red"
+        var axisRNG = makeDailyEffectRNG(event: "axis_paint", at: cell)
+        let chosenColor = axisRNG?.pick(Self.colorPalette) ?? Self.colorPalette.randomElement() ?? "red"
         var paintCells = cells
         if !paintCells.contains(cell) { paintCells.append(cell) }
 
@@ -9129,7 +9608,8 @@ final class GameScene: SKScene {
     /// puis `resolveChains` ; +1 bombe **garanti** livré à l’arrivée des dots HUD.
     /// Audio : `playBombxStain(rank:indexInRank:)` par case (pas `bomb.wav` / bombLoad).
     private func applyMagixEffect_bombx(at cell: GridAddress) {
-        let chosenColorName = Self.colorPalette.randomElement() ?? "red"
+        var bombxRNG = makeDailyEffectRNG(event: "bombx", at: cell)
+        let chosenColorName = bombxRNG?.pick(Self.colorPalette) ?? Self.colorPalette.randomElement() ?? "red"
         let chosenColor = Self.bloxSolidFillColor(colorName: chosenColorName)
             ?? SKColor(white: 0.55, alpha: 1)
 
@@ -9139,14 +9619,16 @@ final class GameScene: SKScene {
         var rank2: [GridAddress] = []
         rank2.reserveCapacity(rank1.count)
         for n in rank1 {
-            if let s = Self.bombxOccupiedNeighbors(of: n, in: grid).randomElement() {
+            let neighbors = Self.bombxOccupiedNeighbors(of: n, in: grid)
+            if let s = bombxRNG?.pick(neighbors) ?? neighbors.randomElement() {
                 rank2.append(s)
             }
         }
         var rank3: [GridAddress] = []
         rank3.reserveCapacity(rank2.count)
         for s in rank2 {
-            if let t = Self.bombxOccupiedNeighbors(of: s, in: grid).randomElement() {
+            let neighbors = Self.bombxOccupiedNeighbors(of: s, in: grid)
+            if let t = bombxRNG?.pick(neighbors) ?? neighbors.randomElement() {
                 rank3.append(t)
             }
         }
@@ -9417,7 +9899,7 @@ final class GameScene: SKScene {
             let colHad: [Bool] = (0..<GridLayout.columnCount).map { col in
                 (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
             }
-            applyMagixEffect_scrumblx_shiftGrid()
+            applyMagixEffect_scrumblx_shiftGrid(at: cell)
             drawGrid()
             applyMagixCompactionAndContinue(columnHadBlockBefore: colHad)
             return
@@ -9512,13 +9994,8 @@ final class GameScene: SKScene {
         // ── 4. Prépare les décalages par ligne (haut → bas, seulement les lignes non vides).
         // Structure : (rowIndex, direction: +1 right / -1 left, steps: 1…7)
         struct RowShift { let row: Int; let direction: Int; let steps: Int }
-        var shifts: [RowShift] = []
-        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
-            let hasBlock = (0..<GridLayout.columnCount).contains { grid[r][$0] != .empty }
-            guard hasBlock else { continue }
-            let dir   = Bool.random() ? 1 : -1
-            let steps = Int.random(in: 1...7)
-            shifts.append(RowShift(row: r, direction: dir, steps: steps))
+        let shifts: [RowShift] = makeScrumblxRowShifts(at: cell).map {
+            RowShift(row: $0.row, direction: $0.direction, steps: $0.steps)
         }
 
         // Snapshot logique **après** −1 Brix / case d’atterrissage, **avant** tout décalage de ligne.
@@ -9684,14 +10161,11 @@ final class GameScene: SKScene {
     }
 
     /// Version synchrone sans animation — décale la grille logique uniquement (fallback).
-    private func applyMagixEffect_scrumblx_shiftGrid() {
+    private func applyMagixEffect_scrumblx_shiftGrid(at cell: GridAddress) {
         let cols = GridLayout.columnCount
-        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
-            let hasBlock = (0..<cols).contains { grid[r][$0] != .empty }
-            guard hasBlock else { continue }
-            let dir   = Bool.random() ? 1 : -1
-            let steps = Int.random(in: 1...7)
-            let delta = dir * steps
+        for shift in makeScrumblxRowShifts(at: cell) {
+            let r = shift.row
+            let delta = shift.direction * shift.steps
             let oldRow = grid[r]
             var newRow = [BlockType](repeating: .empty, count: cols)
             for c in 0..<cols {
@@ -9700,6 +10174,19 @@ final class GameScene: SKScene {
             }
             grid[r] = newRow
         }
+    }
+
+    private func makeScrumblxRowShifts(at cell: GridAddress) -> [(row: Int, direction: Int, steps: Int)] {
+        var rng = makeDailyEffectRNG(event: "scrumblx", at: cell)
+        var shifts: [(row: Int, direction: Int, steps: Int)] = []
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            let hasBlock = (0..<GridLayout.columnCount).contains { grid[r][$0] != .empty }
+            guard hasBlock else { continue }
+            let dir = (rng?.nextBool() ?? Bool.random()) ? 1 : -1
+            let steps = rng?.nextInt(in: 1...7) ?? Int.random(in: 1...7)
+            shifts.append((r, dir, steps))
+        }
+        return shifts
     }
 
         // MARK: Compaction helper Magix
@@ -12051,6 +12538,18 @@ final class GameScene: SKScene {
         guard !isStartScreen, !isGameOver, pvpCoordinator == nil, !isTutorialMode, !isWindingDown,
               !pvpMatchSetupInProgress else { return }
         guard let save = makeSoloGameSaveSnapshot() else { return }
+        if isDailyChallengeMode, let day = dailyLockedDay, let rng = dailyFileRNG {
+            BlomixDailyChallenge.shared.saveRun(
+                BlomixDailyRunSave(
+                    version: BlomixDailyRunSave.currentVersion,
+                    utcDay: day,
+                    seed: rng.seed,
+                    fileRNGState: rng.state,
+                    game: save
+                )
+            )
+            return
+        }
         BlomixSoloSaveManager.shared.save(save)
     }
 
@@ -12101,6 +12600,7 @@ final class GameScene: SKScene {
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
+        BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
 
         addTopTitle()
         setupBombHUD()
@@ -13741,8 +14241,14 @@ final class GameScene: SKScene {
                 }
             }
 
+            if touchHitsDailyButton(location) {
+                pendingButtonAction = { [weak self] in self?.showDailyHub() }
+                return
+            }
             if touchHitsStartButton(location) {
-                pendingButtonAction = { [weak self] in self?.performStartScreenHeroAction() }
+                pendingButtonAction = { [weak self] in
+                    self?.confirmAbandonDailyRunThen { self?.performStartScreenHeroAction() }
+                }
                 return
             }
             if touchHitsStartScreenNewGameLink(location) {
@@ -13785,6 +14291,10 @@ final class GameScene: SKScene {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .elo) }
                 return
             }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscDailyName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .dailyWins) }
+                return
+            }
             if touchHitsStartScreenZenButton(location) {
                 pendingButtonAction = { [weak self] in self?.confirmAbandonHomeSaveThen { self?.beginZenModeFromStartScreen() } }
                 return
@@ -13817,7 +14327,13 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsGameOverLeaderboardButton(location) {
-                pendingButtonAction = { [weak self] in self?.showLeaderboard() }
+                pendingButtonAction = { [weak self] in
+                    if self?.isDailyChallengeMode == true {
+                        self?.showDailyHub()
+                    } else {
+                        self?.showLeaderboard()
+                    }
+                }
                 return
             }
             if touchHitsGameOverShareButton(location) {
@@ -14415,6 +14931,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         if isStartScreen || hadStartScreen {
             isStartScreen = false
+            BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
             layoutGameCenterStatusLabel()
             if hadStartScreen { hapticSoft() }
         }
@@ -14738,6 +15255,7 @@ final class GameScene: SKScene {
         // opaque pendant dismiss lobby + prep grille (pas de flash menu).
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
+        BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
 
         pvpOpponentDisplayName = pvpCoordinator?.primaryRemotePlayer?.displayName ?? pvpOpponentDisplayName ?? BlomixL10n.pvpUnknownOpponent
         blomixPvP_refreshSeriesNamePrefixes()

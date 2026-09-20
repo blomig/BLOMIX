@@ -4,7 +4,7 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 7.0 (build 132, review) — 6.10 (build 130) en vente |
+| **Version** | 7.1 (build 133, local) — 7.0 (build 132) en vente |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
 | **Langues** | Français, Anglais, Allemand, Espagnol, Italien |
@@ -37,6 +37,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terminologie canonique (code ↔ joueur) |
 | [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, debug, conventions de code |
+| [docs/DAILY_CHALLENGE.md](docs/DAILY_CHALLENGE.md) | Défi du jour (graine UTC, hub, CloudKit) |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
 | [docs/SPEC_6.4.md](docs/SPEC_6.4.md) | Cahier 6.4 (build 118) |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Conventions de contribution et maintenance doc |

@@ -32,6 +32,8 @@ final class ScoreManager {
     nonisolated static let averageLeaderboardID = "BlomixAverageScore_v1"
     /// Leaderboard dédié au mode Zen.
     nonisolated static let zenLeaderboardID     = "ZenMode"
+    /// Cumul des points podium du Défi du jour (`DailyWin_arc` / `dailywins_arc`).
+    nonisolated static let dailyLeaderboardID   = BlomixDailyChallenge.leaderboardID
 
     private init() {
         migrateScoreVersionIfNeeded()

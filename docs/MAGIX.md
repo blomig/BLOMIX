@@ -122,3 +122,5 @@ Les plus riches sans recouper l’existant : **PACKX** et **MERGEX**.
 ---
 
 *Les pistes ne sont pas des règles. Avant implémentation : figer atterrissage, score, Brix, rareté, puis aligner RULES / PROJECT_CONTEXT / GLOSSARY / VFX / l10n.*
+
+Pistes de **modes** (pas des blocs) : [MODE_PISTES.md](MODE_PISTES.md).

@@ -1,4 +1,3 @@
-• Arcade : le +500 de grille vide est multiplié par le stage
-• Palette Alea plus vive (jaunes, oranges) ; le chiffre des Brix reste lisible
-• Accueil : BLOMIX se pose avec des paillettes à chaque lettre
-• Titres Score et Multijoueur en gouttière ; « OK pour être défié » dans le même style
+• Défi du jour : la même partie Arcade pour tout le monde, une fois par jour
+• Classement du jour dans le hub, points podium le lendemain
+• Accueil : un bonhomme vert respire sur Duel s’il y a des joueurs dans Joueurs disponibles

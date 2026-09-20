@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 7.0 (local)  
+> **Version de référence** : 7.1 (local)  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -77,7 +77,8 @@ Ce n’est **pas** « 7/8 couleur + 1/8 Brix, plus 3 % Magix par-dessus ».
 | `blockTwoAhead` | P2 |
 
 En PvP : RNG partagé via `BlomixPvPMatchCoordinator`.  
-En tutoriel : séquence scriptée (`tutorialBlockQueue`).
+En tutoriel : séquence scriptée (`tutorialBlockQueue`).  
+En **Défi du jour** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v1"+YYYY-MM-DD)` FNV-1a 64) ; effets Magix via `BlomixDailyEffectRNG` (hash d’événement, ne consomme pas la File). Auto-drop **non seedé**.
 
 **Restrictions lignes entrantes** (`nextBottomLineRowForSession`) : tirage identique à la file, **puis** tout `.magix` est remplacé par une couleur ; en tutoriel, les `.priks` aussi. En Duel, le RNG partagé **ne tire jamais** de Magix (`BlomixPvPSeededBlockRNG` : 1/8 Brix sinon couleur).
 
@@ -217,6 +218,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 - Solo : score principal + moyenne
 - Zen : `ZenMode`
 - PvP : Elo (`elotype`)
+- Défi : points podium cumulés `dailywins_arc` (le score de la run va **aussi** sur Arcade + moyenne)
 
 ---
 
@@ -234,6 +236,10 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 ### Mode Zen
 
 `isZenMode = true` : pas de timer, pas de stages, leaderboard Zen séparé.
+
+### Défi du jour
+
+`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot save **`blomix_daily_save_v1`** (ne touche pas `blomix_solo_save_v2`). Hub UIKit `BlomixDailyHubViewController`. Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
@@ -338,10 +344,10 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
-- Arcade **pleine largeur** (hero skin) ; Duel + Zen en paire
-- 4 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé 3 lettres (Arc. / Moy. / Zen / Duel)
+- **Défi du jour** hero pleine largeur sous BLOMIX, **Arcade** hero en dessous ; Duel + Zen en paire. Entrée chips (y compris Défi) **après** le poinçon BLOMIX (`runStartScreenGameChipEntrance`). Duel : pastille `person.fill` verte (respiration) à droite du libellé, dans la capsule, si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+- 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = points carrière `dailywins_arc`, pas la liste du jour
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
-- Accueil layout : icônes → nom/rangs → BLOMIX centré → hero/Duel/Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
+- Accueil layout : icônes → nom/rangs → BLOMIX centré → Défi / Arcade / Duel+Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
 - Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.
 - Réglages palettes : swatches 16 pt de la peau **sélectionnée** en gouttière (couleur fixe + ombre interne).
@@ -449,6 +455,9 @@ Blomix/Blomix/
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
 ├── BlomixPublicCloudGate.swift   # Robinet Public DB (503 / Retry-After) H2H + lobby
 ├── BlomixAvailablePlayersManager.swift  # Joueurs dispo + défis `chfrom_*`
+├── BlomixDailyRNG.swift              # File seedée + effets Magix hashés (Défi du jour)
+├── BlomixDailyChallenge.swift        # Save daily, CloudKit `DailyScore`, podium GC
+├── BlomixDailyHubViewController.swift # Hub du jour (liste + CTA)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift  # Classements Elo H2H + défis ; crédits plain-text legacy
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)

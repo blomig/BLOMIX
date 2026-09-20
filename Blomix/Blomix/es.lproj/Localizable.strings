@@ -298,6 +298,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "whatsnew.empty_grid" = "Arcade: el +500 de tablero vacío se multiplica por el stage";
 "whatsnew.alea" = "Paleta Alea más viva; la cifra de los Brix se lee bien";
 "whatsnew.punch" = "Inicio: BLOMIX aterriza con destellos en cada letra";
+"whatsnew.duel_presence" = "Inicio: un muñeco verde en Duelo si hay jugadores en Jugadores disponibles";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */
@@ -398,3 +399,20 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "guide.section.score.body" = "Cadenas: 5 puntos por una cadena de 5 blox, y hasta 20 por una cadena muy larga. +10 por una cadena en cascada.\nColumna vacía: +10. Tablero vacío: +500 (Arcade/Zen, sin ×etapa).";
 "guide.section.duel.title" = "Duelo";
 "guide.section.duel.body" = "El número grande y la barra son el medidor de ataque (0…50): cada 50 puntos envía una línea al otro jugador.\nColocar una bomba congela tu temporizador de turno.";
+
+/* Desafío del día */
+"start.daily" = "Desafío del día";
+"start.daily_ranking" = "Clasificación del desafío";
+"start.hero_mode_daily" = "Continuar";
+"rank_disc.daily" = "RETO";
+"leaderboard.daily_tab" = "Reto";
+"daily.hub_title" = "Desafío del día";
+"daily.cta_play" = "¡Desafío!";
+"daily.cta_continue" = "Continuar";
+"daily.cta_tomorrow" = "Vuelve mañana";
+"daily.hub_empty" = "Aún no hay puntuaciones hoy.";
+"daily.hub_error" = "La clasificación de hoy no está disponible.";
+"daily.game_over_rank_format" = "Puesto n.º %lld";
+"daily.game_over_rank_first" = "1.º por ahora";
+"daily.game_over_rank_unavailable" = "Puesto no disponible";
+"daily.career_points_format" = "%lld pts";

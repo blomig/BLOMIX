@@ -10,14 +10,14 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **7.0** (build 132, review) — **6.10** (build 130) en vente |
+| Version courante | **7.1** (build 133, local) — **7.0** (build 132) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
 | Langues | FR, EN, DE, ES, IT |
 | Studio / propriétaire | Projet propriétaire (pas open-source) |
 
-**Genre de jeu** : grille 8×8, gravité **inversée** (compactage vers le haut), chaînes ≥ 5 en **8-connexité**, Brix résistants, Magix, bombes, lignes entrantes tous les 10 coups. Modes : solo stagé, Zen, PvP 1v1, tutoriel.
+**Genre de jeu** : grille 8×8, gravité **inversée** (compactage vers le haut), chaînes ≥ 5 en **8-connexité**, Brix résistants, Magix, bombes, lignes entrantes tous les 10 coups. Modes : solo stagé, Zen, Défi du jour, PvP 1v1, tutoriel.
 
 Ce n’est **pas** un prototype : privilégier les changements ciblés, la non-régression et la cohérence avec la doc existante.
 
@@ -41,7 +41,9 @@ BLOMIX/
 │   ├── LOCALIZATION.md       # i18n
 │   ├── DEVELOPMENT.md        # Build / debug
 │   ├── CONTRIBUTING.md       # Conventions
-│   └── CHANGELOG.md
+│   ├── CHANGELOG.md
+│   ├── MODE_PISTES.md        # Pistes de 4ᵉ mode
+│   └── DAILY_CHALLENGE.md    # Défi du jour
 ├── Blomix/
 │   ├── Blomix.xcodeproj
 │   └── Blomix/               # Sources Swift, assets, lproj, Sounds
@@ -65,6 +67,7 @@ BLOMIX/
 | Comprendre le jeu | `DOCS/RULES.md` → `DOCS/MAGIX.md` → `DOCS/GLOSSARY.md` |
 | Comprendre le code | `DOCS/PROJECT_CONTEXT.md` → `DOCS/DEVELOPMENT.md` |
 | PvP / défis / bugs matchmaking | `DOCS/PVP_MATCHING.md` |
+| Défi du jour | `DOCS/DAILY_CHALLENGE.md` |
 | Hints / optimalité | `DOCS/EVAL.md` |
 | Animations / sons | `DOCS/VFX_AND_ANIMATIONS.md` |
 | Nouvelle chaîne UI | `DOCS/LOCALIZATION.md` |
@@ -96,6 +99,9 @@ La logique gameplay est concentrée dans :
 | `BlomixPvPNetworking.swift` | GKMatch, RNG partagé, attaques |
 | `BlomixPvPUI.swift` | Lobby, résultats, UI PvP |
 | `BlomixAvailablePlayersManager.swift` | CloudKit « joueurs disponibles » |
+| `BlomixDailyRNG.swift` | File seedée + effets Magix hashés (Défi du jour) |
+| `BlomixDailyChallenge.swift` | Save daily, CloudKit `DailyScore`, podium GC `dailywins_arc` |
+| `BlomixDailyHubViewController.swift` | Hub du jour (liste + CTA) |
 | `BlomixEloManager.swift` | Elo PvP |
 | `ScoreManager.swift` / `GameCenterManager.swift` | Classements GC |
 | `BlomixL10n.swift` | Pont typé localisation |

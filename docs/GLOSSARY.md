@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 7.0 (local)
+> **Version de référence** : 7.1 (local)
 
 ---
 
@@ -82,6 +82,7 @@
 |---|---|---|
 | **Arcade** (solo stagé) | Mode par défaut | Timer par coup, 6 stages, lignes entrantes, bombes |
 | **Zen** | `isZenMode` | Pas de timer, pas de stages, classement dédié |
+| **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, hub CloudKit + points podium GC `dailywins_arc` |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
 | **Tutoriel** | `tutorialBlockQueue` | Séquence scriptée au premier lancement |
 

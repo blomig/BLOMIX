@@ -700,6 +700,7 @@ enum BlomixL10n {
     static var whatsNewEmptyGrid: String { tr("whatsnew.empty_grid", comment: "7.0 — empty-board 500 × Arcade stage") }
     static var whatsNewAlea: String { tr("whatsnew.alea", comment: "7.0 — vivid random palette, readable Brix digit") }
     static var whatsNewPunch: String { tr("whatsnew.punch", comment: "7.0 — BLOMIX punch sparkles on home") }
+    static var whatsNewDaily: String { tr("whatsnew.daily", comment: "7.1 — Daily Challenge: same Arcade game for everyone") }
     static var whatsNewDuelPresence: String { tr("whatsnew.duel_presence", comment: "7.1 — green person badge on Duel when peers are listed") }
     static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
 

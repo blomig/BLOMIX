@@ -12,7 +12,7 @@ import UIKit
 @MainActor
 enum BlomixWhatsNew {
     /// Identifiant de cette note (pas seulement MARKETING_VERSION : 6.6 sans note ne réaffiche pas).
-    static let campaignID = "7.1_duel_presence"
+    static let campaignID = "7.1_daily_duel"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Fermeture Ok : ne plus montrer jusqu’au prochain cold start.
@@ -98,6 +98,7 @@ final class BlomixWhatsNewDialogView: UIView {
         title.numberOfLines = 0
         title.translatesAutoresizingMaskIntoConstraints = false
 
+        let dailyRow = makeFactRow(text: BlomixL10n.whatsNewDaily, magix: nil)
         let presenceRow = makeFactRow(text: BlomixL10n.whatsNewDuelPresence, magix: nil)
 
         let okButton = makeButton(title: BlomixL10n.ok, isSecondary: false)
@@ -110,7 +111,7 @@ final class BlomixWhatsNewDialogView: UIView {
         buttons.spacing = 10
         buttons.translatesAutoresizingMaskIntoConstraints = false
 
-        let facts = UIStackView(arrangedSubviews: [presenceRow])
+        let facts = UIStackView(arrangedSubviews: [dailyRow, presenceRow])
         facts.axis = .vertical
         facts.spacing = 14
         facts.translatesAutoresizingMaskIntoConstraints = false

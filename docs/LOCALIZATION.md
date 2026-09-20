@@ -111,16 +111,15 @@ Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lpr
 
 Détail release : `store/whats-new/README.md`.
 
-### Popup in-app (accueil 7.0)
+### Popup in-app (accueil 7.1)
 
-Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew_dont_show_7.0_arcade_alea_home`) :
+Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew_dont_show_7.1_daily_duel`) :
 
 | Clé | Usage |
 |---|---|
 | `whatsnew.title` | Titre |
-| `whatsnew.empty_grid` | Arcade : +500 grille vide × stage |
-| `whatsnew.alea` | Palette Alea plus vive ; chiffre Brix lisible |
-| `whatsnew.punch` | Accueil : paillettes à chaque lettre BLOMIX |
+| `whatsnew.daily` | Défi du jour : même partie Arcade pour tous |
+| `whatsnew.duel_presence` | Pastille verte Duel si Joueurs disponibles |
 | `whatsnew.dont_show` | Bouton définitif ; `generic.ok` = cette session seulement |
 
 Ce n’est **pas** le champ ASC Nouveautés.

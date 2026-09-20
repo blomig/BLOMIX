@@ -323,6 +323,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "whatsnew.empty_grid" = "Arcade : le +500 grille vide est multiplié par le stage";
 "whatsnew.alea" = "Palette Alea plus vive ; le chiffre des Brix reste lisible";
 "whatsnew.punch" = "Accueil : BLOMIX se pose avec des paillettes à chaque lettre";
+"whatsnew.daily" = "Nouveau mode de jeu : chaque jour, une partie Arcade identique pour tous !";
 "whatsnew.duel_presence" = "Accueil : un bonhomme vert sur Duel si des joueurs sont dans Joueurs disponibles";
 "whatsnew.dont_show" = "Ne plus montrer";
 

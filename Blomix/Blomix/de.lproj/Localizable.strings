@@ -310,6 +310,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "whatsnew.empty_grid" = "Arcade: der +500-Bonus für leeres Feld wird mit dem Stage multipliziert";
 "whatsnew.alea" = "Alea-Palette kräftiger; Brix-Ziffern bleiben lesbar";
 "whatsnew.punch" = "Start: BLOMIX setzt mit Funkeln auf jedem Buchstaben auf";
+"whatsnew.daily" = "Neuer Spielmodus: jeden Tag dieselbe Arcade-Partie für alle!";
 "whatsnew.duel_presence" = "Start: grünes Männchen auf Duell, wenn Spieler unter Verfügbare Spieler sind";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 

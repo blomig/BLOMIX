@@ -1,7 +1,7 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **codé** en 7.1 locale (build 133). Pas encore de binaire TestFlight avec le Défi (le TF 133 = pastille Duel seulement). En vente : 7.0 / 132.  
-> **CloudKit** : type Public `DailyScore` — Development à confirmer au Dashboard ; **Production à déployer** avant tout TF / magasin.  
+> **Statut** : **codé** en 7.1 / **134** (TestFlight interne). En vente : 7.0 / 132.  
+> **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`) — 2 locales FR+EN en review.  
 > **Version de référence** : 7.1 (local)  
 > **2026-09-20**  

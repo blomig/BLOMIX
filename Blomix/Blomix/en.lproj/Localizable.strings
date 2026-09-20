@@ -310,6 +310,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "whatsnew.empty_grid" = "Arcade: the +500 empty-board bonus is multiplied by the stage";
 "whatsnew.alea" = "Alea palette is more vivid; Brix digits stay readable";
 "whatsnew.punch" = "Home: BLOMIX lands with sparkles on each letter";
+"whatsnew.daily" = "New game mode: every day, the same Arcade game for everyone!";
 "whatsnew.duel_presence" = "Home: a green person on Duel when players are in Available Players";
 "whatsnew.dont_show" = "Don’t show again";
 

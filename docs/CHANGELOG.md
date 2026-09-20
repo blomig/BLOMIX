@@ -9,11 +9,12 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.1] — 2026-09
 
-Build **133**. Local (7.0 / 132 en vente). Pas encore de TF avec le Défi.
+Build **134** (TestFlight interne). 7.0 / 132 en vente.
 
 ### Ajouté
 - **Défi du jour** : même Arcade pour tout le monde (file + Magix + lignes seedées UTC). Chip sous BLOMIX → hub (liste du jour + Défi ! / Continuer / Revenez demain). 1 run / jour. GO court (score + rang live). Le score compte aussi en Arcade (highscore + moyenne). Hub : **+5 / +3 / +1** (Changa One) à droite des 3 premiers. Points podium crédités au lendemain UTC, cumul Game Center `dailywins_arc`. 5ᵉ disque accueil = carrière. Slot save séparé.
 - **Accueil — Duel** : pastille bonhomme verte (respiration lente) si la liste **Joueurs disponibles** n’est pas vide (même query CloudKit, y compris `inMatch`). Poll 8 s sur l’accueil seulement.
+- **Popup in-app 7.1** : Défi du jour + pastille Duel (`7.1_daily_duel`).
 
 ---
 

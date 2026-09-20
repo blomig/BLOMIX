@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.1] — 2026-09
 
-Build **134** (TestFlight interne). 7.0 / 132 en vente.
+Build **134**. En review. 7.0 / 132 en vente.
 
 ### Ajouté
 - **Défi du jour** : même Arcade pour tout le monde (file + Magix + lignes seedées UTC). Chip sous BLOMIX → hub (liste du jour + Défi ! / Continuer / Revenez demain). 1 run / jour. GO court (score + rang live). Le score compte aussi en Arcade (highscore + moyenne). Hub : **+5 / +3 / +1** (Changa One) à droite des 3 premiers. Points podium crédités au lendemain UTC, cumul Game Center `dailywins_arc`. 5ᵉ disque accueil = carrière. Slot save séparé.

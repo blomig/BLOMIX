@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **7.1** (build 134, TestFlight) — **7.0** (build 132) en vente |
+| Version courante | **7.1** (build 134, review) — **7.0** (build 132) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |

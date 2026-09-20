@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **codé** en 7.1 / **134** (TestFlight interne). En vente : 7.0 / 132.  
+> **Statut** : **7.1 / 134 en review** App Store. En vente : 7.0 / 132.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
-> **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`) — 2 locales FR+EN en review.  
-> **Version de référence** : 7.1 (local)  
+> **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
+> **Version de référence** : 7.1  
 > **2026-09-20**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -225,7 +225,7 @@ Fichiers :
 
 `recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`). Un run Xcode (Debug) tape **Development** ; TestFlight / App Store tapent **Production**.
 
-**Prochaines étapes magasin** (après ce commit) : 1) Dashboard CK — créer/vérifier `DailyScore` Dev, **Deploy to Production**. 2) Attendre la validation `dailywins_arc`. 3) `fastlane beta` (nouveau build 134+) puis TF. 4) `release` / `submit` 7.1. 5) Release manuel ASC. Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
+**Prochaines étapes magasin** : 7.1 / 134 en review. Après OK Apple : **Release This Version** manuel dans ASC (`automatic_release: false`). Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
 
 ---
 

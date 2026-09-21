@@ -1,3 +1,3 @@
-• Défi du jour : la même partie Arcade pour tout le monde, une fois par jour
-• Classement du jour dans le hub, points podium le lendemain
-• Accueil : un bonhomme vert respire sur Duel s’il y a des joueurs dans Joueurs disponibles
+• Accueil : Arcade juste sous BLOMIX, Défi du jour en dessous
+• Hub défi : « Revenez demain » grisé ; podium +5 / +3 / +1 en gouttière
+• Duel : la liste Joueurs disponibles s’ouvre directement (Local et « OK pour être défié » en bas)

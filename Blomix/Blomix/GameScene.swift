@@ -2251,8 +2251,8 @@ final class GameScene: SKScene {
             return 0
         }()
         var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2
-        var arcadeHeroY = secondaryRowY + hChip / 2 + 16 + newGameLinkSlack + heroH / 2
-        var dailyHeroY = arcadeHeroY + heroH / 2 + heroGap + heroH / 2
+        var dailyHeroY = secondaryRowY + hChip / 2 + 16 + heroH / 2
+        var arcadeHeroY = dailyHeroY + heroH / 2 + heroGap + newGameLinkSlack + heroH / 2
         let minSecondaryY = tipAnchorY + 40 + hChip / 2
 
         // ── Bande 1 : BLOMIX + tagline, de préférence au centre écran ──────────
@@ -2263,8 +2263,8 @@ final class GameScene: SKScene {
         let preferredTitleY = size.height * 0.5
 
         let heroTopMax = ranksBottom - minBandGap - titleBlockH - minBandGap
-        if dailyHeroY + heroH / 2 > heroTopMax {
-            let overflow = dailyHeroY + heroH / 2 - heroTopMax
+        if arcadeHeroY + heroH / 2 > heroTopMax {
+            let overflow = arcadeHeroY + heroH / 2 - heroTopMax
             dailyHeroY -= overflow
             arcadeHeroY -= overflow
             secondaryRowY -= overflow
@@ -2277,7 +2277,7 @@ final class GameScene: SKScene {
         }
 
         let maxTitleY = ranksBottom - minBandGap - titleTopExtent
-        let minTitleY = dailyHeroY + heroH / 2 + minBandGap + subtitleBottomExtent
+        let minTitleY = arcadeHeroY + heroH / 2 + minBandGap + subtitleBottomExtent
         let titleY: CGFloat
         if minTitleY <= maxTitleY {
             titleY = min(max(preferredTitleY, minTitleY), maxTitleY)
@@ -4486,7 +4486,13 @@ final class GameScene: SKScene {
         let playerID = GKLocalPlayer.local.gamePlayerID
         Task { @MainActor [weak self] in
             guard let self else { return }
-            var entries = await BlomixDailyChallenge.shared.fetchScores(day: lockedDay)
+            var entries: [BlomixDailyScoreEntry] = []
+            switch await BlomixDailyChallenge.shared.fetchScores(day: lockedDay) {
+            case .loaded(let rows):
+                entries = rows
+            case .unavailable:
+                break
+            }
             if !playerID.isEmpty,
                !entries.contains(where: { $0.gamePlayerID == playerID }) {
                 let name = GKLocalPlayer.local.displayName.isEmpty
@@ -14773,16 +14779,14 @@ final class GameScene: SKScene {
     }
 
     private func showPvPLobby() {
-        let lobby = BlomixPvPLobbyViewController()
-        lobby.modalPresentationStyle = .overFullScreen
-        lobby.modalTransitionStyle = .crossDissolve
-        lobby.onMatch = { [weak self] match in
+        let avail = BlomixPvPAvailablePlayersViewController()
+        avail.onMatch = { [weak self] match in
             self?.beginPvPWithMatch(match)
         }
-        lobby.onLocalMatch = { [weak self] session in
+        avail.onLocalMatch = { [weak self] session in
             self?.beginPvPWithLocalSession(session)
         }
-        presentFullScreenModal(lobby)
+        presentFullScreenModal(avail)
     }
 
     /// Appelé depuis le lobby Game Center une fois le `GKMatch` prêt.

@@ -64,6 +64,8 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         tableView.backgroundColor = .clear
         tableView.separatorColor = UIColor(white: 0.2, alpha: 1)
         tableView.dataSource = self
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = 64
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "DailyHubCell")
         tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
@@ -112,17 +114,23 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         case .play:
             ctaButton.setTitle(BlomixL10n.dailyCTAPlay, for: .normal)
             ctaButton.isEnabled = true
+            ctaButton.isUserInteractionEnabled = true
+            BlomixUIDestinationButtonStyle.applySelectionChrome(to: ctaButton, selected: true)
             ctaButton.alpha = 1
         case .resume:
             ctaButton.setTitle(BlomixL10n.dailyCTAContinue, for: .normal)
             ctaButton.isEnabled = true
+            ctaButton.isUserInteractionEnabled = true
+            BlomixUIDestinationButtonStyle.applySelectionChrome(to: ctaButton, selected: true)
             ctaButton.alpha = 1
         case .finished:
             ctaButton.setTitle(BlomixL10n.dailyCTATomorrow, for: .normal)
             ctaButton.isEnabled = false
-            ctaButton.alpha = 0.45
+            ctaButton.isUserInteractionEnabled = false
+            BlomixUIDestinationButtonStyle.applySelectionChrome(to: ctaButton, selected: false)
+            ctaButton.alpha = 0.32
+            ctaButton.setTitleColor(BlomixAppearance.tertiaryText, for: .disabled)
         }
-        BlomixUIDestinationButtonStyle.applySelectionChrome(to: ctaButton, selected: ctaKind != .finished)
     }
 
     private func loadScores() {
@@ -132,17 +140,19 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         let day = BlomixDailyChallenge.shared.utcToday
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let rows = await BlomixDailyChallenge.shared.fetchScores(day: day)
+            let load = await BlomixDailyChallenge.shared.fetchScores(day: day)
             self.spinner.stopAnimating(settle: false) { [weak self] in
                 self?.spinner.isHidden = true
             }
-            self.entries = rows
-            if rows.isEmpty {
-                self.statusLabel.text = BlomixPublicCloudGate.shared.isBlocked
-                    ? BlomixL10n.dailyHubError
-                    : BlomixL10n.dailyHubEmpty
-            } else {
-                self.statusLabel.text = BlomixL10n.leaderboardTopCount(rows.count)
+            switch load {
+            case .loaded(let rows):
+                self.entries = rows
+                self.statusLabel.text = rows.isEmpty
+                    ? BlomixL10n.dailyHubEmpty
+                    : BlomixL10n.leaderboardTopCount(rows.count)
+            case .unavailable:
+                self.entries = []
+                self.statusLabel.text = BlomixL10n.dailyHubError
             }
         }
     }
@@ -202,20 +212,34 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         content.secondaryTextProperties.color = isLocal
             ? BlomixAppearance.primaryText
             : BlomixAppearance.secondaryText
-        content.textProperties.font = BlomixTypography.uiFont(size: 16, weight: isLocal ? .bold : .regular)
         content.secondaryTextProperties.font = BlomixTypography.uiFont(size: 13, weight: .medium)
-        cell.contentConfiguration = content
 
         let podium = BlomixDailyChallenge.podiumPoints(for: entry.gamePlayerID, in: entries)
         if podium > 0 {
-            let badge = UILabel()
-            badge.text = "+\(podium)"
-            badge.font = BlomixTypography.displayFont(size: 20)
-            badge.textColor = BlomixAppearance.primaryText
-            badge.textAlignment = .right
-            badge.sizeToFit()
-            cell.accessoryView = badge
+            content.textProperties.font = BlomixTypography.displayFont(size: rank == 1 ? 24 : 18)
+            cell.accessoryView = Self.makePodiumPointsBadge(points: podium, isFirst: rank == 1)
+        } else {
+            content.textProperties.font = BlomixTypography.uiFont(size: 16, weight: isLocal ? .bold : .regular)
         }
+        cell.contentConfiguration = content
         return cell
+    }
+
+    /// `accessoryView` exige un frame (pas l’Auto Layout du titre gouttière, qui masquait les lignes).
+    private static func makePodiumPointsBadge(points: Int, isFirst: Bool) -> UIView {
+        let cutout = BlomixCutoutTitleView(
+            text: "+\(points)",
+            fontSize: isFirst ? 26 : 20,
+            pad: 3
+        )
+        let size = cutout.intrinsicContentSize
+        cutout.translatesAutoresizingMaskIntoConstraints = true
+        cutout.frame = CGRect(origin: .zero, size: size)
+        let host = UIView(frame: cutout.bounds)
+        host.translatesAutoresizingMaskIntoConstraints = true
+        host.addSubview(cutout)
+        host.isAccessibilityElement = true
+        host.accessibilityLabel = "+\(points)"
+        return host
     }
 }

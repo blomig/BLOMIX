@@ -1,3 +1,3 @@
-• Desafío del día: la misma partida Arcade para todos, una vez al día
-• Clasificación del día en el hub, puntos de podio al día siguiente
-• Inicio: un muñeco verde respira en Duelo si hay jugadores en Jugadores disponibles
+• Inicio: Arcade justo bajo BLOMIX, Desafío del día debajo
+• Hub del desafío: «Vuelve mañana» atenuado; podio +5 / +3 / +1 en la canaleta de color
+• Duelo: Jugadores disponibles se abre de inmediato (Local y «OK para ser retado» abajo)

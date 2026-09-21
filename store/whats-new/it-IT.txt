@@ -1,3 +1,3 @@
-• Sfida del giorno: la stessa partita Arcade per tutti, una volta al giorno
-• Classifica del giorno nell’hub, punti podio il giorno dopo
-• Home: un omino verde respira su Duel se ci sono giocatori in Giocatori disponibili
+• Home: Arcade subito sotto BLOMIX, Sfida del giorno sotto
+• Hub della sfida: «Torna domani» in grigio; podio +5 / +3 / +1 nella canalina colorata
+• Duel: Giocatori disponibili si apre subito (Locale e «OK per essere sfidato» in basso)

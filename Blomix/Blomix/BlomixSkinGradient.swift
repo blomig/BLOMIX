@@ -855,7 +855,8 @@ final class BlomixCutoutTitleView: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         setContentHuggingPriority(.required, for: .horizontal)
         setContentHuggingPriority(.required, for: .vertical)
-        setContentCompressionResistancePriority(.required, for: .horizontal)
+        // Largeur : se comprime si le titre (ex. « Joueurs disponibles ») chevauche Fermer.
+        setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
         setContentCompressionResistancePriority(.required, for: .vertical)
 
         gradient.actions = ["contents": NSNull()]
@@ -902,21 +903,32 @@ final class BlomixCutoutTitleView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let size = bounds.size
-        gradient.frame = bounds
-        lip.frame = bounds
-        maskLayer.frame = bounds
         let key = CGSize(width: size.width.rounded(), height: size.height.rounded())
         guard key != lastSize, size.width > 1, size.height > 1 else { return }
         lastSize = key
+
+        let full = BlomixButtonRelief.cutoutLayout(text: text, fontSize: fontSize, pad: pad).canvas
+        var drawFont = fontSize
+        var drawPad = pad
+        if full.width > size.width + 0.5 {
+            let s = size.width / full.width
+            drawFont = fontSize * s
+            drawPad = pad * s
+        }
+        let drawn = BlomixButtonRelief.cutoutLayout(text: text, fontSize: drawFont, pad: drawPad).canvas
+        let drawFrame = CGRect(origin: .zero, size: drawn)
+        gradient.frame = drawFrame
+        lip.frame = drawFrame
+        maskLayer.frame = drawFrame
         maskLayer.contents = BlomixButtonRelief.cutoutMaskImage(
             text: text,
-            fontSize: fontSize,
-            pad: pad
+            fontSize: drawFont,
+            pad: drawPad
         ).cgImage
         lip.contents = BlomixButtonRelief.cutoutInnerShadowImage(
             text: text,
-            fontSize: fontSize,
-            pad: pad
+            fontSize: drawFont,
+            pad: drawPad
         ).cgImage
     }
 }

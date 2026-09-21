@@ -34,6 +34,11 @@ enum BlomixDailyHubCTA {
     case finished
 }
 
+enum BlomixDailyScoresLoad {
+    case loaded([BlomixDailyScoreEntry])
+    case unavailable
+}
+
 @MainActor
 final class BlomixDailyChallenge {
 
@@ -137,19 +142,53 @@ final class BlomixDailyChallenge {
 
     // MARK: - Classement du jour (CloudKit)
 
-    func fetchScores(day: String) async -> [BlomixDailyScoreEntry] {
-        if BlomixPublicCloudGate.shared.isBlocked { return [] }
-        do {
-            try BlomixPublicCloudGate.shared.throwIfBlocked()
-            let records = try await queryScores(day: day)
-            BlomixPublicCloudGate.shared.noteSuccess()
-            return records
-                .map { entry(from: $0) }
-                .sorted { $0.score > $1.score }
-        } catch {
-            BlomixPublicCloudGate.shared.noteError(error)
-            print("[Daily] fetchScores(\(day)) : \(error.localizedDescription)")
-            return []
+    func fetchScores(day: String) async -> BlomixDailyScoresLoad {
+        var entries: [BlomixDailyScoreEntry] = []
+        var cloudFailed = false
+        if BlomixPublicCloudGate.shared.isBlocked {
+            cloudFailed = true
+        } else {
+            do {
+                try BlomixPublicCloudGate.shared.throwIfBlocked()
+                let records = try await queryScores(day: day)
+                BlomixPublicCloudGate.shared.noteSuccess()
+                entries = records.map { entry(from: $0) }
+            } catch {
+                cloudFailed = true
+                BlomixPublicCloudGate.shared.noteError(error)
+                print("[Daily] fetchScores(\(day)) : \(error.localizedDescription)")
+            }
+        }
+        mergeLocalFinishedScore(day: day, into: &entries)
+        entries.sort { $0.score > $1.score }
+        if entries.isEmpty, cloudFailed { return .unavailable }
+        return .loaded(entries)
+    }
+
+    /// Si le joueur a fini ce jour (UserDefaults), sa ligne est toujours là — même sans GC / CK.
+    private func mergeLocalFinishedScore(day: String, into entries: inout [BlomixDailyScoreEntry]) {
+        guard hasFinished(day: day) else { return }
+        let rawID = GKLocalPlayer.local.gamePlayerID
+        let playerID = (rawID.isEmpty || rawID == "GKPlayerIDUnknown") ? "local" : rawID
+        let score = max(0, UserDefaults.standard.integer(forKey: Self.finishedScoreKey))
+        let name = GKLocalPlayer.local.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let display = name.isEmpty ? BlomixL10n.startScreenPlayerUnknown : name
+        if let index = entries.firstIndex(where: { $0.gamePlayerID == playerID || $0.gamePlayerID == "local" }) {
+            if score > entries[index].score {
+                entries[index] = BlomixDailyScoreEntry(
+                    gamePlayerID: playerID, displayName: display, score: score
+                )
+            }
+        } else if let index = entries.firstIndex(where: { $0.displayName == display }) {
+            if score > entries[index].score {
+                entries[index] = BlomixDailyScoreEntry(
+                    gamePlayerID: playerID, displayName: display, score: score
+                )
+            }
+        } else {
+            entries.append(
+                BlomixDailyScoreEntry(gamePlayerID: playerID, displayName: display, score: score)
+            )
         }
     }
 
@@ -229,7 +268,13 @@ final class BlomixDailyChallenge {
         if UserDefaults.standard.bool(forKey: Self.creditedPrefix + day) { return }
         let playerID = GKLocalPlayer.local.gamePlayerID
         guard !playerID.isEmpty, playerID != "GKPlayerIDUnknown" else { return }
-        let entries = await fetchScores(day: day)
+        let entries: [BlomixDailyScoreEntry]
+        switch await fetchScores(day: day) {
+        case .loaded(let rows):
+            entries = rows
+        case .unavailable:
+            return
+        }
         guard !entries.isEmpty else { return }
         guard entries.contains(where: { $0.gamePlayerID == playerID }) else {
             if hasFinished(day: day) { return }
@@ -309,7 +354,8 @@ final class BlomixDailyChallenge {
     private func queryScores(day: String) async throws -> [CKRecord] {
         let predicate = NSPredicate(format: "day == %@", day)
         let query = CKQuery(recordType: Self.recordType, predicate: predicate)
-        query.sortDescriptors = [NSSortDescriptor(key: "score", ascending: false)]
+        // Pas de sort CloudKit : un index `score` sortable combiné à `day` fait souvent
+        // échouer la query (liste vide). Le tri est fait en mémoire.
         var all: [CKRecord] = []
         var cursor: CKQueryOperation.Cursor?
         let (first, next) = try await publicDB.records(matching: query, inZoneWith: nil, desiredKeys: nil, resultsLimit: 200)

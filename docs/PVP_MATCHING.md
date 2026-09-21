@@ -1,8 +1,8 @@
 # PvP — Appariement et défis entre joueurs
 
 > **Référence code** : `BlomixAvailablePlayersManager.swift`, `BlomixPvPUI.swift`, `BlomixPvPLocalSession.swift`, `GameViewController.swift`, `LeaderboardViewController.swift`, `BlomixPvPNetworking.swift`  
-> **Version de référence** : 7.1 (local)  
-> **Dernière revue** : août 2026
+> **Version de référence** : 7.2 (local)  
+> **Dernière revue** : septembre 2026
 
 Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se défier en PvP, quelles conditions doivent être remplies, et où la logique peut échouer silencieusement.
 
@@ -10,17 +10,21 @@ Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se dé
 
 ## Vue d'ensemble
 
-BLOMIX propose **cinq chemins distincts** pour lancer un duel 1 vs 1. Ils n'utilisent **pas** le même mécanisme de « notification » :
+BLOMIX propose **cinq chemins distincts** pour lancer un duel 1 vs 1. Ils n'utilisent **pas** le même mécanisme de « notification ».
+
+Depuis **7.2**, Accueil → **Duel** ouvre **directement** la liste Joueurs disponibles (`BlomixPvPAvailablePlayersViewController`, titre gouttière). Plus d’écran Multijoueur à 3 boutons. **Local** et le toggle « OK pour être défié » sont en pied de cette liste. **En ligne** (auto-match Game Center) n’est plus une entrée Accueil. `protocolVersion` inchangé.
 
 | Mode | Entrée UI | Signalisation | Mécanisme d'invitation |
 |------|-----------|---------------|------------------------|
-| **A. Joueurs disponibles** | Lobby PvP → « Joueurs disponibles » | CloudKit Public DB | Bannière in-app (`BlomixChallengeBannerView`) — **pas** de push Game Center |
-| **B. Adversaire récent** | Lobby PvP → « Adversaire récent » | GameKit direct | `GKInvite` → bannière in-app (`BlomixPvPInviteBannerView`) |
+| **A. Joueurs disponibles** | Accueil → Duel (liste directe) | CloudKit Public DB | Bannière in-app (`BlomixChallengeBannerView`) — **pas** de push Game Center |
+| **B. Adversaire récent** | Classement Elo / code lobby (plus de bouton Accueil) | GameKit direct | `GKInvite` → bannière in-app (`BlomixPvPInviteBannerView`) |
 | **C. Classement Elo** | Classement → onglet Elo → « Défier » | GameKit direct | Identique au mode B |
-| **D. Auto-match / Partie rapide** | Lobby → **Partie rapide** | GameKit auto **ou** Multipeer | Choix **Local** / **En ligne** (voir ci-dessous) |
-| **E. Local (proximité)** | Partie rapide → **Local** | MultipeerConnectivity (BT + Wi‑Fi local) | `BlomixPvPLocalSession` — **sans Internet** ; prérequis cache GC |
+| **D. Auto-match / En ligne** | Code lobby conservé, **non branché** depuis l’accueil 7.2 | GameKit auto | `GKMatchmaker.findMatch` |
+| **E. Local (proximité)** | Liste Duel → **Local** | MultipeerConnectivity (BT + Wi‑Fi local) | `BlomixPvPLocalSession` — **sans Internet** ; prérequis cache GC |
 
 ### Partie rapide — Local / En ligne
+
+**7.2** : Accueil Duel n’expose plus En ligne. **Local** se lance depuis le pied de la liste Joueurs disponibles. Le tableau ci-dessous décrit encore le transport.
 
 | Option | Transport | Prérequis | Elo |
 |--------|-----------|-----------|-----|
@@ -108,10 +112,10 @@ Il n'existe **aucun contrôle de version d'app** dans le chemin PvP. « Même ve
 ┌─────────────────────────────────────────────────────────────────┐
 │                         iOS Client                               │
 ├─────────────────────────────────────────────────────────────────┤
-│  BlomixPvPLobbyViewController                                    │
-│    ├─ toggle « OK pour être défié »                              │
-│    ├─ BlomixPvPAvailablePlayersViewController  (mode A)          │
-│    └─ BlomixPvPRecentPlayersViewController     (mode B)          │
+│  Accueil Duel → BlomixPvPAvailablePlayersViewController (mode A) │
+│    ├─ titre gouttière « Joueurs disponibles »                    │
+│    ├─ toggle « OK pour être défié » (pied)                       │
+│    └─ Local → BlomixPvPLobbyViewController (recherche Multipeer) │
 │  LeaderboardViewController                     (mode C)          │
 │  GameViewController                                              │
 │    ├─ handleIncomingChallengeDetected → BlomixChallengeBannerView│
@@ -205,12 +209,14 @@ BlomixPvPAvailablePlayersViewController.loadAvailablePlayers()
 
 Un joueur **en match** (`inMatch == 1`) apparaît dans la liste avec le badge « En match » — le bouton « Défier » est absent.
 
-### Accueil — pastille Duel (7.1)
+### Accueil — pastille Duel (7.1) + entrée liste (7.2)
 
 Même query que la liste (heartbeat 5 min, pas soi, **y compris `inMatch`**).  
 `startHomePresencePolling()` tant que l’écran d’accueil est visible (8 s, indépendant du toggle local).  
 Si `hasVisibleAvailablePeers` : icône `person.fill` verte qui respire **à droite du libellé Duel**, dans la capsule.  
 Stop : quitter l’accueil, `setActiveMatch(true)`, `willResignActive`. Pas de schéma CloudKit nouveau.
+
+Le chip **Duel** présente `BlomixPvPAvailablePlayersViewController` (`GameScene.showPvPLobby()`). Local : lobby emboîté `launchesStraightIntoLocalSearch` / `postsHomeDismissNotifications = false` (Fermer revient à la liste, pas à l’accueil).
 
 ### Phase 3 — Envoyer un défi (challenger)
 
@@ -346,7 +352,7 @@ loaded → inviting(name) → [match via onMatch] | failed
 ```
 choosingMode → searching → matchFound → preparingBoards
 ```
-Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide → En ligne**. `BlomixPvPAutoSearcher.startSearching()` n’est plus utilisé. Partie rapide en ligne **ne trie pas par Elo** (pas de `playerGroup` skill).
+Depuis 7.2 le lobby n’est plus l’écran d’entrée Accueil : il sert surtout **Local** (`launchesStraightIntoLocalSearch`). `beginMatchSearch()` (En ligne) reste dans le code, non exposé depuis Duel. `BlomixPvPAutoSearcher.startSearching()` n’est plus utilisé. Partie rapide en ligne **ne trie pas par Elo** (pas de `playerGroup` skill).
 
 ---
 
@@ -354,8 +360,8 @@ Le chemin `searching` via `beginMatchSearch()` est branché sur **Partie rapide 
 
 | Notification | Émetteur | Récepteur | Rôle |
 |--------------|----------|-----------|------|
-| `.blomixAvailabilityChanged` | setter `isAvailableForChallenge` | Lobby toggle | Sync UI |
-| `.blomixAvailabilityPublishResult` | `publishAvailability` | Lobby status | Succès/erreur CloudKit |
+| `.blomixAvailabilityChanged` | setter `isAvailableForChallenge` | Liste Duel + lobby toggle | Sync UI |
+| `.blomixAvailabilityPublishResult` | `publishAvailability` | Liste Duel + lobby status | Succès/erreur CloudKit |
 | `.blomixIncomingChallengeDetected` | `pollForIncomingChallenge` | `GameViewController` | Afficher bannière défi CloudKit |
 | `.blomixPvPOutgoingInviteStateChanged` | flows d'invitation | `GameViewController` | Verrou `outgoingInviteActive` |
 | `.blomixPvPOpponentConnected` | `BlomixPvPMatchCoordinator` | Lobby | Adversaire connecté |

@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 7.1 (local)
+> **Version de référence** : 7.2 (local)
 
 ---
 

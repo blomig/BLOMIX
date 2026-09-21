@@ -1,10 +1,10 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.1 / 134 en review** App Store. En vente : 7.0 / 132.  
+> **Statut** : **7.2 / 135** soumission App Store. En vente : 7.1 / 134.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 7.1  
-> **2026-09-20**  
+> **Version de référence** : 7.2  
+> **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
 Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes des 10). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **victoires** cumulées.
@@ -32,7 +32,7 @@ Tap chip accueil → **toujours** le hub (liste CloudKit du jour + un CTA) :
 
 Tap CTA grisé : rien (déjà sur le classement). Tap chip grisé/renommé : **même hub**.
 
-Dans la liste : à droite, **+5 / +3 / +1** (Changa One) pour les places 1 / 2 / 3 du jour (égalités = mêmes points, places sautées). Calcul **client**, pas un champ CloudKit.
+Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, **+5 / +3 / +1** en gouttière (`BlomixCutoutTitleView`) pour les places du jour (égalités = mêmes points, places sautées). Calcul **client**, pas un champ CloudKit. CTA **Revenez demain** : grisé, non cliquable.
 
 **Game Over** (court, après `end.wav`) : **ton score** + rang live + **Accueil** + **Classement** (→ hub, où tu te vois dans la liste). Pas de récap justesse.
 
@@ -158,7 +158,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 | Zone | Impact |
 |---|---|
 | `GameScene` | Flag mode daily + **même pipeline stage/timer/bombe qu’Arcade** ; file + lignes seedées ; auto-drop inchangé ; effets Magix hashés ; GO dédié |
-| Accueil | Chip **Défi du jour** : sous BLOMIX, **au-dessus d’Arcade**, mêmes dimensions / style que le hero Arcade. 5ᵉ disque de rang (sous-titre défi), chiffres/libellés **même taille**, rangée un peu resserrée |
+| Accueil | Chip **Défi du jour** : sous Arcade, mêmes dimensions / style que le hero Arcade. 5ᵉ disque de rang (sous-titre défi), chiffres/libellés **même taille**, rangée un peu resserrée |
 | Save | **Slot dédié** (ne pas écraser `blomix_solo_save_v2` Arcade/Zen) |
 | `ScoreManager` / `LeaderboardViewController` | Score de la run → **aussi** Arcade (highscore `BlomixMainScore_v3` + moyenne). Onglet `dailywins_arc` = **uniquement** les points podium |
 | CloudKit | Nouveau record type + index `day` ; Dashboard prod **et** dev |
@@ -176,7 +176,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 1. **Points** : 1er +5, 2e +3, 3e +1, le reste 0 ; égalité = mêmes points ; cumul GC. Crédit **après clôture UTC** (§5).  
 2. **Retry** : une seule partie. Hub CTA **Revenez demain** après GO.  
 3. **Fuseau** : UTC.  
-4. **Layout accueil** : chip sous BLOMIX, au-dessus d’Arcade, style hero Arcade. 5ᵉ disque **défi** (carrière GC).  
+4. **Layout accueil** : Arcade sous BLOMIX, chip Défi en dessous, style hero Arcade. 5ᵉ disque **défi** (carrière GC).  
 5. **Chemin** : chip → **hub** (liste du jour + CTA Défi ! / Continuer / Revenez demain). Après GO, chip = **Classement du défi** → même hub. Disque ≠ hub.
 
 ### Figées (suite)

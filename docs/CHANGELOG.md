@@ -7,9 +7,20 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.2] — 2026-09
+
+Build **135**. Soumission App Store. 7.1 / 134 en vente.
+
+### Modifié
+- **Accueil** : Arcade au-dessus du Défi du jour (même chips).
+- **Hub défi** : CTA « Revenez demain » nettement grisé (non cliquable). Podium 1/2/3 en Changa One (1er plus grand) ; **+5 / +3 / +1** en gouttière (même trou que les titres).
+- **Duel** : le chip Accueil ouvre directement **Joueurs disponibles** (titre gouttière). Local + toggle « OK pour être défié » en bas. Plus d’écran Multijoueur à 3 boutons, ni En ligne / Adversaire récent depuis l’accueil. `protocolVersion` inchangé. Toggle off : le slot du nom reste vide (Local ne bouge pas).
+
+---
+
 ## [7.1] — 2026-09
 
-Build **134**. En review. 7.0 / 132 en vente.
+Build **134**. En vente.
 
 ### Ajouté
 - **Défi du jour** : même Arcade pour tout le monde (file + Magix + lignes seedées UTC). Chip sous BLOMIX → hub (liste du jour + Défi ! / Continuer / Revenez demain). 1 run / jour. GO court (score + rang live). Le score compte aussi en Arcade (highscore + moyenne). Hub : **+5 / +3 / +1** (Changa One) à droite des 3 premiers. Points podium crédités au lendemain UTC, cumul Game Center `dailywins_arc`. 5ᵉ disque accueil = carrière. Slot save séparé.

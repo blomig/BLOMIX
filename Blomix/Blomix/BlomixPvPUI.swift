@@ -339,6 +339,10 @@ final class BlomixPvPLobbyViewController: UIViewController {
     var onMatch: ((GKMatch) -> Void)?
     /// Match Local Multipeer (Partie rapide → Local).
     var onLocalMatch: ((BlomixPvPLocalSession) -> Void)?
+    /// Présenté depuis la liste Duel : enchaîne tout de suite la recherche Local.
+    var launchesStraightIntoLocalSearch = false
+    /// Si false, Fermer ne rejoue pas l’accueil (retour à la liste Duel).
+    var postsHomeDismissNotifications = true
     private let foundTransitionDelay: TimeInterval = 0.75
     /// Session locale en cours de recherche (retenue tant que le lobby cherche).
     private var localSearchSession: BlomixPvPLocalSession?
@@ -353,7 +357,11 @@ final class BlomixPvPLobbyViewController: UIViewController {
         addAmbientBlocksBackground()
         registerPreparationObserversIfNeeded()
         buildLayout()
-        transitionTo(.choosingMode)
+        if launchesStraightIntoLocalSearch {
+            beginLocalMatchSearch()
+        } else {
+            transitionTo(.choosingMode)
+        }
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleAvailabilityChanged),
@@ -409,12 +417,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
         switch lobbyPhase {
         case .choosingMode:
             transitionTo(.cancelled)
-            NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
-            // Ne pas annuler la recherche auto : elle continue en arrière-plan si active.
-            dismiss(animated: true) {
-                NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
-                self.onClose?()
-            }
+            dismissTowardHomeOrParent()
         case .searching, .failed:
             noPlayerTimeoutTimer?.invalidate()
             activityRefreshTimer?.invalidate()
@@ -427,13 +430,21 @@ final class BlomixPvPLobbyViewController: UIViewController {
                 host.subviews.compactMap { $0 as? BlomixInAppDialogView }.forEach { $0.removeFromSuperview() }
             }
             transitionTo(.cancelled)
-            NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
-            dismiss(animated: true) {
-                NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
-                self.onClose?()
-            }
+            dismissTowardHomeOrParent()
         default:
             return
+        }
+    }
+
+    private func dismissTowardHomeOrParent() {
+        if postsHomeDismissNotifications {
+            NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        }
+        dismiss(animated: true) {
+            if self.postsHomeDismissNotifications {
+                NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+            }
+            self.onClose?()
         }
     }
 
@@ -2956,6 +2967,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     }
 
     var onMatch: ((GKMatch) -> Void)?
+    var onLocalMatch: ((BlomixPvPLocalSession) -> Void)?
 
     private var phase: Phase = .loading
     private var pendingInviteMatch:  GKMatch?
@@ -2966,7 +2978,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     private var isSendingChallenge   = false
     // MARK: - Vues
 
-    private let titleLabel       = UILabel()
+    private let titleView        = BlomixCutoutTitleView(text: BlomixL10n.pvpAvailableTitle, fontSize: 28)
     private let closeButton      = BlomixUIButton()
     private let statusLabel      = UILabel()
     private let hintLabel        = UILabel()
@@ -2974,6 +2986,12 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     private let searchBlocksView = BlomixPvPSearchBlocksView()
     private let scrollView       = UIScrollView()
     private let playerStackView  = UIStackView()
+    private let footerStack      = UIStackView()
+    private let localButton      = BlomixUIButton()
+    private let availabilityRow  = UIStackView()
+    private let availabilityLabel = UILabel()
+    private let availabilitySwitch = BlomixChromeSwitch()
+    private let availabilityStatusLabel = UILabel()
 
     // MARK: - Cycle de vie
 
@@ -2985,6 +3003,24 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         addAmbientBlocksBackground()
         buildLayout()
         loadAvailablePlayers()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAvailabilityChanged),
+            name: .blomixAvailabilityChanged,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePublishResult(_:)),
+            name: .blomixAvailabilityPublishResult,
+            object: nil
+        )
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        updateAvailableToggleAppearance()
+        refreshCloudGateStatus()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -3028,11 +3064,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     // MARK: - Layout
 
     private func buildLayout() {
-        titleLabel.text = BlomixL10n.pvpAvailableTitle
-        titleLabel.textColor = BlomixAppearance.primaryText
-        titleLabel.font = FontTheme.gameFont(size: 26, weight: .semibold)
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(titleLabel)
+        view.addSubview(titleView)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -3074,15 +3106,50 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         scrollView.isHidden = true
         view.addSubview(scrollView)
 
+        localButton.setTitle(BlomixL10n.pvpQuickMatchLocalTitle, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: localButton)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 14, left: 16, bottom: 14, right: 16), to: localButton)
+        localButton.addTarget(self, action: #selector(localTapped), for: .touchUpInside)
+
+        availabilityLabel.text = BlomixL10n.pvpAvailableToggleLabel
+        availabilityLabel.textColor = BlomixAppearance.primaryText
+        availabilityLabel.font = FontTheme.gameFont(size: 15, weight: .regular)
+        availabilityLabel.numberOfLines = 2
+        availabilitySwitch.addTarget(self, action: #selector(availabilityToggleChanged), for: .valueChanged)
+        availabilityRow.axis = .horizontal
+        availabilityRow.alignment = .center
+        availabilityRow.spacing = 12
+        availabilityRow.addArrangedSubview(availabilityLabel)
+        availabilityRow.addArrangedSubview(availabilitySwitch)
+
+        availabilityStatusLabel.font = FontTheme.gameFont(size: 12, weight: .regular)
+        availabilityStatusLabel.textAlignment = .center
+        availabilityStatusLabel.numberOfLines = 2
+        availabilityStatusLabel.lineBreakMode = .byTruncatingTail
+        availabilityStatusLabel.textColor = BlomixAppearance.tertiaryText
+        availabilityStatusLabel.text = "\u{00a0}"
+        availabilityStatusLabel.setContentHuggingPriority(.required, for: .vertical)
+        availabilityStatusLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        footerStack.axis = .vertical
+        footerStack.alignment = .fill
+        footerStack.spacing = 12
+        footerStack.translatesAutoresizingMaskIntoConstraints = false
+        footerStack.addArrangedSubview(localButton)
+        footerStack.addArrangedSubview(availabilityRow)
+        footerStack.addArrangedSubview(availabilityStatusLabel)
+        view.addSubview(footerStack)
+
         NSLayoutConstraint.activate([
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
 
-            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
 
             searchBlocksView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            searchBlocksView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -20),
+            searchBlocksView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -48),
 
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
@@ -3095,10 +3162,20 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
             countdownLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             countdownLabel.topAnchor.constraint(equalTo: hintLabel.bottomAnchor, constant: 20),
 
-            scrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 20),
+            footerStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            footerStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            footerStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+
+            localButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+            // 2 lignes réservées : toggle off ne doit pas déplacer Local.
+            availabilityStatusLabel.heightAnchor.constraint(
+                equalToConstant: ceil(availabilityStatusLabel.font.lineHeight) * 2
+            ),
+
+            scrollView.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 16),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            scrollView.bottomAnchor.constraint(equalTo: footerStack.topAnchor, constant: -12),
 
             playerStackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             playerStackView.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor, constant: 20),
@@ -3114,6 +3191,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         switch newPhase {
         case .loading:
             scrollView.isHidden = true
+            footerStack.isHidden = false
             statusLabel.text = BlomixL10n.loading
             hintLabel.text = ""
             searchBlocksView.isHidden = false
@@ -3123,6 +3201,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         case .loaded(let items):
             scrollView.isHidden = false
+            footerStack.isHidden = false
             statusLabel.text = ""
             hintLabel.text = items.isEmpty ? BlomixL10n.pvpAvailableEmptyHint : ""
             searchBlocksView.stopAnimating(settle: false)
@@ -3133,6 +3212,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         case .empty:
             scrollView.isHidden = true
+            footerStack.isHidden = false
             statusLabel.text = BlomixL10n.pvpAvailableEmpty
             hintLabel.text = BlomixL10n.pvpAvailableEmptyHint
             searchBlocksView.stopAnimating(settle: false)
@@ -3142,6 +3222,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         case .inviting(let name):
             scrollView.isHidden = true
+            footerStack.isHidden = true
             statusLabel.text = BlomixL10n.pvpRecentInviteSent(name)
             hintLabel.text = BlomixL10n.pvpAvailableInviteAppOpenHint
             searchBlocksView.isHidden = false
@@ -3151,6 +3232,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         case .failed(let msg):
             scrollView.isHidden = true
+            footerStack.isHidden = false
             statusLabel.text = msg
             hintLabel.text = ""
             searchBlocksView.isHidden = false
@@ -3427,6 +3509,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         notifyOutgoingInviteEnded()
         GKMatchmaker.shared().finishMatchmaking(for: match)
         onMatch?(match)
+        presentingViewController?.dismiss(animated: false)
     }
 
     private var challengeRosterPollTimer: Timer?
@@ -3502,11 +3585,93 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         pendingInviteMatch = nil
         notifyOutgoingInviteEnded()
         BlomixAvailablePlayersManager.shared.clearOutgoingChallenge()
-        switch phase {
-        case .failed, .inviting:
-            presentingViewController?.dismiss(animated: true)
-        default:
-            dismiss(animated: true)
+        NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        dismiss(animated: true) {
+            NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
+        }
+    }
+
+    @objc private func localTapped() {
+        let lobby = BlomixPvPLobbyViewController()
+        lobby.launchesStraightIntoLocalSearch = true
+        lobby.postsHomeDismissNotifications = false
+        lobby.modalPresentationStyle = .overFullScreen
+        lobby.modalTransitionStyle = .crossDissolve
+        lobby.onLocalMatch = { [weak self] session in
+            guard let self else { return }
+            self.onLocalMatch?(session)
+            self.presentingViewController?.dismiss(animated: false)
+        }
+        lobby.onMatch = { [weak self] match in
+            guard let self else { return }
+            self.onMatch?(match)
+            self.presentingViewController?.dismiss(animated: false)
+        }
+        present(lobby, animated: true)
+    }
+
+    @objc private func availabilityToggleChanged() {
+        let nowActive = availabilitySwitch.isOn
+        BlomixAvailablePlayersManager.shared.isAvailableForChallenge = nowActive
+        if nowActive {
+            if GKLocalPlayer.local.isAuthenticated {
+                setAvailabilityStatus(BlomixL10n.pvpAvailabilitySending, color: BlomixAppearance.tertiaryText)
+            } else {
+                setAvailabilityStatus(BlomixL10n.pvpGcNotConnected, color: .systemOrange)
+            }
+        } else {
+            setAvailabilityStatus("", color: .clear)
+        }
+    }
+
+    @objc private func handleAvailabilityChanged() {
+        updateAvailableToggleAppearance()
+        if case .loaded(let items) = phase {
+            rebuildPlayerList(items: items)
+        }
+    }
+
+    @objc private func handlePublishResult(_ notif: Notification) {
+        let success = notif.userInfo?["success"] as? Bool ?? false
+        let message = notif.userInfo?["message"] as? String ?? "?"
+        let color: UIColor = success
+            ? UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+            : .systemOrange
+        setAvailabilityStatus(message, color: color)
+    }
+
+    private func setAvailabilityStatus(_ text: String, color: UIColor) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Espace insécable : le slot du nom reste, Local ne descend pas.
+        availabilityStatusLabel.text = trimmed.isEmpty ? "\u{00a0}" : text
+        availabilityStatusLabel.textColor = trimmed.isEmpty ? .clear : color
+    }
+
+    private func refreshCloudGateStatus() {
+        guard BlomixPublicCloudGate.shared.isBlocked else { return }
+        let sec = BlomixPublicCloudGate.shared.retryRemainingSeconds
+        setAvailabilityStatus(BlomixL10n.pvpCloudBusyRetry(sec), color: .systemOrange)
+    }
+
+    private func updateAvailableToggleAppearance() {
+        let active = BlomixAvailablePlayersManager.shared.isAvailableForChallenge
+        let green = UIColor(red: 0.22, green: 0.72, blue: 0.37, alpha: 1)
+        if availabilitySwitch.isOn != active {
+            availabilitySwitch.isOn = active
+        }
+        availabilitySwitch.refreshChrome()
+        if active {
+            let current = availabilityStatusLabel.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if current.isEmpty {
+                let player = GKLocalPlayer.local
+                if player.isAuthenticated {
+                    setAvailabilityStatus(BlomixL10n.pvpGcConnected(player.displayName), color: green)
+                } else {
+                    setAvailabilityStatus(BlomixL10n.pvpGcNotConnected, color: .systemOrange)
+                }
+            }
+        } else if availabilityStatusLabel.textColor != .systemOrange {
+            setAvailabilityStatus("", color: .clear)
         }
     }
 }

@@ -9,12 +9,15 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.2] — 2026-09
 
-Build **135**. En review. 7.1 / 134 en vente.
+Build **136**. Soumission App Store (build 135 retiré de la review). 7.1 / 134 en vente.
 
 ### Modifié
 - **Accueil** : Arcade au-dessus du Défi du jour (même chips).
 - **Hub défi** : CTA « Revenez demain » nettement grisé (non cliquable). Podium 1/2/3 en Changa One (1er plus grand) ; **+5 / +3 / +1** en gouttière (même trou que les titres).
 - **Duel** : le chip Accueil ouvre directement **Joueurs disponibles** (titre gouttière). Local + toggle « OK pour être défié » en bas. Plus d’écran Multijoueur à 3 boutons, ni En ligne / Adversaire récent depuis l’accueil. `protocolVersion` inchangé. Toggle off : le slot du nom reste vide (Local ne bouge pas).
+
+### Corrigé
+- **Défi — classement carrière** : l’onglet in-app **recalcule** les podiums CloudKit (jours clos) — lecture seule, pas de cumul si un autre joueur ouvre l’app. 1 attribution / joueur / jour. GC = submit local seulement.
 
 ---
 

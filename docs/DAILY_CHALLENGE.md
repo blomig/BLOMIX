@@ -1,6 +1,6 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.2 / 135** en review App Store. En vente : 7.1 / 134.  
+> **Statut** : **7.2 / 136** soumission App Store. En vente : 7.1 / 134.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
 > **Version de référence** : 7.2  
@@ -118,7 +118,16 @@ Le board GC **`dailywins_arc`** (nom ASC `DailyWin_arc`) est un **cumul** de ces
 
 Le rang affiché **au GO** est le rang **live** (parmi ceux qui ont déjà fini). Il **n’est pas** encore les +5/+3/+1 : quelqu’un peut te passer après.
 
-**Attribution :** pas de serveur BLOMIX. Au **lendemain** (ouverture app / accueil, jour UTC suivant), chaque client lit le classement CloudKit de **la veille**, et s’il est 1/2/3 **et** n’a pas encore crédité ce `day`, il ajoute 5/3/1 en local puis `submitScore` du total GC.
+**Attribution :** pas de serveur BLOMIX, et Game Center **interdit** d’écrire le score d’un autre joueur.
+
+| Surface | Source | Écriture | Doublon |
+|---|---|---|---|
+| Onglet in-app **Défi** | Recalcul +5/+3/+1 sur `DailyScore` des jours **clos** | **Aucune** (lecture) | Idempotent : 1 record CK / joueur / jour ; 1 podium / joueur / jour |
+| Board GC `dailywins_arc` (5ᵉ disque) | `submitScore` **du joueur local** seulement | Local UserDefaults `credited_{day}` + total GC | Pas d’écriture du score d’un pair |
+
+Ouvrir l’app (toi ou un autre) **ne rajoute pas** de points sur l’onglet in-app : chacun recalcule la même somme. Le 2e qui ouvre soumet **son** +3 à Game Center, ça ne touche pas tes +5.
+
+Au lendemain (accueil / foreground / auth GC), le client parcourt les **14** derniers jours clos : s’il est 1/2/3 et n’a pas encore crédité ce `day`, il ajoute 5/3/1 **chez lui** puis `submitScore` du total GC.
 
 | | Classement **du jour** (GO + bouton) | Classement **points défi** (GC, disque accueil) |
 |---|---|---|
@@ -225,7 +234,7 @@ Fichiers :
 
 `recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`). Un run Xcode (Debug) tape **Development** ; TestFlight / App Store tapent **Production**.
 
-**Prochaines étapes magasin** : 7.1 / 134 en review. Après OK Apple : **Release This Version** manuel dans ASC (`automatic_release: false`). Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
+**Prochaines étapes magasin** : 7.2 / 136 en soumission. Après OK Apple : **Release This Version** manuel dans ASC (`automatic_release: false`). Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
 
 ---
 

@@ -412,7 +412,53 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             return
         }
 
+        // Défi : carrière podium depuis CloudKit (2e/3e visibles sans avoir ouvert l’app le lendemain).
+        if selectedKind == .dailyWins {
+            Task { @MainActor [weak self] in
+                await self?.loadDailyCareerLeaderboard()
+            }
+            return
+        }
+
         loadLeaderboardEntries(for: selectedKind)
+    }
+
+    /// Podiums clos agrégés (`DailyScore`) — lecture seule, jamais additionnée au board GC.
+    private func loadDailyCareerLeaderboard() async {
+        let localID = GKLocalPlayer.local.gamePlayerID
+        switch await BlomixDailyChallenge.shared.fetchCareerStandings() {
+        case .unavailable:
+            loadLeaderboardEntries(for: .dailyWins)
+        case .loaded(let entries):
+            guard selectedLeaderboardKind == .dailyWins else { return }
+            var rows: [LeaderboardRow] = []
+            var place = 1
+            var index = 0
+            while index < entries.count {
+                let points = entries[index].score
+                var end = index
+                while end < entries.count, entries[end].score == points { end += 1 }
+                for e in entries[index..<end] {
+                    rows.append(LeaderboardRow(
+                        rank: place,
+                        playerName: e.displayName,
+                        gamePlayerID: e.gamePlayerID,
+                        teamPlayerID: "",
+                        score: e.score,
+                        isLocalPlayer: BlomixDailyChallenge.samePlayer(e.gamePlayerID, localID)
+                            || e.gamePlayerID == "local",
+                        gameCount: 0
+                    ))
+                }
+                place += (end - index)
+                index = end
+            }
+            setLoading(false)
+            self.rows = rows
+            statusLabel.text = rows.isEmpty
+                ? BlomixL10n.leaderboardEmpty
+                : BlomixL10n.leaderboardTopCount(rows.count)
+        }
     }
 
     // MARK: - Elo multi-pages

@@ -202,13 +202,51 @@ final class BlomixDailyChallenge {
             var end = index
             while end < entries.count, entries[end].score == score { end += 1 }
             let group = entries[index..<end]
-            if group.contains(where: { $0.gamePlayerID == gamePlayerID }) {
+            if group.contains(where: { samePlayer($0.gamePlayerID, gamePlayerID) }) {
                 return place
             }
             place += group.count
             index = end
         }
         return nil
+    }
+
+    static func samePlayer(_ a: String, _ b: String) -> Bool {
+        let x = canonicalPlayerID(a)
+        let y = canonicalPlayerID(b)
+        guard !x.isEmpty, !y.isEmpty else { return false }
+        if x == y { return true }
+        if x == "local" || y == "local" { return false }
+        return false
+    }
+
+    /// Clé stable (slash CloudKit / Game Center).
+    static func canonicalPlayerID(_ id: String) -> String {
+        id.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "_")
+    }
+
+    /// Une ligne par joueur (meilleur score). Évite un double podium si deux records CK.
+    static func collapsedEntries(_ entries: [BlomixDailyScoreEntry]) -> [BlomixDailyScoreEntry] {
+        var best: [String: BlomixDailyScoreEntry] = [:]
+        var order: [String] = []
+        for e in entries {
+            let key = canonicalPlayerID(e.gamePlayerID)
+            guard !key.isEmpty else { continue }
+            if let existing = best[key] {
+                if e.score > existing.score {
+                    best[key] = BlomixDailyScoreEntry(
+                        gamePlayerID: existing.gamePlayerID,
+                        displayName: e.displayName.isEmpty ? existing.displayName : e.displayName,
+                        score: e.score
+                    )
+                }
+            } else {
+                best[key] = e
+                order.append(key)
+            }
+        }
+        return order.compactMap { best[$0] }
     }
 
     /// Points podium : 1er +5, 2e +3, 3e +1 ; égalité = mêmes points, places sautées.
@@ -250,17 +288,32 @@ final class BlomixDailyChallenge {
         }
     }
 
-    // MARK: - Podium (lendemain UTC)
+    // MARK: - Podium (après clôture UTC)
+
+    /// Jours UTC déjà clos, du plus récent au plus ancien.
+    func closedUtcDays(lookback: Int) -> [String] {
+        let cal = BlomixDailySeed.utcCalendar()
+        var date = Date()
+        var days: [String] = []
+        days.reserveCapacity(max(0, lookback))
+        for _ in 0..<max(0, lookback) {
+            date = cal.date(byAdding: .day, value: -1, to: date) ?? date.addingTimeInterval(-86_400)
+            days.append(BlomixDailySeed.utcDayString(from: date))
+        }
+        return days
+    }
 
     func claimPodiumIfNeeded() {
         guard !isClaimingPodium else { return }
-        let yesterday = BlomixDailySeed.previousUtcDayString()
-        if UserDefaults.standard.bool(forKey: Self.creditedPrefix + yesterday) { return }
-        if let run = loadRun(), run.utcDay == yesterday { return }
         isClaimingPodium = true
         Task { @MainActor [weak self] in
             defer { self?.isClaimingPodium = false }
-            await self?.claimPodium(for: yesterday)
+            guard let self else { return }
+            for day in self.closedUtcDays(lookback: 14) {
+                if UserDefaults.standard.bool(forKey: Self.creditedPrefix + day) { continue }
+                if let run = self.loadRun(), run.utcDay == day { continue }
+                await self.claimPodium(for: day)
+            }
         }
     }
 
@@ -276,18 +329,76 @@ final class BlomixDailyChallenge {
             return
         }
         guard !entries.isEmpty else { return }
-        guard entries.contains(where: { $0.gamePlayerID == playerID }) else {
+        guard let mine = entries.first(where: { Self.samePlayer($0.gamePlayerID, playerID) }) else {
             if hasFinished(day: day) { return }
             UserDefaults.standard.set(true, forKey: Self.creditedPrefix + day)
             return
         }
-        let gained = Self.podiumPoints(for: playerID, in: entries)
+        let gained = Self.podiumPoints(for: mine.gamePlayerID, in: entries)
         if gained > 0 {
             careerPoints += gained
             print("[Daily] Podium \(day) : +\(gained) (total \(careerPoints)).")
         }
         UserDefaults.standard.set(true, forKey: Self.creditedPrefix + day)
         submitCareerPoints(careerPoints)
+    }
+
+    /// Carrière podium = **recalcul** des +5/+3/+1 sur les `DailyScore` des jours clos.
+    /// Lecture seule : n’écrit ni CloudKit ni Game Center. Idempotent (ouvrir l’app N fois
+    /// ou à N joueurs ne change pas les totaux).
+    func fetchCareerStandings(lookbackDays: Int = 60) async -> BlomixDailyScoresLoad {
+        let days = closedUtcDays(lookback: lookbackDays)
+        var records: [CKRecord] = []
+        var cloudFailed = false
+        if BlomixPublicCloudGate.shared.isBlocked {
+            cloudFailed = true
+        } else {
+            do {
+                try BlomixPublicCloudGate.shared.throwIfBlocked()
+                records = try await queryScores(days: days)
+                BlomixPublicCloudGate.shared.noteSuccess()
+            } catch {
+                print("[Daily] fetchCareerStandings IN : \(error.localizedDescription)")
+                do {
+                    try BlomixPublicCloudGate.shared.throwIfBlocked()
+                    for day in days.prefix(14) {
+                        records.append(contentsOf: try await queryScores(day: day))
+                    }
+                    BlomixPublicCloudGate.shared.noteSuccess()
+                } catch {
+                    cloudFailed = true
+                    BlomixPublicCloudGate.shared.noteError(error)
+                    print("[Daily] fetchCareerStandings : \(error.localizedDescription)")
+                }
+            }
+        }
+        var byDay: [String: [BlomixDailyScoreEntry]] = [:]
+        for rec in records {
+            let day = (rec["day"] as? String) ?? Self.day(fromRecordName: rec.recordID.recordName) ?? ""
+            guard !day.isEmpty, days.contains(day) else { continue }
+            byDay[day, default: []].append(entry(from: rec))
+        }
+        var totals: [String: (name: String, points: Int)] = [:]
+        for (_, raw) in byDay {
+            let entries = Self.collapsedEntries(raw).sorted { $0.score > $1.score }
+            var awarded = Set<String>()
+            for e in entries {
+                let key = Self.canonicalPlayerID(e.gamePlayerID)
+                guard awarded.insert(key).inserted else { continue }
+                let pts = Self.podiumPoints(for: e.gamePlayerID, in: entries)
+                guard pts > 0 else { continue }
+                var cur = totals[key] ?? (e.displayName, 0)
+                cur.points += pts
+                if !e.displayName.isEmpty { cur.name = e.displayName }
+                totals[key] = cur
+            }
+        }
+        var standings = totals.map { id, v in
+            BlomixDailyScoreEntry(gamePlayerID: id, displayName: v.name, score: v.points)
+        }
+        standings.sort { $0.score > $1.score }
+        if standings.isEmpty, cloudFailed { return .unavailable }
+        return .loaded(standings)
     }
 
     func submitCareerPoints(_ points: Int) {
@@ -337,8 +448,15 @@ final class BlomixDailyChallenge {
     }
 
     private func entry(from record: CKRecord) -> BlomixDailyScoreEntry {
-        let id = (record["gamePlayerID"] as? String)
-            ?? record.recordID.recordName
+        let stored = (record["gamePlayerID"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let id: String
+        if !stored.isEmpty, stored != "GKPlayerIDUnknown" {
+            id = stored
+        } else {
+            id = Self.playerID(fromRecordName: record.recordID.recordName)
+                ?? record.recordID.recordName
+        }
         let name = (record["displayName"] as? String) ?? BlomixL10n.startScreenPlayerUnknown
         let score: Int
         if let i = record["score"] as? Int {
@@ -351,8 +469,31 @@ final class BlomixDailyChallenge {
         return BlomixDailyScoreEntry(gamePlayerID: id, displayName: name, score: score)
     }
 
+    private static func playerID(fromRecordName name: String) -> String? {
+        let parts = name.split(separator: "_", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count >= 3, parts[0] == "daily" else { return nil }
+        let id = parts[2...].joined(separator: "_")
+        return id.isEmpty ? nil : String(id)
+    }
+
+    private static func day(fromRecordName name: String) -> String? {
+        let parts = name.split(separator: "_", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count >= 2, parts[0] == "daily" else { return nil }
+        let day = String(parts[1])
+        return day.count == 10 ? day : nil
+    }
+
     private func queryScores(day: String) async throws -> [CKRecord] {
-        let predicate = NSPredicate(format: "day == %@", day)
+        try await queryScores(predicate: NSPredicate(format: "day == %@", day))
+    }
+
+    private func queryScores(days: [String]) async throws -> [CKRecord] {
+        guard !days.isEmpty else { return [] }
+        if days.count == 1 { return try await queryScores(day: days[0]) }
+        return try await queryScores(predicate: NSPredicate(format: "day IN %@", days))
+    }
+
+    private func queryScores(predicate: NSPredicate) async throws -> [CKRecord] {
         let query = CKQuery(recordType: Self.recordType, predicate: predicate)
         // Pas de sort CloudKit : un index `score` sortable combiné à `day` fait souvent
         // échouer la query (liste vide). Le tri est fait en mémoire.

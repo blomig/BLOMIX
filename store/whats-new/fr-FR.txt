@@ -1,3 +1,4 @@
 • Accueil : Arcade juste sous BLOMIX, Défi du jour en dessous
 • Hub défi : « Revenez demain » grisé ; podium +5 / +3 / +1 en gouttière
+• Classement défi : les 3 du podium dès le lendemain (sans attendre que chacun ouvre l’app)
 • Duel : la liste Joueurs disponibles s’ouvre directement (Local et « OK pour être défié » en bas)

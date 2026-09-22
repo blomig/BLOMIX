@@ -218,7 +218,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 - Solo : score principal + moyenne
 - Zen : `ZenMode`
 - PvP : Elo (`elotype`)
-- Défi : points podium cumulés `dailywins_arc` (le score de la run va **aussi** sur Arcade + moyenne)
+- Défi : points podium cumulés — onglet in-app = somme CloudKit des jours clos ; GC `dailywins_arc` = submit du joueur local (le score de la run va **aussi** sur Arcade + moyenne)
 
 ---
 

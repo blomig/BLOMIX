@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.2] — 2026-09
 
-Build **136**. Soumission App Store (build 135 retiré de la review). 7.1 / 134 en vente.
+Build **136**. En review (build 135 retiré). 7.1 / 134 en vente.
 
 ### Modifié
 - **Accueil** : Arcade au-dessus du Défi du jour (même chips).

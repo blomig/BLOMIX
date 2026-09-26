@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 7.3 (local)  
+> **Version de référence** : 7.3 (review)  
 > **Dernière mise à jour** : septembre 2026
 
 ---

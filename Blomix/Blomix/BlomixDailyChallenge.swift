@@ -57,6 +57,9 @@ final class BlomixDailyChallenge {
     private var publicDB: CKDatabase { ckContainer.publicCloudDatabase }
     private var didSetup = false
     private var isClaimingPodium = false
+    /// Dernier meilleur score CloudKit connu (HUD « À battre »), par jour UTC.
+    private var cachedLeaderDay: String?
+    private var cachedLeaderScore: Int = 0
 
     private init() {}
 
@@ -162,7 +165,15 @@ final class BlomixDailyChallenge {
         mergeLocalFinishedScore(day: day, into: &entries)
         entries.sort { $0.score > $1.score }
         if entries.isEmpty, cloudFailed { return .unavailable }
+        cachedLeaderDay = day
+        cachedLeaderScore = entries.first?.score ?? 0
         return .loaded(entries)
+    }
+
+    /// Meilleur score déjà vu pour ce jour (hub / fetch précédent). `nil` si pas encore de fetch.
+    func leaderScore(forDay day: String) -> Int? {
+        guard cachedLeaderDay == day else { return nil }
+        return cachedLeaderScore
     }
 
     /// Si le joueur a fini ce jour (UserDefaults), sa ligne est toujours là — même sans GC / CK.
@@ -247,6 +258,25 @@ final class BlomixDailyChallenge {
             }
         }
         return order.compactMap { best[$0] }
+    }
+
+    /// Rang carrière (même formule que l’onglet Défi) : égalités = même place, places sautées.
+    static func denseCareerRank(of gamePlayerID: String, in entries: [BlomixDailyScoreEntry]) -> Int? {
+        var place = 1
+        var index = 0
+        while index < entries.count {
+            let points = entries[index].score
+            var end = index
+            while end < entries.count, entries[end].score == points { end += 1 }
+            if entries[index..<end].contains(where: {
+                samePlayer($0.gamePlayerID, gamePlayerID) || $0.gamePlayerID == "local"
+            }) {
+                return place
+            }
+            place += (end - index)
+            index = end
+        }
+        return nil
     }
 
     /// Points podium : 1er +5, 2e +3, 3e +1 ; égalité = mêmes points, places sautées.
@@ -398,7 +428,19 @@ final class BlomixDailyChallenge {
         }
         standings.sort { $0.score > $1.score }
         if standings.isEmpty, cloudFailed { return .unavailable }
+        print("[Daily] carrière CloudKit : \(standings.count) joueur(s).")
         return .loaded(standings)
+    }
+
+    /// Rang accueil = même source que l’onglet (CloudKit), pas le board GC.
+    func fetchLocalCareerRank() async -> Int? {
+        let localID = GKLocalPlayer.local.gamePlayerID
+        switch await fetchCareerStandings() {
+        case .unavailable:
+            return nil
+        case .loaded(let entries):
+            return Self.denseCareerRank(of: localID, in: entries)
+        }
     }
 
     func submitCareerPoints(_ points: Int) {

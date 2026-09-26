@@ -1,4 +1,4 @@
-• Inicio: Arcade justo bajo BLOMIX, Desafío del día debajo
-• Hub del desafío: «Vuelve mañana» atenuado; podio +5 / +3 / +1 en la canaleta de color
-• Clasificación del desafío: los 3 del podio al día siguiente (sin esperar a que cada uno abra la app)
-• Duelo: Jugadores disponibles se abre de inmediato (Local y «OK para ser retado» abajo)
+• Desafío del día: «A superar» sobre la puntuación (mejor del día), no el récord Arcade
+• Cadenas: las chispas vuelan hacia la puntuación grande
+• Compactación: succión desde el hueco, estiramiento y rebote
+• Inicio: «Nueva partida» bajo Duelo y Zen (partida en curso)

@@ -93,6 +93,7 @@
 "game_over.leaderboard" = "Classifica";
 "game_over.personal_best" = "Nuovo record personale!";
 "hud.best_score_title" = "RECORD";
+"hud.daily_to_beat_title" = "DA BATTERE";
 "hud.bonus_title" = "BONUS";
 "hud.best_score_format" = "%lld";
 

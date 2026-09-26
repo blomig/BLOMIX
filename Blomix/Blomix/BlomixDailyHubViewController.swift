@@ -177,9 +177,11 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
 
     private func dismissThen(_ action: @escaping () -> Void) {
         NotificationCenter.default.post(name: .blomixModalWillDismiss, object: nil)
+        // Restaurer / lancer sous le hub : le crossDissolve révèle la grille, pas un
+        // écran vide (et un « 32s » Stage 1 orphelin) pendant l’animation.
+        action()
         dismiss(animated: true) {
             NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
-            action()
         }
     }
 

@@ -1,4 +1,4 @@
-• Home: Arcade right under BLOMIX, Daily Challenge below
-• Daily hub: “Come back tomorrow” dimmed; podium +5 / +3 / +1 in the color gutter
-• Daily ranking: all 3 podium finishers the next day (even if they haven’t opened the app)
-• Duel: Available Players opens straight away (Local and “OK to be challenged” at the bottom)
+• Daily Challenge: “To beat” above the score (today’s best), not your Arcade record
+• Chains: sparkles fly into the big score
+• Compaction: blocks get pulled from the gap, with stretch and bounce
+• Home: “New game” under Duel and Zen (when a game is in progress)

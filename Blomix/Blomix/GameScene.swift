@@ -828,6 +828,8 @@ final class GameScene: SKScene {
     private static let queueSlotPriksDigitName = "queueSlotPriksDigit"
     private static let bombNukeDigitName        = "bombNukeDigit"
     private static let scoreHudLabelName = "hudScoreLabel"
+    /// Bounce d’arrivée après compactage (cosmétique, n’entre pas dans la file de jeu).
+    private static let compactLandingBounceKey = "compactLandingBounce"
     private static let bestScoreAboveName    = "hudBestScoreAbove"     // chiffre seul au-dessus du score
     private static let bestScoreTitleName    = "hudBestScoreTitle"
     private static let hudAttackCaptionName  = "hudAttackCaption"
@@ -935,6 +937,7 @@ final class GameScene: SKScene {
     private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
     private static let startScreenIconRowName = "startScreenIconRow"
     private static let startScreenNewGameLinkName = "startScreenNewGameLink"
+    private static let startScreenNewGameLinkZenName = "startScreenNewGameLinkZen"
     private static let startScreenHeroSubtitleName = "startScreenHeroSubtitle"
     private static let startScreenShareChipName = "startScreenShareChip"
     private static let startScreenShareLabelName = "startScreenShareLabel"
@@ -1031,7 +1034,22 @@ final class GameScene: SKScene {
     }
 
     private enum CompactRiseAnimation {
-        static let duration: TimeInterval = 0.25
+        /// Fenêtre file de jeu (premier départ → dernière arrivée), toutes colonnes.
+        static let duration: TimeInterval = 0.20
+        /// Délai d’attaque entre deux blox d’une même colonne (haut → bas). Plus petit que la dissolution (0,04 s).
+        static let stagger: TimeInterval = 0.018
+        /// Plafond du décalage total dans une colonne (garde un vol lisible si 6–7 départs).
+        static let maxStaggerBudget: TimeInterval = 0.06
+        static let minTravelDuration: TimeInterval = 0.14
+
+        /// Même durée de vol pour tous les movers de la colonne ; le dernier atterrit à `duration`.
+        static func columnTiming(moverCount: Int) -> (delayStep: TimeInterval, travel: TimeInterval) {
+            let n = max(1, moverCount)
+            guard n > 1 else { return (0, duration) }
+            let budget = min(maxStaggerBudget, max(0, duration - minTravelDuration))
+            let used = min(stagger * TimeInterval(n - 1), budget)
+            return (used / TimeInterval(n - 1), duration - used)
+        }
     }
 
     /// Paramètres du **feedback visuel** après une suppression de chaîne (dissolution des sprites avant mutation de la grille).
@@ -1050,6 +1068,20 @@ final class GameScene: SKScene {
         static let popDotRadiusRange: ClosedRange<CGFloat> = 2.0...3.5
         static let popDotFallDistance: ClosedRange<CGFloat> = 10...22
         static let popDotFadeDuration: TimeInterval         = 0.45
+        /// Vol vers le score : durée = distance / vitesse (0,25 s = centre de grille → score).
+        static let dissolveDotReferenceDuration: TimeInterval = 0.25
+        /// Plancher : une case tout en haut ne doit pas « téléporter ».
+        static let dissolveDotFlightMin: TimeInterval = 0.12
+        static var dissolveDotSpeed: CGFloat {
+            let scoreLift = GridLayout.spanPoints / 2 + 26 + GridLayout.cellPoints / 2
+            return scoreLift / CGFloat(dissolveDotReferenceDuration)
+        }
+
+        static func dissolveFlightDuration(distance: CGFloat) -> TimeInterval {
+            guard dissolveDotSpeed > 1 else { return dissolveDotReferenceDuration }
+            return max(dissolveDotFlightMin, TimeInterval(distance / dissolveDotSpeed))
+        }
+
         /// Courte pause après la phase physique avant de re-scanner la grille (cascades plus lisibles).
         static let cascadeBeatDuration: TimeInterval = 0.07
     }
@@ -1318,7 +1350,7 @@ final class GameScene: SKScene {
     private var attackPileHotIndex: Int? = nil
     /// Taille intérieure de la barre (largeur × hauteur utile 0…50).
     private var attackPileInnerSize: CGSize = .zero
-    /// Meilleur score affiché dans le HUD (fallback local immédiat, Game Center si disponible).
+    /// Meilleur score affiché dans le HUD (Arcade/Zen : PB ; Défi : leader du jour).
     private var hudBestScoreValue: Int = 0
     /// Ignore les retours asynchrones obsolètes lors des rafraîchissements du record.
     private var bestScoreFetchGeneration: Int = 0
@@ -2250,10 +2282,10 @@ final class GameScene: SKScene {
             if case .continueSave = startHeroKind() { return 16 }
             return 0
         }()
-        var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2
+        var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2 + newGameLinkSlack
         var dailyHeroY = secondaryRowY + hChip / 2 + 16 + heroH / 2
-        var arcadeHeroY = dailyHeroY + heroH / 2 + heroGap + newGameLinkSlack + heroH / 2
-        let minSecondaryY = tipAnchorY + 40 + hChip / 2
+        var arcadeHeroY = dailyHeroY + heroH / 2 + heroGap + heroH / 2
+        let minSecondaryY = tipAnchorY + 40 + hChip / 2 + newGameLinkSlack
 
         // ── Bande 1 : BLOMIX + tagline, de préférence au centre écran ──────────
         let titleLayout = BlomixButtonRelief.wordmarkLayout(fontSize: Self.homeWordmarkFontSize)
@@ -2447,19 +2479,6 @@ final class GameScene: SKScene {
         }
         overlay.addChild(startChip)
 
-        if case .continueSave = heroKind {
-            let newGame = SKLabelNode(text: BlomixL10n.startNewGameLink)
-            newGame.name = Self.startScreenNewGameLinkName
-            newGame.fontName = Self.customUIFontPostScriptName
-            newGame.fontSize = 12
-            newGame.fontColor = BlomixAppearance.secondaryTextSK
-            newGame.horizontalAlignmentMode = .center
-            newGame.verticalAlignmentMode = .center
-            newGame.position = CGPoint(x: cx, y: arcadeHeroY - heroH / 2 - 14)
-            newGame.zPosition = 2
-            overlay.addChild(newGame)
-        }
-
         let pvpChip = makeStartScreenButtonChip(
             chipName: Self.startScreenPvPChipName,
             labelName: Self.startScreenPvPLabelName,
@@ -2482,6 +2501,24 @@ final class GameScene: SKScene {
         zenChip.position = CGPoint(x: cx + pairChipW / 2 + pairGap / 2, y: secondaryRowY)
         zenChip.zPosition = 2
         overlay.addChild(zenChip)
+
+        if case .continueSave = heroKind {
+            func makeNewGameCaption(name: String, underChipX: CGFloat) -> SKLabelNode {
+                let caption = SKLabelNode(text: BlomixL10n.startNewGameLink)
+                caption.name = name
+                caption.fontName = Self.customUIFontPostScriptName
+                caption.fontSize = 12
+                caption.fontColor = BlomixAppearance.secondaryTextSK
+                caption.horizontalAlignmentMode = .center
+                caption.verticalAlignmentMode = .center
+                caption.position = CGPoint(x: underChipX, y: secondaryRowY - hChip / 2 - 14)
+                caption.zPosition = 2
+                overlay.addChild(caption)
+                return caption
+            }
+            _ = makeNewGameCaption(name: Self.startScreenNewGameLinkName, underChipX: pvpChip.position.x)
+            _ = makeNewGameCaption(name: Self.startScreenNewGameLinkZenName, underChipX: zenChip.position.x)
+        }
 
         refreshStartScreenPlayerIdentityIfVisible()
         run(SKAction.wait(forDuration: 0.05)) { [weak self] in
@@ -2534,7 +2571,10 @@ final class GameScene: SKScene {
 
         // ── Animations d'entrée ──────────────────────────────────────────────────
 
-        let newGameLink = overlay.childNode(withName: Self.startScreenNewGameLinkName) as? SKLabelNode
+        let newGameCaptions: [SKLabelNode] = [
+            overlay.childNode(withName: Self.startScreenNewGameLinkName) as? SKLabelNode,
+            overlay.childNode(withName: Self.startScreenNewGameLinkZenName) as? SKLabelNode,
+        ].compactMap { $0 }
 
         if playIntro {
             // Titre BLOMIX d’abord (poinçon L→R) ; le reste de l’accueil n’arrive qu’après.
@@ -2558,12 +2598,14 @@ final class GameScene: SKScene {
             playerNameLabel.alpha = 0
             discsContainer.alpha = 0
             iconRow.alpha = 0
-            newGameLink?.alpha = 0
+            newGameCaptions.forEach { $0.alpha = 0 }
             subtitle.run(.sequence([.wait(forDuration: t), .fadeIn(withDuration: 0.22)]))
             playerNameLabel.run(.sequence([.wait(forDuration: t + 0.08), .fadeIn(withDuration: 0.22)]))
             discsContainer.run(.sequence([.wait(forDuration: t + 0.08), .fadeIn(withDuration: 0.22)]))
             iconRow.run(.sequence([.wait(forDuration: t + 0.12), .fadeIn(withDuration: 0.20)]))
-            newGameLink?.run(.sequence([.wait(forDuration: t + 0.28), .fadeIn(withDuration: 0.22)]))
+            for caption in newGameCaptions {
+                caption.run(.sequence([.wait(forDuration: t + 0.28), .fadeIn(withDuration: 0.22)]))
+            }
             runStartScreenGameChipEntrance(on: pvpChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: zenChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: dailyChip, delay: t + 0.28)
@@ -2975,26 +3017,6 @@ final class GameScene: SKScene {
         restoreFromSoloSave(save)
     }
 
-    private func confirmNewGameFromHome() {
-        guard isStartScreen, pendingHomeSave() != nil else { return }
-        guard let host = view else { return }
-        BlomixInAppDialogView.presentChoices(
-            in: host,
-            title: BlomixL10n.startNewGameConfirmTitle,
-            message: BlomixL10n.startNewGameConfirmMessage,
-            actions: [
-                BlomixInAppDialogAction(title: BlomixL10n.startNewGameLink) { [weak self] in
-                    self?.discardHomeSaveAndRefreshHero()
-                },
-            ]
-        )
-    }
-
-    private func discardHomeSaveAndRefreshHero() {
-        discardPendingHomeSave()
-        presentStartScreen()
-    }
-
     private func discardPendingHomeSave() {
         pvpSuspendedSoloSave = nil
         restoreSoloAfterPvP = false
@@ -3228,7 +3250,10 @@ final class GameScene: SKScene {
             pvpOpponent.isHidden = hidden || pvpCoordinator == nil
         }
         if hidden {
-            closeGameOverflowMenu()
+            // Ne pas reprendre le timer : `resumeStageTimerForChrome` rappellerait
+            // `updateStageTimerHUD` (isStartScreen encore false) et réafficherait le
+            // « 32s » du reset sous l’accueil — flash au Continuer défi / Arcade.
+            closeGameOverflowMenu(resumeTimer: false)
             clearAutoDropAim()
         }
     }
@@ -3302,12 +3327,6 @@ final class GameScene: SKScene {
 
     private func touchHitsStartScreenTutorialLink(_ scenePoint: CGPoint) -> Bool {
         touchHitsStartScreenUtilityLink(named: Self.startScreenTutorialLinkName, scenePoint: scenePoint)
-    }
-
-    private func touchHitsStartScreenNewGameLink(_ scenePoint: CGPoint) -> Bool {
-        guard let overlay = childNode(withName: Self.startScreenOverlayName),
-              let link = overlay.childNode(withName: Self.startScreenNewGameLinkName) as? SKLabelNode else { return false }
-        return sceneHitRect(for: link, minWidth: 140, minHeight: 32, padding: 8).contains(scenePoint)
     }
 
     private func touchHitsStartScreenCreditsLink(_ scenePoint: CGPoint) -> Bool {
@@ -3475,8 +3494,43 @@ final class GameScene: SKScene {
         n.fontColor = isLiveBeat ? green : gray
     }
 
+    private var dailyChallengeHUDDay: String {
+        dailyLockedDay ?? BlomixDailyChallenge.shared.utcToday
+    }
+
+    private func refreshBestScoreHUDTitle() {
+        guard let title = childNode(withName: Self.bestScoreTitleName) as? SKLabelNode else { return }
+        title.text = isDailyChallengeMode ? BlomixL10n.hudDailyToBeatTitle : BlomixL10n.hudBestScoreTitle
+    }
+
+    private func initialBestScoreHUDValue() -> Int {
+        if isDailyChallengeMode {
+            return BlomixDailyChallenge.shared.leaderScore(forDay: dailyChallengeHUDDay) ?? 0
+        }
+        if isZenMode {
+            return ScoreManager.shared.getLocalZenHighScore()
+        }
+        return ScoreManager.shared.getLocalHighScore()
+    }
+
+    /// Défi : le chiffre reste le leader du jour (pas le score en cours). Vert si on le dépasse.
+    private func noteScoreAgainstBestHUD() {
+        if isDailyChallengeMode {
+            applyBestScoreHUDValue(hudBestScoreValue, isLiveBeat: score > hudBestScoreValue)
+            return
+        }
+        if score > hudBestScoreValue {
+            applyBestScoreHUDValue(score, isLiveBeat: true)
+        }
+    }
+
     private func refreshBestScoreHUDIfNeeded() {
         guard childNode(withName: Self.bestScoreAboveName) != nil else { return }
+        refreshBestScoreHUDTitle()
+        if isDailyChallengeMode {
+            refreshDailyToBeatHUD()
+            return
+        }
 
         let localBest = isZenMode
             ? ScoreManager.shared.getLocalZenHighScore()
@@ -3491,7 +3545,7 @@ final class GameScene: SKScene {
         let leaderboardID = isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
         ScoreManager.shared.fetchLocalPlayerBestScore(leaderboardID: leaderboardID) { [weak self] result in
             guard let self else { return }
-            guard generation == self.bestScoreFetchGeneration else { return }
+            guard generation == self.bestScoreFetchGeneration, !self.isDailyChallengeMode else { return }
             let localFallback = self.isZenMode
                 ? ScoreManager.shared.getLocalZenHighScore()
                 : ScoreManager.shared.getLocalHighScore()
@@ -3503,6 +3557,29 @@ final class GameScene: SKScene {
                 let resolved = max(localFallback, self.score, self.hudBestScoreValue)
                 self.applyBestScoreHUDValue(resolved)
             }
+        }
+    }
+
+    /// Leader CloudKit du jour (cache immédiat, puis refetch).
+    private func refreshDailyToBeatHUD() {
+        let day = dailyChallengeHUDDay
+        let cached = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? 0
+        applyBestScoreHUDValue(cached, isLiveBeat: score > cached)
+
+        bestScoreFetchGeneration += 1
+        let generation = bestScoreFetchGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let load = await BlomixDailyChallenge.shared.fetchScores(day: day)
+            guard generation == self.bestScoreFetchGeneration, self.isDailyChallengeMode else { return }
+            let leader: Int
+            switch load {
+            case .loaded(let entries):
+                leader = entries.first?.score ?? 0
+            case .unavailable:
+                leader = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? self.hudBestScoreValue
+            }
+            self.applyBestScoreHUDValue(leader, isLiveBeat: self.score > leader)
         }
     }
 
@@ -3554,6 +3631,26 @@ final class GameScene: SKScene {
         guard GKLocalPlayer.local.isAuthenticated else { return }
 
         for (leaderboardID, discName) in specs {
+            if leaderboardID == ScoreManager.dailyLeaderboardID {
+                Task { @MainActor [weak self] in
+                    guard let self, self.isStartScreen else { return }
+                    if let rank = await BlomixDailyChallenge.shared.fetchLocalCareerRank() {
+                        guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
+                              let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
+                        else { return }
+                        self.applyStartScreenDiscRank(rank, discName: discName, in: container)
+                        return
+                    }
+                    ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { [weak self] rank in
+                        guard let self, self.isStartScreen, let rank else { return }
+                        guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
+                              let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
+                        else { return }
+                        self.applyStartScreenDiscRank(rank, discName: discName, in: container)
+                    }
+                }
+                continue
+            }
             ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { [weak self] rank in
                 guard let self, self.isStartScreen, let rank else { return }
                 guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
@@ -5897,7 +5994,15 @@ final class GameScene: SKScene {
                 }
                 return nil
             }.first
-            addScore(points: pts, chainMultiplier: chainSeriesLevel, floatAt: floatAt, dotColor: dotColor)
+            addScore(
+                points: pts,
+                chainMultiplier: chainSeriesLevel,
+                floatAt: floatAt,
+                dotColor: dotColor,
+                scoreRollHoldUntil: chainSparkleLastArrival(
+                    cells: Self.orderedChainRemovalCells(from: components)
+                )
+            )
         }
 
         // Popup « COMBO » / « SUPER COMBO » à partir du niveau 2 de cascade.
@@ -5970,13 +6075,16 @@ final class GameScene: SKScene {
             let blockType  = grid[address.row][address.col]
             let dotColor   = Self.bloxTrailColor(for: blockType)
             let peakColor  = Self.skColorLerp(baseColor, .white, ChainClearFeedback.dissolveBrightenTowardWhite)
-            let baseScale  = sprite.xScale
 
             let wait = SKAction.wait(forDuration: Double(index) * stagger)
 
             let slotSize = CGSize(width: GridLayout.cellPoints - 4,
                                   height: GridLayout.cellPoints - 4)
             let prep = SKAction.run {
+                sprite.removeAction(forKey: Self.compactLandingBounceKey)
+                sprite.xScale = 1
+                sprite.yScale = 1
+                sprite.position = Self.gridContainerLocalCellCenter(row: address.row, column: address.col)
                 sprite.zPosition = zDuringDissolve
                 // Sprite de fond vide inséré juste avant la dissolution :
                 // pendant le fondu du blox (alpha 1→0), ce placeholder gris empêche
@@ -5990,8 +6098,8 @@ final class GameScene: SKScene {
                 container.addChild(bg)
             }
 
-            // Phase 1 : grossissement ×1.20, pas d'éclaircissement
-            let scaleUp = SKAction.scale(to: baseScale * 1.30,
+            // Phase 1 : grossissement ×1.30, pas d'éclaircissement
+            let scaleUp = SKAction.scale(to: 1.30,
                                          duration: ChainClearFeedback.dissolveScaleUpDuration)
             scaleUp.timingMode = .easeOut
 
@@ -6011,7 +6119,7 @@ final class GameScene: SKScene {
                 s.color = Self.skColorLerp(baseColor, peakColor, min(1, max(0, t)))
             }
 
-            let scaleDown = SKAction.scale(to: baseScale,
+            let scaleDown = SKAction.scale(to: 1.0,
                                            duration: ChainClearFeedback.dissolveScaleDownDuration)
             scaleDown.timingMode = .easeInEaseOut
 
@@ -6031,52 +6139,80 @@ final class GameScene: SKScene {
         run(SKAction.sequence([SKAction.wait(forDuration: tail), SKAction.run(completion)]))
     }
 
-    /// Paillettes de dissolution : cercles colorés éparpillés aléatoirement dans la case,
-    /// qui tombent lentement vers le bas en s'effaçant.
+    /// Paillettes de dissolution : cercles de la couleur du blox, éparpillés dans la case,
+    /// puis vol vers le gros score (pas de fondu en chute — le HUD les « avale »).
+    /// Ne bloque pas compactage / cascade / saisie.
     private func spawnChainPopDots(at scenePoint: CGPoint, color: SKColor) {
-        let cellHalf = GridLayout.cellPoints * 0.42   // ≈16 pt de demi-case
-        let duration = ChainClearFeedback.popDotFadeDuration
+        let cellHalf = GridLayout.cellPoints * 0.42
+        let target = scoreHudTargetCenter()
 
-        // Dots principaux (inchangés) : 7–10, rayon 2.0–3.5 pt.
+        func spawnDot(radius: CGFloat) {
+            let dot = SKShapeNode(circleOfRadius: radius)
+            dot.fillColor = color
+            dot.strokeColor = .clear
+            dot.alpha = 1
+            dot.zPosition = 36
+            dot.position = CGPoint(
+                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
+                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
+            )
+            addChild(dot)
+            if let destination = target {
+                let dest = CGPoint(
+                    x: destination.x + CGFloat.random(in: -ScorePopupFeedback.transferTargetJitterX...ScorePopupFeedback.transferTargetJitterX),
+                    y: destination.y + CGFloat.random(in: -ScorePopupFeedback.transferTargetJitterY...ScorePopupFeedback.transferTargetJitterY)
+                )
+                let dist = hypot(dest.x - dot.position.x, dest.y - dot.position.y)
+                let move = SKAction.move(
+                    to: dest,
+                    duration: ChainClearFeedback.dissolveFlightDuration(distance: dist)
+                )
+                move.timingMode = .easeIn
+                dot.run(SKAction.sequence([move, SKAction.removeFromParent()]))
+            } else {
+                let move = SKAction.moveBy(
+                    x: 0,
+                    y: -CGFloat.random(in: ChainClearFeedback.popDotFallDistance),
+                    duration: ChainClearFeedback.popDotFadeDuration
+                )
+                move.timingMode = .easeIn
+                dot.run(SKAction.sequence([
+                    SKAction.group([move, SKAction.fadeOut(withDuration: ChainClearFeedback.popDotFadeDuration)]),
+                    SKAction.removeFromParent(),
+                ]))
+            }
+        }
+
         let count = Int.random(in: 7...10)
         for _ in 0..<count {
-            let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: ChainClearFeedback.popDotRadiusRange))
-            dot.fillColor   = color
-            dot.strokeColor = .clear
-            dot.alpha       = 1.0
-            dot.zPosition   = 36
-            dot.position = CGPoint(
-                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
-                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
-            )
-            addChild(dot)
-            let move = SKAction.moveBy(x: 0, y: -CGFloat.random(in: ChainClearFeedback.popDotFallDistance), duration: duration)
-            move.timingMode = .easeIn
-            dot.run(SKAction.sequence([
-                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
-                SKAction.removeFromParent(),
-            ]))
+            spawnDot(radius: CGFloat.random(in: ChainClearFeedback.popDotRadiusRange))
         }
-
-        // Micro-dots supplémentaires : 10, rayon 1.5 pt, même timing et répartition.
         for _ in 0..<10 {
-            let dot = SKShapeNode(circleOfRadius: 1.5)
-            dot.fillColor   = color
-            dot.strokeColor = .clear
-            dot.alpha       = 1.0
-            dot.zPosition   = 36
-            dot.position = CGPoint(
-                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
-                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
-            )
-            addChild(dot)
-            let move = SKAction.moveBy(x: 0, y: -CGFloat.random(in: ChainClearFeedback.popDotFallDistance), duration: duration)
-            move.timingMode = .easeIn
-            dot.run(SKAction.sequence([
-                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
-                SKAction.removeFromParent(),
-            ]))
+            spawnDot(radius: 1.5)
         }
+    }
+
+    private func scoreHudTargetCenter() -> CGPoint? {
+        guard let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return nil }
+        let frame = scoreLabel.calculateAccumulatedFrame()
+        return CGPoint(x: frame.midX, y: frame.midY)
+    }
+
+    /// Dernière arrivée HUD (t = 0 au début de vague). Compactage / cascade ignorent cette valeur.
+    private func chainSparkleLastArrival(cells: [GridAddress]) -> TimeInterval {
+        let fallback = ChainClearFeedback.dissolveScaleUpDuration
+            + Double(max(cells.count - 1, 0)) * ChainClearFeedback.dissolveStagger
+            + ChainClearFeedback.dissolveDotReferenceDuration
+        guard let target = scoreHudTargetCenter(), !cells.isEmpty else { return fallback }
+        var latest = ScorePopupFeedback.transferPostPopupFlightDuration
+        for (index, address) in cells.enumerated() {
+            let spawn = ChainClearFeedback.dissolveScaleUpDuration
+                + Double(index) * ChainClearFeedback.dissolveStagger
+            let from = scenePointCellCenter(row: address.row, column: address.col)
+            let dist = hypot(target.x - from.x, target.y - from.y)
+            latest = max(latest, spawn + ChainClearFeedback.dissolveFlightDuration(distance: dist))
+        }
+        return latest
     }
 
     /// Paillettes carrées à la disparition d'un Brix : même timing que `spawnChainPopDots`,
@@ -6180,19 +6316,7 @@ final class GameScene: SKScene {
             let movingSourceCells = Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) })
             self.removeBloxJunctionElementsTouching(movingSourceCells)
 
-            for move in riseMoves {
-                guard move.column >= 0, move.column < GridLayout.columnCount,
-                      move.fromRow >= GridLayout.topRowIndex, move.fromRow < GridLayout.rowCount,
-                      move.toRow >= GridLayout.topRowIndex, move.toRow < GridLayout.rowCount else { continue }
-
-                let nodeName = "cell_\(move.fromRow)_\(move.column)"
-                guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
-
-                let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
-                let moveAction = SKAction.move(to: targetLocal, duration: CompactRiseAnimation.duration)
-                moveAction.timingMode = .easeOut
-                sprite.run(moveAction)
-            }
+            self.animateCompactRiseMoves(riseMoves, in: container)
 
             self.run(
                 SKAction.sequence([
@@ -6202,6 +6326,7 @@ final class GameScene: SKScene {
                         self.remapPriksDigitSettlePending(riseMoves: riseMoves)
                         self.drawGrid()
                         self.replayPriksDigitSettleAfterDrawGrid()
+                        self.playCompactLandingJuice(riseMoves: riseMoves)
                         self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                         self.finishChainWaveAfterPhysicalPhase()
                     },
@@ -6330,7 +6455,7 @@ final class GameScene: SKScene {
     /// Ajoute les points au total, met à jour le label ; `chainMultiplier` = `chainSeriesLevel` **utilisé** pour ce gain (animation un peu plus forte en combo).
     /// `floatAt` : affiche « +N » à cet endroit (fade légèrement plus lent pour une meilleure lisibilité).
     /// `applyStageMultiplier` : si `false`, les points sont ajoutés tels quels même en solo stagé.
-    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true) {
+    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true, scoreRollHoldUntil: TimeInterval? = nil) {
         guard points > 0 else { return }
         let multipliedPoints = (applyStageMultiplier && isInStagedSoloMode) ? points * currentStageConfig.multiplier : points
         let scoreBefore = score
@@ -6348,15 +6473,18 @@ final class GameScene: SKScene {
                 pendingMilestoneExplosion = .hundred
             }
         }
-        if score > hudBestScoreValue {
-            applyBestScoreHUDValue(score, isLiveBeat: true)
-        }
+        noteScoreAgainstBestHUD()
         if pvpCoordinator?.localScoreDidUpdate(score) == true {
             triggerPvPAttackSentVisuals()
         }
         if let p = scenePoint {
             spawnFloatingScorePopup(points: multipliedPoints, at: p, dotColor: dotColor) { [weak self] in
-                self?.applyDisplayedScoreIncrement(points: multipliedPoints, chainMultiplier: chainMultiplier, scoreColor: dotColor)
+                self?.applyDisplayedScoreIncrement(
+                    points: multipliedPoints,
+                    chainMultiplier: chainMultiplier,
+                    scoreColor: dotColor,
+                    scoreRollHoldUntil: scoreRollHoldUntil
+                )
             }
             return
         }
@@ -6406,7 +6534,7 @@ final class GameScene: SKScene {
         }
     }
 
-    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil) {
+    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil, scoreRollHoldUntil: TimeInterval? = nil) {
         guard points > 0 else { return }
         displayedScore += points
         displayedScore = min(displayedScore, score)
@@ -6439,7 +6567,7 @@ final class GameScene: SKScene {
             }
         }
 
-        let rollDuration: TimeInterval
+        var rollDuration: TimeInterval = 0
         label.removeAction(forKey: Self.scoreRollActionKey)
         if pvpCoordinator != nil {
             let previousTotal = displayedScore - points
@@ -6467,6 +6595,10 @@ final class GameScene: SKScene {
                 scoreRollTarget = remainder
                 let gain = max(1, remainder - fromMeter)
                 rollDuration = min(0.45, 0.22 + Double(gain) / 50.0 * 0.18)
+                if let holdUntil = scoreRollHoldUntil {
+                    let remaining = holdUntil - ScorePopupFeedback.transferPostPopupFlightDuration
+                    rollDuration = max(rollDuration, remaining)
+                }
                 let settle = SKAction.run { [weak self] in
                     self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
                 }
@@ -6480,6 +6612,10 @@ final class GameScene: SKScene {
             scoreRollTarget = displayedScore
             let gain = max(1, scoreRollTarget - scoreRollStart)
             rollDuration = min(0.60, 0.40 + Double(gain) / 2000.0 * 0.20)
+            if let holdUntil = scoreRollHoldUntil {
+                let remaining = holdUntil - ScorePopupFeedback.transferPostPopupFlightDuration
+                rollDuration = max(rollDuration, remaining)
+            }
             label.run(makeScoreRollAction(duration: rollDuration, duel: false), withKey: Self.scoreRollActionKey)
         }
 
@@ -6614,9 +6750,7 @@ final class GameScene: SKScene {
     /// Points de score : accent chrome par défaut, ou couleur de la chaîne si `color` est fourni.
     private func spawnScoreTransferDots(points: Int, from sourceCenter: CGPoint, color: SKColor = BlomixAppearance.floatingScoreAccentSK) {
         guard points > 0 else { return }
-        guard let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
-        let targetFrame = scoreLabel.calculateAccumulatedFrame()
-        let targetCenter = CGPoint(x: targetFrame.midX, y: targetFrame.midY)
+        guard let targetCenter = scoreHudTargetCenter() else { return }
         let rawCount = Int((CGFloat(points) * ScorePopupFeedback.dotsPerPoint).rounded())
         let dotCount = min(ScorePopupFeedback.maxDots, max(ScorePopupFeedback.minDots, rawCount))
         spawnTransferDots(count: dotCount, from: sourceCenter, to: targetCenter, color: color, onArrival: nil)
@@ -7050,7 +7184,9 @@ final class GameScene: SKScene {
 
         // Best score — chiffre seul, centré, au-dessus du score (solo uniquement)
         let grayColor14 = BlomixAppearance.tertiaryText
-        let bestAboveLabel = SKLabelNode(text: "\(max(ScoreManager.shared.getLocalHighScore(), hudBestScoreValue))")
+        let initialBest = initialBestScoreHUDValue()
+        hudBestScoreValue = initialBest
+        let bestAboveLabel = SKLabelNode(text: "\(initialBest)")
         bestAboveLabel.name = Self.bestScoreAboveName
         bestAboveLabel.fontName = Self.customUIFontPostScriptName
         bestAboveLabel.fontSize = 14
@@ -7061,7 +7197,7 @@ final class GameScene: SKScene {
         bestAboveLabel.isHidden = pvpCoordinator != nil
         addChild(bestAboveLabel)
 
-        let bestTitle = SKLabelNode(text: BlomixL10n.hudBestScoreTitle)
+        let bestTitle = SKLabelNode(text: isDailyChallengeMode ? BlomixL10n.hudDailyToBeatTitle : BlomixL10n.hudBestScoreTitle)
         bestTitle.name = Self.bestScoreTitleName
         bestTitle.fontName = Self.customUIFontPostScriptName
         bestTitle.fontSize = 11
@@ -10225,14 +10361,7 @@ final class GameScene: SKScene {
         let movingSourceCells = Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) })
         removeBloxJunctionElementsTouching(movingSourceCells)
 
-        for move in riseMoves {
-            let nodeName = "cell_\(move.fromRow)_\(move.column)"
-            guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
-            let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
-            let moveAction = SKAction.move(to: targetLocal, duration: CompactRiseAnimation.duration)
-            moveAction.timingMode = .easeOut
-            sprite.run(moveAction)
-        }
+        animateCompactRiseMoves(riseMoves, in: container)
 
         run(SKAction.sequence([
             SKAction.wait(forDuration: CompactRiseAnimation.duration),
@@ -10240,6 +10369,7 @@ final class GameScene: SKScene {
                 guard let self else { return }
                 self.drawGrid()
                 self.replayPriksDigitSettleAfterDrawGrid()
+                self.playCompactLandingJuice(riseMoves: riseMoves)
                 self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                 self.finishChainWaveAfterPhysicalPhase()
                 onLanded?()
@@ -10926,6 +11056,7 @@ final class GameScene: SKScene {
                 let finish: () -> Void = { [weak self] in
                     guard let self else { return }
                     self.drawGrid()
+                    self.playCompactLandingJuice(riseMoves: riseMoves)
                     self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                     self.childNode(withName: Self.previewNodeName)?.isHidden = false
                     self.updatePreviewSprite()
@@ -10943,17 +11074,7 @@ final class GameScene: SKScene {
 
                 let movingSourceCells = Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) })
                 self.removeBloxJunctionElementsTouching(movingSourceCells)
-                for move in riseMoves {
-                    guard move.column >= 0, move.column < GridLayout.columnCount,
-                          move.fromRow >= GridLayout.topRowIndex, move.fromRow < GridLayout.rowCount,
-                          move.toRow   >= GridLayout.topRowIndex, move.toRow   < GridLayout.rowCount else { continue }
-                    let nodeName = "cell_\(move.fromRow)_\(move.column)"
-                    guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
-                    let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
-                    let moveAction  = SKAction.move(to: targetLocal, duration: CompactRiseAnimation.duration)
-                    moveAction.timingMode = .easeOut
-                    sprite.run(moveAction)
-                }
+                self.animateCompactRiseMoves(riseMoves, in: container)
                 self.run(SKAction.sequence([
                     SKAction.wait(forDuration: CompactRiseAnimation.duration),
                     SKAction.run(finish),
@@ -11069,6 +11190,7 @@ final class GameScene: SKScene {
                 let finishBombDrop: () -> Void = { [weak self] in
                     guard let self else { return }
                     self.drawGrid()
+                    self.playCompactLandingJuice(riseMoves: riseMoves)
                     self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
                     if let preview = self.childNode(withName: Self.previewNodeName) {
                         preview.isHidden = false
@@ -11087,18 +11209,7 @@ final class GameScene: SKScene {
 
                 let movingSourceCells = Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) })
                 self.removeBloxJunctionElementsTouching(movingSourceCells)
-
-                for move in riseMoves {
-                    guard move.column >= 0, move.column < GridLayout.columnCount,
-                          move.fromRow >= GridLayout.topRowIndex, move.fromRow < GridLayout.rowCount,
-                          move.toRow >= GridLayout.topRowIndex, move.toRow < GridLayout.rowCount else { continue }
-                    let nodeName = "cell_\(move.fromRow)_\(move.column)"
-                    guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
-                    let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
-                    let moveAction = SKAction.move(to: targetLocal, duration: CompactRiseAnimation.duration)
-                    moveAction.timingMode = .easeOut
-                    sprite.run(moveAction)
-                }
+                self.animateCompactRiseMoves(riseMoves, in: container)
 
                 self.run(SKAction.sequence([
                     SKAction.wait(forDuration: CompactRiseAnimation.duration),
@@ -11535,9 +11646,74 @@ final class GameScene: SKScene {
 
     /// Bounce à l'atterrissage en trois phases (squash-and-stretch physique).
     /// Les Brix utilisent un profil plus discret (`BrixLandingBounce`).
+    /// Remontée compactage : stretch de vol pendant le `move` (comme un lancer).
+    /// Vague par colonne : le blox le plus haut (près du trou) part le premier ; fenêtre 0,20 s inchangée.
+    private func animateCompactRiseMoves(_ riseMoves: [CompactRiseMove], in container: SKNode) {
+        var byColumn: [[CompactRiseMove]] = Array(repeating: [], count: GridLayout.columnCount)
+        for move in riseMoves {
+            guard move.column >= 0, move.column < GridLayout.columnCount,
+                  move.fromRow >= GridLayout.topRowIndex, move.fromRow < GridLayout.rowCount,
+                  move.toRow >= GridLayout.topRowIndex, move.toRow < GridLayout.rowCount else { continue }
+            let nodeName = "cell_\(move.fromRow)_\(move.column)"
+            guard container.childNode(withName: nodeName) is SKSpriteNode else { continue }
+            byColumn[move.column].append(move)
+        }
+        for colMoves in byColumn where !colMoves.isEmpty {
+            let ordered = colMoves.sorted { $0.fromRow < $1.fromRow }
+            let (delayStep, travel) = CompactRiseAnimation.columnTiming(moverCount: ordered.count)
+            for (index, move) in ordered.enumerated() {
+                let nodeName = "cell_\(move.fromRow)_\(move.column)"
+                guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
+                let block = grid[move.toRow][move.column]
+                let (sx, sy) = Self.flightStretchScales(for: block)
+                let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
+                let moveAction = SKAction.move(to: targetLocal, duration: travel)
+                moveAction.timingMode = .easeOut
+                let unstretchX = SKAction.scaleX(to: 1.0, duration: travel)
+                unstretchX.timingMode = .easeIn
+                let unstretchY = SKAction.scaleY(to: 1.0, duration: travel)
+                unstretchY.timingMode = .easeIn
+                let travelGroup = SKAction.group([moveAction, unstretchX, unstretchY])
+                let delay = TimeInterval(index) * delayStep
+                if delay <= 0 {
+                    sprite.xScale = sx
+                    sprite.yScale = sy
+                    sprite.run(travelGroup)
+                } else {
+                    sprite.run(SKAction.sequence([
+                        SKAction.wait(forDuration: delay),
+                        SKAction.run { [weak sprite] in
+                            sprite?.xScale = sx
+                            sprite?.yScale = sy
+                        },
+                        travelGroup,
+                    ]))
+                }
+            }
+        }
+    }
+
+    /// Bounce + paillettes d’impact : cosmétique, ne retarde pas cascade / saisie.
+    private func playCompactLandingJuice(riseMoves: [CompactRiseMove]) {
+        guard let container = childNode(withName: Self.gridContainerName) else { return }
+        for move in riseMoves {
+            let block = grid[move.toRow][move.column]
+            guard block != .empty else { continue }
+            let nodeName = "cell_\(move.toRow)_\(move.column)"
+            guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
+            playLandingBounce(
+                on: sprite,
+                blockColor: Self.bloxTrailColor(for: block),
+                block: block,
+                actionKey: Self.compactLandingBounceKey
+            )
+        }
+    }
+
     private func playLandingBounce(on sprite: SKSpriteNode,
                                    blockColor: SKColor,
-                                   block: BlockType) {
+                                   block: BlockType,
+                                   actionKey: String? = nil) {
         let isBrix: Bool
         if case .priks = block { isBrix = true } else { isBrix = false }
 
@@ -11582,7 +11758,12 @@ final class GameScene: SKScene {
         scaleYC.timingMode = .easeInEaseOut
         let phaseC  = SKAction.group([moveC, scaleXC, scaleYC])
 
-        sprite.run(SKAction.sequence([phaseA, phaseB, phaseC]))
+        let bounce = SKAction.sequence([phaseA, phaseB, phaseC])
+        if let actionKey {
+            sprite.run(bounce, withKey: actionKey)
+        } else {
+            sprite.run(bounce)
+        }
         spawnLandingImpactSparkles(at: sceneCenter, color: blockColor)
     }
 
@@ -12292,9 +12473,7 @@ final class GameScene: SKScene {
         score += multipliedPoints
         displayedScore += multipliedPoints
         displayedScore = min(displayedScore, score)
-        if score > hudBestScoreValue {
-            applyBestScoreHUDValue(score, isLiveBeat: false)
-        }
+        noteScoreAgainstBestHUD()
         _ = chainMultiplier
     }
 
@@ -12494,6 +12673,9 @@ final class GameScene: SKScene {
                    BlomixAvailablePlayersManager.shared.isInActiveMatch {
                     BlomixAvailablePlayersManager.shared.setActiveMatch(false)
                 }
+                if self.isDailyChallengeMode, !self.isStartScreen, !self.isGameOver {
+                    self.refreshBestScoreHUDIfNeeded()
+                }
             }
         }
     }
@@ -12583,7 +12765,14 @@ final class GameScene: SKScene {
         displayedScore = save.displayedScore
         chainSeriesLevel = save.chainSeriesLevel
         currentStageIndex = save.currentStageIndex
-        stageTimerSecondsRemaining = save.stageTimerSecondsRemaining
+        // Clamper tout de suite : `setupScoreHUD` resync le label existant (sinon flash
+        // « 32s » Stage 1 avant le vrai reste, grille encore masquée).
+        if save.isZenMode {
+            stageTimerSecondsRemaining = save.stageTimerSecondsRemaining
+        } else {
+            let maxT = currentStageConfig.timerSeconds
+            stageTimerSecondsRemaining = max(1, min(save.stageTimerSecondsRemaining, maxT))
+        }
         analyzerGameStats.restore(records: save.moveRecords)
         hintsRemaining = save.hintsRemaining
 
@@ -12615,6 +12804,11 @@ final class GameScene: SKScene {
         updatePreviewSprite()
         refreshUpcomingQueueSlots()
         rebuildGameOverflowMenu()
+        if !isZenMode {
+            ensureStageTimerHUD()
+            layoutStageTimerHUD()
+            updateStageTimerHUD()
+        }
         setGameplayNodesHidden(false)
 
         // Synchronisation des labels HUD avec les valeurs restaurées
@@ -12629,10 +12823,6 @@ final class GameScene: SKScene {
         refreshLigneCounterHUD()
         refreshPendingBottomLinePreview()
         if !isZenMode {
-            ensureStageTimerHUD()
-            layoutStageTimerHUD()
-            let maxT = currentStageConfig.timerSeconds
-            stageTimerSecondsRemaining = max(1, min(save.stageTimerSecondsRemaining, maxT))
             updateStageTimerHUD()
             resumeStageTimerKeepingRemaining()
         }
@@ -13019,7 +13209,7 @@ final class GameScene: SKScene {
 
     private func ensureStageTimerHUD() {
         guard childNode(withName: Self.stageTimerHudName) == nil else { return }
-        let lbl = SKLabelNode(text: "32s")
+        let lbl = SKLabelNode(text: "\(stageTimerSecondsRemaining)s")
         lbl.name                    = Self.stageTimerHudName
         lbl.fontName                = Self.customUIFontPostScriptName
         lbl.fontSize                = 14
@@ -13043,7 +13233,7 @@ final class GameScene: SKScene {
     private func updateStageTimerHUD() {
         guard let lbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode else { return }
         lbl.text    = "\(stageTimerSecondsRemaining)s"
-        lbl.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
+        lbl.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver || isWindingDown
         applyTimerAimingChrome(to: lbl, seconds: stageTimerSecondsRemaining)
         refreshTimerCaptionForAiming()
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = lbl.isHidden
@@ -13154,7 +13344,7 @@ final class GameScene: SKScene {
     private func resumeStageTimerForChrome() {
         guard isStageTimerPausedForChrome else { return }
         isStageTimerPausedForChrome = false
-        guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
+        guard isInStagedSoloMode, !isGameOver, !isStartScreen, !isWindingDown else { return }
         resumeStageTimerKeepingRemaining()
         restoreAutoDropGhostIfNeeded()
     }
@@ -14255,10 +14445,6 @@ final class GameScene: SKScene {
                 pendingButtonAction = { [weak self] in
                     self?.confirmAbandonDailyRunThen { self?.performStartScreenHeroAction() }
                 }
-                return
-            }
-            if touchHitsStartScreenNewGameLink(location) {
-                pendingButtonAction = { [weak self] in self?.confirmNewGameFromHome() }
                 return
             }
             if touchHitsStartScreenSettingsButton(location) {

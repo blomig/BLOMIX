@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 7.0 (local)  
+> **Version de référence** : 7.3 (local)  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : septembre 2026
 
@@ -246,8 +246,11 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 **Particules dissolution** (`spawnChainPopDots`) :
 - 7–10 dots r 2,0–3,5 pt + 10 micro-dots r 1,5 pt
-- Chute 10–22 pt, fade **0,45 s**, `easeIn`
+- **Vol vers le gros score** à **vitesse constante** (~820 pt/s = 0,25 s du centre de grille au score), `easeIn`, plancher **0,12 s**
+- Pas de chute / fondu ; spawn au pic du scale-up
 - Couleur = couleur exacte du blox
+- HUD : le roulement du score dure au moins jusqu’à la **dernière** arrivée. Compactage / cascade / saisie **n’attendent pas**.
+- Dots t0 du `+N` : inchangés (éclat + vol 0,20 s)
 
 ### 3.2 Sons de chaîne (`playChainClearSound`)
 
@@ -261,7 +264,11 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 ### 3.3 Compactage (`CompactRiseAnimation`)
 
-| Durée déplacement | **0,25 s**, `easeOut` |
+| Durée file de jeu | **0,20 s** (premier départ → dernière arrivée) |
+| Stagger colonne | Le blox **le plus haut** (près du trou) part le premier, puis celui d’en dessous, etc. **0,018 s**/blox, budget max **0,06 s** (vol min **0,14 s**). Même durée de vol dans la colonne ; tout le monde atterrit à 0,20 s. Colonnes indépendantes. |
+| Stretch en montée | Même profil que le lancer (`FlightStretch` 0,82/1,25 ; Brix plus discret) ; destretch pendant le vol (pas pendant l’attente). |
+| Bounce + paillettes | À l’arrivée, **cosmétique** (`playCompactLandingJuice`) : squash/stretch/settle + 2 couches d’impact. **N’attend pas** cascade / saisie. Pas de son `place` / `connect`. |
+| Cascade pendant bounce | La dissolution **annule** le bounce et recale scale/position. |
 | Déclencheur | Après vidage + décrément Brix |
 
 ### 3.4 Cascade
@@ -330,7 +337,7 @@ Animation texte (identique au `+N`) :
 | Tremblement | **0,3 s** | ±6 pt horizontal |
 | Explosion | voir §5.2 | |
 | Score | — | +10 pts centre ; +20/Brix |
-| Compactage | 0,25 s | puis cascades depuis `chainSeriesLevel = 1` |
+| Compactage | 0,20 s | puis cascades depuis `chainSeriesLevel = 1` |
 
 Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 + bras cardinaux (`bombCrossArmLength` = index de stage), texture HUD **nuke**. L’anim de destruction ci-dessous s’applique à **toutes** les cases de `bombAffectedCells` (le nom « Blocs 3×3 » est historique).
 
@@ -501,7 +508,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | Paramètre | Valeur |
 |---|---|
-| Durée | `min(0,60, 0,40 + gain/2000 × 0,20)` |
+| Durée | `min(0,60, 0,40 + gain/2000 × 0,20)`, **plancher** = arrivée de la dernière paillette de chaîne |
 | Easing | ease-out cubique |
 | Flash couleur | lerp couleur chaîne → blanc en **0,30 s** après roll |
 | Pulse scale | pic `1,2 + chainLevel×0,03` (max ~1,38), montée **0,33 s**, retour **0,11 s** |
@@ -725,8 +732,8 @@ FlightStretch          x 0,82 | y 1,25
 BrixLandingBounce      squash 0,07 | stretch 0,025 | settle 0,025
 BrixFlightStretch      x 0,88 | y 1,16
 BrixVanishFeedback     pop 0,07 + implode 0,13 | sparkles 11–15 + 15 micro-carrés
-CompactRiseAnimation   duration 0,25
-ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | cascade 0,07
+CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
+ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | sparkles → score ~820 pt/s (0,25 s centre→score) | cascade 0,07
 PendingLinePreview     jitter X 1,0 Y 0,5 | cycle 1,1
 ScorePopupFeedback     transfer 0,20 | fadeIn 0,06 | burst 0,08 | dots 9–52
 GameOverFocus          total 1,38 | rings 4 | stagger 0,12

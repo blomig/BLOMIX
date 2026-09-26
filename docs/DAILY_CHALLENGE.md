@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.2 / 136** en review App Store. En vente : 7.1 / 134.  
+> **Statut** : **7.3 / 137** local. En vente : 7.2 / 136.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 7.2  
+> **Version de référence** : 7.3  
 > **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -33,6 +33,8 @@ Tap chip accueil → **toujours** le hub (liste CloudKit du jour + un CTA) :
 Tap CTA grisé : rien (déjà sur le classement). Tap chip grisé/renommé : **même hub**.
 
 Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, **+5 / +3 / +1** en gouttière (`BlomixCutoutTitleView`) pour les places du jour (égalités = mêmes points, places sautées). Calcul **client**, pas un champ CloudKit. CTA **Revenez demain** : grisé, non cliquable.
+
+**En partie** : au-dessus du gros score, **À battre** + le meilleur score CloudKit du jour (pas le record Arcade). Refetch au lancement, à Continuer, et au retour au premier plan. Vert si le score en cours dépasse ce leader ; le chiffre reste celui à battre.
 
 **Game Over** (court, après `end.wav`) : **ton score** + rang live + **Accueil** + **Classement** (→ hub, où tu te vois dans la liste). Pas de récap justesse.
 
@@ -122,8 +124,8 @@ Le rang affiché **au GO** est le rang **live** (parmi ceux qui ont déjà fini)
 
 | Surface | Source | Écriture | Doublon |
 |---|---|---|---|
-| Onglet in-app **Défi** | Recalcul +5/+3/+1 sur `DailyScore` des jours **clos** | **Aucune** (lecture) | Idempotent : 1 record CK / joueur / jour ; 1 podium / joueur / jour |
-| Board GC `dailywins_arc` (5ᵉ disque) | `submitScore` **du joueur local** seulement | Local UserDefaults `credited_{day}` + total GC | Pas d’écriture du score d’un pair |
+| Onglet in-app **Défi** + pastille accueil | Recalcul +5/+3/+1 sur `DailyScore` des jours **clos** | **Aucune** (lecture) | Idempotent : 1 record CK / joueur / jour ; 1 podium / joueur / jour |
+| Board GC `dailywins_arc` | `submitScore` **du joueur local** seulement | Local UserDefaults `credited_{day}` + total GC | Pas d’écriture du score d’un pair |
 
 Ouvrir l’app (toi ou un autre) **ne rajoute pas** de points sur l’onglet in-app : chacun recalcule la même somme. Le 2e qui ouvre soumet **son** +3 à Game Center, ça ne touche pas tes +5.
 
@@ -232,9 +234,10 @@ Fichiers :
 | `displayName` | String | — |
 | `gamePlayerID` | String | — |
 
-`recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`). Un run Xcode (Debug) tape **Development** ; TestFlight / App Store tapent **Production**.
+`recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`).  
+Entitlement `com.apple.developer.icloud-container-environment` = **Production** : un ⌘R Xcode voit la **même** Public DB que le magasin (sans ça, même config Release reste en Development — toi seul au classement). Une partie défi lancée depuis Xcode **écrit** donc en prod.
 
-**Prochaines étapes magasin** : 7.2 / 136 en review. Après OK Apple : **Release This Version** manuel dans ASC (`automatic_release: false`). Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
+**Prochaines étapes magasin** : 7.2 / 136 en vente. 7.3 / 137 en local. Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
 
 ---
 

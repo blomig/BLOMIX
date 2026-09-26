@@ -7,9 +7,26 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.3] — 2026-09
+
+Build **137**. Local. 7.2 / 136 en vente.
+
+### Corrigé
+- **Accueil — pastille Défi** : le rang est celui de l’onglet (CloudKit carrière), plus le board Game Center (1er parmi ceux qui ont soumis).
+- **CloudKit ⌘R** : environnement **Production** (même Public DB que le magasin). Une partie défi depuis Xcode écrit en prod.
+- **Défi — Continuer** : plus de flash « 32s » (timer Stage 1) avant la grille ; le compteur reprend le reste du coup.
+
+### Modifié
+- **Défi — HUD** : au-dessus du gros score, **À battre** + meilleur score du jour (CloudKit), plus le record Arcade. Mis à jour à la reprise et au retour au premier plan.
+- **Chaîne** : paillettes de dissolution (et dots t0) volent vers le gros score ; le chiffre roule jusqu’à la dernière arrivée. Compactage / pose suivante inchangés. Vol des paillettes à **vitesse** (~820 pt/s, 0,25 s centre→score).
+- **Compactage** : stretch de vol pendant la remontée **0,20 s** ; bounce + paillettes d’impact à l’arrivée, hors file de jeu. Vague **haut → bas** dans la colonne (le blox près du trou part le premier) ; fenêtre 0,20 s inchangée.
+- **Accueil** : mention « Nouvelle partie » sous Duel et sous Zen (save en cours).
+
+---
+
 ## [7.2] — 2026-09
 
-Build **136**. En review (build 135 retiré). 7.1 / 134 en vente.
+Build **136**. En vente.
 
 ### Modifié
 - **Accueil** : Arcade au-dessus du Défi du jour (même chips).

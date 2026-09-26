@@ -431,27 +431,17 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             loadLeaderboardEntries(for: .dailyWins)
         case .loaded(let entries):
             guard selectedLeaderboardKind == .dailyWins else { return }
-            var rows: [LeaderboardRow] = []
-            var place = 1
-            var index = 0
-            while index < entries.count {
-                let points = entries[index].score
-                var end = index
-                while end < entries.count, entries[end].score == points { end += 1 }
-                for e in entries[index..<end] {
-                    rows.append(LeaderboardRow(
-                        rank: place,
-                        playerName: e.displayName,
-                        gamePlayerID: e.gamePlayerID,
-                        teamPlayerID: "",
-                        score: e.score,
-                        isLocalPlayer: BlomixDailyChallenge.samePlayer(e.gamePlayerID, localID)
-                            || e.gamePlayerID == "local",
-                        gameCount: 0
-                    ))
-                }
-                place += (end - index)
-                index = end
+            let rows: [LeaderboardRow] = entries.map { e in
+                LeaderboardRow(
+                    rank: BlomixDailyChallenge.denseCareerRank(of: e.gamePlayerID, in: entries) ?? 0,
+                    playerName: e.displayName,
+                    gamePlayerID: e.gamePlayerID,
+                    teamPlayerID: "",
+                    score: e.score,
+                    isLocalPlayer: BlomixDailyChallenge.samePlayer(e.gamePlayerID, localID)
+                        || e.gamePlayerID == "local",
+                    gameCount: 0
+                )
             }
             setLoading(false)
             self.rows = rows

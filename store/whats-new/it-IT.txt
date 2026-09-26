@@ -1,4 +1,4 @@
-• Home: Arcade subito sotto BLOMIX, Sfida del giorno sotto
-• Hub della sfida: «Torna domani» in grigio; podio +5 / +3 / +1 nella canalina colorata
-• Classifica sfida: i 3 del podio già il giorno dopo (anche se non hanno aperto l’app)
-• Duel: Giocatori disponibili si apre subito (Locale e «OK per essere sfidato» in basso)
+• Sfida del giorno: «Da battere» sopra il punteggio (migliore del giorno), non il record Arcade
+• Catene: le scintille volano verso il punteggio grande
+• Compattazione: succhio dal buco, stretch e rimbalzo
+• Home: «Nuova partita» sotto Duel e Zen (partita in corso)

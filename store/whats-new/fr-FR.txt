@@ -1,4 +1,4 @@
-• Accueil : Arcade juste sous BLOMIX, Défi du jour en dessous
-• Hub défi : « Revenez demain » grisé ; podium +5 / +3 / +1 en gouttière
-• Classement défi : les 3 du podium dès le lendemain (sans attendre que chacun ouvre l’app)
-• Duel : la liste Joueurs disponibles s’ouvre directement (Local et « OK pour être défié » en bas)
+• Défi du jour : « À battre » au-dessus du score (meilleur du jour), plus le record Arcade
+• Chaînes : les paillettes rejoignent le gros score
+• Compactage : succion depuis le trou, stretch et rebond
+• Accueil : « Nouvelle partie » sous Duel et sous Zen (partie en cours)

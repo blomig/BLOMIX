@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 7.2 (local)  
+> **Version de référence** : 7.3 (local)  
 > **Dernière mise à jour** : septembre 2026
 
 ---
@@ -31,8 +31,8 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 7.2 (local) |
-| `CURRENT_PROJECT_VERSION` | 136 |
+| `MARKETING_VERSION` | 7.3 (local) |
+| `CURRENT_PROJECT_VERSION` | 137 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
@@ -46,7 +46,7 @@ Fichier : `Blomix/Blomix/Blomix.entitlements`
 | Capability | Usage |
 |---|---|
 | **Game Center** | Classements solo/Zen, matchmaking PvP, invitations |
-| **CloudKit** | Défis PvP (`AvailablePlayer`) + Défi du jour (`DailyScore`) — conteneur `iCloud.blomig.BLOMIX`. Schéma Public **Production** à déployer au Dashboard avant TF / magasin. |
+| **CloudKit** | Défis PvP (`AvailablePlayer`) + Défi du jour (`DailyScore`) — conteneur `iCloud.blomig.BLOMIX`. Schéma Public **Production** à déployer au Dashboard avant TF / magasin. Entitlement `icloud-container-environment` = **Production** aussi pour un ⌘R Xcode (sinon Development, même en config Release). |
 | **Push (APS)** | Debug : `development` (`Blomix.entitlements`). Release / TestFlight / App Store : `production` (`BlomixRelease.entitlements`) |
 
 ### Tester le PvP

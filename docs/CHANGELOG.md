@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.3] — 2026-09
 
-Build **137**. En review. 7.2 / 136 en vente.
+Build **138**. En review (137 retiré). 7.2 / 136 en vente.
 
 ### Corrigé
 - **Accueil — pastille Défi** : le rang est celui de l’onglet (CloudKit carrière), plus le board Game Center (1er parmi ceux qui ont soumis).

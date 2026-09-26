@@ -1,4 +1,5 @@
 • Tägliche Challenge: „Zu schlagen“ über dem Score (Tagesbestwert), nicht der Arcade-Rekord
+• Tägliche Challenge: der Lauf wird extra gespeichert, wenn dich jemand zum Duell fordert (Arcade/Zen bleibt)
 • Ketten: Funken fliegen zum großen Score
 • Verdichtung: Sog aus der Lücke, Stretch und Bounce
 • Start: „Neues Spiel“ unter Duell und Zen (laufendes Spiel)

@@ -239,7 +239,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 ### Défi du jour
 
-`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot save **`blomix_daily_save_v1`** (ne touche pas `blomix_solo_save_v2`). Hub UIKit `BlomixDailyHubViewController`. Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot save **`blomix_daily_save_v1`** (ne touche pas `blomix_solo_save_v2`) — les deux peuvent coexister. Entrée PvP depuis une run défi : `saveRun` + snapshot mémoire, **pas** d’écriture Arcade. Reprise post-Duel : flags défi + file seedée. Hub UIKit `BlomixDailyHubViewController`. Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 

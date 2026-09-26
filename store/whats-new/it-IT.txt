@@ -1,4 +1,5 @@
 • Sfida del giorno: «Da battere» sopra il punteggio (migliore del giorno), non il record Arcade
+• Sfida del giorno: la partita si salva a parte se ti sfidano a un Duel (Arcade/Zen intatto)
 • Catene: le scintille volano verso il punteggio grande
 • Compattazione: succhio dal buco, stretch e rimbalzo
 • Home: «Nuova partita» sotto Duel e Zen (partita in corso)

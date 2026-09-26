@@ -1,4 +1,5 @@
 • Desafío del día: «A superar» sobre la puntuación (mejor del día), no el récord Arcade
+• Desafío del día: tu partida se guarda aparte si te retan a un Duelo (Arcade/Zen intacto)
 • Cadenas: las chispas vuelan hacia la puntuación grande
 • Compactación: succión desde el hueco, estiramiento y rebote
 • Inicio: «Nueva partida» bajo Duelo y Zen (partida en curso)

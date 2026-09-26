@@ -40,6 +40,8 @@ Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, *
 
 **Quitter une run en cours** : Arcade / Duel / Zen → dialogue d’abandon **habituel**. Le hub **Continuer** reprend sans dialogue.
 
+**Duel pendant une run** : la partie défi est écrite dans le slot dédié (Arcade/Zen inchangé). Au retour, reprise défi (graine + file), pas une Arcade.
+
 **Disque défi** : rang GC **carrière** (points), pas la liste du jour — comme les 4 autres disques.
 
 ### Pourquoi ce chemin
@@ -170,13 +172,13 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 |---|---|
 | `GameScene` | Flag mode daily + **même pipeline stage/timer/bombe qu’Arcade** ; file + lignes seedées ; auto-drop inchangé ; effets Magix hashés ; GO dédié |
 | Accueil | Chip **Défi du jour** : sous Arcade, mêmes dimensions / style que le hero Arcade. 5ᵉ disque de rang (sous-titre défi), chiffres/libellés **même taille**, rangée un peu resserrée |
-| Save | **Slot dédié** (ne pas écraser `blomix_solo_save_v2` Arcade/Zen) |
+| Save | **Slot dédié** (ne pas écraser `blomix_solo_save_v2` Arcade/Zen) ; Duel en cours de run → `saveRun`, pas l’Arcade |
 | `ScoreManager` / `LeaderboardViewController` | Score de la run → **aussi** Arcade (highscore `BlomixMainScore_v3` + moyenne). Onglet `dailywins_arc` = **uniquement** les points podium |
 | CloudKit | Nouveau record type + index `day` ; Dashboard prod **et** dev |
 | ASC | Créer le leaderboard victoires ; **pas** une version magasin tant qu’on reste en TF |
 | l10n | Bouton, GO, vide, erreur CK, nom d’onglet — **5 langues** |
 | Juice | Réutiliser tel quel |
-| PvP / pastille Duel | Inchangés |
+| PvP / pastille Duel | Défi en cours : capture slot défi + reprise post-match (pas l’Arcade) |
 
 ---
 

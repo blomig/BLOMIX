@@ -15,6 +15,7 @@ Build **137**. En review. 7.2 / 136 en vente.
 - **Accueil — pastille Défi** : le rang est celui de l’onglet (CloudKit carrière), plus le board Game Center (1er parmi ceux qui ont soumis).
 - **CloudKit ⌘R** : environnement **Production** (même Public DB que le magasin). Une partie défi depuis Xcode écrit en prod.
 - **Défi — Continuer** : plus de flash « 32s » (timer Stage 1) avant la grille ; le compteur reprend le reste du coup.
+- **Défi — Duel** : un défi accepté en cours de run sauve le slot **défi** (Arcade/Zen intact) ; au retour, reprise de la même partie seedée.
 
 ### Modifié
 - **Défi — HUD** : au-dessus du gros score, **À battre** + meilleur score du jour (CloudKit), plus le record Arcade. Mis à jour à la reprise et au retour au premier plan.

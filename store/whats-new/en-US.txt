@@ -1,5 +1,3 @@
-• Daily Challenge: “To beat” above the score (today’s best), not your Arcade record
-• Daily Challenge: your run is saved separately if you’re challenged to a Duel (Arcade/Zen stays intact)
-• Chains: sparkles fly into the big score
-• Compaction: blocks get pulled from the gap, with stretch and bounce
-• Home: “New game” under Duel and Zen (when a game is in progress)
+• Apple Watch: play Zen on your wrist (8×8 grid, Magix, bombs)
+• Watch: resume your run; a Watch record that beats your iPhone Zen goes to the leaderboard
+• Column aim: hold, see where the blox will land, release to drop

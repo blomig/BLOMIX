@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 7.3 (review)  
+> **Version de référence** : 7.4  
 > **Dernière mise à jour** : septembre 2026
 
 ---
@@ -31,11 +31,14 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 7.3 (review) |
-| `CURRENT_PROJECT_VERSION` | 138 |
+| `MARKETING_VERSION` | 7.4 |
+| `CURRENT_PROJECT_VERSION` | 139 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
+| Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
+
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). 7.3 / 138 en vente. Déploiement 7.4 : `fastlane release` puis `submit` (`automatic_release: false`).
 
 ---
 

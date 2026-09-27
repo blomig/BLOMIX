@@ -1,6 +1,6 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.3 / 138** en review. En vente : 7.2 / 136.  
+> **Statut** : **7.3 / 138** en vente.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
 > **Version de référence** : 7.3  
@@ -239,7 +239,7 @@ Fichiers :
 `recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`).  
 Entitlement `com.apple.developer.icloud-container-environment` = **Production** : un ⌘R Xcode voit la **même** Public DB que le magasin (sans ça, même config Release reste en Development — toi seul au classement). Une partie défi lancée depuis Xcode **écrit** donc en prod.
 
-**Prochaines étapes magasin** : 7.2 / 136 en vente. 7.3 / 137 en local. Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
+**Prochaines étapes magasin** : 7.3 / 138 en vente. 7.4 / 139 (Watch). Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.
 
 ---
 

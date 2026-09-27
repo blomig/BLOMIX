@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 7.3 (review)  
+> **Version de référence** : 7.4  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -24,6 +24,7 @@
 | Fichier | Description |
 |---|---|
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Référence technique (architecture, HUD, sauvegarde, localisation) |
+| [WATCH_ZEN.md](WATCH_ZEN.md) | Spec Apple Watch v1 — compagnon Zen light (7.4) |
 | [PVP_MATCHING.md](PVP_MATCHING.md) | Appariement PvP : défis CloudKit, invites GameKit, échecs silencieux |
 | [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) — récap / pire coup |
 | [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN/DE/ES/IT (`BlomixL10n`) |
@@ -63,7 +64,7 @@
 | Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `GLOSSARY.md` |
 | Traducteur | `LOCALIZATION.md` → `GLOSSARY.md` |
 | Mainteneur / release | `CHANGELOG.md` → `store/whats-new/` → `DEVELOPMENT.md` § Déploiement (Fastlane) |
-| Prochaine version (6.4) | `SPEC_6.4.md` |
+| Apple Watch (Zen light, 7.4) | `WATCH_ZEN.md` |
 
 ---
 

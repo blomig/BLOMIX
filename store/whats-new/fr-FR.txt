@@ -1,5 +1,3 @@
-• Défi du jour : « À battre » au-dessus du score (meilleur du jour), plus le record Arcade
-• Défi du jour : ta partie est sauvée à part si on te défie en Duel (Arcade/Zen intact)
-• Chaînes : les paillettes rejoignent le gros score
-• Compactage : succion depuis le trou, stretch et rebond
-• Accueil : « Nouvelle partie » sous Duel et sous Zen (partie en cours)
+• Apple Watch : joue au Zen au poignet (grille 8×8, Magix, bombes)
+• Watch : reprends ta partie ; un record Watch qui bat ton Zen iPhone part au classement
+• Visée colonne : maintiens, vois où le blox atterrit, relâche pour poser

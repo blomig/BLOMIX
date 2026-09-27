@@ -1,5 +1,3 @@
-• Sfida del giorno: «Da battere» sopra il punteggio (migliore del giorno), non il record Arcade
-• Sfida del giorno: la partita si salva a parte se ti sfidano a un Duel (Arcade/Zen intatto)
-• Catene: le scintille volano verso il punteggio grande
-• Compattazione: succhio dal buco, stretch e rimbalzo
-• Home: «Nuova partita» sotto Duel e Zen (partita in corso)
+• Apple Watch: gioca allo Zen al polso (griglia 8×8, Magix, bombe)
+• Watch: riprendi la partita; un record Watch che batte lo Zen iPhone va in classifica
+• Mira colonna: tieni premuto, vedi dove atterra il blox, rilascia per posare

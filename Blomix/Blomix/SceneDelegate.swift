@@ -21,6 +21,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window = windowScene.windows.first { $0.isKeyWindow } ?? windowScene.windows.first
 
         // Fenêtre + `GameViewController` : storyboard ; le `rootViewController` peut arriver un tick plus tard.
+        BlomixWatchScoreInbox.shared.activate()
         Task { @MainActor in
             guard let root = windowScene.windows.first?.rootViewController else { return }
             ScoreManager.shared.authenticateOnLaunch(from: root)
@@ -28,6 +29,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        BlomixWatchScoreInbox.shared.activate()
         // Secours si `willConnect` n’avait pas encore de `rootViewController` (ordre de callbacks / storyboard).
         guard let windowScene = scene as? UIWindowScene,
               let root = windowScene.windows.first?.rootViewController else { return }

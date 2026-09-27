@@ -4,7 +4,7 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 7.3 (build 138, review) — 7.2 (build 136) en vente |
+| **Version** | 7.4 (build 139) — 7.3 (build 138) en vente |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
 | **Langues** | Français, Anglais, Allemand, Espagnol, Italien |
@@ -38,6 +38,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, debug, conventions de code |
 | [docs/DAILY_CHALLENGE.md](docs/DAILY_CHALLENGE.md) | Défi du jour (graine UTC, hub, CloudKit) |
+| [docs/WATCH_ZEN.md](docs/WATCH_ZEN.md) | Spec Apple Watch v1 — compagnon Zen light |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
 | [docs/SPEC_6.4.md](docs/SPEC_6.4.md) | Cahier 6.4 (build 118) |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Conventions de contribution et maintenance doc |
@@ -50,9 +51,10 @@ Politique de confidentialité : [docs/privacy-policy.html](docs/privacy-policy.h
 
 ```
 BLOMIX/
-├── Blomix/                 # Projet Xcode (app iOS)
+├── Blomix/                 # Projet Xcode (app iOS + cible Watch)
 │   ├── Blomix.xcodeproj
 │   └── Blomix/             # Sources Swift, assets, localisation
+├── Watch/                  # Compagnon watchOS Zen light
 ├── docs/                   # Documentation
 ├── store/                  # Métadonnées App Store Connect (hors bundle)
 ├── fastlane/               # Déploiement ASC (metadata / TestFlight / review)

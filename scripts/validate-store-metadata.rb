@@ -57,7 +57,7 @@ def target_entitlements_by_config
   pbx = File.read(PBX)
   result = {}
   pbx.split("isa = XCBuildConfiguration;").each do |block|
-    next unless block.include?("INFOPLIST_FILE")
+    next unless block.include?("INFOPLIST_FILE = Blomix/Info.plist")
 
     name = block[/name = (Debug|Release);/, 1]
     ent = block[/CODE_SIGN_ENTITLEMENTS = ([^;]+);/, 1]

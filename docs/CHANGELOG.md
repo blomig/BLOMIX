@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.4] — 2026-09
 
-Build **139**. 7.3 / 138 en vente.
+Build **140**. 7.3 / 138 en vente.
 
 ### Ajouté
 - **Apple Watch** : compagnon Zen light (`Watch/`). Grille 8×8, compactage glissé, pose et ligne animées, bombes 3×3, **9 Magix**. Icône Watch (B). Score haut-gauche ; barre Home · file · bombe. Maison sauve / Continuer. Pont Watch → iPhone Zen (`transferUserInfo`). `GameScene.swift` inchangé.

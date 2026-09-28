@@ -1033,6 +1033,27 @@ final class GameScene: SKScene {
         static let reboundMoveYFactor: CGFloat = 0.07
     }
 
+    /// Gerbe d’arrivée Magix : l’orbite palette explose en couronne (tous Magix, identique).
+    private enum MagixLandingBurstFeedback {
+        static let countRange: ClosedRange<Int> = 40...48
+        static let radiusRange: ClosedRange<CGFloat> = 1.0...1.8
+        static let startJitter: CGFloat = 4
+        static let travelDistance: ClosedRange<CGFloat> = 24...52
+        static let duration: TimeInterval = 0.34
+        static let fadeInDuration: TimeInterval = 0.05
+        static let peakAlpha: CGFloat = 0.85
+        static let zPosition: CGFloat = 37
+        /// Inverse de l’arrivée : le disque **consommé** rend son orbite.
+        static let consumeCountRange: ClosedRange<Int> = 18...24
+        static let consumeTravelDistance: ClosedRange<CGFloat> = 12...28
+        static let consumeDuration: TimeInterval = 0.22
+        static let consumeFadeDuration: TimeInterval = 0.18
+        /// Mue disque → blox / Brix (pas un spawn 0,5).
+        static let morphPeakScale: CGFloat = 1.18
+        static let morphScaleUpDuration: TimeInterval = 0.07
+        static let morphScaleDownDuration: TimeInterval = 0.08
+    }
+
     private enum CompactRiseAnimation {
         /// Fenêtre file de jeu (premier départ → dernière arrivée), toutes colonnes.
         static let duration: TimeInterval = 0.20
@@ -1097,7 +1118,7 @@ final class GameScene: SKScene {
         static let wobbleAngle: CGFloat = .pi * 0.3
         static let digitFadeDuration: TimeInterval = 0.10
         static let soundStagger: TimeInterval = 0.07
-        /// Même timing que les paillettes rondes de dissolution des blox.
+        /// Fallback si pas de HUD (chute + fade). Le chemin normal vole vers le score, même vitesse que les blox.
         static let sparkleFadeDuration: TimeInterval = ChainClearFeedback.popDotFadeDuration
         static let sparkleSizeRange: ClosedRange<CGFloat> = 4.0...7.0
         static let sparkleFallDistance: ClosedRange<CGFloat> = ChainClearFeedback.popDotFallDistance
@@ -1113,23 +1134,74 @@ final class GameScene: SKScene {
         static let organicCycleDuration: TimeInterval = 1.1
     }
 
-    /// Feedback "points -> score" : points en même temps que le popup `+N`, bump score à l’arrivée des points.
+    /// Feedback "points -> score" : le `+N` se brise en paillettes à pleine taille ; le HUD roule à leur arrivée.
+    /// `glyphShatterEnabled = false` restaure shrink + dots t0 (recette d’avant le prototype).
     private enum ScorePopupFeedback {
         static let transferDuration: TimeInterval = 0.2
         static let transferStartFadeDuration: TimeInterval = 0.06
-        /// Petite phase d’« éjection » radiale avant le trajet vers le score (dizaines de px).
+        /// Petite phase d’« éjection » radiale avant le trajet vers le score (dizaines de px). Recette t0 (flag off).
         static let radialBurstDuration: TimeInterval = 0.08
         static let radialBurstDistance: ClosedRange<CGFloat> = 22...46
-        static let transferDotRadiusRange: ClosedRange<CGFloat> = 1.8...2.8 // ~4..6 px de diametre
+        static let transferDotRadiusRange: ClosedRange<CGFloat> = 1.8...2.8 // recette t0 (flag off)
         static let transferStartSpreadRadius: CGFloat = 28
         static let transferTargetJitterX: CGFloat = 26
         static let transferTargetJitterY: CGFloat = 12
-        static let dotsPerPoint: CGFloat = 0.38
-        static let minDots = 9
-        static let maxDots = 52
+        /// 0,38 × 1,5 — même famille que les paillettes de cases, un peu plus dense.
+        static let dotsPerPoint: CGFloat = 0.57
+        static let minDots = 14
+        static let maxDots = 78
+        /// Mix cases : ≈ 8,5 grosses + 10 micros (18,5).
+        static let glyphMainShare: CGFloat = 8.5 / 18.5
+        static let glyphMicroRadius: CGFloat = 1.5
         /// Durée totale du trajet des points depuis leur apparition : fade-in + éjection + move vers le score.
         static var transferPostPopupFlightDuration: TimeInterval {
             transferStartFadeDuration + radialBurstDuration + transferDuration
+        }
+
+        /// Prototype shatter glyphe. `false` = grow → shrink+fade + dots t0.
+        static let glyphShatterEnabled = true
+        static let growDuration: TimeInterval = 0.58
+        static let glyphBurstDuration: TimeInterval = 0.08
+        static let glyphBurstDistance: ClosedRange<CGFloat> = 6...16
+        static let glyphAlphaThreshold: UInt8 = 48
+        static let glyphPlusMinDots = 2
+        static let glyphDigitMinDots = 1
+        static var glyphShatterHudDelay: TimeInterval {
+            growDuration + glyphBurstDuration + ChainClearFeedback.dissolveDotReferenceDuration
+        }
+        /// Étalement des arrivées HUD parmi les shards (le plus proche part le premier).
+        static let glyphArrivalStagger: TimeInterval = 0.14
+        static let scoreRollMinDuration: TimeInterval = 0.12
+        /// Marge après la dernière paillette (burst + largeur glyphe) : le chiffre ne « meurt » pas avant.
+        static let scoreRollArrivalPad: TimeInterval = 0.08
+
+        static func hudDelays(flight: TimeInterval) -> (first: TimeInterval, last: TimeInterval) {
+            if glyphShatterEnabled {
+                let first = growDuration + glyphBurstDuration + flight
+                return (first, first + glyphArrivalStagger)
+            }
+            let t0 = transferPostPopupFlightDuration
+            return (t0, t0)
+        }
+
+        /// Fallback centre-grille (vol 0,25 s).
+        static var hudFirstArrivalDelay: TimeInterval {
+            hudDelays(flight: ChainClearFeedback.dissolveDotReferenceDuration).first
+        }
+        static var hudLastArrivalDelay: TimeInterval {
+            hudDelays(flight: ChainClearFeedback.dissolveDotReferenceDuration).last
+        }
+        static var hudArrivalDelay: TimeInterval { hudFirstArrivalDelay }
+
+        static func transferDotCount(for points: Int) -> Int {
+            let raw = Int((CGFloat(max(0, points)) * dotsPerPoint).rounded())
+            return min(maxDots, max(minDots, raw))
+        }
+
+        static func glyphMainCount(forTotal total: Int) -> Int {
+            guard total > 1 else { return total }
+            let main = Int((CGFloat(total) * glyphMainShare).rounded())
+            return min(max(1, main), total)
         }
     }
 
@@ -2522,7 +2594,6 @@ final class GameScene: SKScene {
                 overlay.addChild(caption)
                 return caption
             }
-            _ = makeNewGameCaption(name: Self.startScreenNewGameLinkName, underChipX: pvpChip.position.x)
             _ = makeNewGameCaption(name: Self.startScreenNewGameLinkZenName, underChipX: zenChip.position.x)
         }
 
@@ -3024,16 +3095,9 @@ final class GameScene: SKScene {
         restoreFromSoloSave(save)
     }
 
-    private func discardPendingHomeSave() {
-        pvpSuspendedSoloSave = nil
-        pvpSuspendedDailyRun = nil
-        restoreSoloAfterPvP = false
-        BlomixSoloSaveManager.shared.clear()
-    }
-
-    /// Arcade / Zen / Duel : si un défi est en cours, confirmer l’abandon du slot daily.
-    private func confirmAbandonDailyRunThen(_ action: @escaping () -> Void) {
-        guard isStartScreen, BlomixDailyChallenge.shared.hasInProgressRun else {
+    /// Zen depuis l’accueil : nouvelle partie sur le slot Arcade/Zen (le Défi du jour n’est pas touché).
+    private func confirmAbandonArcadeZenSaveThen(_ action: @escaping () -> Void) {
+        guard isStartScreen, pendingHomeSave() != nil else {
             action()
             return
         }
@@ -3044,33 +3108,10 @@ final class GameScene: SKScene {
             message: BlomixL10n.startAbandonSaveMessage,
             actions: [
                 BlomixInAppDialogAction(title: BlomixL10n.startAbandonSaveConfirm) {
-                    BlomixDailyChallenge.shared.clearRun()
                     action()
                 },
             ]
         )
-    }
-
-    /// Zen / Duel depuis l’accueil : défi en cours d’abord, puis save Arcade ou Zen.
-    private func confirmAbandonHomeSaveThen(_ action: @escaping () -> Void) {
-        confirmAbandonDailyRunThen { [weak self] in
-            guard let self else { return }
-            guard self.isStartScreen, self.pendingHomeSave() != nil else {
-                action()
-                return
-            }
-            guard let host = self.view else { return }
-            BlomixInAppDialogView.presentChoices(
-                in: host,
-                title: BlomixL10n.startAbandonSaveTitle,
-                message: BlomixL10n.startAbandonSaveMessage,
-                actions: [
-                    BlomixInAppDialogAction(title: BlomixL10n.startAbandonSaveConfirm) {
-                        action()
-                    },
-                ]
-            )
-        }
     }
 
     private func clearDailyChallengeSessionFlags() {
@@ -3126,12 +3167,6 @@ final class GameScene: SKScene {
         dailyLockedDay = run.utcDay
         dailyFileRNG = BlomixDailyFileRNG(seed: run.seed, state: run.fileRNGState)
         restoreFromSoloSave(run.game)
-    }
-
-    /// Duel depuis l’accueil après accord : la save n’est plus reprise (le joueur a confirmé).
-    private func showPvPLobbyAfterAbandoningSave() {
-        discardPendingHomeSave()
-        showPvPLobby()
     }
 
     private func beginNewMatchFromStartScreen() {
@@ -6004,14 +6039,16 @@ final class GameScene: SKScene {
                 }
                 return nil
             }.first
+            let sparkleWindow = chainSparkleArrivalWindow(
+                cells: Self.orderedChainRemovalCells(from: components)
+            )
             addScore(
                 points: pts,
                 chainMultiplier: chainSeriesLevel,
                 floatAt: floatAt,
                 dotColor: dotColor,
-                scoreRollHoldUntil: chainSparkleLastArrival(
-                    cells: Self.orderedChainRemovalCells(from: components)
-                )
+                scoreRollStartAt: sparkleWindow?.first,
+                scoreRollHoldUntil: sparkleWindow?.last
             )
         }
 
@@ -6208,32 +6245,48 @@ final class GameScene: SKScene {
         return CGPoint(x: frame.midX, y: frame.midY)
     }
 
-    /// Dernière arrivée HUD (t = 0 au début de vague). Compactage / cascade ignorent cette valeur.
-    private func chainSparkleLastArrival(cells: [GridAddress]) -> TimeInterval {
-        let fallback = ChainClearFeedback.dissolveScaleUpDuration
-            + Double(max(cells.count - 1, 0)) * ChainClearFeedback.dissolveStagger
+    /// Première / dernière arrivée HUD des paillettes nées à `spawnAt + index × stagger`.
+    private func sparkleArrivalWindow(cells: [GridAddress], spawnAt: TimeInterval, stagger: TimeInterval = 0) -> (first: TimeInterval, last: TimeInterval)? {
+        guard !cells.isEmpty else { return nil }
+        let fallbackFirst = spawnAt + ChainClearFeedback.dissolveDotFlightMin
+        let fallbackLast = spawnAt
+            + Double(max(cells.count - 1, 0)) * stagger
             + ChainClearFeedback.dissolveDotReferenceDuration
-        guard let target = scoreHudTargetCenter(), !cells.isEmpty else { return fallback }
-        var latest = ScorePopupFeedback.transferPostPopupFlightDuration
+        guard let target = scoreHudTargetCenter() else { return (fallbackFirst, fallbackLast) }
+        var first = TimeInterval.greatestFiniteMagnitude
+        var last: TimeInterval = 0
         for (index, address) in cells.enumerated() {
-            let spawn = ChainClearFeedback.dissolveScaleUpDuration
-                + Double(index) * ChainClearFeedback.dissolveStagger
+            let spawn = spawnAt + Double(index) * stagger
             let from = scenePointCellCenter(row: address.row, column: address.col)
             let dist = hypot(target.x - from.x, target.y - from.y)
-            latest = max(latest, spawn + ChainClearFeedback.dissolveFlightDuration(distance: dist))
+            let arrival = spawn + ChainClearFeedback.dissolveFlightDuration(distance: dist)
+            first = min(first, arrival)
+            last = max(last, arrival)
         }
-        return latest
+        return (first, last)
     }
 
-    /// Paillettes carrées à la disparition d'un Brix : même timing que `spawnChainPopDots`,
-    /// mais forme carrée (écho visuel du bloc numéroté).
+    /// Première / dernière arrivée des paillettes de cases (t = 0 au début de vague). Compactage / cascade ignorent cette valeur.
+    private func chainSparkleArrivalWindow(cells: [GridAddress]) -> (first: TimeInterval, last: TimeInterval)? {
+        sparkleArrivalWindow(
+            cells: cells,
+            spawnAt: ChainClearFeedback.dissolveScaleUpDuration,
+            stagger: ChainClearFeedback.dissolveStagger
+        )
+    }
+
+    /// Première / dernière arrivée des carrés Brix au HUD (`spawnAt` = t du pop, même origine que l’appelant).
+    private func brixSparkleArrivalWindow(cells: [GridAddress], spawnAt: TimeInterval) -> (first: TimeInterval, last: TimeInterval)? {
+        sparkleArrivalWindow(cells: cells, spawnAt: spawnAt, stagger: 0)
+    }
+
+    /// Paillettes carrées à la disparition d'un Brix : même vol HUD que les blox, forme carrée.
     private func spawnBrixVanishSquareDots(at scenePoint: CGPoint, color: SKColor) {
         let cellHalf = GridLayout.cellPoints * 0.42
-        let duration = BrixVanishFeedback.sparkleFadeDuration
+        let target = scoreHudTargetCenter()
+        let fadeDuration = BrixVanishFeedback.sparkleFadeDuration
 
-        let mainCount = Int.random(in: BrixVanishFeedback.sparkleMainCountRange)
-        for _ in 0..<mainCount {
-            let side = CGFloat.random(in: BrixVanishFeedback.sparkleSizeRange)
+        func spawnDot(side: CGFloat) {
             let dot = Self.makeSquareSparkleNode(side: side, color: color)
             dot.alpha = 1.0
             dot.zPosition = 36
@@ -6242,33 +6295,38 @@ final class GameScene: SKScene {
                 y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
             )
             addChild(dot)
-            let move = SKAction.moveBy(x: 0,
-                                       y: -CGFloat.random(in: BrixVanishFeedback.sparkleFallDistance),
-                                       duration: duration)
-            move.timingMode = .easeIn
-            dot.run(SKAction.sequence([
-                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
-                SKAction.removeFromParent(),
-            ]))
+            if let destination = target {
+                let dest = CGPoint(
+                    x: destination.x + CGFloat.random(in: -ScorePopupFeedback.transferTargetJitterX...ScorePopupFeedback.transferTargetJitterX),
+                    y: destination.y + CGFloat.random(in: -ScorePopupFeedback.transferTargetJitterY...ScorePopupFeedback.transferTargetJitterY)
+                )
+                let dist = hypot(dest.x - dot.position.x, dest.y - dot.position.y)
+                let move = SKAction.move(
+                    to: dest,
+                    duration: ChainClearFeedback.dissolveFlightDuration(distance: dist)
+                )
+                move.timingMode = .easeIn
+                dot.run(SKAction.sequence([move, SKAction.removeFromParent()]))
+            } else {
+                let move = SKAction.moveBy(
+                    x: 0,
+                    y: -CGFloat.random(in: BrixVanishFeedback.sparkleFallDistance),
+                    duration: fadeDuration
+                )
+                move.timingMode = .easeIn
+                dot.run(SKAction.sequence([
+                    SKAction.group([move, SKAction.fadeOut(withDuration: fadeDuration)]),
+                    SKAction.removeFromParent(),
+                ]))
+            }
         }
 
+        let mainCount = Int.random(in: BrixVanishFeedback.sparkleMainCountRange)
+        for _ in 0..<mainCount {
+            spawnDot(side: CGFloat.random(in: BrixVanishFeedback.sparkleSizeRange))
+        }
         for _ in 0..<BrixVanishFeedback.sparkleMicroCount {
-            let dot = Self.makeSquareSparkleNode(side: BrixVanishFeedback.sparkleMicroSide, color: color)
-            dot.alpha = 1.0
-            dot.zPosition = 36
-            dot.position = CGPoint(
-                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
-                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
-            )
-            addChild(dot)
-            let move = SKAction.moveBy(x: 0,
-                                       y: -CGFloat.random(in: BrixVanishFeedback.sparkleFallDistance),
-                                       duration: duration)
-            move.timingMode = .easeIn
-            dot.run(SKAction.sequence([
-                SKAction.group([move, SKAction.fadeOut(withDuration: duration)]),
-                SKAction.removeFromParent(),
-            ]))
+            spawnDot(side: BrixVanishFeedback.sparkleMicroSide)
         }
     }
 
@@ -6363,13 +6421,28 @@ final class GameScene: SKScene {
         }
 
         // Le son prix.wav est joué en amont dans resolveChains() (avant chain_new.wav).
-        animateVanishingPriks(cells: vanishedPriks) { [weak self] in
-            guard let self else { return }
-            let bonus = vanishedPriks.count * 20
-            if bonus > 0 {
-                let floatAt = self.sceneCentroid(for: vanishedPriks)
-                self.addScore(points: bonus, chainMultiplier: 0, floatAt: floatAt)
-            }
+        // +N au pic du pop (mêmes t que les carrés) pour que le roll couvre jusqu’aux shards.
+        let bonus = vanishedPriks.count * 20
+        if bonus > 0 {
+            let floatAt = sceneCentroid(for: vanishedPriks)
+            let cells = Array(vanishedPriks)
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: BrixVanishFeedback.popDuration),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    let window = self.brixSparkleArrivalWindow(cells: cells, spawnAt: 0)
+                    self.addScore(
+                        points: bonus,
+                        chainMultiplier: 0,
+                        floatAt: floatAt,
+                        dotColor: Self.priksSolidFillColor(),
+                        scoreRollStartAt: window?.first,
+                        scoreRollHoldUntil: window?.last
+                    )
+                },
+            ]))
+        }
+        animateVanishingPriks(cells: vanishedPriks) {
             compactAfterDigitGrow(BrixVanishFeedback.totalDuration)
         }
     }
@@ -6465,7 +6538,7 @@ final class GameScene: SKScene {
     /// Ajoute les points au total, met à jour le label ; `chainMultiplier` = `chainSeriesLevel` **utilisé** pour ce gain (animation un peu plus forte en combo).
     /// `floatAt` : affiche « +N » à cet endroit (fade légèrement plus lent pour une meilleure lisibilité).
     /// `applyStageMultiplier` : si `false`, les points sont ajoutés tels quels même en solo stagé.
-    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true, scoreRollHoldUntil: TimeInterval? = nil) {
+    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true, scoreRollStartAt: TimeInterval? = nil, scoreRollHoldUntil: TimeInterval? = nil) {
         guard points > 0 else { return }
         let multipliedPoints = (applyStageMultiplier && isInStagedSoloMode) ? points * currentStageConfig.multiplier : points
         let scoreBefore = score
@@ -6488,12 +6561,28 @@ final class GameScene: SKScene {
             triggerPvPAttackSentVisuals()
         }
         if let p = scenePoint {
-            spawnFloatingScorePopup(points: multipliedPoints, at: p, dotColor: dotColor) { [weak self] in
+            let flight: TimeInterval
+            if let hud = scoreHudTargetCenter() {
+                flight = ChainClearFeedback.dissolveFlightDuration(
+                    distance: hypot(hud.x - p.x, hud.y - p.y)
+                )
+            } else {
+                flight = ChainClearFeedback.dissolveDotReferenceDuration
+            }
+            let popup = ScorePopupFeedback.hudDelays(flight: flight)
+            let first = min(scoreRollStartAt ?? popup.first, popup.first)
+            let last = max(scoreRollHoldUntil ?? popup.last, popup.last)
+            let startAt = max(0, first)
+            let rollDuration = max(
+                ScorePopupFeedback.scoreRollMinDuration,
+                last + ScorePopupFeedback.scoreRollArrivalPad - startAt
+            )
+            spawnFloatingScorePopup(points: multipliedPoints, at: p, dotColor: dotColor, hudRollStartAt: startAt) { [weak self] in
                 self?.applyDisplayedScoreIncrement(
                     points: multipliedPoints,
                     chainMultiplier: chainMultiplier,
                     scoreColor: dotColor,
-                    scoreRollHoldUntil: scoreRollHoldUntil
+                    scoreRollDuration: rollDuration
                 )
             }
             return
@@ -6544,7 +6633,7 @@ final class GameScene: SKScene {
         }
     }
 
-    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil, scoreRollHoldUntil: TimeInterval? = nil) {
+    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil, scoreRollDuration: TimeInterval? = nil) {
         guard points > 0 else { return }
         displayedScore += points
         displayedScore = min(displayedScore, score)
@@ -6563,11 +6652,13 @@ final class GameScene: SKScene {
 
         // ── Rolling counter ──────────────────────────────────────────────────────
         // Solo : total. Duel : mètre 0…50 (chiffre + pile, même horloge).
-        func makeScoreRollAction(duration: TimeInterval, duel: Bool) -> SKAction {
+        func makeScoreRollAction(duration: TimeInterval, duel: Bool, linear: Bool) -> SKAction {
             SKAction.customAction(withDuration: duration) { [weak self] node, elapsed in
                 guard let self, duration > 0 else { return }
                 let t = min(1, CGFloat(elapsed) / CGFloat(duration))
-                let eased = 1 - pow(1 - t, 3)
+                // Paillettes : linéaire pour que le chiffre bouge encore à l’arrivée des dernières.
+                // Hors fenêtre : ease-out cubique (snappy).
+                let eased = linear ? t : (1 - pow(1 - t, 3))
                 let shown = CGFloat(self.scoreRollStart) + eased * CGFloat(self.scoreRollTarget - self.scoreRollStart)
                 if duel {
                     self.applyDuelHudMeter(shown, animateHot: true)
@@ -6592,7 +6683,7 @@ final class GameScene: SKScene {
                     self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
                 }
                 label.run(
-                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true), snap]),
+                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true, linear: false), snap]),
                     withKey: Self.scoreRollActionKey
                 )
             } else if fromMeter >= remainder {
@@ -6605,15 +6696,14 @@ final class GameScene: SKScene {
                 scoreRollTarget = remainder
                 let gain = max(1, remainder - fromMeter)
                 rollDuration = min(0.45, 0.22 + Double(gain) / 50.0 * 0.18)
-                if let holdUntil = scoreRollHoldUntil {
-                    let remaining = holdUntil - ScorePopupFeedback.transferPostPopupFlightDuration
-                    rollDuration = max(rollDuration, remaining)
+                if let forced = scoreRollDuration {
+                    rollDuration = forced
                 }
                 let settle = SKAction.run { [weak self] in
                     self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
                 }
                 label.run(
-                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true), settle]),
+                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true, linear: scoreRollDuration != nil), settle]),
                     withKey: Self.scoreRollActionKey
                 )
             }
@@ -6622,11 +6712,13 @@ final class GameScene: SKScene {
             scoreRollTarget = displayedScore
             let gain = max(1, scoreRollTarget - scoreRollStart)
             rollDuration = min(0.60, 0.40 + Double(gain) / 2000.0 * 0.20)
-            if let holdUntil = scoreRollHoldUntil {
-                let remaining = holdUntil - ScorePopupFeedback.transferPostPopupFlightDuration
-                rollDuration = max(rollDuration, remaining)
+            if let forced = scoreRollDuration {
+                rollDuration = forced
             }
-            label.run(makeScoreRollAction(duration: rollDuration, duel: false), withKey: Self.scoreRollActionKey)
+            label.run(
+                makeScoreRollAction(duration: rollDuration, duel: false, linear: scoreRollDuration != nil),
+                withKey: Self.scoreRollActionKey
+            )
         }
 
         // ── Flash couleur de chaîne → repos primaryText (chiffre + pile) ─────────
@@ -6667,7 +6759,7 @@ final class GameScene: SKScene {
         label.run(pulse, withKey: Self.scorePulseActionKey)
     }
 
-    private func spawnFloatingScorePopup(points: Int, at scenePoint: CGPoint, dotColor: SKColor? = nil, onTransferArrival: @escaping () -> Void) {
+    private func spawnFloatingScorePopup(points: Int, at scenePoint: CGPoint, dotColor: SKColor? = nil, hudRollStartAt: TimeInterval = ScorePopupFeedback.hudFirstArrivalDelay, onTransferArrival: @escaping () -> Void) {
         let accent = dotColor ?? BlomixAppearance.floatingScoreAccentSK
         let text = SKLabelNode(text: "+\(points)")
         text.fontName = Self.gridFontName
@@ -6681,26 +6773,279 @@ final class GameScene: SKScene {
         text.zPosition = 35
         addChild(text)
 
-        // Grow à pleine opacité, puis fondu + légère décroissance simultanés pour une sortie souple.
-        let grow = SKAction.scale(to: 1.0, duration: 0.58)
+        let grow = SKAction.scale(to: 1.0, duration: ScorePopupFeedback.growDuration)
         grow.timingMode = .easeOut
-        let shrink = SKAction.scale(to: 0.72, duration: 0.33)
-        shrink.timingMode = .easeIn
-        let fade = SKAction.fadeOut(withDuration: 0.33)
-        text.run(SKAction.sequence([
-            grow,
-            SKAction.group([shrink, fade]),
-            SKAction.removeFromParent(),
-        ]))
 
-        spawnScoreTransferDots(points: points, from: scenePoint, color: accent)
+        if ScorePopupFeedback.glyphShatterEnabled {
+            let shatter = SKAction.run { [weak self, weak text] in
+                guard let self, let text else { return }
+                self.shatterFloatingScoreGlyph(text, points: points, color: accent)
+            }
+            text.run(SKAction.sequence([grow, shatter]))
+        } else {
+            let shrink = SKAction.scale(to: 0.72, duration: 0.33)
+            shrink.timingMode = .easeIn
+            let fade = SKAction.fadeOut(withDuration: 0.33)
+            text.run(SKAction.sequence([
+                grow,
+                SKAction.group([shrink, fade]),
+                SKAction.removeFromParent(),
+            ]))
+            spawnScoreTransferDots(points: points, from: scenePoint, color: accent)
+        }
 
         run(
             SKAction.sequence([
-                SKAction.wait(forDuration: ScorePopupFeedback.transferPostPopupFlightDuration),
+                SKAction.wait(forDuration: hudRollStartAt),
                 SKAction.run(onTransferArrival),
             ])
         )
+    }
+
+    /// Le `+N` à pleine taille devient les paillettes (plus de shrink). Fallback = burst centroïde si le raster échoue.
+    private func shatterFloatingScoreGlyph(_ label: SKLabelNode, points: Int, color: SKColor) {
+        let centroid = label.position
+        let count = ScorePopupFeedback.transferDotCount(for: points)
+        let samples = sampleFloatingScoreGlyphPoints(from: label, text: label.text ?? "+\(points)", count: count)
+        label.removeFromParent()
+        let positions: [CGPoint]
+        if samples.count >= ScorePopupFeedback.minDots {
+            positions = samples
+        } else {
+            positions = fallbackGlyphShatterPositions(count: count, around: centroid)
+        }
+        spawnGlyphShatterDots(at: positions, centroid: centroid, color: color)
+    }
+
+    /// Positions opaques du glyphe, tirage `clamp(points×0,38, 9, 52)` réparti par caractère (`+` d’abord).
+    private func sampleFloatingScoreGlyphPoints(from label: SKLabelNode, text: String, count: Int) -> [CGPoint] {
+        guard count > 0, let skView = view else { return [] }
+        let acc = label.calculateAccumulatedFrame()
+        guard acc.width > 1, acc.height > 1 else { return [] }
+        let crop = CGRect(
+            x: acc.minX - label.position.x,
+            y: acc.minY - label.position.y,
+            width: acc.width,
+            height: acc.height
+        )
+        guard let texture = skView.texture(from: label, crop: crop) else { return [] }
+        let cgImage = texture.cgImage()
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 0, height > 0 else { return [] }
+
+        let characters = Array(text)
+        let font = BlomixTypography.uiFont(role: .grid, size: label.fontSize)
+        var advances: [CGFloat] = characters.map { ch in
+            String(ch).size(withAttributes: [.font: font]).width
+        }
+        let advanceSum = advances.reduce(0, +)
+        if advanceSum <= 0 {
+            advances = [CGFloat](repeating: 1, count: characters.count)
+        }
+        let scaleX = acc.width / max(advances.reduce(0, +), 1)
+        var edges: [CGFloat] = [0]
+        var x: CGFloat = 0
+        for w in advances {
+            x += w * scaleX
+            edges.append(x)
+        }
+        edges[edges.count - 1] = acc.width
+
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        var pixels = [UInt8](repeating: 0, count: height * bytesPerRow)
+        let drawn = pixels.withUnsafeMutableBytes { ptr -> Bool in
+            guard let ctx = CGContext(
+                data: ptr.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return false }
+            ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return [] }
+
+        var buckets = [[CGPoint]](repeating: [], count: max(characters.count, 1))
+        let threshold = ScorePopupFeedback.glyphAlphaThreshold
+        for py in 0..<height {
+            let row = py * bytesPerRow
+            for px in 0..<width {
+                let alpha = pixels[row + px * bytesPerPixel + 3]
+                guard alpha >= threshold else { continue }
+                let u = (CGFloat(px) + 0.5) / CGFloat(width)
+                let vBottom = (CGFloat(py) + 0.5) / CGFloat(height)
+                let scene = CGPoint(
+                    x: acc.minX + u * acc.width,
+                    y: acc.minY + vBottom * acc.height
+                )
+                let along = u * acc.width
+                var bucket = 0
+                if buckets.count > 1 {
+                    bucket = characters.count - 1
+                    for i in 0..<(edges.count - 1) where along < edges[i + 1] {
+                        bucket = i
+                        break
+                    }
+                }
+                buckets[bucket].append(scene)
+            }
+        }
+
+        let alloc = Self.allocateGlyphShatterDotCounts(
+            bucketSizes: buckets.map(\.count),
+            total: count
+        )
+        var out: [CGPoint] = []
+        out.reserveCapacity(count)
+        for (i, k) in alloc.enumerated() where k > 0 {
+            let pool = buckets[i]
+            guard !pool.isEmpty else { continue }
+            if pool.count >= k {
+                out.append(contentsOf: pool.shuffled().prefix(k))
+            } else {
+                for j in 0..<k {
+                    var p = pool[j % pool.count]
+                    if j >= pool.count {
+                        p.x += CGFloat.random(in: -1.2...1.2)
+                        p.y += CGFloat.random(in: -1.2...1.2)
+                    }
+                    out.append(p)
+                }
+            }
+        }
+        if out.count < count {
+            let all = buckets.flatMap { $0 }
+            guard !all.isEmpty else { return out }
+            while out.count < count {
+                out.append(all.randomElement()!)
+            }
+        }
+        return out
+    }
+
+    /// `+` a un plancher ; le reste suit la surface opaque de chaque glyphe.
+    private static func allocateGlyphShatterDotCounts(bucketSizes: [Int], total: Int) -> [Int] {
+        let n = bucketSizes.count
+        guard n > 0, total > 0 else { return [Int](repeating: 0, count: n) }
+        var mins = [Int](repeating: 0, count: n)
+        for i in 0..<n where bucketSizes[i] > 0 {
+            mins[i] = (i == 0) ? ScorePopupFeedback.glyphPlusMinDots : ScorePopupFeedback.glyphDigitMinDots
+        }
+        var minSum = mins.reduce(0, +)
+        if minSum > total {
+            mins = [Int](repeating: 0, count: n)
+            var left = total
+            if (bucketSizes.first ?? 0) > 0, left > 0 {
+                mins[0] = 1
+                left -= 1
+            }
+            for i in 1..<n where left > 0 && bucketSizes[i] > 0 {
+                mins[i] = 1
+                left -= 1
+            }
+            minSum = mins.reduce(0, +)
+        }
+        var result = mins
+        var remaining = total - result.reduce(0, +)
+        let weightSum = bucketSizes.reduce(0, +)
+        guard remaining > 0, weightSum > 0 else { return result }
+        var leftovers: [(Int, Int)] = []
+        for i in 0..<n {
+            let extra = remaining * bucketSizes[i] / weightSum
+            result[i] += extra
+            leftovers.append((i, remaining * bucketSizes[i] % weightSum))
+        }
+        let assignedExtra = result.enumerated().reduce(0) { $0 + ($1.element - mins[$1.offset]) }
+        var leftover = remaining - assignedExtra
+        for (i, _) in leftovers.sorted(by: { $0.1 > $1.1 }) where leftover > 0 {
+            result[i] += 1
+            leftover -= 1
+        }
+        return result
+    }
+
+    private func fallbackGlyphShatterPositions(count: Int, around center: CGPoint) -> [CGPoint] {
+        (0..<count).map { _ in
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let dist = CGFloat.random(in: 0...ScorePopupFeedback.transferStartSpreadRadius)
+            return CGPoint(x: center.x + cos(angle) * dist, y: center.y + sin(angle) * dist)
+        }
+    }
+
+    /// Dispersion légère depuis le centroïde du label, puis vol `easeIn` vers le gros score.
+    /// Les plus proches du HUD partent les premiers (arrivée étalée = fenêtre du roulement).
+    private func spawnGlyphShatterDots(at positions: [CGPoint], centroid: CGPoint, color: SKColor) {
+        guard !positions.isEmpty else { return }
+        let target = scoreHudTargetCenter()
+        let burstDuration = ScorePopupFeedback.glyphBurstDuration
+        let ordered: [CGPoint]
+        if let destinationBase = target {
+            ordered = positions.sorted {
+                hypot($0.x - destinationBase.x, $0.y - destinationBase.y)
+                    < hypot($1.x - destinationBase.x, $1.y - destinationBase.y)
+            }
+        } else {
+            ordered = positions
+        }
+        let staggerBudget = ScorePopupFeedback.glyphArrivalStagger
+        let lastIndex = max(ordered.count - 1, 1)
+        let mainCount = ScorePopupFeedback.glyphMainCount(forTotal: ordered.count)
+        for (index, origin) in ordered.enumerated() {
+            let radius = index < mainCount
+                ? CGFloat.random(in: ChainClearFeedback.popDotRadiusRange)
+                : ScorePopupFeedback.glyphMicroRadius
+            let dot = SKShapeNode(circleOfRadius: radius)
+            dot.fillColor = color
+            dot.strokeColor = .clear
+            dot.alpha = 1
+            dot.zPosition = 36
+            dot.position = origin
+            addChild(dot)
+
+            let dx = origin.x - centroid.x
+            let dy = origin.y - centroid.y
+            let len = hypot(dx, dy)
+            let dirX: CGFloat
+            let dirY: CGFloat
+            if len < 0.5 {
+                let angle = CGFloat.random(in: 0...(2 * .pi))
+                dirX = cos(angle)
+                dirY = sin(angle)
+            } else {
+                dirX = dx / len
+                dirY = dy / len
+            }
+            let burstDist = CGFloat.random(in: ScorePopupFeedback.glyphBurstDistance)
+            let burstTo = CGPoint(x: origin.x + dirX * burstDist, y: origin.y + dirY * burstDist)
+            let burst = SKAction.move(to: burstTo, duration: burstDuration)
+            burst.timingMode = .easeOut
+
+            let launchDelay = staggerBudget * TimeInterval(index) / TimeInterval(lastIndex)
+            var sequence: [SKAction] = [burst]
+            if launchDelay > 0.0005 {
+                sequence.append(SKAction.wait(forDuration: launchDelay))
+            }
+            if let destinationBase = target {
+                let dest = CGPoint(
+                    x: destinationBase.x + CGFloat.random(in: -ScorePopupFeedback.transferTargetJitterX...ScorePopupFeedback.transferTargetJitterX),
+                    y: destinationBase.y + CGFloat.random(in: -ScorePopupFeedback.transferTargetJitterY...ScorePopupFeedback.transferTargetJitterY)
+                )
+                let dist = hypot(dest.x - burstTo.x, dest.y - burstTo.y)
+                let move = SKAction.move(
+                    to: dest,
+                    duration: ChainClearFeedback.dissolveFlightDuration(distance: dist)
+                )
+                move.timingMode = .easeIn
+                sequence.append(move)
+            }
+            sequence.append(SKAction.removeFromParent())
+            dot.run(SKAction.sequence(sequence))
+        }
     }
 
     // MARK: - Combo label popup (cascade niveaux 2 et 3+)
@@ -6739,7 +7084,7 @@ final class GameScene: SKScene {
             container.addChild(makeLabel("COMBO", yOffset: 0))
         }
 
-        // Mêmes paramètres que le "+N" : grow à pleine opacité, puis shrink + fade simultanés.
+        // Grow identique au "+N" ; le COMBO garde shrink+fade (il ne se verse pas dans le HUD).
         let grow = SKAction.scale(to: 1.0, duration: 0.58)
         grow.timingMode = .easeOut
         let shrink = SKAction.scale(to: 0.72, duration: 0.33)
@@ -6761,8 +7106,7 @@ final class GameScene: SKScene {
     private func spawnScoreTransferDots(points: Int, from sourceCenter: CGPoint, color: SKColor = BlomixAppearance.floatingScoreAccentSK) {
         guard points > 0 else { return }
         guard let targetCenter = scoreHudTargetCenter() else { return }
-        let rawCount = Int((CGFloat(points) * ScorePopupFeedback.dotsPerPoint).rounded())
-        let dotCount = min(ScorePopupFeedback.maxDots, max(ScorePopupFeedback.minDots, rawCount))
+        let dotCount = ScorePopupFeedback.transferDotCount(for: points)
         spawnTransferDots(count: dotCount, from: sourceCenter, to: targetCenter, color: color, onArrival: nil)
     }
 
@@ -9061,11 +9405,14 @@ final class GameScene: SKScene {
             })
             steps.append(SKAction.wait(forDuration: duration))
         }
-        // Bref hold sur la couleur finale, puis dissolution.
+        // Bref hold sur la couleur finale, fin du disque, puis dissolution des blox.
         steps.append(SKAction.run { [weak self, weak colorxSprite] in
-            guard let self else { return }
-            colorxSprite?.removeFromParent()
-            self.dissolveColorxMatchingBlocks(color: finalColor, columnHadBlockBefore: columnHadBlock)
+            guard let self, let sprite = colorxSprite else { return }
+            self.consumeMagixDisk(sprite, at: cell, in: container)
+        })
+        steps.append(SKAction.wait(forDuration: MagixLandingBurstFeedback.consumeFadeDuration))
+        steps.append(SKAction.run { [weak self] in
+            self?.dissolveColorxMatchingBlocks(color: finalColor, columnHadBlockBefore: columnHadBlock)
         })
         run(SKAction.sequence(steps))
     }
@@ -9084,14 +9431,23 @@ final class GameScene: SKScene {
             }
         }
 
-        // ── 2. Score (formule chaîne pour N blocs).
+        // ── 2. Score (formule chaîne pour N blocs) — pluie HUD comme une chaîne.
         if !targets.isEmpty {
             let pts      = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel,
                                                       groupSize: targets.count)
             let center   = sceneCentroid(for: Set(targets))
             let dotColor = Self.bloxSolidFillColor(colorName: color)
-            addScore(points: pts, chainMultiplier: chainSeriesLevel,
-                     floatAt: center, dotColor: dotColor)
+            let colorxScaleUp: TimeInterval = 0.10
+            let colorxStagger: TimeInterval = 0.025
+            let window = sparkleArrivalWindow(cells: targets, spawnAt: colorxScaleUp, stagger: colorxStagger)
+            addScore(
+                points: pts,
+                chainMultiplier: chainSeriesLevel,
+                floatAt: center,
+                dotColor: dotColor,
+                scoreRollStartAt: window?.first,
+                scoreRollHoldUntil: window?.last
+            )
         }
         removeBloxJunctionElementsTouching(Set(targets))
 
@@ -9104,12 +9460,15 @@ final class GameScene: SKScene {
         }
 
         let stagger: TimeInterval = 0.025
+        let scaleUp: TimeInterval = 0.10
         // Sons de pop pour les 8 premiers blocs au maximum (évite la saturation audio).
         let popLimit = min(targets.count, 8)
         for (i, addr) in targets.enumerated() {
             guard let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode
             else { continue }
             let shouldPlayPop = i < popLimit
+            let scalePeak = SKAction.scale(to: 1.30, duration: scaleUp)
+            scalePeak.timingMode = .easeOut
             sprite.run(SKAction.sequence([
                 SKAction.wait(forDuration: Double(i) * stagger),
                 SKAction.run {
@@ -9117,15 +9476,15 @@ final class GameScene: SKScene {
                         BlomixProceduralSFX.shared.playColorxDissolvePop()
                     }
                 },
+                scalePeak,
+                SKAction.run { [weak self, weak sprite] in
+                    guard let self, let sprite else { return }
+                    let scenePos = self.convert(sprite.position, from: container)
+                    self.spawnChainPopDots(at: scenePos, color: sprite.color)
+                },
                 SKAction.group([
-                    SKAction.sequence([
-                        SKAction.scale(to: 1.30, duration: 0.10),
-                        SKAction.scale(to: 0.01, duration: 0.14),
-                    ]),
-                    SKAction.sequence([
-                        SKAction.wait(forDuration: 0.10),
-                        SKAction.fadeOut(withDuration: 0.14),
-                    ]),
+                    SKAction.scale(to: 0.01, duration: 0.14),
+                    SKAction.fadeOut(withDuration: 0.14),
                 ]),
                 SKAction.removeFromParent(),
             ]))
@@ -9156,10 +9515,8 @@ final class GameScene: SKScene {
     /// Magix SAINTX → Brix visuel (carré + chiffre), sans toucher au modèle de grille.
     @discardableResult
     private func convertCleanxSpriteToCountingBrix(_ sprite: SKSpriteNode, startingDigit: Int) -> SKLabelNode {
-        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
-        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
-        sprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
-        sprite.shader = nil
+        stripMagixAura(from: sprite)
+        sprite.texture = nil
         sprite.color = Self.priksSolidFillColor()
         sprite.colorBlendFactor = 1
         let digitNode = SKLabelNode(text: "\(startingDigit)")
@@ -9353,6 +9710,11 @@ final class GameScene: SKScene {
     private func applyMagixEffect_twistx(at cell: GridAddress) {
         grid[cell.row][cell.col] = .empty
         removeBloxJunctionElementsTouching([cell])
+        if let container = childNode(withName: Self.gridContainerName),
+           let magixSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
+            magixSprite.name = "cell_twistx_vanishing"
+            consumeMagixDisk(magixSprite, at: cell, in: container)
+        }
 
         // ── 1. Couleur cible aléatoire parmi celles présentes ─────────────────
         let presentColors: [String] = Self.colorPalette.filter { name in
@@ -9366,6 +9728,7 @@ final class GameScene: SKScene {
         var twistRNG = makeDailyEffectRNG(event: "twistx", at: cell)
         guard let chosenColor = twistRNG?.pick(presentColors) ?? presentColors.randomElement() else {
             // Aucune couleur dans la grille → rien à faire.
+            drawGrid()
             isProcessing = false
             return
         }
@@ -9507,21 +9870,14 @@ final class GameScene: SKScene {
                 SKAction.run { [weak self] in
                     guard let self else { return }
                     BlomixProceduralSFX.shared.playChromaxTick(step: capturedStep, total: pathTotal)
-                    // Mise à jour logique
                     self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColor)
-                    // Remplacement du sprite
-                    let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
-                    container.childNode(withName: nodeName)?.removeFromParent()
-                    let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColor))
-                    newSprite.name = nodeName
-                    newSprite.position = Self.gridContainerLocalCellCenter(
-                        row: capturedAddr.row, column: capturedAddr.col)
-                    newSprite.setScale(0.5)
-                    container.addChild(newSprite)
-                    newSprite.run(SKAction.sequence([
-                        SKAction.scale(to: 1.40, duration: 0.07),
-                        SKAction.scale(to: 1.00, duration: 0.05),
-                    ]))
+                    self.presentPaintedBlock(
+                        .color(chosenColor),
+                        at: capturedAddr,
+                        in: container,
+                        morphMagix: capturedAddr == startCell,
+                        peakScale: 1.40
+                    )
                 },
             ]))
             totalDelay += stepDelay
@@ -9557,14 +9913,19 @@ final class GameScene: SKScene {
             }
         }
 
-        // ── 3. Dessin initial (Priks(9) visible à la case d'atterrissage) ─────
-        drawGrid()
-
-        // ── 4. Flash blanc sur tous les Brix ────────────────────────────────
+        // ── 3. Mue du disque → Brix(9) (pas un drawGrid qui téléporte).
         guard let container = childNode(withName: Self.gridContainerName) else {
+            drawGrid()
             finishBrixedDecrement(at: cell, affected: affectedPriks)
             return
         }
+        if let magixSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
+            morphMagixSprite(magixSprite, into: .priks(MagixRules.brixedInitialHits))
+        } else {
+            drawGrid()
+        }
+
+        // ── 4. Flash blanc sur tous les Brix ────────────────────────────────
         let flashDuration: TimeInterval = 0.20
 
         // Impact grave au déclenchement du flash BRIXED.
@@ -9614,12 +9975,6 @@ final class GameScene: SKScene {
             removeBloxJunctionElementsTouching(vanishedPriks)
         }
 
-        // Score immédiat pour les Brix détruits.
-        if !vanishedPriks.isEmpty {
-            let pts = vanishedPriks.count * 20
-            addScore(points: pts, chainMultiplier: 0, floatAt: sceneCentroid(for: vanishedPriks))
-        }
-
         // Animation de disparition des Brix → puis gravité → resolveChains.
         let continueAfterVanish: () -> Void = { [weak self] in
             guard let self else { return }
@@ -9630,6 +9985,24 @@ final class GameScene: SKScene {
             drawGrid()
             continueAfterVanish()
         } else {
+            let pts = vanishedPriks.count * 20
+            let floatAt = sceneCentroid(for: vanishedPriks)
+            let cells = Array(vanishedPriks)
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: BrixVanishFeedback.popDuration),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    let window = self.brixSparkleArrivalWindow(cells: cells, spawnAt: 0)
+                    self.addScore(
+                        points: pts,
+                        chainMultiplier: 0,
+                        floatAt: floatAt,
+                        dotColor: Self.priksSolidFillColor(),
+                        scoreRollStartAt: window?.first,
+                        scoreRollHoldUntil: window?.last
+                    )
+                },
+            ]))
             animateVanishingPriks(cells: vanishedPriks) { [weak self] in
                 guard let self else { return }
                 self.drawGrid()
@@ -9724,18 +10097,13 @@ final class GameScene: SKScene {
                 SKAction.run { [weak self] in
                     guard let self else { return }
                     self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColor)
-                    let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
-                    container.childNode(withName: nodeName)?.removeFromParent()
-                    let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColor))
-                    newSprite.name = nodeName
-                    newSprite.position = Self.gridContainerLocalCellCenter(
-                        row: capturedAddr.row, column: capturedAddr.col)
-                    newSprite.setScale(0.5)
-                    container.addChild(newSprite)
-                    newSprite.run(SKAction.sequence([
-                        SKAction.scale(to: 1.35, duration: 0.07),
-                        SKAction.scale(to: 1.00, duration: 0.05),
-                    ]))
+                    self.presentPaintedBlock(
+                        .color(chosenColor),
+                        at: capturedAddr,
+                        in: container,
+                        morphMagix: capturedAddr == cell,
+                        peakScale: 1.35
+                    )
                 },
             ]))
         }
@@ -9827,18 +10195,13 @@ final class GameScene: SKScene {
                             indexInRank: capturedIndexInRank
                         )
                         self.grid[capturedAddr.row][capturedAddr.col] = .color(chosenColorName)
-                        let nodeName = "cell_\(capturedAddr.row)_\(capturedAddr.col)"
-                        container.childNode(withName: nodeName)?.removeFromParent()
-                        let newSprite = Self.makeSolidGameplayBlockSprite(block: .color(chosenColorName))
-                        newSprite.name = nodeName
-                        newSprite.position = Self.gridContainerLocalCellCenter(
-                            row: capturedAddr.row, column: capturedAddr.col)
-                        newSprite.setScale(0.5)
-                        container.addChild(newSprite)
-                        newSprite.run(SKAction.sequence([
-                            SKAction.scale(to: 1.35, duration: 0.07),
-                            SKAction.scale(to: 1.00, duration: 0.05),
-                        ]))
+                        self.presentPaintedBlock(
+                            .color(chosenColorName),
+                            at: capturedAddr,
+                            in: container,
+                            morphMagix: capturedAddr == cell,
+                            peakScale: 1.35
+                        )
                     },
                 ]))
                 totalDelay += stepDelay
@@ -10029,7 +10392,22 @@ final class GameScene: SKScene {
         }
         if !vanishedBrixAddrs.isEmpty {
             let pts = vanishedBrixAddrs.count * 20
-            addScore(points: pts, chainMultiplier: 0, floatAt: sceneCentroid(for: vanishedBrixAddrs))
+            let priksColor = Self.priksSolidFillColor()
+            for addr in vanishedBrixAddrs {
+                spawnBrixVanishSquareDots(
+                    at: scenePointCellCenter(row: addr.row, column: addr.col),
+                    color: priksColor
+                )
+            }
+            let window = brixSparkleArrivalWindow(cells: Array(vanishedBrixAddrs), spawnAt: 0)
+            addScore(
+                points: pts,
+                chainMultiplier: 0,
+                floatAt: sceneCentroid(for: vanishedBrixAddrs),
+                dotColor: priksColor,
+                scoreRollStartAt: window?.first,
+                scoreRollHoldUntil: window?.last
+            )
         }
 
         // ── 3. Supprime toutes les barres de jonction (fausses après décalage + Brix disparus).
@@ -10136,6 +10514,8 @@ final class GameScene: SKScene {
             landingSlot.position = landingPos
             landingSlot.zPosition = 0
             container.addChild(landingSlot)
+            let scenePoint = convert(scrumblxSprite.position, from: container)
+            spawnMagixConsumeBurst(at: scenePoint)
             scrumblxSprite.run(SKAction.sequence([
                 SKAction.colorize(with: .white, colorBlendFactor: 0.95, duration: flashDur * 0.35),
                 SKAction.fadeAlpha(to: 0, duration: flashDur * 0.65),
@@ -10887,6 +11267,101 @@ final class GameScene: SKScene {
         )
     }
 
+    /// Pluie HUD de l’explosion : paillettes au pic du scale-up (anim inchangée). Compactage n’attend pas.
+    private func spawnBombBlastScoreJuice(occupiedSorted: [GridAddress], bombCenter: CGPoint) {
+        let stagger = BombExplosionFeedback.blockStaggerPerStep
+        let scaleUp = BombExplosionFeedback.blockScaleUpDuration
+
+        var bloxEntries: [(GridAddress, Int)] = []
+        var priksEntries: [(GridAddress, Int)] = []
+        for (index, addr) in occupiedSorted.enumerated() {
+            switch grid[addr.row][addr.col] {
+            case .color:
+                bloxEntries.append((addr, index))
+            case .priks:
+                priksEntries.append((addr, index))
+            default:
+                break
+            }
+        }
+
+        for (addr, index) in bloxEntries {
+            let color = Self.bloxTrailColor(for: grid[addr.row][addr.col])
+            let point = scenePointCellCenter(row: addr.row, column: addr.col)
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: Double(index) * stagger + scaleUp),
+                SKAction.run { [weak self] in
+                    self?.spawnChainPopDots(at: point, color: color)
+                },
+            ]))
+        }
+        let priksColor = Self.priksSolidFillColor()
+        for (addr, index) in priksEntries {
+            let point = scenePointCellCenter(row: addr.row, column: addr.col)
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: Double(index) * stagger + scaleUp),
+                SKAction.run { [weak self] in
+                    self?.spawnBrixVanishSquareDots(at: point, color: priksColor)
+                },
+            ]))
+        }
+
+        func arrivals(for entries: [(GridAddress, Int)]) -> (first: TimeInterval, last: TimeInterval)? {
+            guard !entries.isEmpty else { return nil }
+            guard let target = scoreHudTargetCenter() else {
+                let delays = entries.map { Double($0.1) * stagger }
+                return (
+                    delays.min() ?? 0,
+                    (delays.max() ?? 0) + ChainClearFeedback.dissolveDotReferenceDuration
+                )
+            }
+            var first = TimeInterval.greatestFiniteMagnitude
+            var last: TimeInterval = 0
+            for (addr, index) in entries {
+                let spawn = Double(index) * stagger
+                let from = scenePointCellCenter(row: addr.row, column: addr.col)
+                let dist = hypot(target.x - from.x, target.y - from.y)
+                let arrival = spawn + ChainClearFeedback.dissolveFlightDuration(distance: dist)
+                first = min(first, arrival)
+                last = max(last, arrival)
+            }
+            return (first, last)
+        }
+
+        let award: () -> Void = { [weak self] in
+            guard let self else { return }
+            let bloxWindow = arrivals(for: bloxEntries)
+            self.addScore(
+                points: 10,
+                chainMultiplier: 0,
+                floatAt: bombCenter,
+                scoreRollStartAt: bloxWindow?.first,
+                scoreRollHoldUntil: bloxWindow?.last
+            )
+            if !priksEntries.isEmpty {
+                let priksCells = Set(priksEntries.map { $0.0 })
+                let priksWindow = arrivals(for: priksEntries)
+                self.addScore(
+                    points: priksEntries.count * 20,
+                    chainMultiplier: 0,
+                    floatAt: self.sceneCentroid(for: priksCells),
+                    dotColor: priksColor,
+                    scoreRollStartAt: priksWindow?.first,
+                    scoreRollHoldUntil: priksWindow?.last
+                )
+            }
+        }
+
+        if occupiedSorted.isEmpty {
+            award()
+        } else {
+            run(SKAction.sequence([
+                SKAction.wait(forDuration: scaleUp),
+                SKAction.run(award),
+            ]))
+        }
+    }
+
     /// Animation d’explosion : onde + (option) emitters + blox 3×3 ; la grille **n’est pas** modifiée avant `completion`.
     private func animateBombExplosionAtLanding(
         centerScenePoint: CGPoint,
@@ -10898,6 +11373,9 @@ final class GameScene: SKScene {
         playMatchSound(.bomb)
         shakeScreen(intensity: 2.5)
         hapticHeavy()
+
+        let occupiedSorted = bombOccupiedCellsInBlastSortedByDistance(centerRow: centerRow, centerCol: centerCol)
+        spawnBombBlastScoreJuice(occupiedSorted: occupiedSorted, bombCenter: centerScenePoint)
 
         guard let container = childNode(withName: Self.gridContainerName) else {
             completion()
@@ -10928,7 +11406,6 @@ final class GameScene: SKScene {
         removeBloxJunctionElementsTouching(blastCells)
 
         let bombLocal = convert(centerScenePoint, to: container)
-        let occupiedSorted = bombOccupiedCellsInBlastSortedByDistance(centerRow: centerRow, centerCol: centerCol)
 
         let stagger = BombExplosionFeedback.blockStaggerPerStep
         let cellDur = BombExplosionFeedback.blockPerCellAnimationDuration
@@ -11046,15 +11523,7 @@ final class GameScene: SKScene {
                 spawnEmitter: false
             ) { [weak self] in
                 guard let self else { return }
-                // Capture les Brix dans la zone avant effacement (applyBombExplosion3x3 met tout à .empty).
-                let blastCells   = self.bombAffectedCells(centerRow: row, centerCol: col)
-                let priksInBlast = Set(blastCells.filter { if case .priks = self.grid[$0.row][$0.col] { return true }; return false })
                 self.applyBombExplosion3x3(centerRow: row, centerCol: col)
-                self.addScore(points: 10, chainMultiplier: 0, floatAt: cellCenter)
-                if !priksInBlast.isEmpty {
-                    let priksCenter = self.sceneCentroid(for: priksInBlast)
-                    self.addScore(points: priksInBlast.count * 20, chainMultiplier: 0, floatAt: priksCenter)
-                }
                 self.isBombMode = false
                 self.updateBombHUD()
                 if self.isTutorialMode { self.tutorialBombDropped() }
@@ -11176,17 +11645,7 @@ final class GameScene: SKScene {
                 spawnEmitter: false
             ) { [weak self] in
                 guard let self else { return }
-                // Capture les Brix dans la zone avant effacement.
-                let blastCells   = self.bombAffectedCells(centerRow: landingRow, centerCol: columnIndex)
-                let priksInBlast = Set(blastCells.filter { if case .priks = self.grid[$0.row][$0.col] { return true }; return false })
                 self.applyBombExplosion3x3(centerRow: landingRow, centerCol: columnIndex)
-
-                // Non-visual updates first (order-independent of animation)
-                self.addScore(points: 10, chainMultiplier: 0, floatAt: bombFloatAt)
-                if !priksInBlast.isEmpty {
-                    let priksCenter = self.sceneCentroid(for: priksInBlast)
-                    self.addScore(points: priksInBlast.count * 20, chainMultiplier: 0, floatAt: priksCenter)
-                }
                 self.isBombMode = false
                 self.updateBombHUD()
                 if self.isTutorialMode { self.tutorialBombDropped() }
@@ -11774,7 +12233,167 @@ final class GameScene: SKScene {
         } else {
             sprite.run(bounce)
         }
-        spawnLandingImpactSparkles(at: sceneCenter, color: blockColor)
+        if case .magix = block {
+            spawnMagixLandingBurst(at: sceneCenter)
+        } else {
+            spawnLandingImpactSparkles(at: sceneCenter, color: blockColor)
+        }
+    }
+
+    /// Burst radial palette (même matière que les orbitales Magix). Sur la scène : le sprite est souvent remplacé à 0,15 s.
+    private func spawnMagixLandingBurst(at center: CGPoint) {
+        spawnMagixPaletteBurst(
+            at: center,
+            count: MagixLandingBurstFeedback.countRange,
+            travel: MagixLandingBurstFeedback.travelDistance,
+            duration: MagixLandingBurstFeedback.duration
+        )
+    }
+
+    private func spawnMagixConsumeBurst(at center: CGPoint) {
+        spawnMagixPaletteBurst(
+            at: center,
+            count: MagixLandingBurstFeedback.consumeCountRange,
+            travel: MagixLandingBurstFeedback.consumeTravelDistance,
+            duration: MagixLandingBurstFeedback.consumeDuration
+        )
+    }
+
+    private func spawnMagixPaletteBurst(
+        at center: CGPoint,
+        count: ClosedRange<Int>,
+        travel: ClosedRange<CGFloat>,
+        duration: TimeInterval
+    ) {
+        let colors = BlomixSkinCatalog.shared.bloxSKColors()
+        guard !colors.isEmpty else { return }
+        let blockRadius = GridLayout.cellPoints / 2
+        let n = Int.random(in: count)
+        let fadeIn = MagixLandingBurstFeedback.fadeInDuration
+        for _ in 0..<n {
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let startDist = blockRadius + CGFloat.random(in: -MagixLandingBurstFeedback.startJitter...MagixLandingBurstFeedback.startJitter)
+            let endDist = startDist + CGFloat.random(in: travel)
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: MagixLandingBurstFeedback.radiusRange))
+            spark.fillColor = colors.randomElement()!
+            spark.strokeColor = .clear
+            spark.alpha = 0
+            spark.zPosition = MagixLandingBurstFeedback.zPosition
+            spark.position = CGPoint(
+                x: center.x + cos(angle) * startDist,
+                y: center.y + sin(angle) * startDist
+            )
+            addChild(spark)
+            let move = SKAction.move(
+                to: CGPoint(
+                    x: center.x + cos(angle) * endDist,
+                    y: center.y + sin(angle) * endDist
+                ),
+                duration: duration
+            )
+            move.timingMode = .easeInEaseOut
+            spark.run(SKAction.sequence([
+                SKAction.group([
+                    move,
+                    SKAction.sequence([
+                        SKAction.fadeAlpha(to: MagixLandingBurstFeedback.peakAlpha, duration: fadeIn),
+                        SKAction.fadeAlpha(to: 0, duration: max(0.01, duration - fadeIn)),
+                    ]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+    }
+
+    /// Halo, orbite, glyphe, shader — le corps du sprite reste.
+    private func stripMagixAura(from sprite: SKSpriteNode) {
+        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+        sprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
+        sprite.shader = nil
+        for child in sprite.children where child is SKShapeNode {
+            child.removeFromParent()
+        }
+    }
+
+    /// Disque consommé : gerbe palette (inverse de l’arrivée) + fade. Placeholder gris sous le trou.
+    private func consumeMagixDisk(_ sprite: SKSpriteNode, at addr: GridAddress, in container: SKNode) {
+        let scenePoint = convert(sprite.position, from: container)
+        spawnMagixConsumeBurst(at: scenePoint)
+        let slotSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+        let bg = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: slotSize)
+        bg.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        bg.position = sprite.position
+        bg.zPosition = 0
+        bg.name = "cell_dissolve_bg_\(addr.row)_\(addr.col)"
+        container.addChild(bg)
+        sprite.zPosition = 26
+        sprite.run(SKAction.sequence([
+            SKAction.fadeOut(withDuration: MagixLandingBurstFeedback.consumeFadeDuration),
+            SKAction.removeFromParent(),
+        ]))
+    }
+
+    /// Mue Magix → blox / Brix sur le même sprite (modèle SAINTX). Pas un spawn 0,5.
+    private func morphMagixSprite(_ sprite: SKSpriteNode, into block: BlockType) {
+        stripMagixAura(from: sprite)
+        sprite.texture = nil
+        sprite.colorBlendFactor = 1
+        sprite.blendMode = .alpha
+        sprite.setScale(1)
+        sprite.alpha = 1
+        for child in sprite.children where child is SKLabelNode {
+            child.removeFromParent()
+        }
+        switch block {
+        case .color(let name):
+            sprite.color = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+        case .priks(let value):
+            sprite.color = Self.priksSolidFillColor()
+            let digit = SKLabelNode(text: "\(value)")
+            digit.fontName = Self.gridFontName
+            digit.fontSize = value >= 10 ? 13 : 18
+            digit.fontColor = Self.priksDigitLabelColor()
+            digit.horizontalAlignmentMode = .center
+            digit.verticalAlignmentMode = .center
+            digit.position = .zero
+            digit.zPosition = 2
+            sprite.addChild(digit)
+        default:
+            break
+        }
+        let up = SKAction.scale(to: MagixLandingBurstFeedback.morphPeakScale,
+                                duration: MagixLandingBurstFeedback.morphScaleUpDuration)
+        up.timingMode = .easeOut
+        let down = SKAction.scale(to: 1.0, duration: MagixLandingBurstFeedback.morphScaleDownDuration)
+        down.timingMode = .easeIn
+        sprite.run(SKAction.sequence([up, down]))
+    }
+
+    /// Peinture d’une case : le Magix d’origine **mue** ; les autres pop-remplacent.
+    private func presentPaintedBlock(
+        _ block: BlockType,
+        at addr: GridAddress,
+        in container: SKNode,
+        morphMagix: Bool,
+        peakScale: CGFloat
+    ) {
+        let nodeName = "cell_\(addr.row)_\(addr.col)"
+        if morphMagix, let existing = container.childNode(withName: nodeName) as? SKSpriteNode {
+            morphMagixSprite(existing, into: block)
+            existing.name = nodeName
+            return
+        }
+        container.childNode(withName: nodeName)?.removeFromParent()
+        let newSprite = Self.makeSolidGameplayBlockSprite(block: block)
+        newSprite.name = nodeName
+        newSprite.position = Self.gridContainerLocalCellCenter(row: addr.row, column: addr.col)
+        newSprite.setScale(0.5)
+        container.addChild(newSprite)
+        newSprite.run(SKAction.sequence([
+            SKAction.scale(to: peakScale, duration: 0.07),
+            SKAction.scale(to: 1.00, duration: 0.05),
+        ]))
     }
 
     /// Effet d'impact à l'atterrissage : deux couches de paillettes superposées.
@@ -14453,9 +15072,7 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsStartButton(location) {
-                pendingButtonAction = { [weak self] in
-                    self?.confirmAbandonDailyRunThen { self?.performStartScreenHeroAction() }
-                }
+                pendingButtonAction = { [weak self] in self?.performStartScreenHeroAction() }
                 return
             }
             if touchHitsStartScreenSettingsButton(location) {
@@ -14499,11 +15116,11 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsStartScreenZenButton(location) {
-                pendingButtonAction = { [weak self] in self?.confirmAbandonHomeSaveThen { self?.beginZenModeFromStartScreen() } }
+                pendingButtonAction = { [weak self] in self?.confirmAbandonArcadeZenSaveThen { self?.beginZenModeFromStartScreen() } }
                 return
             }
             if touchHitsStartScreenPvPButton(location) {
-                pendingButtonAction = { [weak self] in self?.confirmAbandonHomeSaveThen { self?.showPvPLobbyAfterAbandoningSave() } }
+                pendingButtonAction = { [weak self] in self?.showPvPLobby() }
                 return
             }
             return

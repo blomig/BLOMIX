@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 7.4
+> **Version de référence** : 7.5
 
 ---
 
@@ -135,6 +135,16 @@ Champ ASC **Texte promotionnel** (≤ **170** car.). Ce n’est **pas** une Nouv
 - On ne le régénère **pas** à chaque `MARKETING_VERSION` — Fastlane re-pousse les fichiers existants si le champ ASC est vide
 
 Index : `store/README.md`.
+
+---
+
+## Nom et sous-titre de fiche (hors bundle, **7.5**)
+
+Champs ASC **Nom** et **Sous-titre** (≤ **30** car. chacun). Pas le nom sous l’icône (`BLOMIX`).
+
+- Source : `store/name/` et `store/subtitle/` (5 locales)
+- Fastlane les pousse avec `metadata` / `release` **à partir de la version 7.5**
+- Mots-clés ASC : inchangés (ne pas les dupliquer ici)
 
 ---
 

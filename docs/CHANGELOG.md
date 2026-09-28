@@ -7,9 +7,27 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.5] — 2026-09
+
+Build à venir (Fastlane). **7.4 / 140** en vente.
+
+### Magasin (ASO)
+
+- **Nom de fiche** (icône iPhone inchangé : BLOMIX) : FR `BLOMIX - Puzzle de blocs` · EN `BLOMIX - Block Puzzle` · DE `BLOMIX - Blockpuzzle` · ES `BLOMIX - Puzzle de bloques` · IT `BLOMIX - Puzzle di blocchi`. Source : `store/name/`.
+- **Sous-titre** : chaînes de 5 + gratuit sans pub (5 langues, ≤ 30 car.). Source : `store/subtitle/`. Mots-clés inchangés. Captures : overlay FR+EN, upload manuel ASC (6.5" + 6.9").
+
+### Modifié
+
+- **Score** : le `+N` se brise en paillettes vers le gros score ; les chaînes et Brix à 0 aussi. COLORX et bombe envoient la même pluie. Compactage / pose n’attendent pas le HUD.
+- **Magix** : gerbe palette à l’arrivée ; le disque **mue** (CHROMAX / CROSSX / SLASHX / BOMBX / BRIXED) ou **s’efface** (COLORX / TWISTX / SCRUMBLX).
+- **Saves** : Arcade/Zen et Défi du jour en parallèle. Duel depuis l’accueil = lobby, sans effacer Continuer. Un défi reçu en partie sauve toujours le slot en cours.
+- **Conseils du jour** : 4 phrases (Défi, Duel 50 pts, CHROMAX, SLASHX) en FR+EN+DE+ES+IT.
+
+---
+
 ## [7.4] — 2026-09
 
-Build **140**. 7.3 / 138 en vente.
+Build **140**. En vente.
 
 ### Ajouté
 - **Apple Watch** : compagnon Zen light (`Watch/`). Grille 8×8, compactage glissé, pose et ligne animées, bombes 3×3, **9 Magix**. Icône Watch (B). Score haut-gauche ; barre Home · file · bombe. Maison sauve / Continuer. Pont Watch → iPhone Zen (`transferUserInfo`). `GameScene.swift` inchangé.

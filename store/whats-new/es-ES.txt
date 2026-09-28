@@ -1,3 +1,4 @@
-• Apple Watch: juega al Zen en la muñeca (cuadrícula 8×8, Magix, bombas)
-• Watch: retoma tu partida; un récord Watch que bate tu Zen del iPhone va al ranking
-• Apuntar columna: mantén, ve dónde cae el blox, suelta para colocar
+• El +N y las cadenas se disuelven en destellos hacia la puntuación grande
+• Magix: ráfaga al aterrizar; el disco se transforma o desaparece con limpieza
+• Bomba: los destellos de blox y Brix también van a la puntuación
+• Arcade o Zen y el Desafío del día se guardan en paralelo; el Duelo ya no borra Continuar

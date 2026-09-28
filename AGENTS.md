@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **7.4** (build 140) — **7.3** (build 138) en vente |
+| Version courante | **7.5** (local) — **7.4** (build 140) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -37,6 +37,7 @@ BLOMIX/
 │   ├── PVP_MATCHING.md       # Appariement / CloudKit / GameKit
 │   ├── EVAL.md               # BlomixMoveAnalyzer
 │   ├── VFX_AND_ANIMATIONS.md # Juice Spec
+│   ├── JUICE_PISTES.md       # Pistes juice / physique des objets
 │   ├── GLOSSARY.md           # Terminologie canonique
 │   ├── LOCALIZATION.md       # i18n
 │   ├── DEVELOPMENT.md        # Build / debug
@@ -69,11 +70,12 @@ BLOMIX/
 | PvP / défis / bugs matchmaking | `DOCS/PVP_MATCHING.md` |
 | Défi du jour | `DOCS/DAILY_CHALLENGE.md` |
 | Hints / optimalité | `DOCS/EVAL.md` |
-| Animations / sons | `DOCS/VFX_AND_ANIMATIONS.md` |
+| Animations / sons | `DOCS/VFX_AND_ANIMATIONS.md` → pistes `DOCS/JUICE_PISTES.md` |
 | Nouvelle chaîne UI | `DOCS/LOCALIZATION.md` |
 | Historique versions | `DOCS/CHANGELOG.md` |
 | Nouveautés App Store | `store/whats-new/` (pas le bundle) |
 | Texte promo ASC | `store/promotional-text/` (stable, pas whats-new) |
+| Nom / sous-titre fiche | `store/name/` · `store/subtitle/` (7.5, ≤ 30 car.) |
 
 **Ne pas inventer les règles** : si le code et la doc divergent, vérifier le code puis proposer une mise à jour de la doc.
 
@@ -141,6 +143,7 @@ La logique gameplay est concentrée dans :
 | Chaînes joueur | Via `BlomixL10n` uniquement — **jamais** de texte UI en dur |
 | Nouveautés App Store | `store/whats-new/` — **FR+EN+DE+ES+IT** à chaque version marketing (pas le bundle) |
 | Texte promo ASC | `store/promotional-text/` — **stable**, ≤ 170 car. ; Fastlane le re-pousse si ASC l’a vidé ; **ne pas** le réécrire à chaque 6.x |
+| Nom / sous-titre fiche | `store/name/` · `store/subtitle/` — **7.5**, ≤ 30 car. ; icône iPhone reste BLOMIX |
 
 ### Terminologie (canonique)
 

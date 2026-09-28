@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.3 / 138** en vente.  
+> **Statut** : **7.4 / 140** en vente ; saves parallèles en **7.5**.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 7.3  
+> **Version de référence** : 7.5  
 > **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -38,9 +38,9 @@ Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, *
 
 **Game Over** (court, après `end.wav`) : **ton score** + rang live + **Accueil** + **Classement** (→ hub, où tu te vois dans la liste). Pas de récap justesse.
 
-**Quitter une run en cours** : Arcade / Duel / Zen → dialogue d’abandon **habituel**. Le hub **Continuer** reprend sans dialogue.
+**Quitter une run en cours** (☰ Accueil) : sauve le slot du mode (Arcade/Zen **ou** défi). Le hub **Continuer** et le hero **Continuer** reprennent chacun **leur** slot, sans dialog croisé.
 
-**Duel pendant une run** : la partie défi est écrite dans le slot dédié (Arcade/Zen inchangé). Au retour, reprise défi (graine + file), pas une Arcade.
+**Duel depuis l’accueil** : lobby joueurs, **sans** abandonner Arcade/Zen ni le défi. **Duel pendant une run** : snapshot dans le slot du mode en cours ; au retour, reprise de cette grille.
 
 **Disque défi** : rang GC **carrière** (points), pas la liste du jour — comme les 4 autres disques.
 
@@ -93,7 +93,7 @@ Skin Alea / thème chrome : **visuel**, pas dans la graine.
 | Auto-drop | Hasard **OK** (comme Arcade) | Colonne différente sans importance |
 | Retry | **1 seule partie** / jour UTC | Bouton grisé « revenez demain » après GO |
 | Fuseau | **UTC** | Un seul jour mondial |
-| Continuer Arcade | Slot save **séparé** ; si défi **en cours**, les autres boutons → dialogue habituel d’abandon | Comme Duel/Zen vs Continuer |
+| Continuer Arcade | Slot save **séparé** ; Continuer Arcade **et** Défi coexistent (pas d’abandon croisé) | Duel accueil = lobby, sans clear |
 
 ---
 

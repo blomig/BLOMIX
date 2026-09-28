@@ -165,7 +165,7 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nom
 
 ## Déploiement App Store Connect
 
-Les champs **Nouveautés** et **Texte promotionnel** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/` et `store/promotional-text/` (5 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures).
+Les champs **Nouveautés**, **Texte promotionnel**, **Nom de fiche** et **Sous-titre** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/`, `store/promotional-text/`, `store/name/`, `store/subtitle/` (5 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures). Nom/sous-titre : poussés avec `release` / `metadata` sur la **7.5**. Captures : upload manuel (`store/asc-assets/README.md`).
 
 Rédaction : [LOCALIZATION.md](LOCALIZATION.md), `store/README.md`. À chaque `MARKETING_VERSION`, écrire les 5 Nouveautés dans le même lot que le CHANGELOG. Le texte promo est **figé** (≤ 170 car.) — on le re-pousse parce qu’Apple le vide souvent à la création de version.
 

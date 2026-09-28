@@ -33,6 +33,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Référence technique (mécaniques, HUD, sauvegarde) |
 | [docs/PVP_MATCHING.md](docs/PVP_MATCHING.md) | Appariement PvP (CloudKit, GameKit, revanche) |
 | [docs/VFX_AND_ANIMATIONS.md](docs/VFX_AND_ANIMATIONS.md) | Juice Spec : sons, particules, timings |
+| [docs/JUICE_PISTES.md](docs/JUICE_PISTES.md) | Pistes juice / physique blox · Brix · Magix |
 | [docs/EVAL.md](docs/EVAL.md) | Moteur d'évaluation des coups et hints |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terminologie canonique (code ↔ joueur) |
 | [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT) |

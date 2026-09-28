@@ -1,3 +1,4 @@
-• Apple Watch: play Zen on your wrist (8×8 grid, Magix, bombs)
-• Watch: resume your run; a Watch record that beats your iPhone Zen goes to the leaderboard
-• Column aim: hold, see where the blox will land, release to drop
+• +N and chains dissolve into sparkles that fly to the big score
+• Magix: a burst on landing; the disc morphs or vanishes cleanly
+• Bombs: blox and Brix sparkles also fly to the score
+• Arcade or Zen and Daily Challenge save in parallel; Duel no longer wipes Continue

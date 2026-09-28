@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Pipeline App Store Connect BLOMIX.
-# Source de verite textes : store/whats-new/ et store/promotional-text/
+# Source de verite textes : store/whats-new/, promotional-text/, name/, subtitle/
 # (jamais fastlane/metadata versionne -- trop facile d'ecraser description / captures).
 
 opt_out_usage
@@ -306,10 +306,14 @@ def generate_deliver_metadata!
     FileUtils.mkdir_p(dir)
     notes = File.read(File.join(ROOT, "store/whats-new/#{locale}.txt"), encoding: "UTF-8")
     promo = File.read(File.join(ROOT, "store/promotional-text/#{locale}.txt"), encoding: "UTF-8")
+    name = File.read(File.join(ROOT, "store/name/#{locale}.txt"), encoding: "UTF-8")
+    subtitle = File.read(File.join(ROOT, "store/subtitle/#{locale}.txt"), encoding: "UTF-8")
     File.write(File.join(dir, "release_notes.txt"), notes.gsub("\r\n", "\n").strip + "\n")
     File.write(File.join(dir, "promotional_text.txt"), promo.gsub("\r\n", "\n").strip + "\n")
+    File.write(File.join(dir, "name.txt"), name.gsub("\r\n", "\n").strip + "\n")
+    File.write(File.join(dir, "subtitle.txt"), subtitle.gsub("\r\n", "\n").strip + "\n")
   end
-  UI.message("Métadonnées générées (Nouveautés + promo seulement) → #{GENERATED_METADATA}")
+  UI.message("Métadonnées générées (Nouveautés + promo + nom + sous-titre) → #{GENERATED_METADATA}")
   GENERATED_METADATA
 end
 

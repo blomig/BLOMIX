@@ -12,5 +12,9 @@
   { "text": "Si en fermant les yeux, vous voyez des blox, arrêtez de jouer." },
   { "text": "En fin de partie, vous pouvez voir votre plus grosse erreur." },
   { "text": "Vous pouvez vous rendre dispo pour un match joueur contre joueur" },
-  { "text": "Pas plus de 5 parties par jour." }
+  { "text": "Pas plus de 5 parties par jour." },
+  { "text": "Chaque jour, le défi te permet de jouer exactement la même série de blocs que les autres joueurs." },
+  { "text": "En Duel, tous les 50 points, tu envoies une ligne à l'adversaire." },
+  { "text": "Les CHROMAX (?) sont plus efficaces sur le haut d'une colonne." },
+  { "text": "Regarde bien où tu places le SLASHX (X) pour maximiser les dégâts." }
 ]

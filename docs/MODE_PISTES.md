@@ -1,8 +1,8 @@
 # BLOMIX — Pistes de modes
 
-> **Version de référence** : 7.1 (local)  
+> **Version de référence** : 7.4  
 > Recueil **2026-09**. Pistes de design, pas des règles. **Graine du jour** est passée en code : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).  
-> Magix (blocs) : [MAGIX.md](MAGIX.md). Règles en jeu : [RULES.md](RULES.md).
+> Magix (blocs) : [MAGIX.md](MAGIX.md). Juice / physique : [JUICE_PISTES.md](JUICE_PISTES.md). Règles en jeu : [RULES.md](RULES.md).
 
 Noms de modes ici = **étiquettes de design**, pas des libellés magasin.
 
@@ -91,6 +91,19 @@ Grilles **préparées** (ou graine + N coups). But : vider / atteindre un score 
 - **Risque :** usine à contenu. Commencer par 10 graines + contrats, pas un éditeur joueur.
 - **Effort :** moyen (format + 10 niveaux), puis lourd si on veut un pack.
 
+### 7. Défi Zen du jour — viser *exactement* un score
+
+**Proposition joueur** (2026-09). **Pas codé.**
+
+Un **objectif de score** est tiré entre **0** et le **highscore Zen**. Le joueur fait une partie **Zen** (pas de timer). But : **terminer** avec **exactement** ce score. Classement = **écart absolu** à l’objectif (0 = parfait ; plus c’est petit, mieux c’est).
+
+- **Nouveau :** on ne maximise plus le score ; on **cible**. Le GO n’est plus « trop bas », c’est le **relevé**. SAINTX / COLORX / bombe deviennent dangereux (on peut dépasser).
+- **Moteur :** Zen existant + un entier cible + `|score − cible|` au GO. Pas de nouveau réseau Duel.
+- **Magix :** oui (Zen). Outils **et** pièges.
+- **À figer plus tard (pas maintenant) :** highscore **local** vs board GC `ZenMode` ; cible **partagée** (graine UTC, comme le Défi) ou **personnelle** ; une run / jour ou libre ; « terminer » = game over seulement, ou abandon compte aussi.
+- **Risque :** si la cible est trop basse, on joue pour **rater** exprès (suicide de grille). Si trop haute, ça ressemble au Zen normal. Écart = classement inverse du Défi actuel (qui récompense le plus gros score).
+- **Effort :** bas–moyen si cible personnelle + GO. Moyen si hub du jour + CloudKit comme le Défi Arcade.
+
 ---
 
 ## Variantes (pas un 4ᵉ mode)
@@ -121,6 +134,7 @@ Les pistes **PACKX / FLIPX / MERGEX / HALTX / VOIDX** ([MAGIX.md](MAGIX.md)) res
 | Une autre pression que le timer | **Marée** | bas–moyen | Arcade |
 | Faire briller les Magix | **Poche Magix** | moyen | la chance actuelle |
 | Des parties de 2 min | **Atelier** | moyen puis contenu | les runs infinies |
+| Un Zen « social » sans maxer le score | **Défi Zen du jour** | bas–moyen | Défi Arcade (plus gros score gagne) |
 
 Les plus « BLOMIX » (même feel, nouveau contrat) : **Contrats**, **Graine du jour**, **Poche Magix**.  
 Les plus cheap à prototyper : **Graine du jour**, **Duo** hotseat, **Marée** (constantes).

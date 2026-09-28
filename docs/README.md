@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 7.4  
+> **Version de référence** : 7.5  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -14,7 +14,8 @@
 |---|---|
 | [RULES.md](RULES.md) | Règles du jeu (mécaniques, scoring, modes) |
 | [MAGIX.md](MAGIX.md) | Catalogue Magix en jeu + pistes non codées |
-| [MODE_PISTES.md](MODE_PISTES.md) | Pistes de 4ᵉ mode (Contrats, Graine du jour, Marée, Poche Magix, Duo, Atelier) |
+| [MODE_PISTES.md](MODE_PISTES.md) | Pistes de 4ᵉ mode (Contrats, Graine du jour, Marée, Poche Magix, Duo, Atelier, Défi Zen) |
+| [JUICE_PISTES.md](JUICE_PISTES.md) | Pistes juice / physique blox · Brix · Magix (pas la spec en jeu) |
 | [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md) | Défi du jour — graine UTC, hub, CloudKit, points podium |
 | [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Juice Spec : animations, particules, sons, timings |
 | [GLOSSARY.md](GLOSSARY.md) | Terminologie canonique (code ↔ joueur ↔ UI) |
@@ -61,7 +62,7 @@
 |---|---|
 | Nouveau joueur / game designer | `RULES.md` → `MAGIX.md` → `GLOSSARY.md` |
 | Développeur rejoignant le projet | `DEVELOPMENT.md` → `PROJECT_CONTEXT.md` |
-| Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `GLOSSARY.md` |
+| Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `JUICE_PISTES.md` → `GLOSSARY.md` |
 | Traducteur | `LOCALIZATION.md` → `GLOSSARY.md` |
 | Mainteneur / release | `CHANGELOG.md` → `store/whats-new/` → `DEVELOPMENT.md` § Déploiement (Fastlane) |
 | Apple Watch (Zen light, 7.4) | `WATCH_ZEN.md` |

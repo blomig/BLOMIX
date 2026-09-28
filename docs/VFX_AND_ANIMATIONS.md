@@ -1,8 +1,9 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 7.4  
+> **Version de référence** : 7.5  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
-> **Dernière mise à jour** : septembre 2026
+> **Dernière mise à jour** : septembre 2026  
+> Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
 
 ---
 
@@ -140,9 +141,16 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | B — rebond | 0,03 s · y − h×0,13 · x 0,94 / y 1,15 | 0,025 s · y − h×0,07 · x 0,97 / y 1,08 |
 | C — settle | 0,03 s · retour p0 · x/y 1,0 | 0,025 s · idem |
 
-**Particules impact** (`spawnLandingImpactSparkles`) — communes, couleur du bloc :
+**Particules impact** (`spawnLandingImpactSparkles`) — Blox / Brix, couleur du bloc :
 - Couche éjection : 12 dots, **0,22 s**, rayon 0,8–1,8 pt, drift 12–26 pt
 - Couche poudre : 38 dots, **0,80 s**, rayon 0,5–1,2 pt, drift 1–5 pt
+
+**Gerbe Magix** (`spawnMagixLandingBurst`) — **à la place** de l’impact blanc, tous Magix identiques :
+- 40–48 ronds r **1,0–1,8 pt** (même matière que l’orbite preview)
+- Couleur = palette blox du skin, **par** particule
+- Spawn sur l’anneau du disque (±4 pt), vol radial **+24–52 pt**, **0,34 s** `easeInEaseOut`
+- Fade 0 → 0,85 en 0,05 s puis 0 ; z 37 ; **scène** (pas enfant du sprite)
+- Ne retarde pas l’effet Magix (toujours après bounce **0,15 s**)
 
 **Sons d'atterrissage** (`landingSoundForPlacedBlock`) :
 
@@ -249,8 +257,8 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 - **Vol vers le gros score** à **vitesse constante** (~820 pt/s = 0,25 s du centre de grille au score), `easeIn`, plancher **0,12 s**
 - Pas de chute / fondu ; spawn au pic du scale-up
 - Couleur = couleur exacte du blox
-- HUD : le roulement du score dure au moins jusqu’à la **dernière** arrivée. Compactage / cascade / saisie **n’attendent pas**.
-- Dots t0 du `+N` : inchangés (éclat + vol 0,20 s)
+- HUD : le roulement **part à la première** arrivée et **s’arrête à la dernière**. Compactage / cascade / saisie **n’attendent pas**.
+- Dots du `+N` : plus de vol t0. Le glyphe se brise à **t = 0,58 s** (voir § 8.1) ; les paillettes de cases restent indépendantes.
 
 ### 3.2 Sons de chaîne (`playChainClearSound`)
 
@@ -283,7 +291,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | 1 | COMBO | 0,45 s | intensity **1,4** |
 | ≥ 2 | SUPER / COMBO (2 lignes) | 0,45 s | intensity **2,0** |
 
-Animation texte (identique au `+N`) :
+Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 - Grow scale 0,12→1,0 en **0,58 s** `easeOut`
 - Shrink 1,0→0,72 + fade **0,33 s**
 - Couleur = couleur de la plus grande composante
@@ -316,14 +324,17 @@ Animation texte (identique au `+N`) :
 | Implosion | 0,13 s | scale → 0,55, fade α→0, wobble ±54° (`π×0,3`), `easeIn` |
 | Chiffre | 0,10 s | fade du label en parallèle de l'implosion |
 
-**Paillettes carrées** (même timing que dissolution blox, forme différente) :
+**Paillettes carrées** (même vol HUD que les blox, forme carrée) :
 - 11–15 carrés principaux (côté 4–7 pt) + 15 micro-carrés (3 pt)
-- Chute 10–22 pt, fade **0,45 s**, `easeIn`
+- Spawn au pic du pop (t = **0,07 s**), dans la case
+- Vol vers le gros score à **~824 pt/s**, `easeIn`, plancher **0,12 s** (pas de chute / fondu)
 - Couleur = teinte brix du skin (`priksSolidFillColor()`)
 
 **Son** : `priksVanish` ; stagger **0,07 s** si plusieurs Brix disparaissent ensemble.
 
-**Score** : `+20` pts, popup flottant après animation.
+**Score** : `+20` pts / Brix, un `+N` au centroïde (couleur Brix, shatter comme les chaînes), **au pic du pop** (même t que les carrés). Roulement HUD **linéaire** : **première** paillette → **dernière** (+ **0,08 s** de marge). Compactage / cascade **n’attendent pas**.
+
+SCRUMBLX : carrés + `+N` au trou (pas de pop/implosion, le slide suit).
 
 ---
 
@@ -336,7 +347,7 @@ Animation texte (identique au `+N`) :
 | Placement sprite | — | Shader bombe, z 22 |
 | Tremblement | **0,3 s** | ±6 pt horizontal |
 | Explosion | voir §5.2 | |
-| Score | — | +10 pts centre ; +20/Brix |
+| Score | pic scale-up (t ≈ 0,12 s) | +10 pts centre + +20/Brix ; paillettes HUD (ronds blox / carrés Brix) au même pic, stagger 0,02 s/case. Compactage **n’attend pas** le HUD |
 | Compactage | 0,20 s | puis cascades depuis `chainSeriesLevel = 1` |
 
 Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 + bras cardinaux (`bombCrossArmLength` = index de stage), texture HUD **nuke**. L’anim de destruction ci-dessous s’applique à **toutes** les cases de `bombAffectedCells` (le nom « Blocs 3×3 » est historique).
@@ -351,6 +362,7 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 | Ondes de choc | 5 anneaux, stagger **0,09 s**, durée **0,52 s**/anneau, scale 1→3,5 ; 2 premiers **jaunes**, 3 suivants blancs |
 | Particules radiales | 50 dots blancs, v 60–200 pts/s, flight 0,30–0,65 s |
 | Blocs 3×3 | stagger **0,02 s**/case ; push radial 12–20 pt (**0,18 s**) ; scale up ×1,25 (**0,12 s**) ; rotation 15–30° (**0,2 s**) ; collapse scale→0,01 + fade (**0,22 s**) |
+| Paillettes score | au pic ×1,25 : ronds blox (`spawnChainPopDots`) / carrés Brix (`spawnBrixVanishSquareDots`) → HUD ~824 pt/s. Anim des blocs **inchangée**. 50 dots blancs **restent** (pas HUD) |
 
 **Emitters SKEmitterNode** (option `spawnEmitter: true`, non utilisé en solo actuel) :
 - Gerbe blanche : 72 particules, lifetime 0,32 s, speed 100±60
@@ -366,13 +378,13 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 
 ## 6. Blocs Magix — effets à l'atterrissage
 
-Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en **0,85 s**, fade après **0,38 s**.
+**Pose commune** (avant l’effet) : bounce blox **0,15 s** + gerbe palette §1.1 (`spawnMagixLandingBurst`). Popup nom : `spawnMagixNamePopup` — texte 22 pt, montée **44 pt** en **0,85 s**, fade après **0,38 s**.
 
 ### 6.1 CHROMAX
 
 | | |
 |---|---|
-| **Visuel** | Chemin serpentin ≤ 15 cases → couleur aléatoire ; scale pop 0,5→1,4→1,0 par case |
+| **Visuel** | Chemin serpentin ≤ 15 cases → couleur aléatoire. **Case d’atterrissage** : le disque **mue** en blox (strip aura, pulse ×1,18). Autres cases : pop 0,5→1,4→1,0 |
 | **Timing** | **0,08 s**/case + pause finale 0,12 s |
 | **Audio** | `playChromaxTick` procédural |
 | **Suite** | `resolveChains()` |
@@ -381,7 +393,7 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 | | |
 |---|---|
-| **Visuel** | Devient Brix(9) ; flash blanc α 0,85 sur tous les Brix, **0,20 s** |
+| **Visuel** | Le disque **mue** en Brix(9) (même sprite, pulse ×1,18) ; flash blanc α 0,85 sur tous les Brix, **0,20 s** |
 | **Logique** | Devient Brix(9) ; **détruit** tous les autres Brix (+20 chacun) |
 | **Audio** | `playBrixedImpact()` |
 | **Suite** | Gravité + `resolveChains()` |
@@ -390,8 +402,8 @@ Popup commun : `spawnMagixNamePopup` — texte blanc 22 pt, montée **44 pt** en
 
 | | |
 |---|---|
-| **Visuel** | Ligne + colonne → couleur aléatoire ; expansion par distance Manhattan |
-| **Timing** | **0,06 s**/anneau ; scale pop 0,5→1,35→1,0 |
+| **Visuel** | Ligne + colonne → couleur aléatoire ; expansion par distance Manhattan. **Centre** : mue du disque ; autres cases : pop 0,5→1,35→1,0 |
+| **Timing** | **0,06 s**/anneau |
 | **Audio** | `playCrosxPulse(ring)` |
 | **Suite** | `resolveChains()` |
 
@@ -401,7 +413,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Visuel** | Diagonales → couleur aléatoire ; expansion depuis le centre |
+| **Visuel** | Diagonales → couleur aléatoire ; expansion depuis le centre. **Centre** : mue du disque |
 | **Timing** | **0,06 s**/anneau (identique CROSSX) |
 | **Audio** | `playCrosxPulse(ring)` (cousin) |
 | **Suite** | `resolveChains()` |
@@ -410,7 +422,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Visuel** | Flash blanc sprite ; **chiffres Brix −1** (même anim §4.1) avant le mélange ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
+| **Visuel** | Gerbe palette **consommation** + flash blanc sprite ; **chiffres Brix −1** (même anim §4.1) avant le mélange ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
 | **Logique** | −1 tous Brix avant shift |
 | **Audio** | `scrumblx` + `priksVanish` staggeré pour Brix à 0 |
 | **Fin d’anim** | Attente = **max** sur toutes les lignes de `preShiftHold + idx×0,3 + steps×0,08` (`preShiftHold = max(flash 0,18 s, dernier swap chiffre)`) ; réapplication idempotente des shifts depuis snapshot pré-décalage ; `drawGrid` puis compaction vers le haut |
@@ -422,7 +434,8 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 |---|---|
 | **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante ; **jonctions H/V/D retirées avant** le 1er overlay |
 | **Timing** | `[0,10, 0,15, 0,22, 0,30, 0,50]` s/étape ; pop scale ×1,25 |
-| **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30→0,01 + fade 0,14 s ; max 8 pops audio |
+| **Fin du disque** | gerbe palette consommation + fade **0,18 s** (avant la dissolution des blox) |
+| **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30 (0,10 s) → paillettes HUD → 0,01 + fade 0,14 s ; max 8 pops audio |
 | **Audio** | `playColorxRouletteClick` + `playColorxDissolvePop` |
 | **Score** | Formule chaîne sur le nombre de blocs effacés |
 
@@ -440,7 +453,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Visuel** | Swap couleur↔Brix case par case, ordre mélangé |
+| **Visuel** | Disque **consommé** (gerbe palette + fade 0,18 s) ; swap couleur↔Brix case par case, ordre mélangé |
 | **Timing** | stagger **0,04 s** ; scale pop 0,5→1,35→1,0 |
 | **Audio** | `playTwistxFlip(index)` |
 | **Suite** | `resolveChains()` |
@@ -449,7 +462,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Visuel** | Tâche 3 rangs sur cases occupées ; scale pop 0,5→1,35→1,0 par case |
+| **Visuel** | Tâche 3 rangs sur cases occupées. **Rang 0** : mue du disque ; autres : pop 0,5→1,35→1,0 |
 | **Timing** | **0,055 s**/case (R0→R1→R2→R3) + pause finale 0,12 s |
 | **Audio** | `playBombxStain(rank, indexInRank)` — R0 plus fort/long, pitch monte avec le rang ; pas `bomb.wav` / bombLoad |
 | **Suite** | `resolveChains()` ; dots couleur → HUD bombe (+1) |
@@ -485,31 +498,40 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 ### 8.1 Popup flottant `+N` (`spawnFloatingScorePopup`)
 
+Look-and-feel **grille** : même recette dans tous les modes (Arcade, Zen, Défi, Duel, tuto, Magix, bonus colonne, bombe). Flag `ScorePopupFeedback.glyphShatterEnabled` (`false` = recette shrink + dots t0).
+
 | Paramètre | Valeur |
 |---|---|
-| Font size | 62 pt |
+| Font size | 62 pt Changa |
 | z | 35 |
-| Grow | 0,12→1,0 en **0,58 s** |
-| Shrink + fade | **0,33 s** |
-| Couleur | blanc ou couleur chaîne |
+| Grow | 0,12→1,0 en **0,58 s** `easeOut` |
+| Sortie | **Shatter** : le `+` et les chiffres deviennent les paillettes (plus de shrink) |
+| Couleur | couleur de la chaîne (sinon `floatingScoreAccent`) |
 
 ### 8.2 Transfert points vers HUD (`ScorePopupFeedback`)
 
+Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
+
 | Paramètre | Valeur |
 |---|---|
-| Dots | `clamp(points × 0,38, 9, 52)` |
-| Rayon dot | 1,8–2,8 pt |
-| Fade in | **0,06 s** |
-| Burst radial | **0,08 s**, distance 22–46 pt |
-| Vol vers score | **0,20 s** `easeIn` |
+| Dots | `clamp(points × 0,57, 14, 78)` — **1,5×** l’ancienne formule ; placement = pixels opaques du label |
+| Mix taille | comme les cases : ~46 % grosses (r **2,0–3,5**) + micros r **1,5** |
+| Répartition | par caractère ; le `+` a un plancher (2), chaque chiffre 1 |
+| Dispersion | **0,08 s** `easeOut`, 6–16 pt depuis le centroïde du label |
+| Vol vers score | **vitesse constante ~824 pt/s** (même que les paillettes de cases), `easeIn`, plancher **0,12 s** |
+| Stagger départ | **0,14 s** (plus proche du HUD → part le premier) |
 | Jitter cible | ±26 x, ±12 y pt |
+
+`glyphShatterEnabled = false` : fade-in 0,06 + burst 22–46 pt + vol 0,20 (arrivée **0,34 s**), shrink+fade **0,33 s**.
 
 ### 8.3 Rolling counter score
 
 | Paramètre | Valeur |
 |---|---|
-| Durée | `min(0,60, 0,40 + gain/2000 × 0,20)`, **plancher** = arrivée de la dernière paillette de chaîne |
-| Easing | ease-out cubique |
+| Début | arrivée de la **première** paillette (cases **ou** shards du `+N`) |
+| Fin | arrivée de la **dernière** paillette (même fenêtre) |
+| Durée | `max(0,12, last − first + 0,08)` — plus de 0,40–0,60 s après que tout soit posé |
+| Easing | **linéaire** si fenêtre paillettes ; ease-out cubique sinon |
 | Flash couleur | lerp couleur chaîne → blanc en **0,30 s** après roll |
 | Pulse scale | pic `1,2 + chainLevel×0,03` (max ~1,38), montée **0,33 s**, retour **0,11 s** |
 
@@ -730,12 +752,14 @@ Indicateur **HUD uniquement** (Duel). À **droite du gros score** (écart 8 pt, 
 LandingBounce          squash 0,09 | stretch 0,03 | settle 0,03
 FlightStretch          x 0,82 | y 1,25
 BrixLandingBounce      squash 0,07 | stretch 0,025 | settle 0,025
+MagixLandingBurst      40–48 dots palette | r 1,0–1,8 | +24–52 pt | 0,34 s easeInEaseOut
+Magix consume / morph  18–24 dots +12–28 pt / 0,22 s ; fade 0,18 ; mue pulse ×1,18
 BrixFlightStretch      x 0,88 | y 1,16
-BrixVanishFeedback     pop 0,07 + implode 0,13 | sparkles 11–15 + 15 micro-carrés
+BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
 ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | sparkles → score ~820 pt/s (0,25 s centre→score) | cascade 0,07
 PendingLinePreview     jitter X 1,0 Y 0,5 | cycle 1,1
-ScorePopupFeedback     transfer 0,20 | fadeIn 0,06 | burst 0,08 | dots 9–52
+ScorePopupFeedback     grow 0,58 + shatter burst 6–16 pt / 0,08 + vol ~824 pt/s + stagger 0,14 | dots 14–78 (×1,5) mix cases
 GameOverFocus          total 1,38 | rings 4 | stagger 0,12
 BombExplosionFeedback  shock 0,52×5 | flash 0,15 | block stagger 0,02
 ghostHoldDelay         0,12

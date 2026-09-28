@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Valide store/whats-new + store/promotional-text (5 locales ASC)
+# Valide store/whats-new + promotional-text + name + subtitle (5 locales ASC)
 # et les entitlements Debug/Release (aps-environment).
 #
 # Usage :
@@ -17,6 +17,14 @@ ROOT = Pathname.new(__dir__).parent.expand_path
 LOCALES = %w[en-US fr-FR de-DE es-ES it-IT].freeze
 WHATS_NEW_MAX = 4000
 PROMO_MAX = 170
+NAME_MAX = 30
+SUBTITLE_MAX = 30
+STORE_LIMITS = {
+  "whats-new" => WHATS_NEW_MAX,
+  "promotional-text" => PROMO_MAX,
+  "name" => NAME_MAX,
+  "subtitle" => SUBTITLE_MAX,
+}.freeze
 PBX = ROOT.join("Blomix/Blomix.xcodeproj/project.pbxproj")
 DEBUG_ENTITLEMENTS = ROOT.join("Blomix/Blomix/Blomix.entitlements")
 RELEASE_ENTITLEMENTS = ROOT.join("Blomix/Blomix/BlomixRelease.entitlements")
@@ -69,7 +77,7 @@ end
 unless skip_store
   bullets = {}
   LOCALES.each do |locale|
-    %w[whats-new promotional-text].each do |kind|
+    %w[whats-new promotional-text name subtitle].each do |kind|
       path = ROOT.join("store", kind, "#{locale}.txt")
       unless path.file?
         errors << "manquant : store/#{kind}/#{locale}.txt"
@@ -86,7 +94,7 @@ unless skip_store
       end
 
       len = grapheme_len(stripped)
-      limit = kind == "whats-new" ? WHATS_NEW_MAX : PROMO_MAX
+      limit = STORE_LIMITS.fetch(kind)
       if len > limit
         errors << "store/#{kind}/#{locale}.txt : #{len} car. > limite Apple #{limit}"
       end

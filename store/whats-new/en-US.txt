@@ -1,4 +1,3 @@
-• +N and chains dissolve into sparkles that fly to the big score
-• Magix: a burst on landing; the disc morphs or vanishes cleanly
-• Bombs: blox and Brix sparkles also fly to the score
-• Arcade or Zen and Daily Challenge save in parallel; Duel no longer wipes Continue
+• Arcade, Zen and Daily Challenge each keep their own save
+• Brix leave 3 little stars when they vanish
+• Stages announce themselves as L1…L★, with more punch

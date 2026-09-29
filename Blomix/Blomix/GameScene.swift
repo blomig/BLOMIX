@@ -688,27 +688,65 @@ struct BlomixSoloGameSave: Codable {
 
 final class BlomixSoloSaveManager: @unchecked Sendable {
     static let shared = BlomixSoloSaveManager()
-    private let udKey = "blomix_solo_save_v2"
+    /// Arcade. Avant 7.6 cette clé pouvait aussi porter une Zen (`isZenMode`).
+    private let arcadeKey = "blomix_solo_save_v2"
+    private let zenKey = "blomix_zen_save_v1"
+    private var didMigrateLegacyZen = false
     private init() {}
 
-    var hasSave: Bool { UserDefaults.standard.data(forKey: udKey) != nil }
-
     func save(_ s: BlomixSoloGameSave) {
+        migrateLegacyZenIfNeeded()
         guard let data = try? JSONEncoder().encode(s) else { return }
-        UserDefaults.standard.set(data, forKey: udKey)
+        UserDefaults.standard.set(data, forKey: s.isZenMode ? zenKey : arcadeKey)
     }
 
-    func load() -> BlomixSoloGameSave? {
-        guard let data = UserDefaults.standard.data(forKey: udKey),
+    func loadArcade() -> BlomixSoloGameSave? {
+        migrateLegacyZenIfNeeded()
+        return loadValid(from: arcadeKey, expectZen: false)
+    }
+
+    func loadZen() -> BlomixSoloGameSave? {
+        migrateLegacyZenIfNeeded()
+        return loadValid(from: zenKey, expectZen: true)
+    }
+
+    func clearArcade() {
+        migrateLegacyZenIfNeeded()
+        UserDefaults.standard.removeObject(forKey: arcadeKey)
+    }
+
+    func clearZen() {
+        migrateLegacyZenIfNeeded()
+        UserDefaults.standard.removeObject(forKey: zenKey)
+    }
+
+    private func loadValid(from key: String, expectZen: Bool) -> BlomixSoloGameSave? {
+        guard let data = UserDefaults.standard.data(forKey: key),
               let s = try? JSONDecoder().decode(BlomixSoloGameSave.self, from: data),
               s.version == BlomixSoloGameSave.currentVersion else {
-            clear()
+            UserDefaults.standard.removeObject(forKey: key)
+            return nil
+        }
+        if s.isZenMode != expectZen {
+            UserDefaults.standard.removeObject(forKey: key)
             return nil
         }
         return s
     }
 
-    func clear() { UserDefaults.standard.removeObject(forKey: udKey) }
+    /// 7.5 : une Zen pouvait vivre dans `v2`. On la déplace vers `blomix_zen_save_v1`.
+    private func migrateLegacyZenIfNeeded() {
+        guard !didMigrateLegacyZen else { return }
+        didMigrateLegacyZen = true
+        guard let data = UserDefaults.standard.data(forKey: arcadeKey),
+              let s = try? JSONDecoder().decode(BlomixSoloGameSave.self, from: data),
+              s.version == BlomixSoloGameSave.currentVersion,
+              s.isZenMode else { return }
+        if UserDefaults.standard.data(forKey: zenKey) == nil {
+            UserDefaults.standard.set(data, forKey: zenKey)
+        }
+        UserDefaults.standard.removeObject(forKey: arcadeKey)
+    }
 }
 
 /// Règles Priks alignées sur `old_web_code/priks.html` (`getNextBlock`, dégâts de chaîne).
@@ -926,6 +964,7 @@ final class GameScene: SKScene {
     private static let startScreenPvPPresenceBreatheKey = "pvpPresenceBreathe"
     private static let startScreenSettingsChipName = "startScreenSettingsChip"
     private static let startScreenZenChipName = "startScreenZenChip"
+    private static let startScreenZenSubtitleName = "startScreenZenSubtitle"
     private static let startScreenRulesLabelName = "startScreenRulesLabel"
     private static let startScreenRulesChipName = "startScreenRulesChip"
     private static let startScreenPlayerEloRowName = "startScreenPlayerEloRow"
@@ -936,8 +975,6 @@ final class GameScene: SKScene {
     private static let startScreenCreditsLinkName = "startScreenCreditsLink"
     private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
     private static let startScreenIconRowName = "startScreenIconRow"
-    private static let startScreenNewGameLinkName = "startScreenNewGameLink"
-    private static let startScreenNewGameLinkZenName = "startScreenNewGameLinkZen"
     private static let startScreenHeroSubtitleName = "startScreenHeroSubtitle"
     private static let startScreenShareChipName = "startScreenShareChip"
     private static let startScreenShareLabelName = "startScreenShareLabel"
@@ -1107,7 +1144,7 @@ final class GameScene: SKScene {
         static let cascadeBeatDuration: TimeInterval = 0.07
     }
 
-    /// Disparition d'un Brix (compteur → 0) : pop blanc puis implosion + paillettes carrées.
+    /// Disparition d'un Brix (compteur → 0) : pop blanc puis implosion + paillettes carrées + étoiles de présence.
     private enum BrixVanishFeedback {
         static let popDuration: TimeInterval = 0.07
         static let implodeDuration: TimeInterval = 0.13
@@ -1125,6 +1162,13 @@ final class GameScene: SKScene {
         static let sparkleMainCountRange: ClosedRange<Int> = 11...15
         static let sparkleMicroCount: Int = 15
         static let sparkleMicroSide: CGFloat = 3.0
+        /// Présence dans la case (ne va pas au HUD). Blanc / noir selon le thème chrome.
+        static let vanishStarCount = 3
+        static let vanishStarRadiusRange: ClosedRange<CGFloat> = 5.0...7.0
+        static let vanishStarInnerRatio: CGFloat = 0.40
+        static let vanishStarHoldDuration: TimeInterval = 0.41
+        static let vanishStarFadeDuration: TimeInterval = 0.23
+        static let vanishStarTurnDurationRange: ClosedRange<TimeInterval> = 0.55...1.10
     }
 
     /// Animation discrète de la ligne des 10 en attente (léger tremblement).
@@ -2239,28 +2283,36 @@ final class GameScene: SKScene {
     }
 
     private enum StartHeroKind {
-        case continueSave(isZen: Bool)
+        case continueSave
         case discover
         case arcade
     }
 
-    /// Save affichable sur l’accueil (snapshot PvP prioritaire).
-    /// Un Défi suspendu se reprend au hub Continuer, pas via le hero Arcade.
-    private func pendingHomeSave() -> BlomixSoloGameSave? {
-        if pvpSuspendedDailyRun != nil {
-            return BlomixSoloSaveManager.shared.load()
-        }
-        return pvpSuspendedSoloSave ?? BlomixSoloSaveManager.shared.load()
+    /// Slot Arcade disque. Un Défi / Zen / snapshot PvP ne passe pas par le hero.
+    private func pendingArcadeSave() -> BlomixSoloGameSave? {
+        BlomixSoloSaveManager.shared.loadArcade()
+    }
+
+    /// Slot Zen disque, indépendant de l’Arcade et du Défi.
+    private func pendingZenSave() -> BlomixSoloGameSave? {
+        BlomixSoloSaveManager.shared.loadZen()
     }
 
     private func startHeroKind() -> StartHeroKind {
-        if let save = pendingHomeSave() {
-            return .continueSave(isZen: save.isZenMode)
+        if pendingArcadeSave() != nil {
+            return .continueSave
         }
         if !UserDefaults.standard.hasSeenInteractiveTutorial {
             return .discover
         }
         return .arcade
+    }
+
+    /// Les snapshots mémoire PvP ne doivent plus bloquer une save une fois qu’on reprend un mode depuis l’accueil.
+    private func consumeInMemoryPvPSoloSnapshots() {
+        pvpSuspendedSoloSave = nil
+        pvpSuspendedDailyRun = nil
+        restoreSoloAfterPvP = false
     }
 
     /// Appelé par `GameViewController.viewDidAppear` au retour d'une modale.
@@ -2343,7 +2395,7 @@ final class GameScene: SKScene {
         let pairGap: CGFloat = 12
         let pairChipW = (maxChipOuter - pairGap) / 2
         let modeChipSize = Self.startScreenUnifiedChipSize(
-            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton],
+            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton, BlomixL10n.startContinue],
             fontSize: chipFont,
             maxOuterWidth: pairChipW
         )
@@ -2351,19 +2403,16 @@ final class GameScene: SKScene {
         let heroH = hChip * 1.22
         let heroFont = chipFont * 1.12
         let heroSize = CGSize(width: maxChipOuter, height: heroH)
-        let pairChipSize = CGSize(width: pairChipW, height: hChip)
+        let pairH = heroH
+        let pairChipSize = CGSize(width: pairChipW, height: pairH)
 
         let tipAnchorY = size.height * 0.10
         let pairFromTip: CGFloat = 64
         let heroGap: CGFloat = 10
-        let newGameLinkSlack: CGFloat = {
-            if case .continueSave = startHeroKind() { return 16 }
-            return 0
-        }()
-        var secondaryRowY = tipAnchorY + pairFromTip + hChip / 2 + newGameLinkSlack
-        var dailyHeroY = secondaryRowY + hChip / 2 + 16 + heroH / 2
+        var secondaryRowY = tipAnchorY + pairFromTip + pairH / 2
+        var dailyHeroY = secondaryRowY + pairH / 2 + 16 + heroH / 2
         var arcadeHeroY = dailyHeroY + heroH / 2 + heroGap + heroH / 2
-        let minSecondaryY = tipAnchorY + 40 + hChip / 2 + newGameLinkSlack
+        let minSecondaryY = tipAnchorY + 40 + pairH / 2
 
         // ── Bande 1 : BLOMIX + tagline, de préférence au centre écran ──────────
         let titleLayout = BlomixButtonRelief.wordmarkLayout(fontSize: Self.homeWordmarkFontSize)
@@ -2482,9 +2531,9 @@ final class GameScene: SKScene {
         let heroTitle: String
         let heroSubtitle: String?
         switch heroKind {
-        case .continueSave(let isZen):
+        case .continueSave:
             heroTitle = BlomixL10n.startContinue
-            heroSubtitle = isZen ? BlomixL10n.startHeroModeZen : BlomixL10n.startHeroModeArcade
+            heroSubtitle = BlomixL10n.startHeroModeArcade
         case .discover:
             heroTitle = BlomixL10n.startDiscover
             heroSubtitle = nil
@@ -2569,33 +2618,30 @@ final class GameScene: SKScene {
         overlay.addChild(pvpChip)
         attachStartScreenPvPPresenceBadge(to: pvpChip, chipSize: pairChipSize)
 
+        let zenHasSave = pendingZenSave() != nil
         let zenChip = makeStartScreenButtonChip(
             chipName: Self.startScreenZenChipName,
             labelName: Self.startScreenZenLabelName,
-            text: BlomixL10n.zenButton,
+            text: zenHasSave ? BlomixL10n.startContinue : BlomixL10n.zenButton,
             chipSize: pairChipSize,
             fontSize: chipFont
         )
         zenChip.position = CGPoint(x: cx + pairChipW / 2 + pairGap / 2, y: secondaryRowY)
         zenChip.zPosition = 2
-        overlay.addChild(zenChip)
-
-        if case .continueSave = heroKind {
-            func makeNewGameCaption(name: String, underChipX: CGFloat) -> SKLabelNode {
-                let caption = SKLabelNode(text: BlomixL10n.startNewGameLink)
-                caption.name = name
-                caption.fontName = Self.customUIFontPostScriptName
-                caption.fontSize = 12
-                caption.fontColor = BlomixAppearance.secondaryTextSK
-                caption.horizontalAlignmentMode = .center
-                caption.verticalAlignmentMode = .center
-                caption.position = CGPoint(x: underChipX, y: secondaryRowY - hChip / 2 - 14)
-                caption.zPosition = 2
-                overlay.addChild(caption)
-                return caption
-            }
-            _ = makeNewGameCaption(name: Self.startScreenNewGameLinkZenName, underChipX: zenChip.position.x)
+        if zenHasSave {
+            zenChip.labelNode?.position.y = 7
+            let zenSub = SKLabelNode(text: BlomixL10n.startHeroModeZen)
+            zenSub.name = Self.startScreenZenSubtitleName
+            zenSub.fontName = Self.customUIFontPostScriptName
+            zenSub.fontSize = 9
+            zenSub.fontColor = BlomixAppearance.primaryTextSK
+            zenSub.horizontalAlignmentMode = .center
+            zenSub.verticalAlignmentMode = .center
+            zenSub.position = CGPoint(x: 0, y: -11)
+            zenSub.zPosition = 3
+            zenChip.capsuleContentNode?.addChild(zenSub)
         }
+        overlay.addChild(zenChip)
 
         refreshStartScreenPlayerIdentityIfVisible()
         run(SKAction.wait(forDuration: 0.05)) { [weak self] in
@@ -2648,11 +2694,6 @@ final class GameScene: SKScene {
 
         // ── Animations d'entrée ──────────────────────────────────────────────────
 
-        let newGameCaptions: [SKLabelNode] = [
-            overlay.childNode(withName: Self.startScreenNewGameLinkName) as? SKLabelNode,
-            overlay.childNode(withName: Self.startScreenNewGameLinkZenName) as? SKLabelNode,
-        ].compactMap { $0 }
-
         if playIntro {
             // Titre BLOMIX d’abord (poinçon L→R) ; le reste de l’accueil n’arrive qu’après.
             let mark = BlomixCutoutWordmarkNode(fontSize: Self.homeWordmarkFontSize)
@@ -2675,14 +2716,10 @@ final class GameScene: SKScene {
             playerNameLabel.alpha = 0
             discsContainer.alpha = 0
             iconRow.alpha = 0
-            newGameCaptions.forEach { $0.alpha = 0 }
             subtitle.run(.sequence([.wait(forDuration: t), .fadeIn(withDuration: 0.22)]))
             playerNameLabel.run(.sequence([.wait(forDuration: t + 0.08), .fadeIn(withDuration: 0.22)]))
             discsContainer.run(.sequence([.wait(forDuration: t + 0.08), .fadeIn(withDuration: 0.22)]))
             iconRow.run(.sequence([.wait(forDuration: t + 0.12), .fadeIn(withDuration: 0.20)]))
-            for caption in newGameCaptions {
-                caption.run(.sequence([.wait(forDuration: t + 0.28), .fadeIn(withDuration: 0.22)]))
-            }
             runStartScreenGameChipEntrance(on: pvpChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: zenChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: dailyChip, delay: t + 0.28)
@@ -3088,30 +3125,25 @@ final class GameScene: SKScene {
     }
 
     private func continueSavedGameFromHome() {
-        guard isStartScreen, let save = pendingHomeSave() else { return }
+        guard isStartScreen, let save = pendingArcadeSave() else { return }
         clearDailyChallengeSessionFlags()
-        pvpSuspendedSoloSave = nil
-        pvpSuspendedDailyRun = nil
+        consumeInMemoryPvPSoloSnapshots()
         restoreFromSoloSave(save)
     }
 
-    /// Zen depuis l’accueil : nouvelle partie sur le slot Arcade/Zen (le Défi du jour n’est pas touché).
-    private func confirmAbandonArcadeZenSaveThen(_ action: @escaping () -> Void) {
-        guard isStartScreen, pendingHomeSave() != nil else {
-            action()
-            return
+    private func performZenButtonAction() {
+        if let save = pendingZenSave() {
+            continueZenFromHome(save)
+        } else {
+            beginZenModeFromStartScreen()
         }
-        guard let host = view else { return }
-        BlomixInAppDialogView.presentChoices(
-            in: host,
-            title: BlomixL10n.startAbandonSaveTitle,
-            message: BlomixL10n.startAbandonSaveMessage,
-            actions: [
-                BlomixInAppDialogAction(title: BlomixL10n.startAbandonSaveConfirm) {
-                    action()
-                },
-            ]
-        )
+    }
+
+    private func continueZenFromHome(_ save: BlomixSoloGameSave) {
+        guard isStartScreen else { return }
+        clearDailyChallengeSessionFlags()
+        consumeInMemoryPvPSoloSnapshots()
+        restoreFromSoloSave(save)
     }
 
     private func clearDailyChallengeSessionFlags() {
@@ -3129,6 +3161,7 @@ final class GameScene: SKScene {
 
     private func beginDailyChallengeMatch() {
         guard isStartScreen else { return }
+        consumeInMemoryPvPSoloSnapshots()
         cancelGhostPreview()
         let locked = BlomixDailyChallenge.shared.seedForNewRun()
         dailyLockedDay = locked.day
@@ -3162,6 +3195,7 @@ final class GameScene: SKScene {
 
     private func continueDailyChallengeFromHome() {
         guard isStartScreen, let run = BlomixDailyChallenge.shared.loadRun() else { return }
+        consumeInMemoryPvPSoloSnapshots()
         isDailyChallengeMode = true
         isZenMode = false
         dailyLockedDay = run.utcDay
@@ -3176,12 +3210,10 @@ final class GameScene: SKScene {
         if !isDailyChallengeMode {
             clearDailyChallengeSessionFlags()
         }
-        // En mode tutoriel : on conserve la sauvegarde de la partie précédente (restaurée à la fin du tuto).
+        // Nouvelle Arcade : vide le slot Arcade seulement. Tuto : aucun slot.
         if !isTutorialMode {
-            BlomixSoloSaveManager.shared.clear()
-            pvpSuspendedSoloSave = nil
-            pvpSuspendedDailyRun = nil
-            restoreSoloAfterPvP = false
+            BlomixSoloSaveManager.shared.clearArcade()
+            consumeInMemoryPvPSoloSnapshots()
         }
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
@@ -3216,10 +3248,7 @@ final class GameScene: SKScene {
 
         cancelGhostPreview()
         clearDailyChallengeSessionFlags()
-        BlomixSoloSaveManager.shared.clear()
-        pvpSuspendedSoloSave = nil
-        pvpSuspendedDailyRun = nil
-        restoreSoloAfterPvP = false
+        consumeInMemoryPvPSoloSnapshots()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
         BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
@@ -4063,8 +4092,10 @@ final class GameScene: SKScene {
 
         if isDailyChallengeMode, let day = dailyLockedDay {
             BlomixDailyChallenge.shared.finishRun(day: day, score: score)
+        } else if isZenMode {
+            BlomixSoloSaveManager.shared.clearZen()
         } else {
-            BlomixSoloSaveManager.shared.clear()
+            BlomixSoloSaveManager.shared.clearArcade()
         }
         isGameOver = true
         isProcessing = true
@@ -5114,7 +5145,7 @@ final class GameScene: SKScene {
             badgeLabel.fontColor              = BlomixAppearance.gameOverPrimaryTextSK
             badgeLabel.horizontalAlignmentMode = .center
             badgeLabel.verticalAlignmentMode   = .center
-            badgeLabel.text      = lv == "Ultimate" ? "L★" : "L\(lv)"
+            badgeLabel.text      = Self.stageBadgeText(for: lv)
             badgeLabel.position  = CGPoint(x: size.width / 2, y: p2CenterY - bs / 2 - gap - badgeSize / 2)
             badgeLabel.zPosition = 10
             overlay.addChild(badgeLabel)
@@ -5879,6 +5910,7 @@ final class GameScene: SKScene {
                 guard let self, let sprite else { return }
                 let scenePoint = self.convert(sprite.position, from: container)
                 self.spawnBrixVanishSquareDots(at: scenePoint, color: blockColor)
+                self.spawnBrixVanishPresenceStars(at: scenePoint)
             }
 
             let implodeScale = SKAction.scale(to: BrixVanishFeedback.implodeScale,
@@ -6328,6 +6360,64 @@ final class GameScene: SKScene {
         for _ in 0..<BrixVanishFeedback.sparkleMicroCount {
             spawnDot(side: BrixVanishFeedback.sparkleMicroSide)
         }
+    }
+
+    /// 3 étoiles dans la case de mort : présence chrome, rotation, pas de vol HUD.
+    private func spawnBrixVanishPresenceStars(at scenePoint: CGPoint) {
+        let cellHalf = GridLayout.cellPoints * 0.42
+        let color: SKColor = BlomixAppearance.isDark ? .white : .black
+        for _ in 0..<BrixVanishFeedback.vanishStarCount {
+            let radius = CGFloat.random(in: BrixVanishFeedback.vanishStarRadiusRange)
+            let star = Self.makeFourPointStarNode(
+                outerRadius: radius,
+                innerRatio: BrixVanishFeedback.vanishStarInnerRatio,
+                color: color
+            )
+            star.alpha = 1
+            star.zPosition = 37
+            star.position = CGPoint(
+                x: scenePoint.x + CGFloat.random(in: -cellHalf...cellHalf),
+                y: scenePoint.y + CGFloat.random(in: -cellHalf...cellHalf)
+            )
+            star.zRotation = CGFloat.random(in: 0...(2 * .pi))
+            addChild(star)
+            let turn = TimeInterval.random(in: BrixVanishFeedback.vanishStarTurnDurationRange)
+            let spinSign: CGFloat = Bool.random() ? 1 : -1
+            let spin = SKAction.repeatForever(
+                SKAction.rotate(byAngle: spinSign * 2 * .pi, duration: turn)
+            )
+            star.run(spin)
+            star.run(SKAction.sequence([
+                SKAction.wait(forDuration: BrixVanishFeedback.vanishStarHoldDuration),
+                SKAction.fadeOut(withDuration: BrixVanishFeedback.vanishStarFadeDuration),
+                SKAction.removeFromParent(),
+            ]))
+        }
+    }
+
+    private static func makeFourPointStarNode(
+        outerRadius: CGFloat,
+        innerRatio: CGFloat,
+        color: SKColor
+    ) -> SKShapeNode {
+        let inner = outerRadius * innerRatio
+        let path = CGMutablePath()
+        for i in 0..<8 {
+            let angle = CGFloat(i) * .pi / 4 - .pi / 2
+            let r = i.isMultiple(of: 2) ? outerRadius : inner
+            let p = CGPoint(x: cos(angle) * r, y: sin(angle) * r)
+            if i == 0 {
+                path.move(to: p)
+            } else {
+                path.addLine(to: p)
+            }
+        }
+        path.closeSubpath()
+        let node = SKShapeNode(path: path)
+        node.fillColor = color
+        node.strokeColor = .clear
+        node.lineJoin = .round
+        return node
     }
 
     private static func makeSquareSparkleNode(side: CGFloat, color: SKColor) -> SKShapeNode {
@@ -10394,10 +10484,9 @@ final class GameScene: SKScene {
             let pts = vanishedBrixAddrs.count * 20
             let priksColor = Self.priksSolidFillColor()
             for addr in vanishedBrixAddrs {
-                spawnBrixVanishSquareDots(
-                    at: scenePointCellCenter(row: addr.row, column: addr.col),
-                    color: priksColor
-                )
+                let point = scenePointCellCenter(row: addr.row, column: addr.col)
+                spawnBrixVanishSquareDots(at: point, color: priksColor)
+                spawnBrixVanishPresenceStars(at: point)
             }
             let window = brixSparkleArrivalWindow(cells: Array(vanishedBrixAddrs), spawnAt: 0)
             addScore(
@@ -11302,6 +11391,7 @@ final class GameScene: SKScene {
                 SKAction.wait(forDuration: Double(index) * stagger + scaleUp),
                 SKAction.run { [weak self] in
                     self?.spawnBrixVanishSquareDots(at: point, color: priksColor)
+                    self?.spawnBrixVanishPresenceStars(at: point)
                 },
             ]))
         }
@@ -11760,12 +11850,12 @@ final class GameScene: SKScene {
                 guard let key = press.key else { continue }
                 switch key.keyCode {
                 case .keyboardSpacebar, .keyboardReturnOrEnter:
-                    beginNewMatchFromStartScreen()
+                    performStartScreenHeroAction()
                     return
                 default:
                     let ch = key.charactersIgnoringModifiers
                     if ch == " " || ch == "\r" {
-                        beginNewMatchFromStartScreen()
+                        performStartScreenHeroAction()
                         return
                     }
                     break
@@ -13788,14 +13878,12 @@ final class GameScene: SKScene {
         let timerSeconds: Int
         let multiplier: Int
         let displayName: String
-        /// Texte affiché sous "Level" dans l'overlay de transition et dans les badges.
+        /// Clé interne du stage (`"1"`…`"5"` / `"Ultimate"`). Overlay et badge : `stageBadgeText`.
         let levelText: String
         /// Nom du fichier audio à jouer en boucle pendant ce stage.
         let musicFilename: String
-        /// Ligne 1 de l'overlay de transition.
-        var overlayLine1: String { BlomixL10n.stageOverlayTimerSeconds(timerSeconds) }
-        /// Ligne 2 de l'overlay de transition.
-        var overlayLine2: String { BlomixL10n.stageOverlayPointsMultiplier(multiplier) }
+        /// Ligne unique de l'overlay Arcade / Défi (`16s · ×2`).
+        var overlayStatsLine: String { BlomixL10n.stageOverlayStats(seconds: timerSeconds, multiplier: multiplier) }
     }
 
     private static let soloStages: [SoloStageConfig] = [
@@ -13811,13 +13899,23 @@ final class GameScene: SKScene {
     private static let stageBadgeNodeName   = "hudStageBadge"
     private static let stageBadgeAdvanceActionKey = "stageBadgeAdvance"
     private static let stageTimerActionKey  = "soloStageCountdown"
-    /// Horloge partagée overlay central + animation du badge LX.
+    /// Horloge overlay : pop poli (Zen / tuto) vs slam Arcade / Défi (badge LX calé sur le slam).
     private enum StageOverlayTiming {
         static let popIn: TimeInterval = 0.45
         static let pause: TimeInterval = 1.0
         static let fadeOut: TimeInterval = 0.35
         static let popStagger: TimeInterval = 0.07
         static let badgePeakScale: CGFloat = 2.0
+        /// Arcade / Défi : titre L1…L★ — impact puis settle.
+        static let slamIn: TimeInterval = 0.20
+        static let slamSettle: TimeInterval = 0.12
+        static let slamPause: TimeInterval = 0.50
+        static let slamFadeOut: TimeInterval = 0.32
+        static let slamPeakScale: CGFloat = 2.4
+        static let slamImpactScale: CGFloat = 0.90
+        static let slamTick: TimeInterval = 0.18
+        static var slamPopIn: TimeInterval { slamIn + slamSettle }
+        static var slamBadgeHold: TimeInterval { slamSettle + slamPause }
     }
     /// Durée minimale pendant laquelle le preview tremblotant est visible avant que le timer
     /// ne commence à décompter. Garantit 1.5 s même au Stage Ultime (timer natif = 1 s).
@@ -13910,7 +14008,7 @@ final class GameScene: SKScene {
         badge.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver
     }
 
-    /// LX reste visible : grow pendant le pop-in, swap au pic, hold pendant la pause, settle au fade.
+    /// LX reste visible : grow pendant le slam, swap à l'impact, hold pendant settle+pause, settle au fade.
     private func playStageBadgeOverlaySyncedAdvance(revealing nextText: String) {
         guard isInStagedSoloMode, !isStartScreen else { return }
         ensureStageBadge()
@@ -13926,13 +14024,13 @@ final class GameScene: SKScene {
         badge.removeAction(forKey: Self.stageBadgeAdvanceActionKey)
         badge.setScale(1)
 
-        let grow = SKAction.scale(to: StageOverlayTiming.badgePeakScale, duration: StageOverlayTiming.popIn)
+        let grow = SKAction.scale(to: StageOverlayTiming.badgePeakScale, duration: StageOverlayTiming.slamIn)
         grow.timingMode = .easeOut
         let swap = SKAction.run { [weak badge] in
             badge?.text = nextText
         }
-        let hold = SKAction.wait(forDuration: StageOverlayTiming.pause)
-        let shrink = SKAction.scale(to: 1.0, duration: StageOverlayTiming.fadeOut)
+        let hold = SKAction.wait(forDuration: StageOverlayTiming.slamBadgeHold)
+        let shrink = SKAction.scale(to: 1.0, duration: StageOverlayTiming.slamFadeOut)
         shrink.timingMode = .easeIn
         badge.run(SKAction.sequence([grow, swap, hold, shrink]), withKey: Self.stageBadgeAdvanceActionKey)
     }
@@ -14042,9 +14140,9 @@ final class GameScene: SKScene {
         refreshBombHudIcon()   // mise à jour icône bombe → nuke si stage ≥ 2
         stopStageTimer()
         playStageBadgeOverlaySyncedAdvance(revealing: Self.stageBadgeText(for: newCfg.levelText))
-        showTransitionOverlay(stageLevelText: newCfg.levelText,
-                              line1: newCfg.overlayLine1,
-                              line2: newCfg.overlayLine2) { [weak self] in
+        showTransitionOverlay(stageLevelText: Self.stageBadgeText(for: newCfg.levelText),
+                              line1: newCfg.overlayStatsLine,
+                              line2: "") { [weak self] in
             // Changement de musique APRÈS disparition de l'overlay (évite la superposition avec transition.wav).
             BlomixMusicPlayer.shared.switchToFile(newCfg.musicFilename)
             self?.refreshStageBadge()
@@ -14065,9 +14163,9 @@ final class GameScene: SKScene {
         updateStageTimerHUD()
         let cfg = Self.soloStages[0]
         playStageBadgeOverlaySyncedAdvance(revealing: Self.stageBadgeText(for: cfg.levelText))
-        showTransitionOverlay(stageLevelText: cfg.levelText,
-                              line1: cfg.overlayLine1,
-                              line2: cfg.overlayLine2) { [weak self] in
+        showTransitionOverlay(stageLevelText: Self.stageBadgeText(for: cfg.levelText),
+                              line1: cfg.overlayStatsLine,
+                              line2: "") { [weak self] in
             guard let self else { return }
             // Stage 1 = piste de base déjà en cours. On la reconfirme pour le cas d'une
             // partie lancée après une session PvP ou un tutoriel.
@@ -14106,6 +14204,34 @@ final class GameScene: SKScene {
         return SKAction.group([
             SKAction.sequence([scaleUp, scaleDown, scaleSettle]),
             SKAction.fadeAlpha(to: 1, duration: min(phase1, 0.14)),
+        ])
+    }
+
+    /// Slam titre Arcade / Défi : part de `slamPeakScale`, percute `slamImpactScale`, settle à 1,0.
+    /// Le nœud doit déjà être à `slamPeakScale` (alpha 0).
+    private static func makeTransitionSlamAction() -> SKAction {
+        let down = SKAction.scale(to: StageOverlayTiming.slamImpactScale, duration: StageOverlayTiming.slamIn)
+        down.timingMode = .easeIn
+        let settle = SKAction.scale(to: 1.0, duration: StageOverlayTiming.slamSettle)
+        settle.timingMode = .easeOut
+        return SKAction.group([
+            SKAction.sequence([down, settle]),
+            SKAction.fadeAlpha(to: 1, duration: min(0.06, StageOverlayTiming.slamIn * 0.30)),
+        ])
+    }
+
+    /// Tick de la ligne stats après l'impact du slam (petit pop depuis 0).
+    private static func makeTransitionTickInAction(totalDuration: TimeInterval) -> SKAction {
+        let overshoot: CGFloat = 1.08
+        let phase1 = totalDuration * 0.62
+        let phase2 = max(0.01, totalDuration - phase1)
+        let scaleUp = SKAction.scale(to: overshoot, duration: phase1)
+        scaleUp.timingMode = .easeOut
+        let settle = SKAction.scale(to: 1.0, duration: phase2)
+        settle.timingMode = .easeIn
+        return SKAction.group([
+            SKAction.sequence([scaleUp, settle]),
+            SKAction.fadeAlpha(to: 1, duration: min(phase1, 0.10)),
         ])
     }
 
@@ -14227,10 +14353,78 @@ final class GameScene: SKScene {
         face.preferredMaxLayoutWidth = layoutWidth
     }
 
-    /// Affiche un overlay de transition cinématique (pop-in central, sans voile).
-    /// - `stageLevelText` non-nil → variante stage/Zen : préfixe + gros titre + 0–2 lignes d'infos.
-    /// - `stageLevelText` nil → variante titre + sous-titre (tutoriel intro / fin).
-    /// Après 1 s de pause l'overlay disparaît en fondu, puis `completion` est appelé.
+    /// Burst d'impact du slam de stage : dots orange + quelques étoiles 4 branches, enfants de l'overlay.
+    private func spawnStageSlamBurst(in parent: SKNode, at center: CGPoint, fill: SKColor) {
+        let starColor: SKColor = BlomixAppearance.isDark ? .white : .black
+        for _ in 0..<14 {
+            let radius = CGFloat.random(in: 2.4...4.2)
+            let dot = SKShapeNode(circleOfRadius: radius)
+            dot.fillColor = fill
+            dot.strokeColor = .clear
+            dot.alpha = 1
+            dot.zPosition = 2
+            dot.position = CGPoint(
+                x: center.x + CGFloat.random(in: -10...10),
+                y: center.y + CGFloat.random(in: -8...8)
+            )
+            parent.addChild(dot)
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let dist = CGFloat.random(in: 36...88)
+            let flight = TimeInterval.random(in: 0.28...0.42)
+            let move = SKAction.move(to: CGPoint(
+                x: dot.position.x + cos(angle) * dist,
+                y: dot.position.y + sin(angle) * dist
+            ), duration: flight)
+            move.timingMode = .easeOut
+            let fade = SKAction.fadeOut(withDuration: flight * 0.75)
+            fade.timingMode = .easeIn
+            dot.run(SKAction.sequence([
+                SKAction.group([
+                    move,
+                    SKAction.sequence([SKAction.wait(forDuration: flight * 0.22), fade]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+        for _ in 0..<4 {
+            let star = Self.makeFourPointStarNode(
+                outerRadius: CGFloat.random(in: 4.5...6.5),
+                innerRatio: BrixVanishFeedback.vanishStarInnerRatio,
+                color: starColor
+            )
+            star.alpha = 1
+            star.zPosition = 3
+            star.position = CGPoint(
+                x: center.x + CGFloat.random(in: -14...14),
+                y: center.y + CGFloat.random(in: -10...10)
+            )
+            star.zRotation = CGFloat.random(in: 0...(2 * .pi))
+            parent.addChild(star)
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let dist = CGFloat.random(in: 28...64)
+            let flight = TimeInterval.random(in: 0.32...0.48)
+            let move = SKAction.move(by: CGVector(dx: cos(angle) * dist, dy: sin(angle) * dist), duration: flight)
+            move.timingMode = .easeOut
+            let spinSign: CGFloat = Bool.random() ? 1 : -1
+            let spin = SKAction.rotate(byAngle: spinSign * .pi, duration: flight)
+            let fade = SKAction.fadeOut(withDuration: flight * 0.70)
+            fade.timingMode = .easeIn
+            star.run(SKAction.sequence([
+                SKAction.group([
+                    move,
+                    spin,
+                    SKAction.sequence([SKAction.wait(forDuration: flight * 0.25), fade]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+    }
+
+    /// Affiche un overlay de transition cinématique (sans voile).
+    /// - Arcade / Défi (`isInStagedSoloMode`) : glyphe `L1`…`L★` en slam + une ligne stats.
+    /// - Zen (`stageLevelText` non-nil hors staged) : préfixe + gros titre + 0–2 lignes, pop poli.
+    /// - Tutoriel (`stageLevelText` nil) : titre + sous-titre, pop poli.
+    /// Après la pause l'overlay disparaît en fondu, puis `completion` est appelé.
     private func showTransitionOverlay(levelPrefix: String = BlomixL10n.transitionLevelPrefix,
                                        stageLevelText: String? = nil,
                                        line1: String, line2: String,
@@ -14244,10 +14438,11 @@ final class GameScene: SKScene {
         overlayNode.zPosition = 300
         addChild(overlayNode)
 
+        let useSlam   = isInStagedSoloMode && stageLevelText != nil
         let centerX   = size.width  / 2
-        let popIn     = StageOverlayTiming.popIn
-        let pause     = StageOverlayTiming.pause
-        let fadeOut   = StageOverlayTiming.fadeOut
+        let popIn     = useSlam ? StageOverlayTiming.slamPopIn : StageOverlayTiming.popIn
+        let pause     = useSlam ? StageOverlayTiming.slamPause : StageOverlayTiming.pause
+        let fadeOut   = useSlam ? StageOverlayTiming.slamFadeOut : StageOverlayTiming.fadeOut
         let maxW:     CGFloat = size.width - 48
         let popStagger = StageOverlayTiming.popStagger
 
@@ -14256,8 +14451,49 @@ final class GameScene: SKScene {
                        ?? SKColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1)
         let fillUIColor = orangeColor as UIColor
 
-        if let levelText = stageLevelText {
-            // ── Variante STAGE / ZEN : "Level" + numéro/mot + 2 lignes d'infos ──────
+        if useSlam, let levelText = stageLevelText {
+            // ── Arcade / Défi : L1…L★ slam + une ligne `16s · ×2` ────────────────
+            let titleFontSize: CGFloat = 92
+            let infoFontSize:  CGFloat = 28
+            let blockCenterY = size.height / 2 + 10
+            let titleY = blockCenterY + infoFontSize * 0.55
+            let infoY  = blockCenterY - titleFontSize * 0.42 - infoFontSize * 0.25
+
+            let titleLabel = Self.makeTransitionPopInOutlinedLabel(
+                text: levelText, fontSize: titleFontSize, maxWidth: maxW,
+                fillColor: fillUIColor)
+            titleLabel.position = CGPoint(x: centerX, y: titleY)
+            titleLabel.setScale(StageOverlayTiming.slamPeakScale)
+            titleLabel.alpha = 0
+            titleLabel.zPosition = 1
+            overlayNode.addChild(titleLabel)
+            titleLabel.run(Self.makeTransitionSlamAction())
+
+            let statsLabel = Self.makeTransitionPopInOutlinedLabel(
+                text: line1, fontSize: infoFontSize, maxWidth: maxW,
+                fillColor: fillUIColor)
+            statsLabel.position = CGPoint(x: centerX, y: infoY)
+            statsLabel.setScale(0)
+            statsLabel.alpha = 0
+            statsLabel.zPosition = 1
+            overlayNode.addChild(statsLabel)
+            statsLabel.run(SKAction.sequence([
+                SKAction.wait(forDuration: StageOverlayTiming.slamIn),
+                Self.makeTransitionTickInAction(totalDuration: StageOverlayTiming.slamTick),
+            ]))
+
+            overlayNode.run(SKAction.sequence([
+                SKAction.wait(forDuration: StageOverlayTiming.slamIn),
+                SKAction.run { [weak self] in
+                    guard let self else { return }
+                    self.shakeScreen(intensity: 2.3)
+                    self.hapticHeavy()
+                    self.spawnStageSlamBurst(in: overlayNode, at: titleLabel.position, fill: orangeColor)
+                },
+            ]))
+
+        } else if let levelText = stageLevelText {
+            // ── Variante ZEN : "Mode" + titre + 0–2 lignes d'infos ───────────────
             let levelFontSize: CGFloat = 34
             let numFontSize:   CGFloat = 76
             let infoFontSize:  CGFloat = 26
@@ -14269,7 +14505,7 @@ final class GameScene: SKScene {
             let line1Y       = blockCenterY - numFontSize * 0.55 - infoFontSize * 0.8
             let line2Y       = line1Y - infoFontSize * 1.6
 
-            // Groupe "Level" + numéro dans un SKNode pour animer ensemble.
+            // Groupe préfixe + titre dans un SKNode pour animer ensemble.
             let headerNode = SKNode()
             headerNode.zPosition = 1
 
@@ -15116,7 +15352,7 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsStartScreenZenButton(location) {
-                pendingButtonAction = { [weak self] in self?.confirmAbandonArcadeZenSaveThen { self?.beginZenModeFromStartScreen() } }
+                pendingButtonAction = { [weak self] in self?.performZenButtonAction() }
                 return
             }
             if touchHitsStartScreenPvPButton(location) {
@@ -15593,6 +15829,7 @@ final class GameScene: SKScene {
     }
 
     private func showPvPLobby() {
+        consumeInMemoryPvPSoloSnapshots()
         let avail = BlomixPvPAvailablePlayersViewController()
         avail.onMatch = { [weak self] match in
             self?.beginPvPWithMatch(match)
@@ -15706,14 +15943,18 @@ final class GameScene: SKScene {
     /// Capture Arcade / Zen / Défi **en cours** avant la grille de prép. Jamais depuis l'accueil, jamais après prep.
     private func blomixPvP_captureSoloSaveIfLeavingForMatch() {
         if pvpMatchSetupInProgress { return }
-        if pvpSuspendedSoloSave != nil { return }
 
         if isStartScreen {
+            // Disque déjà à jour ; un snapshot mémoire d’un Duel précédent ne doit pas
+            // rejouer une reprise in-game après un Duel lancé depuis l’accueil.
+            consumeInMemoryPvPSoloSnapshots()
             pvpEnteredFromHome = true
             restoreSoloAfterPvP = false
             BlomixPvPLog.event("pvp_enter_from_home")
             return
         }
+
+        if pvpSuspendedSoloSave != nil { return }
 
         guard !isGameOver, !isTutorialMode, pvpCoordinator == nil, !isWindingDown else {
             restoreSoloAfterPvP = false

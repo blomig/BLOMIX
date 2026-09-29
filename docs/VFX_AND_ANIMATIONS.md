@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 7.5  
+> **Version de référence** : 7.6  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : septembre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
@@ -313,7 +313,7 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 |---|---|
 | **Déclencheur** | Compteur → 0 (chaîne adjacente, SCRUMBLX, BRIXED…) |
 | **Durée totale** | `BrixVanishFeedback.totalDuration` = **0,20 s** |
-| **Réf. code** | `BrixVanishFeedback`, `spawnBrixVanishSquareDots` |
+| **Réf. code** | `BrixVanishFeedback`, `spawnBrixVanishSquareDots`, `spawnBrixVanishPresenceStars` |
 
 **Séquence par Brix :**
 
@@ -321,6 +321,7 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 |---|---|---|
 | Pop | 0,07 s | scale → 1,10, flash blanc 35 %, `easeOut` |
 | Paillettes carrées | instant | `spawnBrixVanishSquareDots` (voir ci-dessous) |
+| Étoiles de présence | instant | `spawnBrixVanishPresenceStars` — 3 étoiles 4 branches dans la case |
 | Implosion | 0,13 s | scale → 0,55, fade α→0, wobble ±54° (`π×0,3`), `easeIn` |
 | Chiffre | 0,10 s | fade du label en parallèle de l'implosion |
 
@@ -330,11 +331,18 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 - Vol vers le gros score à **~824 pt/s**, `easeIn`, plancher **0,12 s** (pas de chute / fondu)
 - Couleur = teinte brix du skin (`priksSolidFillColor()`)
 
+**Étoiles de présence** (restent dans la case, **pas** de vol HUD) :
+- **3** étoiles 4 branches, rayon 5–7 pt, spread `±0,42 × case`
+- Spawn au pic du pop (même t que les carrés)
+- Rotation continue, sens et période tirés au sort (0,55–1,10 s / tour)
+- Blanc en Sombre, noir en Clair (`BlomixAppearance.isDark`)
+- Hold 0,41 s puis fade 0,23 s. Compactage **n’attend pas**. Nœuds scène, pas enfants du sprite.
+
 **Son** : `priksVanish` ; stagger **0,07 s** si plusieurs Brix disparaissent ensemble.
 
 **Score** : `+20` pts / Brix, un `+N` au centroïde (couleur Brix, shatter comme les chaînes), **au pic du pop** (même t que les carrés). Roulement HUD **linéaire** : **première** paillette → **dernière** (+ **0,08 s** de marge). Compactage / cascade **n’attendent pas**.
 
-SCRUMBLX : carrés + `+N` au trou (pas de pop/implosion, le slide suit).
+SCRUMBLX : carrés + étoiles + `+N` au trou (pas de pop/implosion, le slide suit). **Bombe** : mêmes étoiles dans chaque case Brix au pic ×1,25 (explosion inchangée).
 
 ---
 
@@ -347,7 +355,7 @@ SCRUMBLX : carrés + `+N` au trou (pas de pop/implosion, le slide suit).
 | Placement sprite | — | Shader bombe, z 22 |
 | Tremblement | **0,3 s** | ±6 pt horizontal |
 | Explosion | voir §5.2 | |
-| Score | pic scale-up (t ≈ 0,12 s) | +10 pts centre + +20/Brix ; paillettes HUD (ronds blox / carrés Brix) au même pic, stagger 0,02 s/case. Compactage **n’attend pas** le HUD |
+| Score | pic scale-up (t ≈ 0,12 s) | +10 pts centre + +20/Brix ; paillettes HUD (ronds blox / carrés Brix) au même pic, stagger 0,02 s/case. **Étoiles de présence** dans chaque case Brix (même recette §4.2). Compactage **n’attend pas** le HUD |
 | Compactage | 0,20 s | puis cascades depuis `chainSeriesLevel = 1` |
 
 Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 + bras cardinaux (`bombCrossArmLength` = index de stage), texture HUD **nuke**. L’anim de destruction ci-dessous s’applique à **toutes** les cases de `bombAffectedCells` (le nom « Blocs 3×3 » est historique).
@@ -589,29 +597,49 @@ Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
 
 Pipeline unique pour **stage solo**, **intro Zen**, **tutoriel** (intro / fin) et **préparation PvP** : sticker orange + contour thématisé, **sans halo**, **sans voile**.
 
-#### Pop-in unifié (`makeTransitionPopInOutlinedLabel`)
+#### Rendu texte (toutes variantes)
 
 | | |
 |---|---|
-| **Déclencheur** | Stage solo (démarrage + changement **avant** de relâcher `isProcessing`), intro Zen, intro/fin tutoriel, handshake PvP |
-| **Son** | `transition` (stage / Zen / tuto via `showTransitionOverlay` ; pas dans le path connecting PvP) |
 | **Fond** | **Aucun** voile — jeu visible derrière |
-| **Pop-in** | Scale **0 → ×1,14 → ×0,94 → ×1,0** en **0,45 s** ; stagger **0,07 s** entre blocs de texte |
 | **Typo** | Police joueur (`BlomixTypography`) |
 | **Rendu texte** | **Orange skin** (identique Sombre/Clair) + **contour** thématisé (`transitionOutlineColor`) — un seul `SKLabelNode` par ligne, sans rasterisation, **sans halo** |
 | **Contour** | Épaisseur : ≥ 60 pt → **5 px** ; 30–59 pt → **3,5 px** ; &lt; 30 pt → **2,5 px**. Couleur : **blanc** (Sombre) / **gris foncé** (Clair) |
-| **Pause** | **1,0 s** (stage / Zen / tuto) ; rotation de phrases (PvP) |
-| **Fade out** | **0,35 s** (stage / Zen / tuto) ; fondu à la fin du handshake (PvP) |
+| **Son** | `transition` (stage / Zen / tuto via `showTransitionOverlay` ; pas dans le path connecting PvP) |
+
+#### Arcade / Défi — slam (`isInStagedSoloMode`)
+
+Stage 1 **conservé** (démarrage) + chaque palier. Copy glyphe, identique au badge HUD.
+
+| | |
+|---|---|
+| **Titre** | `L1`…`L5` / `L★` (Ultime) — **92 pt** |
+| **Stats** | une ligne `16s · ×2` (`stage.overlay.stats_format`) — **28 pt** |
+| **Slam** | Scale **×2,4 → ×0,90** en **0,20 s** (`easeIn`), settle **×1,0** en **0,12 s** (`easeOut`) |
+| **Impact** | `shakeScreen(2,3)` + `hapticHeavy` + burst (14 dots orange + 4 étoiles 4 branches) |
+| **Stats** | tick après l’impact (**0,18 s**, 0 → ×1,08 → ×1) |
+| **Pause** | **0,50 s** |
+| **Fade out** | **0,32 s** |
+| **Durée `isProcessing`** | ~**1,14 s** (0,32 + 0,50 + 0,32) |
+
+#### Zen / tutoriel — pop poli
+
+| | |
+|---|---|
+| **Pop-in** | Scale **0 → ×1,14 → ×0,94 → ×1,0** en **0,45 s** ; stagger **0,07 s** entre blocs de texte |
+| **Pause** | **1,0 s** |
+| **Fade out** | **0,35 s** |
 
 #### Layouts
 
 | Variante | Tailles | Structure |
 |---|---|---|
-| Stage / Zen | préfixe **34 pt**, titre **76 pt**, infos **26 pt** | Header groupé + 0–2 lignes |
+| Arcade / Défi | titre **92 pt**, stats **28 pt** | `L1`…`L★` slam + 1 ligne |
+| Zen | préfixe **34 pt**, titre **76 pt**, infos **26 pt** | Header groupé + 0–2 lignes, pop poli |
 | Tutoriel | titre **48 pt**, sous-titre **26 pt** | 2 lignes pop-in (stagger) |
 | PvP prep | titre **72 pt**, phrases **22 pt** | « Duel » + rotation l10n |
 
-Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlinedLabelText` dans `GameScene.swift`.
+Implémentation : `makeTransitionPopInOutlinedLabel` / `makeTransitionSlamAction` / `setTransitionPopInOutlinedLabelText` dans `GameScene.swift`.
 
 ### 10.2 Timer stage
 
@@ -630,13 +658,14 @@ Implémentation : `makeTransitionPopInOutlinedLabel` / `setTransitionPopInOutlin
 
 ### 10.3 Badge LX (`hudStageBadge`)
 
-Visible pendant tout l’overlay de stage (plus de hide). Même horloge que §10.1 (`StageOverlayTiming`).
+Visible pendant tout l’overlay de stage (plus de hide). Horloge **slam** §10.1 Arcade (`StageOverlayTiming.slam*`).
 
 | Phase overlay | Badge |
 |---|---|
-| Pop-in **0,45 s** | Scale **1,0 → 2,0** (`easeOut`), ancien chiffre |
-| Pic / pause **1,0 s** | Texte → `L2`… / `L★` ; tient ×2 |
-| Fade **0,35 s** | Scale **2,0 → 1,0** (`easeIn`) |
+| Slam **0,20 s** | Scale **1,0 → 2,0** (`easeOut`), ancien chiffre |
+| Impact | Texte → `L2`… / `L★` |
+| Settle + pause **0,62 s** | Tient ×2 |
+| Fade **0,32 s** | Scale **2,0 → 1,0** (`easeIn`) |
 
 Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’overlay. Couleur = `primaryTextSK` (rafraîchie).
 
@@ -755,7 +784,7 @@ BrixLandingBounce      squash 0,07 | stretch 0,025 | settle 0,025
 MagixLandingBurst      40–48 dots palette | r 1,0–1,8 | +24–52 pt | 0,34 s easeInEaseOut
 Magix consume / morph  18–24 dots +12–28 pt / 0,22 s ; fade 0,18 ; mue pulse ×1,18
 BrixFlightStretch      x 0,88 | y 1,16
-BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s
+BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s | 3 étoiles présence 0,64 s
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
 ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | sparkles → score ~820 pt/s (0,25 s centre→score) | cascade 0,07
 PendingLinePreview     jitter X 1,0 Y 0,5 | cycle 1,1

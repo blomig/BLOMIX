@@ -67,7 +67,7 @@ Douleur si on « partageait » le moteur :
 | Particules, halo, stretch de lancement, bounce compactage, juice de ligne | |
 | Skins iPhone (`color_skins.json` live) | Palette **default** figée ; copie skin via WC **optionnelle plus tard** |
 | Submit GameKit **depuis la Watch** | Historiquement fragile ; file iPhone |
-| Écriture des slots iPhone `blomix_solo_save_v2` / `blomix_daily_save_v1` | Interdit, y compris plus tard |
+| Écriture des slots iPhone `blomix_solo_save_v2` / `blomix_zen_save_v1` / `blomix_daily_save_v1` | Interdit, y compris plus tard |
 | Refactor / partage de `GameScene.swift` | Interdit |
 | watchOS 27 comme plancher | Layout 40 mm ; déploiement = génération iOS 18 (watchOS 11+) |
 | Fiche App Store Watch indépendante | Compagnon dans l’IPA iOS |
@@ -680,7 +680,7 @@ ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.zenLeaderboar
 `submitScore` (~482–521) appelle **toujours** `GKLeaderboard.submitScore`, même si `updateLocalZenHighScoreIfBetter` no-op. Un Watch 1200 après un iPhone 8000 est localement `max`-safe mais **ne doit pas** partir vers GC au cas où le board ne serait pas strictement Best Score. D’où le `guard`.
 
 - **Ne pas** `recordGameScore` (moyenne Arcade).
-- **Ne pas** lire/écrire `blomix_solo_save_v2` / `blomix_daily_save_v1`.
+- **Ne pas** lire/écrire `blomix_solo_save_v2` / `blomix_zen_save_v1` / `blomix_daily_save_v1`.
 
 `GameScene.swift` : **zéro diff**, y compris PR 6.
 
@@ -692,7 +692,8 @@ ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.zenLeaderboar
 
 | Slot | Clé | Process | Contenu |
 |---|---|---|---|
-| Arcade / Zen iPhone | `blomix_solo_save_v2` (`BlomixSoloGameSave` v7) | iPhone | Grille + file + `isZenMode` + stages… |
+| Arcade iPhone | `blomix_solo_save_v2` (`BlomixSoloGameSave` v7) | iPhone | Grille Arcade |
+| Zen iPhone | `blomix_zen_save_v1` | iPhone | Grille Zen |
 | Défi du jour | `blomix_daily_save_v1` | iPhone | Run daily |
 | **Watch Zen** | `blomix_watch_zen_save_v1` + `blomix_watch_zen_best_v1` | **Watch** | `WatchZenRunState` + best **Watch** |
 
@@ -765,7 +766,7 @@ Watch au GO si `score >` best Watch (coalesce **max**, une entrée pending). `tr
 | Entitlements Watch | **Vides**. Ne pas copier `Blomix.entitlements` |
 | Chiffrement | `ITSAppUsesNonExemptEncryption = false` |
 
-Menace : pont qui `clear()` `blomix_solo_save_v2`. Mitigation : inbox **scores Zen si meilleurs**, zéro save iPhone.
+Menace : pont qui `clear()` un slot iPhone (`v2` / Zen / défi). Mitigation : inbox **scores Zen si meilleurs**, zéro save iPhone.
 
 ---
 

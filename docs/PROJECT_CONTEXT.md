@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 7.4  
+> **Version de référence** : 7.6  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -239,15 +239,18 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 ### Défi du jour
 
-`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot save **`blomix_daily_save_v1`** (ne touche pas `blomix_solo_save_v2`) — les deux **coexistent** : Continuer hero = Arcade/Zen, chip = Défi, **sans** abandon croisé. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : `saveRun` / slot Arcade + snapshot mémoire. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController`. Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot **`blomix_daily_save_v1`**. Les trois slots **coexistent** (Arcade `blomix_solo_save_v2`, Zen `blomix_zen_save_v1`, Défi). Hero = Arcade seulement ; chip Zen = Zen seulement ; chip Défi = hub. **Pas** d’abandon croisé, **pas** de « Nouvelle partie » ni dialog d’accueil. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController`. Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
-`BlomixSoloGameSave` (version **7**, clé `blomix_solo_save_v2`) :
+`BlomixSoloGameSave` (version **7**) — deux clés iPhone + le Défi :
+- Arcade : `blomix_solo_save_v2` (`isZenMode == false`)
+- Zen : `blomix_zen_save_v1` (`isZenMode == true`) ; migration 7.5 : une Zen encore dans `v2` est déplacée
+- Défi : `blomix_daily_save_v1` (enveloppe + graine)
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
-- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** (6.4) : hero Continuer + mode si save, sinon Découvrir / Arcade
+- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero Continuer+Arcade si slot Arcade, chip Zen Continuer+Zen si slot Zen, sinon Arcade / Découvrir / Zen
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
@@ -395,7 +398,7 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
 - Compteur LIGNE x/10 (gauche)
 - Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
 - Timer stage ou PvP (droite)
-- Arcade : badge LX (bas gauche) visible pendant l’overlay ; grow ×2 / swap / settle calés sur la transition
+- Arcade / Défi : overlay `L1`…`L★` + `Ns · ×M` (slam) ; badge LX (bas gauche) grow ×2 / swap / settle calés sur le slam
 - File P1/P2, icône bombe + compteur
 - Menu hamburger (Accueil / Scores / Réglages) — pause le timer Solo tant qu’il est ouvert
 

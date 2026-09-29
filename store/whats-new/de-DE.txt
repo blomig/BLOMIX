@@ -1,4 +1,3 @@
-• +N und Ketten lösen sich in Funken auf, die zum großen Score fliegen
-• Magix: Burst bei der Landung; die Scheibe verwandelt sich oder verschwindet sauber
-• Bombe: auch Blox- und Brix-Funken fliegen zum Score
-• Arcade oder Zen und Tägliche Challenge speichern parallel; Duell löscht Continue nicht mehr
+• Arcade, Zen und Tägliche Challenge speichern getrennt
+• Brix hinterlassen 3 kleine Sterne beim Verschwinden
+• Stages kommen als L1…L★, knackiger

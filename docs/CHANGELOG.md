@@ -7,9 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.6] — 2026-09
+
+Build à venir (Fastlane). **7.5 / 141** en vente.
+
+### Modifié
+
+- **Saves** : trois slots indépendants — Arcade (`blomix_solo_save_v2`), Zen (`blomix_zen_save_v1`), Défi du jour. Hero = Arcade ou Continuer Arcade ; chip Zen = Zen ou Continuer Zen. Plus de « Nouvelle partie » ni dialog d’accueil : un bouton n’écrase jamais un autre mode. Une Zen 7.5 encore dans `v2` est migrée.
+- **Brix** : à 0, 3 petites étoiles tournantes dans la case (blanc / noir selon le thème). Carrés HUD inchangés. Même rendu sur bombe (cases Brix du blast).
+- **Arcade / Défi** : overlay de stage en glyphe (`L1`…`L★` + `16s · ×2`), slam + burst. Stage 1 conservé. Zen / tuto inchangés.
+
+---
+
 ## [7.5] — 2026-09
 
-Build **141**. Uploadé sur ASC (fiche 7.5). **7.4 / 140** en vente. Review **pas** lancée.
+Build **141**. En vente.
 
 ### Magasin (ASO)
 

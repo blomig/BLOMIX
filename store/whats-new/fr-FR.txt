@@ -1,4 +1,3 @@
-• Le +N et les chaînes se versent en paillettes vers le gros score
-• Magix : gerbe à l’arrivée ; le disque se transforme ou s’efface proprement
-• Bombe : blox et Brix envoient aussi leurs paillettes vers le score
-• Arcade ou Zen et Défi du jour se sauvent en parallèle ; le Duel n’efface plus tes Continuer
+• Arcade, Zen et Défi du jour : chacun sa sauvegarde
+• Les Brix laissent 3 petites étoiles en disparaissant
+• Les stages s’annoncent en L1…L★, plus punchy

@@ -243,8 +243,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "tranquilo";
 
-"stage.overlay.timer_format" = "%lld s por jugada";
-"stage.overlay.multiplier_format" = "Puntos × %lld";
+"stage.overlay.stats_format" = "%llds · ×%lld";
 
 "rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "MED.";

@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 7.5  
+> **Version de référence** : 7.6  
 > **Dernière mise à jour** : septembre 2026
 
 ---
@@ -31,14 +31,14 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 7.5 |
+| `MARKETING_VERSION` | 7.6 |
 | `CURRENT_PROJECT_VERSION` | 141 |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **7.4 / 140** en vente. Fiche **7.5 / 141** uploadée (`fastlane release`) — `submit` quand le build est Valid (`automatic_release: false`).
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **7.5 / 141** en vente. Local **7.6**.
 
 ---
 
@@ -165,7 +165,7 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nom
 
 ## Déploiement App Store Connect
 
-Les champs **Nouveautés**, **Texte promotionnel**, **Nom de fiche** et **Sous-titre** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/`, `store/promotional-text/`, `store/name/`, `store/subtitle/` (5 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures). Nom/sous-titre : poussés avec `release` / `metadata` sur la **7.5**. Captures : upload manuel (`store/asc-assets/README.md`).
+Les champs **Nouveautés**, **Texte promotionnel**, **Nom de fiche** et **Sous-titre** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/`, `store/promotional-text/`, `store/name/`, `store/subtitle/` (5 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures). Nom/sous-titre : poussés avec `release` / `metadata`. Captures : upload manuel (`store/asc-assets/README.md`).
 
 Rédaction : [LOCALIZATION.md](LOCALIZATION.md), `store/README.md`. À chaque `MARKETING_VERSION`, écrire les 5 Nouveautés dans le même lot que le CHANGELOG. Le texte promo est **figé** (≤ 170 car.) — on le re-pousse parce qu’Apple le vide souvent à la création de version.
 
@@ -221,7 +221,7 @@ Apple n’attache un IPA qu’à une fiche dont le `CFBundleShortVersionString` 
 
 Fastlane nomme l’italien `it` (pas `it-IT`) dans le dossier généré ; les fichiers `store/**/it-IT.txt` restent la source de vérité.
 
-`submit` laisse la version en *Pending Developer Release* (`automatic_release: false`) — le bouton Release reste manuel dans ASC.
+`submit` coche **Mettre en ligne automatiquement** (`automatic_release: true`) : après approbation Apple, la version passe en vente sans bouton Release manuel.
 
 ### Checklist release
 
@@ -230,8 +230,8 @@ Fastlane nomme l’italien `it` (pas `it-IT`) dans le dossier généré ; les fi
 3. `bundle exec fastlane release` (ou `beta` puis `metadata`)
 4. Vérifier dans ASC : Nouveautés / promo, build **Valid**, APS production.
 5. TestFlight interne.
-6. `bundle exec fastlane submit` quand le build est traité.
-7. Après approbation Apple : Release manuel dans ASC.
+6. `bundle exec fastlane submit` quand le build est traité (`automatic_release: true`).
+7. Après approbation Apple : mise en ligne automatique.
 
 Ce que le pipeline **ne** touche **pas** : description, mots-clés, captures, App Preview, age rating, prix.
 

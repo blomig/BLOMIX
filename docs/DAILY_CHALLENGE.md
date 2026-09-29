@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.4 / 140** en vente ; saves parallèles en **7.5**.  
+> **Statut** : **7.5 / 141** en vente ; trois slots Arcade / Zen / Défi en **7.6**.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 7.5  
+> **Version de référence** : 7.6  
 > **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -38,7 +38,7 @@ Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, *
 
 **Game Over** (court, après `end.wav`) : **ton score** + rang live + **Accueil** + **Classement** (→ hub, où tu te vois dans la liste). Pas de récap justesse.
 
-**Quitter une run en cours** (☰ Accueil) : sauve le slot du mode (Arcade/Zen **ou** défi). Le hub **Continuer** et le hero **Continuer** reprennent chacun **leur** slot, sans dialog croisé.
+**Quitter une run en cours** (☰ Accueil) : sauve le slot du mode (Arcade **ou** Zen **ou** défi). Hero Continuer = Arcade, chip Zen = Zen, hub = Défi — **sans** dialog, **sans** écrasement croisé.
 
 **Duel depuis l’accueil** : lobby joueurs, **sans** abandonner Arcade/Zen ni le défi. **Duel pendant une run** : snapshot dans le slot du mode en cours ; au retour, reprise de cette grille.
 
@@ -93,7 +93,7 @@ Skin Alea / thème chrome : **visuel**, pas dans la graine.
 | Auto-drop | Hasard **OK** (comme Arcade) | Colonne différente sans importance |
 | Retry | **1 seule partie** / jour UTC | Bouton grisé « revenez demain » après GO |
 | Fuseau | **UTC** | Un seul jour mondial |
-| Continuer Arcade | Slot save **séparé** ; Continuer Arcade **et** Défi coexistent (pas d’abandon croisé) | Duel accueil = lobby, sans clear |
+| Continuer Arcade / Zen / Défi | Trois slots ; pas d’abandon croisé | Duel accueil = lobby, sans clear |
 
 ---
 
@@ -172,7 +172,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 |---|---|
 | `GameScene` | Flag mode daily + **même pipeline stage/timer/bombe qu’Arcade** ; file + lignes seedées ; auto-drop inchangé ; effets Magix hashés ; GO dédié |
 | Accueil | Chip **Défi du jour** : sous Arcade, mêmes dimensions / style que le hero Arcade. 5ᵉ disque de rang (sous-titre défi), chiffres/libellés **même taille**, rangée un peu resserrée |
-| Save | **Slot dédié** (ne pas écraser `blomix_solo_save_v2` Arcade/Zen) ; Duel en cours de run → `saveRun`, pas l’Arcade |
+| Save | **Slot dédié** `blomix_daily_save_v1` (ne pas écraser Arcade `v2` ni Zen `blomix_zen_save_v1`) ; Duel en cours de run → `saveRun`, pas l’Arcade |
 | `ScoreManager` / `LeaderboardViewController` | Score de la run → **aussi** Arcade (highscore `BlomixMainScore_v3` + moyenne). Onglet `dailywins_arc` = **uniquement** les points podium |
 | CloudKit | Nouveau record type + index `day` ; Dashboard prod **et** dev |
 | ASC | Créer le leaderboard victoires ; **pas** une version magasin tant qu’on reste en TF |

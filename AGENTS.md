@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **7.5** (local) — **7.4** (build 140) en vente |
+| Version courante | **7.6** (local) — **7.5** (build 141) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -124,7 +124,7 @@ La logique gameplay est concentrée dans :
 
 ### Sauvegarde solo
 
-- Format `BlomixSoloGameSave` version **7**, clé `blomix_solo_save_v2`.
+- Format `BlomixSoloGameSave` version **7**. Arcade : `blomix_solo_save_v2`. Zen : `blomix_zen_save_v1`. Défi : `blomix_daily_save_v1`. Les trois **coexistent**.
 - Avant d’écrire : respecter le flush des états transitoires (voir `PROJECT_CONTEXT` / historique v4.9).
 - Ne pas casser la reprise de partie sans tests manuels explicites.
 

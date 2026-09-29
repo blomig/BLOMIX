@@ -261,9 +261,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "tranquille";
 
-/* Overlay transition de stage */
-"stage.overlay.timer_format" = "%lld s par coup";
-"stage.overlay.multiplier_format" = "Points x %lld";
+/* Overlay transition de stage (Arcade / Défi) */
+"stage.overlay.stats_format" = "%llds · ×%lld";
 
 /* Disques de classement (écran d'accueil) */
 "rank_disc.solo" = "ARC.";

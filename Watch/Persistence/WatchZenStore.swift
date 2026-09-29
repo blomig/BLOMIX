@@ -1,6 +1,6 @@
 //
 //  WatchZenStore.swift
-//  Slot Watch only — n’écrit jamais blomix_solo_save_v2 / blomix_daily_save_v1.
+//  Slot Watch only — n’écrit jamais blomix_solo_save_v2 / blomix_zen_save_v1 / blomix_daily_save_v1.
 //
 
 import Foundation

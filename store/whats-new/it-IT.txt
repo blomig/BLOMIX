@@ -1,4 +1,3 @@
-• Il +N e le catene si dissolvono in scintille verso il punteggio grande
-• Magix: scoppio all’atterraggio; il disco si trasforma o scompare in modo pulito
-• Bomba: anche le scintille di blox e Brix volano al punteggio
-• Arcade o Zen e Sfida del giorno si salvano in parallelo; il Duello non cancella più Continua
+• Arcade, Zen e Sfida del giorno si salvano ciascuno per conto proprio
+• I Brix lasciano 3 stelline quando scompaiono
+• Gli stage arrivano come L1…L★, più decisi

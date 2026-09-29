@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 7.4
+> **Version de référence** : 7.6
 
 ---
 
@@ -71,6 +71,7 @@
 | **Placement** | Le joueur choisit une colonne ; le bloc remonte (gravité inversée) |
 | **Toucher un Brix** | 8-connexité avec un Brix pendant une vague → compteur −1 (max 1/vague) |
 | **Stage** | Palier solo (1–6) avec timer et multiplicateur de score croissant |
+| **LX / L★** | Badge HUD et overlay Arcade/Défi : `L1`…`L5`, Ultime `L★` |
 | **Multiplicateur** | Bonus de score lié au stage atteint |
 | **Justesse / pire coup** | Qualité des placements en fin de partie (`BlomixMoveAnalyzer`) — plus de hint en jeu (v6.1) |
 
@@ -110,7 +111,7 @@
 |---|---|---|
 | **SimGrid** | `BlomixMoveAnalyzer` | Copie de grille pour simulation |
 | **Lookahead** | `BlomixMoveAnalyzer` | Exploration 3 niveaux (P0→P1→P2) |
-| **Solo save v7** | `BlomixSoloSaveManager` | Sauvegarde UserDefaults, reprise partie |
+| **Solo save v7** | `BlomixSoloSaveManager` | Arcade `blomix_solo_save_v2` + Zen `blomix_zen_save_v1` |
 | **Skin** | `BlomixSkinCatalog` / `color_skins.json` | Palette de couleurs des blox (indépendant du thème chrome) |
 | **Thème chrome** | `BlomixAppearance` | Mode **Sombre** / **Clair** de l’UI (fonds, textes, chips) |
 | **Puits / capsule** | `BlomixSKButtonNode`, `BlomixUIButton` | Bouton 6.7 : creux dégradé skin + face chrome |

@@ -46,6 +46,8 @@ Rendre lisible ce que le binaire fait déjà, et fermer les frictions d’accuei
 
 ## 4. Hero accueil — une vérité
 
+> **7.6** : hero = slot Arcade seulement ; chip Zen = slot Zen (`blomix_zen_save_v1`). Plus de lien « Nouvelle partie » ni dialog d’accueil. Le tableau ci-dessous décrit le 6.4 (un seul slot Arcade/Zen).
+
 Après le splash (et après ☰ Accueil), **toujours** `presentStartScreen` — plus de saut auto dans une save (`presentStartScreenOrRestoreSoloSave` ne restaure plus en silence).
 
 Le chip hero (pleine largeur) :

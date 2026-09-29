@@ -32,16 +32,10 @@ enum BlomixL10n {
 
     static var gameTagline: String { tr("game.tagline", comment: "Subtitle under BLOMIX title") }
     static var startButton: String { tr("start.button", comment: "Start game on welcome screen") }
-    static var startContinue: String { tr("start.continue", comment: "Home hero — resume saved Arcade/Zen") }
+    static var startContinue: String { tr("start.continue", comment: "Home — resume saved Arcade or Zen") }
     static var startDiscover: String { tr("start.discover", comment: "Home hero — first launch tutorial") }
-    static var startNewGameLink: String { tr("start.new_game", comment: "Home — start a fresh game, wipes save") }
-    static var startNewGameConfirmTitle: String { tr("start.new_game_confirm_title", comment: "Confirm wipe saved game") }
-    static var startNewGameConfirmMessage: String { tr("start.new_game_confirm_message", comment: "Confirm wipe saved game body") }
-    static var startAbandonSaveTitle: String { tr("start.abandon_save_title", comment: "Home — leave saved game for Zen/Duel") }
-    static var startAbandonSaveMessage: String { tr("start.abandon_save_message", comment: "Home — confirm losing saved Arcade/Zen") }
-    static var startAbandonSaveConfirm: String { tr("start.abandon_save_confirm", comment: "Home — proceed anyway") }
-    static var startHeroModeArcade: String { tr("start.hero_mode_arcade", comment: "Tiny subtitle under Continuer") }
-    static var startHeroModeZen: String { tr("start.hero_mode_zen", comment: "Tiny subtitle under Continuer") }
+    static var startHeroModeArcade: String { tr("start.hero_mode_arcade", comment: "Tiny subtitle under Continuer Arcade") }
+    static var startHeroModeZen: String { tr("start.hero_mode_zen", comment: "Tiny subtitle under Continuer Zen") }
     static var startDaily: String { tr("start.daily", comment: "Home hero — Daily Challenge") }
     static var startDailyRanking: String { tr("start.daily_ranking", comment: "Home hero after finishing today's challenge") }
     static var startHeroModeDaily: String { tr("start.hero_mode_daily", comment: "Tiny subtitle under Daily chip when a run is in progress") }
@@ -583,11 +577,8 @@ enum BlomixL10n {
 
     // MARK: - Transition overlays
     static var transitionLevelPrefix: String { tr("transition.level_prefix", comment: "Stage transition overlay — Level / Niveau") }
-    static func stageOverlayTimerSeconds(_ seconds: Int) -> String {
-        String(format: tr("stage.overlay.timer_format", comment: "%lld s per move"), seconds)
-    }
-    static func stageOverlayPointsMultiplier(_ multiplier: Int) -> String {
-        String(format: tr("stage.overlay.multiplier_format", comment: "Points × multiplier"), multiplier)
+    static func stageOverlayStats(seconds: Int, multiplier: Int) -> String {
+        String(format: tr("stage.overlay.stats_format", comment: "%llds · ×%lld — seconds per move and score multiplier"), seconds, multiplier)
     }
     static var zenOverlayLevelPrefix: String { tr("zen.overlay.level_prefix", comment: "Zen intro overlay small header") }
     static var zenOverlayStageText: String { tr("zen.overlay.stage_text", comment: "Zen intro overlay large text") }

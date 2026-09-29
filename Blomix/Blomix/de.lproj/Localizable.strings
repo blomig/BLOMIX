@@ -248,9 +248,8 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "entspannt";
 
-/* Stage transition overlay */
-"stage.overlay.timer_format" = "%lld s pro Zug";
-"stage.overlay.multiplier_format" = "Punkte × %lld";
+/* Stage transition overlay (Arcade / Daily) */
+"stage.overlay.stats_format" = "%llds · ×%lld";
 
 /* Rank discs (start screen) */
 "rank_disc.solo" = "ARC.";

@@ -243,8 +243,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "rilassati";
 
-"stage.overlay.timer_format" = "%lld s per mossa";
-"stage.overlay.multiplier_format" = "Punti × %lld";
+"stage.overlay.stats_format" = "%llds · ×%lld";
 
 "rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "MED.";

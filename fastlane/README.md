@@ -8,7 +8,7 @@ Pipeline local vers App Store Connect. Procédure complète : [`DOCS/DEVELOPMENT
 | `metadata` | PATCH Nouveautés + texte promo **uniquement** |
 | `beta` | Archive Release → TestFlight |
 | `release` | Archive + binaire + textes — **pas** de review |
-| `submit` | Envoi à la review (`automatic_release: false`) |
+| `submit` | Envoi à la review (`automatic_release: true`) |
 
 ```bash
 cp .env.example .env   # clé API hors git

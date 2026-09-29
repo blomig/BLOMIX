@@ -1,4 +1,3 @@
-• El +N y las cadenas se disuelven en destellos hacia la puntuación grande
-• Magix: ráfaga al aterrizar; el disco se transforma o desaparece con limpieza
-• Bomba: los destellos de blox y Brix también van a la puntuación
-• Arcade o Zen y el Desafío del día se guardan en paralelo; el Duelo ya no borra Continuar
+• Arcade, Zen y el Desafío del día se guardan por separado
+• Los Brix dejan 3 estrellitas al desaparecer
+• Los stages se anuncian como L1…L★, más contundentes

@@ -106,7 +106,7 @@ platform :ios do
     version = marketing_version
     build = get_build_number(xcodeproj: XCODEPROJ)
     assert_editable_version_is_ours!(version)
-    UI.important("Soumission #{version} (build #{build}) -- automatic_release=false")
+    UI.important("Soumission #{version} (build #{build}) -- automatic_release=true")
     upload_to_app_store(
       **deliver_common(api, version).merge(
         skip_binary_upload: true,
@@ -114,7 +114,7 @@ platform :ios do
         metadata_path: generated,
         skip_metadata: false,
         submit_for_review: true,
-        automatic_release: false,
+        automatic_release: true,
         submission_information: {
           add_id_info_uses_idfa: false,
           export_compliance_uses_encryption: false,

@@ -248,9 +248,8 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "chill";
 
-/* Stage transition overlay */
-"stage.overlay.timer_format" = "%lld s per move";
-"stage.overlay.multiplier_format" = "Points × %lld";
+/* Stage transition overlay (Arcade / Daily) */
+"stage.overlay.stats_format" = "%llds · ×%lld";
 
 /* Rank discs (start screen) */
 "rank_disc.solo" = "ARC.";

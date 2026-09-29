@@ -18,7 +18,7 @@ struct BlomixDailyScoreEntry: Sendable {
     let score: Int
 }
 
-/// Snapshot persisté (clé séparée de `blomix_solo_save_v2`).
+/// Snapshot persisté (clé séparée de l’Arcade `blomix_solo_save_v2` et du Zen `blomix_zen_save_v1`).
 struct BlomixDailyRunSave: Codable {
     static let currentVersion = 1
     let version: Int

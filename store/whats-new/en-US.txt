@@ -1,3 +1,3 @@
 • Arcade, Zen and Daily Challenge each keep their own save
 • Brix leave 3 little stars when they vanish
-• Stages announce themselves as L1…L★, with more punch
+• Stages announce themselves as L1…L*, with more punch

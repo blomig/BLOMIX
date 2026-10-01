@@ -94,6 +94,7 @@ enum BlomixL10n {
     static var gameOverIncomingLineLabel: String { tr("game_over.incoming_line_label", comment: "Worst-move overlay pending line caption") }
     static var hudBestScoreTitle: String { tr("hud.best_score_title", comment: "HUD best score caption") }
     static var hudDailyToBeatTitle: String { tr("hud.daily_to_beat_title", comment: "HUD caption — today's daily leader to beat") }
+    static var hudLeaderScoreTitle: String { tr("hud.leader_score_title", comment: "HUD caption — all-time leaderboard #1 (Arcade / Zen)") }
     static var hudBonusTitle: String { tr("hud.bonus_title", comment: "HUD score multiplier caption (solo)") }
     static func hudBestScore(_ score: Int) -> String {
         String(format: tr("hud.best_score_format", comment: "HUD best score; %lld = score"), score)

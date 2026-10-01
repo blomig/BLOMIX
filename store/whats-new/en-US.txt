@@ -1,3 +1,4 @@
-• Arcade, Zen and Daily Challenge each keep their own save
-• Brix leave 3 little stars when they vanish
-• Stages announce themselves as L1…L*, with more punch
+• Arcade and Zen: your BEST and the board #1 side by side
+• Daily Challenge: TO BEAT follows your score when you lead
+• Tutorial: no record above the score
+• Home: Daily rank shows up right away

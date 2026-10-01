@@ -52,6 +52,10 @@ final class BlomixDailyChallenge {
     private static let careerPointsKey = "blomix_daily_career_points"
     private static let pendingGCKey = "blomix_daily_pending_gc_points"
     private static let creditedPrefix = "blomix_daily_credited_"
+    /// Dernier rang carrière CloudKit affiché sur la pastille accueil.
+    private static let careerRankKey = "blomix_daily_career_rank"
+    private static let careerRankPlayerKey = "blomix_daily_career_rank_pid"
+    private static let careerStandingsFreshInterval: TimeInterval = 20
 
     private let ckContainer = CKContainer(identifier: "iCloud.blomig.BLOMIX")
     private var publicDB: CKDatabase { ckContainer.publicCloudDatabase }
@@ -60,6 +64,10 @@ final class BlomixDailyChallenge {
     /// Dernier meilleur score CloudKit connu (HUD « À battre »), par jour UTC.
     private var cachedLeaderDay: String?
     private var cachedLeaderScore: Int = 0
+    /// Dernier classement carrière (pastille + onglet) — évite de re-attendre les 60 jours CK.
+    private var cachedCareerStandings: [BlomixDailyScoreEntry]?
+    private var careerStandingsFetchedAt: Date?
+    private var careerStandingsInFlight: Task<BlomixDailyScoresLoad, Never>?
 
     private init() {}
 
@@ -88,6 +96,9 @@ final class BlomixDailyChallenge {
         }
         flushPendingCareerPoints()
         claimPodiumIfNeeded()
+        Task { [weak self] in
+            _ = await self?.fetchCareerStandings()
+        }
     }
 
     // MARK: - État local
@@ -373,10 +384,57 @@ final class BlomixDailyChallenge {
         submitCareerPoints(careerPoints)
     }
 
+    /// Rang pastille déjà connu (session précédente ou fetch réussi). `nil` si autre joueur / jamais chargé.
+    func cachedLocalCareerRank() -> Int? {
+        let pid = GKLocalPlayer.local.gamePlayerID
+        guard !pid.isEmpty, pid != "GKPlayerIDUnknown" else { return nil }
+        let storedPid = UserDefaults.standard.string(forKey: Self.careerRankPlayerKey) ?? ""
+        guard storedPid == pid else { return nil }
+        let rank = UserDefaults.standard.integer(forKey: Self.careerRankKey)
+        return rank > 0 ? rank : nil
+    }
+
+    private func rememberLocalCareerRank(_ rank: Int?) {
+        let pid = GKLocalPlayer.local.gamePlayerID
+        guard !pid.isEmpty, pid != "GKPlayerIDUnknown", let rank, rank > 0 else { return }
+        UserDefaults.standard.set(rank, forKey: Self.careerRankKey)
+        UserDefaults.standard.set(pid, forKey: Self.careerRankPlayerKey)
+    }
+
     /// Carrière podium = **recalcul** des +5/+3/+1 sur les `DailyScore` des jours clos.
     /// Lecture seule : n’écrit ni CloudKit ni Game Center. Idempotent (ouvrir l’app N fois
     /// ou à N joueurs ne change pas les totaux).
+    /// Coalescé + cache 20 s : la pastille accueil n’attend plus un aller-retour CK à chaque retour.
     func fetchCareerStandings(lookbackDays: Int = 60) async -> BlomixDailyScoresLoad {
+        if let inFlight = careerStandingsInFlight {
+            return await inFlight.value
+        }
+        if let cached = cachedCareerStandings,
+           let fetchedAt = careerStandingsFetchedAt,
+           Date().timeIntervalSince(fetchedAt) < Self.careerStandingsFreshInterval {
+            return .loaded(cached)
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return BlomixDailyScoresLoad.unavailable }
+            let load = await self.performFetchCareerStandings(lookbackDays: lookbackDays)
+            switch load {
+            case .loaded(let entries):
+                self.cachedCareerStandings = entries
+                self.careerStandingsFetchedAt = Date()
+                self.rememberLocalCareerRank(
+                    Self.denseCareerRank(of: GKLocalPlayer.local.gamePlayerID, in: entries)
+                )
+            case .unavailable:
+                break
+            }
+            self.careerStandingsInFlight = nil
+            return load
+        }
+        careerStandingsInFlight = task
+        return await task.value
+    }
+
+    private func performFetchCareerStandings(lookbackDays: Int) async -> BlomixDailyScoresLoad {
         let days = closedUtcDays(lookback: lookbackDays)
         var records: [CKRecord] = []
         var cloudFailed = false
@@ -433,11 +491,12 @@ final class BlomixDailyChallenge {
     }
 
     /// Rang accueil = même source que l’onglet (CloudKit), pas le board GC.
+    /// Si CloudKit est KO, renvoie le dernier rang persisté plutôt que `nil`.
     func fetchLocalCareerRank() async -> Int? {
         let localID = GKLocalPlayer.local.gamePlayerID
         switch await fetchCareerStandings() {
         case .unavailable:
-            return nil
+            return cachedLocalCareerRank()
         case .loaded(let entries):
             return Self.denseCareerRank(of: localID, in: entries)
         }

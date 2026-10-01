@@ -64,7 +64,7 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 
 ### Version de référence
 
-Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **7.6** ; **7.5 / 141** en vente). La mettre à jour lors d'une release majeure.
+Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **7.7** ; **7.6 / 142** en vente). La mettre à jour lors d'une release majeure.
 
 ### Nouveautés App Store (systématique à la release)
 

@@ -20,6 +20,7 @@ import UIKit
 ///   réconciliation **local → GC** si le hiscore appareil dépasse le best GC (sans jamais baisser le local).
 /// - **`fetchLocalPlayerBestScore`** alimente la comparaison pour **`isNewPersonalBest`** (max local + GC si déjà chargé)
 ///   et déclenche un upload local si `local > GC` (throttle).
+/// - **`fetchLeaderboardTopScore`** charge l’entrée **rang 1** all-time (HUD N°1 Arcade / Zen) ; cache mémoire.
 @MainActor
 final class ScoreManager {
     // MARK: - Singleton
@@ -639,6 +640,82 @@ final class ScoreManager {
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - N°1 all-time (HUD Arcade / Zen)
+
+    private var cachedMainTopScore: Int = 0
+    private var cachedZenTopScore: Int = 0
+    private var hasFetchedMainTopScore = false
+    private var hasFetchedZenTopScore = false
+
+    /// Dernier n°1 connu pour le board (0 si jamais chargé).
+    func cachedLeaderboardTopScore(leaderboardID: String) -> Int {
+        if leaderboardID == ScoreManager.zenLeaderboardID { return cachedZenTopScore }
+        return cachedMainTopScore
+    }
+
+    /// `true` après au moins un fetch n°1 réussi (y compris board vide → 0).
+    func hasFetchedLeaderboardTopScore(leaderboardID: String) -> Bool {
+        if leaderboardID == ScoreManager.zenLeaderboardID { return hasFetchedZenTopScore }
+        return hasFetchedMainTopScore
+    }
+
+    private func recordLeaderboardTopScore(_ score: Int, leaderboardID: String) {
+        if leaderboardID == ScoreManager.zenLeaderboardID {
+            hasFetchedZenTopScore = true
+            cachedZenTopScore = max(0, score)
+        } else {
+            hasFetchedMainTopScore = true
+            cachedMainTopScore = max(0, score)
+        }
+    }
+
+    /// Charge le **n°1** all-time global du leaderboard (pas le joueur local).
+    func fetchLeaderboardTopScore(
+        leaderboardID: String,
+        completion: @escaping @Sendable @MainActor (Result<Int, Error>) -> Void
+    ) {
+        guard isAuthenticated else {
+            let error = NSError(
+                domain: "ScoreManager",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Joueur non authentifié : impossible de charger le n°1."]
+            )
+            completion(.failure(error))
+            return
+        }
+
+        GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, loadError in
+            if let loadError {
+                Task { @MainActor in completion(.failure(loadError)) }
+                return
+            }
+            guard let leaderboard = leaderboards?.first else {
+                let error = NSError(
+                    domain: "ScoreManager",
+                    code: 3,
+                    userInfo: [NSLocalizedDescriptionKey: "Aucun leaderboard pour « \(leaderboardID) »."]
+                )
+                Task { @MainActor in completion(.failure(error)) }
+                return
+            }
+            leaderboard.loadEntries(
+                for: .global,
+                timeScope: .allTime,
+                range: NSRange(location: 1, length: 1)
+            ) { _, entries, _, error in
+                if let error {
+                    Task { @MainActor in completion(.failure(error)) }
+                    return
+                }
+                let top = entries?.first.map { Int($0.score) } ?? 0
+                Task { @MainActor [weak self] in
+                    self?.recordLeaderboardTopScore(top, leaderboardID: leaderboardID)
+                    completion(.success(top))
                 }
             }
         }

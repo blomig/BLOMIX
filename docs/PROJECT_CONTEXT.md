@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 7.6  
+> **Version de référence** : 7.7  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -348,7 +348,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - **Arcade** hero pleine largeur sous BLOMIX, **Défi du jour** hero en dessous ; Duel + Zen en paire. Entrée chips (y compris Défi) **après** le poinçon BLOMIX (`runStartScreenGameChipEntrance`). Duel : pastille `person.fill` verte (respiration) à droite du libellé, dans la capsule, si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
-- 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = rang carrière CloudKit (même liste que l’onglet Défi), pas le board GC ni la liste du jour
+- 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = rang carrière CloudKit (même liste que l’onglet Défi), pas le board GC ni la liste du jour. Pastille Défi : dernier rang persisté tout de suite, recalcul 60 jours coalescé en arrière-plan (cache 20 s).
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
 - Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi / Duel+Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
@@ -394,7 +394,10 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
 ### HUD en jeu
 
 - Score animé (rolling counter, milestones 100/1000) ; **Duel** : affichage `score % 50` (total inchangé)
-- Best score Game Center (Arcade / Zen). **Défi du jour** : légende **À battre** + leader CloudKit du jour (refetch au lancement / reprise / `didBecomeActive`)
+- Ghosts **au-dessus** du gros score, même Y qu’avant (`liftAboveGrid` / LIGNE / TEMPS / badge / bombes inchangés) :
+  - Arcade / Zen : **RECORD** perso (max local + GC) à gauche, **N°1** all-time du board (`fetchLeaderboardTopScore`, rang 1) à droite. Vert + chiffre = run si `score > baseline`.
+  - **Défi du jour** : **À BATTRE** centré + leader CloudKit du jour ; suit la run si en tête (refetch au lancement / reprise / `didBecomeActive`)
+  - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
 - Compteur LIGNE x/10 (gauche)
 - Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
 - Timer stage ou PvP (droite)
@@ -452,7 +455,7 @@ Blomix/Blomix/
 ├── BlomixPvPLocalSession.swift   # PvP Local (MultipeerConnectivity)
 ├── BlomixPvPUI.swift             # Lobby, résultats, dialogues in-app, adversaires récents
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
-├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + reconcile local>GC
+├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + n°1 HUD + reconcile local>GC
 ├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
 ├── BlomixRulesGuideViewController.swift  # Guide règles + Magix (6.4)
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)

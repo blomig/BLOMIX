@@ -868,8 +868,11 @@ final class GameScene: SKScene {
     private static let scoreHudLabelName = "hudScoreLabel"
     /// Bounce d’arrivée après compactage (cosmétique, n’entre pas dans la file de jeu).
     private static let compactLandingBounceKey = "compactLandingBounce"
-    private static let bestScoreAboveName    = "hudBestScoreAbove"     // chiffre seul au-dessus du score
+    private static let bestScoreAboveName    = "hudBestScoreAbove"     // RECORD / À BATTRE — chiffre
     private static let bestScoreTitleName    = "hudBestScoreTitle"
+    /// N°1 all-time (Arcade / Zen uniquement), même bandeau que RECORD.
+    private static let leaderScoreAboveName  = "hudLeaderScoreAbove"
+    private static let leaderScoreTitleName  = "hudLeaderScoreTitle"
     private static let hudAttackCaptionName  = "hudAttackCaption"
     private static let bombeCaptionName      = "hudBombeCaption"   // conservé pour compatibilité saves
     private static let bombeValueName        = "hudBombeValue"     // conservé pour compatibilité saves
@@ -1466,8 +1469,14 @@ final class GameScene: SKScene {
     private var attackPileHotIndex: Int? = nil
     /// Taille intérieure de la barre (largeur × hauteur utile 0…50).
     private var attackPileInnerSize: CGSize = .zero
-    /// Meilleur score affiché dans le HUD (Arcade/Zen : PB ; Défi : leader du jour).
+    /// Chiffre RECORD / À BATTRE affiché (peut suivre la run).
     private var hudBestScoreValue: Int = 0
+    /// Cible RECORD / À BATTRE (PB ou leader du jour) — pas la run en cours.
+    private var hudBestScoreBaseline: Int = 0
+    /// Chiffre N°1 affiché (Arcade / Zen).
+    private var hudLeaderScoreValue: Int = 0
+    /// Cible N°1 GC — pas la run en cours.
+    private var hudLeaderScoreBaseline: Int = 0
     /// Ignore les retours asynchrones obsolètes lors des rafraîchissements du record.
     private var bestScoreFetchGeneration: Int = 0
 
@@ -3300,8 +3309,10 @@ final class GameScene: SKScene {
         childNode(withName: Self.upcomingSlotNextName)?.isHidden = hidden
         childNode(withName: Self.upcomingQueueCaptionLabelName)?.isHidden = hidden
         childNode(withName: Self.scoreHudLabelName)?.isHidden = hidden
-        childNode(withName: Self.bestScoreAboveName)?.isHidden = hidden || pvpCoordinator != nil
-        childNode(withName: Self.bestScoreTitleName)?.isHidden = hidden || pvpCoordinator != nil
+        childNode(withName: Self.bestScoreAboveName)?.isHidden = hidden || hidesGhostScoreHUD
+        childNode(withName: Self.bestScoreTitleName)?.isHidden = hidden || hidesGhostScoreHUD
+        childNode(withName: Self.leaderScoreAboveName)?.isHidden = hidden || !showsLeaderboardTopHUD
+        childNode(withName: Self.leaderScoreTitleName)?.isHidden = hidden || !showsLeaderboardTopHUD
         childNode(withName: Self.hudAttackCaptionName)?.isHidden = hidden || pvpCoordinator == nil
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isZenMode
         // Compteur LIGNE
@@ -3559,13 +3570,47 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Duel et tutoriel : pas de RECORD / N°1 / À BATTRE au-dessus du gros score.
+    private var hidesGhostScoreHUD: Bool { pvpCoordinator != nil || isTutorialMode }
+    /// Arcade ou Zen en partie : colonne N°1 à droite de RECORD.
+    private var showsLeaderboardTopHUD: Bool {
+        !hidesGhostScoreHUD && !isDailyChallengeMode && !isStartScreen
+    }
+
+    private static let hudGhostLiveBeatColor = SKColor(red: 0.20, green: 0.85, blue: 0.35, alpha: 1)
+
+    private enum GhostScoreColumn {
+        case personal
+        case leader
+    }
+
+    private func applyGhostScoreHUDValue(column: GhostScoreColumn, value: Int, isLiveBeat: Bool) {
+        let shown = max(0, value)
+        let name: String
+        switch column {
+        case .personal:
+            hudBestScoreValue = shown
+            name = Self.bestScoreAboveName
+        case .leader:
+            hudLeaderScoreValue = shown
+            name = Self.leaderScoreAboveName
+        }
+        guard let n = childNode(withName: name) as? SKLabelNode else { return }
+        n.text = "\(shown)"
+        n.fontColor = isLiveBeat ? Self.hudGhostLiveBeatColor : BlomixAppearance.tertiaryTextSK
+    }
+
     private func applyBestScoreHUDValue(_ value: Int, isLiveBeat: Bool = false) {
-        hudBestScoreValue = max(0, value)
-        guard let n = childNode(withName: Self.bestScoreAboveName) as? SKLabelNode else { return }
-        n.text = "\(hudBestScoreValue)"
-        let green = SKColor(red: 0.20, green: 0.85, blue: 0.35, alpha: 1)
-        let gray  = BlomixAppearance.tertiaryTextSK
-        n.fontColor = isLiveBeat ? green : gray
+        applyGhostScoreHUDValue(column: .personal, value: value, isLiveBeat: isLiveBeat)
+    }
+
+    /// Affiche la cible, ou la run en vert si elle la dépasse.
+    private func applyGhostScoreAgainstBaseline(column: GhostScoreColumn, baseline: Int) {
+        if score > baseline {
+            applyGhostScoreHUDValue(column: column, value: score, isLiveBeat: true)
+        } else {
+            applyGhostScoreHUDValue(column: column, value: baseline, isLiveBeat: false)
+        }
     }
 
     private var dailyChallengeHUDDay: String {
@@ -3575,6 +3620,9 @@ final class GameScene: SKScene {
     private func refreshBestScoreHUDTitle() {
         guard let title = childNode(withName: Self.bestScoreTitleName) as? SKLabelNode else { return }
         title.text = isDailyChallengeMode ? BlomixL10n.hudDailyToBeatTitle : BlomixL10n.hudBestScoreTitle
+        if let leaderTitle = childNode(withName: Self.leaderScoreTitleName) as? SKLabelNode {
+            leaderTitle.text = BlomixL10n.hudLeaderScoreTitle
+        }
     }
 
     private func initialBestScoreHUDValue() -> Int {
@@ -3587,20 +3635,45 @@ final class GameScene: SKScene {
         return ScoreManager.shared.getLocalHighScore()
     }
 
-    /// Défi : le chiffre reste le leader du jour (pas le score en cours). Vert si on le dépasse.
+    private func currentLeaderboardIDForHUD() -> String {
+        isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
+    }
+
+    /// RECORD / À BATTRE / N°1 : vert + chiffre = run si on dépasse la cible.
     private func noteScoreAgainstBestHUD() {
-        if isDailyChallengeMode {
-            applyBestScoreHUDValue(hudBestScoreValue, isLiveBeat: score > hudBestScoreValue)
-            return
+        guard !hidesGhostScoreHUD else { return }
+        applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
+        guard showsLeaderboardTopHUD else { return }
+        applyLeaderGhostIfBaselineKnown()
+    }
+
+    /// N°1 : pas de vert tant que GC n’a pas répondu (0 inconnu ≠ board vide).
+    private func applyLeaderGhostIfBaselineKnown() {
+        let known = hudLeaderScoreBaseline > 0
+            || ScoreManager.shared.hasFetchedLeaderboardTopScore(
+                leaderboardID: currentLeaderboardIDForHUD()
+            )
+        if known {
+            applyGhostScoreAgainstBaseline(column: .leader, baseline: hudLeaderScoreBaseline)
+        } else {
+            applyGhostScoreHUDValue(column: .leader, value: 0, isLiveBeat: false)
         }
-        if score > hudBestScoreValue {
-            applyBestScoreHUDValue(score, isLiveBeat: true)
-        }
+    }
+
+    private func refreshGhostScoreHUDVisibility() {
+        let hidePersonal = isStartScreen || hidesGhostScoreHUD
+        childNode(withName: Self.bestScoreAboveName)?.isHidden = hidePersonal
+        childNode(withName: Self.bestScoreTitleName)?.isHidden = hidePersonal
+        let hideLeader = isStartScreen || !showsLeaderboardTopHUD
+        childNode(withName: Self.leaderScoreAboveName)?.isHidden = hideLeader
+        childNode(withName: Self.leaderScoreTitleName)?.isHidden = hideLeader
     }
 
     private func refreshBestScoreHUDIfNeeded() {
         guard childNode(withName: Self.bestScoreAboveName) != nil else { return }
         refreshBestScoreHUDTitle()
+        refreshGhostScoreHUDVisibility()
+        if hidesGhostScoreHUD { return }
         if isDailyChallengeMode {
             refreshDailyToBeatHUD()
             return
@@ -3609,36 +3682,61 @@ final class GameScene: SKScene {
         let localBest = isZenMode
             ? ScoreManager.shared.getLocalZenHighScore()
             : ScoreManager.shared.getLocalHighScore()
-        let fallbackLocalBest = max(localBest, score, hudBestScoreValue)
-        applyBestScoreHUDValue(fallbackLocalBest)
+        hudBestScoreBaseline = localBest
+        applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
+
+        if showsLeaderboardTopHUD {
+            hudLeaderScoreBaseline = ScoreManager.shared.cachedLeaderboardTopScore(
+                leaderboardID: currentLeaderboardIDForHUD()
+            )
+            applyLeaderGhostIfBaselineKnown()
+        }
 
         bestScoreFetchGeneration += 1
         let generation = bestScoreFetchGeneration
         guard ScoreManager.shared.isAuthenticated else { return }
 
-        let leaderboardID = isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
+        let leaderboardID = currentLeaderboardIDForHUD()
         ScoreManager.shared.fetchLocalPlayerBestScore(leaderboardID: leaderboardID) { [weak self] result in
             guard let self else { return }
             guard generation == self.bestScoreFetchGeneration, !self.isDailyChallengeMode else { return }
             let localFallback = self.isZenMode
                 ? ScoreManager.shared.getLocalZenHighScore()
                 : ScoreManager.shared.getLocalHighScore()
+            let fetched: Int
             switch result {
             case .success(let best):
-                let resolved = max(best ?? 0, localFallback, self.score)
-                self.applyBestScoreHUDValue(resolved)
+                fetched = best ?? 0
             case .failure:
-                let resolved = max(localFallback, self.score, self.hudBestScoreValue)
-                self.applyBestScoreHUDValue(resolved)
+                fetched = 0
             }
+            self.hudBestScoreBaseline = max(fetched, localFallback)
+            self.applyGhostScoreAgainstBaseline(column: .personal, baseline: self.hudBestScoreBaseline)
+        }
+
+        guard showsLeaderboardTopHUD else { return }
+        ScoreManager.shared.fetchLeaderboardTopScore(leaderboardID: leaderboardID) { [weak self] result in
+            guard let self else { return }
+            guard generation == self.bestScoreFetchGeneration, self.showsLeaderboardTopHUD else { return }
+            switch result {
+            case .success(let top):
+                self.hudLeaderScoreBaseline = max(0, top)
+            case .failure:
+                self.hudLeaderScoreBaseline = max(
+                    self.hudLeaderScoreBaseline,
+                    ScoreManager.shared.cachedLeaderboardTopScore(leaderboardID: leaderboardID)
+                )
+            }
+            self.applyLeaderGhostIfBaselineKnown()
         }
     }
 
-    /// Leader CloudKit du jour (cache immédiat, puis refetch).
+    /// Leader CloudKit du jour (cache immédiat, puis refetch). Suit la run si on est en tête.
     private func refreshDailyToBeatHUD() {
         let day = dailyChallengeHUDDay
         let cached = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? 0
-        applyBestScoreHUDValue(cached, isLiveBeat: score > cached)
+        hudBestScoreBaseline = cached
+        applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
 
         bestScoreFetchGeneration += 1
         let generation = bestScoreFetchGeneration
@@ -3651,9 +3749,10 @@ final class GameScene: SKScene {
             case .loaded(let entries):
                 leader = entries.first?.score ?? 0
             case .unavailable:
-                leader = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? self.hudBestScoreValue
+                leader = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? self.hudBestScoreBaseline
             }
-            self.applyBestScoreHUDValue(leader, isLiveBeat: self.score > leader)
+            self.hudBestScoreBaseline = leader
+            self.applyGhostScoreAgainstBaseline(column: .personal, baseline: self.hudBestScoreBaseline)
         }
     }
 
@@ -3684,7 +3783,8 @@ final class GameScene: SKScene {
         refreshStartScreenRankDiscsIfVisible()
     }
 
-    /// Fetche le rang du joueur sur les 4 leaderboards (Arcade, Moyenne, Zen, Duel).
+    /// Fetche le rang du joueur sur les 5 pastilles (Arcade, Moyenne, Zen, Duel, Défi).
+    /// Défi : CloudKit 60 jours — on peint d’abord le dernier rang connu, puis on rafraîchit.
     private func refreshStartScreenRankDiscsIfVisible() {
         guard isStartScreen else { return }
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
@@ -3706,6 +3806,9 @@ final class GameScene: SKScene {
 
         for (leaderboardID, discName) in specs {
             if leaderboardID == ScoreManager.dailyLeaderboardID {
+                if let cached = BlomixDailyChallenge.shared.cachedLocalCareerRank() {
+                    applyStartScreenDiscRank(cached, discName: discName, in: container)
+                }
                 Task { @MainActor [weak self] in
                     guard let self, self.isStartScreen else { return }
                     if let rank = await BlomixDailyChallenge.shared.fetchLocalCareerRank() {
@@ -3715,6 +3818,7 @@ final class GameScene: SKScene {
                         self.applyStartScreenDiscRank(rank, discName: discName, in: container)
                         return
                     }
+                    if BlomixDailyChallenge.shared.cachedLocalCareerRank() != nil { return }
                     ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { [weak self] rank in
                         guard let self, self.isStartScreen, let rank else { return }
                         guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
@@ -3935,6 +4039,9 @@ final class GameScene: SKScene {
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
         childNode(withName: Self.scoreHudLabelName)?.removeFromParent()
         childNode(withName: Self.bestScoreAboveName)?.removeFromParent()
+        childNode(withName: Self.bestScoreTitleName)?.removeFromParent()
+        childNode(withName: Self.leaderScoreAboveName)?.removeFromParent()
+        childNode(withName: Self.leaderScoreTitleName)?.removeFromParent()
         childNode(withName: Self.hudTimerCaptionName)?.removeFromParent()
         childNode(withName: Self.bombHudIconName)?.removeFromParent()
         childNode(withName: Self.hudPvPTurnTimerName)?.removeFromParent()
@@ -7609,6 +7716,8 @@ final class GameScene: SKScene {
         childNode(withName: Self.scoreHudLabelName)?.removeFromParent()
         childNode(withName: Self.bestScoreAboveName)?.removeFromParent()
         childNode(withName: Self.bestScoreTitleName)?.removeFromParent()
+        childNode(withName: Self.leaderScoreAboveName)?.removeFromParent()
+        childNode(withName: Self.leaderScoreTitleName)?.removeFromParent()
         childNode(withName: Self.hudAttackCaptionName)?.removeFromParent()
         childNode(withName: Self.bombeCaptionName)?.removeFromParent()
         childNode(withName: Self.bombeValueName)?.removeFromParent()
@@ -7626,10 +7735,11 @@ final class GameScene: SKScene {
         label.zPosition = 12
         addChild(label)
 
-        // Best score — chiffre seul, centré, au-dessus du score (solo uniquement)
+        // Ghosts au-dessus du gros score — même Y qu’avant ; la grille ne bouge pas.
         let grayColor14 = BlomixAppearance.tertiaryText
         let initialBest = initialBestScoreHUDValue()
         hudBestScoreValue = initialBest
+        hudBestScoreBaseline = initialBest
         let bestAboveLabel = SKLabelNode(text: "\(initialBest)")
         bestAboveLabel.name = Self.bestScoreAboveName
         bestAboveLabel.fontName = Self.customUIFontPostScriptName
@@ -7638,7 +7748,6 @@ final class GameScene: SKScene {
         bestAboveLabel.horizontalAlignmentMode = .center
         bestAboveLabel.verticalAlignmentMode = .center
         bestAboveLabel.zPosition = 12
-        bestAboveLabel.isHidden = pvpCoordinator != nil
         addChild(bestAboveLabel)
 
         let bestTitle = SKLabelNode(text: isDailyChallengeMode ? BlomixL10n.hudDailyToBeatTitle : BlomixL10n.hudBestScoreTitle)
@@ -7649,8 +7758,32 @@ final class GameScene: SKScene {
         bestTitle.horizontalAlignmentMode = .center
         bestTitle.verticalAlignmentMode = .center
         bestTitle.zPosition = 12
-        bestTitle.isHidden = pvpCoordinator != nil
         addChild(bestTitle)
+
+        let initialTop = ScoreManager.shared.cachedLeaderboardTopScore(
+            leaderboardID: currentLeaderboardIDForHUD()
+        )
+        hudLeaderScoreValue = initialTop
+        hudLeaderScoreBaseline = initialTop
+        let leaderAboveLabel = SKLabelNode(text: "\(initialTop)")
+        leaderAboveLabel.name = Self.leaderScoreAboveName
+        leaderAboveLabel.fontName = Self.customUIFontPostScriptName
+        leaderAboveLabel.fontSize = 14
+        leaderAboveLabel.fontColor = grayColor14
+        leaderAboveLabel.horizontalAlignmentMode = .center
+        leaderAboveLabel.verticalAlignmentMode = .center
+        leaderAboveLabel.zPosition = 12
+        addChild(leaderAboveLabel)
+
+        let leaderTitle = SKLabelNode(text: BlomixL10n.hudLeaderScoreTitle)
+        leaderTitle.name = Self.leaderScoreTitleName
+        leaderTitle.fontName = Self.customUIFontPostScriptName
+        leaderTitle.fontSize = 11
+        leaderTitle.fontColor = grayColor14
+        leaderTitle.horizontalAlignmentMode = .center
+        leaderTitle.verticalAlignmentMode = .center
+        leaderTitle.zPosition = 12
+        addChild(leaderTitle)
 
         let attackCaption = SKLabelNode(text: BlomixL10n.hudAttackCaption)
         attackCaption.name = Self.hudAttackCaptionName
@@ -7676,7 +7809,7 @@ final class GameScene: SKScene {
         timerCaptionLabel.isHidden = isZenMode   // pas de timer en mode Zen
         addChild(timerCaptionLabel)
 
-        // Compteur LIGNE (gauche du score — symétrique du RECORD à droite)
+        // Compteur LIGNE (gauche du gros score — symétrique de TEMPS à droite)
         let grayColor = BlomixAppearance.tertiaryText
         let ligneCaptionLabel = SKLabelNode(text: BlomixL10n.hudLineCaption)
         ligneCaptionLabel.name = Self.ligneCaptionName
@@ -7718,23 +7851,31 @@ final class GameScene: SKScene {
             x: gridAreaCenter.x,
             y: gridAreaCenter.y + half + liftAboveGrid
         )
-        // Best score centré au-dessus du score (solo uniquement)
+        // Ghosts : même bandeau vertical qu’avant (grille / LIGNE / TEMPS inchangés).
+        // Arcade/Zen : RECORD à gauche, N°1 à droite. Défi : À BATTRE centré.
+        let ghostNumberY = label.position.y + 26 + 8 + 11
+        let ghostTitleY  = label.position.y + 26 + 8 + 24
+        let pairSpread: CGFloat = 56
+        let dualGhosts = showsLeaderboardTopHUD
+        let personalX = dualGhosts ? gridAreaCenter.x - pairSpread : gridAreaCenter.x
+        let leaderX   = gridAreaCenter.x + pairSpread
         if let bestAbove = childNode(withName: Self.bestScoreAboveName) as? SKLabelNode {
             bestAbove.fontSize = 14
-            bestAbove.position = CGPoint(
-                x: gridAreaCenter.x,
-                y: label.position.y + 26 + 8 + 11
-            )
-            bestAbove.isHidden = pvpCoordinator != nil
+            bestAbove.position = CGPoint(x: personalX, y: ghostNumberY)
         }
         if let bestTitle = childNode(withName: Self.bestScoreTitleName) as? SKLabelNode {
             bestTitle.fontSize = 11
-            bestTitle.position = CGPoint(
-                x: gridAreaCenter.x,
-                y: label.position.y + 26 + 8 + 24
-            )
-            bestTitle.isHidden = pvpCoordinator != nil
+            bestTitle.position = CGPoint(x: personalX, y: ghostTitleY)
         }
+        if let leaderAbove = childNode(withName: Self.leaderScoreAboveName) as? SKLabelNode {
+            leaderAbove.fontSize = 14
+            leaderAbove.position = CGPoint(x: leaderX, y: ghostNumberY)
+        }
+        if let leaderTitle = childNode(withName: Self.leaderScoreTitleName) as? SKLabelNode {
+            leaderTitle.fontSize = 11
+            leaderTitle.position = CGPoint(x: leaderX, y: ghostTitleY)
+        }
+        refreshGhostScoreHUDVisibility()
         if let attackCap = childNode(withName: Self.hudAttackCaptionName) as? SKLabelNode {
             attackCap.fontSize = 14
             // Plus proche du gros score / barre (l’adversaire est au-dessus).
@@ -16484,8 +16625,7 @@ final class GameScene: SKScene {
         label.isHidden = pvpCoordinator == nil
         // La caption "TEMPS" reste visible en PvP (partagée avec le stage timer)
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = pvpCoordinator == nil
-        childNode(withName: Self.bestScoreAboveName)?.isHidden = pvpCoordinator != nil
-        childNode(withName: Self.bestScoreTitleName)?.isHidden = pvpCoordinator != nil
+        refreshGhostScoreHUDVisibility()
         childNode(withName: Self.hudAttackCaptionName)?.isHidden = pvpCoordinator == nil
         refreshAttackPileHUD()
         if let opponentLabel = childNode(withName: Self.hudPvPOpponentName) as? SKLabelNode {

@@ -1,3 +1,4 @@
-• Arcade, Zen e Sfida del giorno si salvano ciascuno per conto proprio
-• I Brix lasciano 3 stelline quando scompaiono
-• Gli stage arrivano come L1…L*, più decisi
+• Arcade e Zen: il tuo RECORD e il 1° in classifica affiancati
+• Sfida del giorno: DA BATTERE segue il tuo punteggio se sei in testa
+• Tutorial: niente più RECORD sopra il punteggio
+• Home: il rango Sfida compare subito

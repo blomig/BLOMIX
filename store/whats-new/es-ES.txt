@@ -1,3 +1,4 @@
-• Arcade, Zen y el Desafío del día se guardan por separado
-• Los Brix dejan 3 estrellitas al desaparecer
-• Los stages se anuncian como L1…L*, más contundentes
+• Arcade y Zen: tu RÉCORD y el N.º 1 juntos
+• Desafío del día: A SUPERAR sigue tu puntuación si vas primero
+• Tutorial: ya no hay RÉCORD encima de la puntuación
+• Inicio: el rango del Desafío aparece al instante

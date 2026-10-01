@@ -1,3 +1,4 @@
-• Arcade, Zen und Tägliche Challenge speichern getrennt
-• Brix hinterlassen 3 kleine Sterne beim Verschwinden
-• Stages kommen als L1…L*, knackiger
+• Arcade und Zen: dein REKORD und die NR. 1 nebeneinander
+• Tägliche Challenge: ZU SCHLAGEN folgt deinem Score, wenn du führst
+• Tutorial: kein Rekord mehr über dem Score
+• Start: der Challenge-Rang erscheint sofort

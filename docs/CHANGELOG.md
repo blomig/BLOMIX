@@ -7,9 +7,22 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.7] — 2026-10
+
+Build **143**. **7.6 / 142** en vente jusqu’à l’approbation.
+
+### Modifié
+
+- **HUD** : tutoriel comme le Duel — plus de RECORD / À BATTRE au-dessus du gros score.
+- **Arcade / Zen** : deux ghosts dans le **même** bandeau (grille, gros score, LIGNE, TEMPS, badge, bombes inchangés) — **RECORD** perso à gauche, **N°1** du board GC à droite. Vert + suivi de la run si on dépasse la cible.
+- **Défi du jour** : **À BATTRE** reste centré ; le chiffre suit la run si on est en tête.
+- **Accueil — pastille Défi** : le rang carrière CloudKit s’affiche tout de suite (dernier connu), puis se met à jour après le recalcul 60 jours.
+
+---
+
 ## [7.6] — 2026-09
 
-Build **142**. En review (mise en ligne auto). **7.5 / 141** en vente.
+Build **142**. En vente.
 
 ### Modifié
 

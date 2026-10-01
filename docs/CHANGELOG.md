@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [7.7] — 2026-10
 
-Build **143**. **7.6 / 142** en vente jusqu’à l’approbation.
+Build **143**. En review (mise en ligne auto). **7.6 / 142** en vente jusqu’à l’approbation.
 
 ### Modifié
 

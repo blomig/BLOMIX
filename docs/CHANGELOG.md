@@ -7,9 +7,27 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.8] — 2026-10
+
+Build **144**. Soumission App Store (mise en ligne auto). **7.7 / 143** en vente.
+
+### Ajouté
+
+- **Jauge 0→N°1** (Arcade / Zen / Défi, pas tuto ni Duel) : ligne de la largeur de la grille, entre BLOMIX et RECORD / N°1 / À BATTRE. Snapshot figé au lancement (top 100 GC ou liste du jour) — **aucun** Game Center / CloudKit pendant la partie.
+- Marqueurs : points gris très discrets (les autres), cercle vert = RECORD perso (vert live déjà utilisé), cercle jaune `#ffb200` = N°1 / À BATTRE à droite. Curseur = losange à la couleur du gros score (y compris le flash de chaîne).
+- **Fusion** : au RECORD le losange devient le cercle vert qui avance ; au N°1 plus que le jaune, calé à droite. Rang live (petit chiffre) au-dessus du curseur.
+- **Défi** : pas de vert si aucun score du jour ; jaune = leader CloudKit du jour.
+
+### Modifié
+
+- Plus de sous-titre sous BLOMIX en partie (l’accueil le garde).
+- Espacements HUD : jauge 30 % plus près de BLOMIX ; RECORD / N°1 inchangés ; air chiffres RECORD ↔ gros score ÷ 2 (LIGNE / TEMPS suivent le score).
+
+---
+
 ## [7.7] — 2026-10
 
-Build **143**. En review (mise en ligne auto). **7.6 / 142** en vente jusqu’à l’approbation.
+Build **143**. En vente.
 
 ### Modifié
 

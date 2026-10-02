@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 7.7  
+> **Version de référence** : 7.8  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -394,10 +394,13 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
 ### HUD en jeu
 
 - Score animé (rolling counter, milestones 100/1000) ; **Duel** : affichage `score % 50` (total inchangé)
-- Ghosts **au-dessus** du gros score, même Y qu’avant (`liftAboveGrid` / LIGNE / TEMPS / badge / bombes inchangés) :
-  - Arcade / Zen : **RECORD** perso (max local + GC) à gauche, **N°1** all-time du board (`fetchLeaderboardTopScore`, rang 1) à droite. Vert + chiffre = run si `score > baseline`.
-  - **Défi du jour** : **À BATTRE** centré + leader CloudKit du jour ; suit la run si en tête (refetch au lancement / reprise / `didBecomeActive`)
+- Plus de sous-titre sous BLOMIX en partie (tagline d’accueil inchangée)
+- Ghosts RECORD / N°1 figés par rapport à la grille. Gros score + LIGNE + TEMPS remontés (air sous les chiffres RECORD ÷ 2). Jauge : 30 % plus proche de BLOMIX. Grille / badge / bombes / file inchangés.
+- Ghosts **au-dessus** du gros score :
+  - Arcade / Zen : **RECORD** perso à gauche, **N°1** all-time à droite. Vert live (`#33D959`) + chiffre = run si `score > baseline`. N°1 battu : jaune `#ffb200` jusqu’à la fin.
+  - **Défi du jour** : **À BATTRE** centré = leader CloudKit du jour ; suit la run en jaune si en tête
   - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
+- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Points gris discrets = autres scores du board (top 100 GC ou liste du jour). Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Pas en tuto / Duel.
 - Compteur LIGNE x/10 (gauche)
 - Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
 - Timer stage ou PvP (droite)

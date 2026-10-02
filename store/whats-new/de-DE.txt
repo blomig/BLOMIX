@@ -1,4 +1,4 @@
-• Arcade und Zen: dein REKORD und die NR. 1 nebeneinander
-• Tägliche Challenge: ZU SCHLAGEN folgt deinem Score, wenn du führst
-• Tutorial: kein Rekord mehr über dem Score
-• Start: der Challenge-Rang erscheint sofort
+• Arcade, Zen und Challenge: eine Rennlinie zur NR. 1 während der Partie
+• Grün = dein REKORD, gelb = NR. 1, dezente graue Punkte für die anderen
+• Dein Rang steht über dem Cursor
+• Die Rangliste wird beim Start eingefroren: das Spiel bleibt flüssig

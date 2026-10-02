@@ -1,4 +1,4 @@
-• Arcade and Zen: your BEST and the board #1 side by side
-• Daily Challenge: TO BEAT follows your score when you lead
-• Tutorial: no record above the score
-• Home: Daily rank shows up right away
+• Arcade, Zen and Daily: a race line toward #1 while you play
+• Green = your BEST, yellow = #1, faint gray dots for everyone else
+• Your rank sits above the cursor
+• The board is frozen at launch, so play stays snappy

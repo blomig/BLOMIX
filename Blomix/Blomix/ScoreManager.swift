@@ -20,7 +20,7 @@ import UIKit
 ///   réconciliation **local → GC** si le hiscore appareil dépasse le best GC (sans jamais baisser le local).
 /// - **`fetchLocalPlayerBestScore`** alimente la comparaison pour **`isNewPersonalBest`** (max local + GC si déjà chargé)
 ///   et déclenche un upload local si `local > GC` (throttle).
-/// - **`fetchLeaderboardTopScore`** charge l’entrée **rang 1** all-time (HUD N°1 Arcade / Zen) ; cache mémoire.
+/// - **`fetchLeaderboardTopScore`** / **`fetchLeaderboardField`** : n°1 + liste (top 100) pour la jauge HUD ; cache mémoire, **pas d’appel en partie**.
 @MainActor
 final class ScoreManager {
     // MARK: - Singleton
@@ -313,6 +313,7 @@ final class ScoreManager {
         flushBestLocalScoresToGCIfNeeded(reason: reason)
         flushLocalAverageToGCIfNeeded()
         reconcileLocalHighScoresWithGameCenter(reason: reason)
+        prefetchScoreRaceFields()
     }
 
     /// Pousse Solo / Zen : `max(hiscore local, pending)` — **sans** clear pending avant succès réseau.
@@ -651,6 +652,8 @@ final class ScoreManager {
     private var cachedZenTopScore: Int = 0
     private var hasFetchedMainTopScore = false
     private var hasFetchedZenTopScore = false
+    private var cachedMainBoardScores: [Int] = []
+    private var cachedZenBoardScores: [Int] = []
 
     /// Dernier n°1 connu pour le board (0 si jamais chargé).
     func cachedLeaderboardTopScore(leaderboardID: String) -> Int {
@@ -671,6 +674,74 @@ final class ScoreManager {
         } else {
             hasFetchedMainTopScore = true
             cachedMainTopScore = max(0, score)
+        }
+    }
+
+    /// Scores du board (top 100), 0 si jamais chargé. Pour la jauge HUD.
+    func cachedLeaderboardScores(leaderboardID: String) -> [Int] {
+        if leaderboardID == ScoreManager.zenLeaderboardID { return cachedZenBoardScores }
+        return cachedMainBoardScores
+    }
+
+    private func recordLeaderboardField(_ scores: [Int], leaderboardID: String) {
+        let cleaned = scores.map { max(0, $0) }
+        if leaderboardID == ScoreManager.zenLeaderboardID {
+            cachedZenBoardScores = cleaned
+        } else {
+            cachedMainBoardScores = cleaned
+        }
+        recordLeaderboardTopScore(cleaned.first ?? 0, leaderboardID: leaderboardID)
+    }
+
+    /// Arcade + Zen : liste top 100 (accueil / auth). **Ne pas** appeler en partie.
+    func prefetchScoreRaceFields() {
+        fetchLeaderboardField(leaderboardID: ScoreManager.mainLeaderboardID) { _ in }
+        fetchLeaderboardField(leaderboardID: ScoreManager.zenLeaderboardID) { _ in }
+    }
+
+    /// Charge jusqu’à 100 scores all-time (jauge + n°1).
+    func fetchLeaderboardField(
+        leaderboardID: String,
+        completion: @escaping @Sendable @MainActor (Result<[Int], Error>) -> Void
+    ) {
+        guard isAuthenticated else {
+            completion(.failure(NSError(
+                domain: "ScoreManager",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Joueur non authentifié : impossible de charger le classement."]
+            )))
+            return
+        }
+        GKLeaderboard.loadLeaderboards(IDs: [leaderboardID]) { leaderboards, loadError in
+            if let loadError {
+                Task { @MainActor in completion(.failure(loadError)) }
+                return
+            }
+            guard let leaderboard = leaderboards?.first else {
+                Task { @MainActor in
+                    completion(.failure(NSError(
+                        domain: "ScoreManager",
+                        code: 3,
+                        userInfo: [NSLocalizedDescriptionKey: "Aucun leaderboard pour « \(leaderboardID) »."]
+                    )))
+                }
+                return
+            }
+            leaderboard.loadEntries(
+                for: .global,
+                timeScope: .allTime,
+                range: NSRange(location: 1, length: 100)
+            ) { _, entries, _, error in
+                if let error {
+                    Task { @MainActor in completion(.failure(error)) }
+                    return
+                }
+                let scores = (entries ?? []).map { Int($0.score) }
+                Task { @MainActor [weak self] in
+                    self?.recordLeaderboardField(scores, leaderboardID: leaderboardID)
+                    completion(.success(scores))
+                }
+            }
         }
     }
 

@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.5 / 141** en vente ; trois slots Arcade / Zen / Défi en **7.6**.  
+> **Statut** : **7.7 / 143** en vente ; **7.8 / 144** soumise (auto-release).  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 7.6  
+> **Version de référence** : 7.8  
 > **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -34,7 +34,7 @@ Tap CTA grisé : rien (déjà sur le classement). Tap chip grisé/renommé : **m
 
 Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, **+5 / +3 / +1** en gouttière (`BlomixCutoutTitleView`) pour les places du jour (égalités = mêmes points, places sautées). Calcul **client**, pas un champ CloudKit. CTA **Revenez demain** : grisé, non cliquable.
 
-**En partie** : au-dessus du gros score, **À battre** + le meilleur score CloudKit du jour (pas le record Arcade). Refetch au lancement, à Continuer, et au retour au premier plan. Vert si le score en cours dépasse ce leader ; le chiffre reste celui à battre.
+**En partie** : au-dessus du gros score, **À BATTRE** + le meilleur score CloudKit du jour (pas le record Arcade). Liste du jour lue **avant** la grille (accueil / hub), snapshot figé — pas de CloudKit pendant la run. Si le score dépasse le leader, le chiffre **suit la run en jaune** (`#ffb200`) jusqu’à la fin. Jauge 0→N°1 : points gris (les autres), pas de vert si aucun score perso du jour, jaune = leader du jour. Rang live au-dessus du curseur.
 
 **Game Over** (court, après `end.wav`) : **ton score** + rang live + **Accueil** + **Classement** (→ hub, où tu te vois dans la liste). Pas de récap justesse.
 

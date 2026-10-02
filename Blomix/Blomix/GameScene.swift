@@ -873,6 +873,13 @@ final class GameScene: SKScene {
     /// N°1 all-time (Arcade / Zen uniquement), même bandeau que RECORD.
     private static let leaderScoreAboveName  = "hudLeaderScoreAbove"
     private static let leaderScoreTitleName  = "hudLeaderScoreTitle"
+    private static let scoreRaceContainerName = "hudScoreRace"
+    private static let scoreRaceTrackName     = "hudScoreRaceTrack"
+    private static let scoreRaceGraysName     = "hudScoreRaceGrays"
+    private static let scoreRaceYellowName    = "hudScoreRaceYellow"
+    private static let scoreRaceGreenName     = "hudScoreRaceGreen"
+    private static let scoreRaceCursorName    = "hudScoreRaceCursor"
+    private static let scoreRaceRankName      = "hudScoreRaceRank"
     private static let hudAttackCaptionName  = "hudAttackCaption"
     private static let bombeCaptionName      = "hudBombeCaption"   // conservé pour compatibilité saves
     private static let bombeValueName        = "hudBombeValue"     // conservé pour compatibilité saves
@@ -1479,6 +1486,10 @@ final class GameScene: SKScene {
     private var hudLeaderScoreBaseline: Int = 0
     /// Ignore les retours asynchrones obsolètes lors des rafraîchissements du record.
     private var bestScoreFetchGeneration: Int = 0
+    /// Classement figé au lancement (jauge HUD). Nil = pas de ligne (tuto / Duel).
+    private var scoreRaceSnapshot: ScoreRaceSnapshot?
+    /// Losange : suit le flash de couleur du gros score. Cercle vert / jaune : teinte fixe.
+    private var scoreRaceCursorFollowsScoreAccent = true
 
     // MARK: - Analyse des coups (BlomixMoveAnalyzer)
 
@@ -1819,6 +1830,7 @@ final class GameScene: SKScene {
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
     private func resetSessionModelForNewMatch() {
         isZenMode = false
+        scoreRaceSnapshot = nil
         grid = Self.makeEmptyGrid()
         selectedColumn = 3
         currentBlock = nextPlayableBlockForSession()
@@ -3313,6 +3325,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.bestScoreTitleName)?.isHidden = hidden || hidesGhostScoreHUD
         childNode(withName: Self.leaderScoreAboveName)?.isHidden = hidden || !showsLeaderboardTopHUD
         childNode(withName: Self.leaderScoreTitleName)?.isHidden = hidden || !showsLeaderboardTopHUD
+        childNode(withName: Self.scoreRaceContainerName)?.isHidden = hidden || !showsScoreRaceHUD
         childNode(withName: Self.hudAttackCaptionName)?.isHidden = hidden || pvpCoordinator == nil
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isZenMode
         // Compteur LIGNE
@@ -3578,6 +3591,20 @@ final class GameScene: SKScene {
     }
 
     private static let hudGhostLiveBeatColor = SKColor(red: 0.20, green: 0.85, blue: 0.35, alpha: 1)
+    /// N°1 / bout de jauge — jaune Default `#ffb200`, hors peau.
+    private static let hudRaceN1Color = SKColor(red: 1, green: 178 / 255, blue: 0, alpha: 1)
+
+    /// Jauge 0→N°1 : Arcade / Zen / Défi. Pas en tuto ni Duel.
+    private var showsScoreRaceHUD: Bool {
+        !hidesGhostScoreHUD && !isStartScreen
+    }
+
+    private struct ScoreRaceSnapshot {
+        var topScore: Int
+        var personalRecord: Int
+        var fieldScores: [Int]
+        var grayScores: [Int]
+    }
 
     private enum GhostScoreColumn {
         case personal
@@ -3597,7 +3624,14 @@ final class GameScene: SKScene {
         }
         guard let n = childNode(withName: name) as? SKLabelNode else { return }
         n.text = "\(shown)"
-        n.fontColor = isLiveBeat ? Self.hudGhostLiveBeatColor : BlomixAppearance.tertiaryTextSK
+        let beat: SKColor
+        switch column {
+        case .personal:
+            beat = isDailyChallengeMode ? Self.hudRaceN1Color : Self.hudGhostLiveBeatColor
+        case .leader:
+            beat = Self.hudRaceN1Color
+        }
+        n.fontColor = isLiveBeat ? beat : BlomixAppearance.tertiaryTextSK
     }
 
     private func applyBestScoreHUDValue(_ value: Int, isLiveBeat: Bool = false) {
@@ -3667,6 +3701,322 @@ final class GameScene: SKScene {
         let hideLeader = isStartScreen || !showsLeaderboardTopHUD
         childNode(withName: Self.leaderScoreAboveName)?.isHidden = hideLeader
         childNode(withName: Self.leaderScoreTitleName)?.isHidden = hideLeader
+        childNode(withName: Self.scoreRaceContainerName)?.isHidden = isStartScreen || !showsScoreRaceHUD
+    }
+
+    private func applyScoreRaceSnapshotToGhosts() {
+        guard let snap = scoreRaceSnapshot else {
+            if scoreRaceSnapshot == nil { captureScoreRaceSnapshot() }
+            guard scoreRaceSnapshot != nil else { return }
+            applyScoreRaceSnapshotToGhosts()
+            return
+        }
+        if isDailyChallengeMode {
+            hudBestScoreBaseline = snap.topScore
+            applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
+        } else {
+            hudBestScoreBaseline = snap.personalRecord
+            applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
+            hudLeaderScoreBaseline = snap.topScore
+            applyGhostScoreAgainstBaseline(column: .leader, baseline: hudLeaderScoreBaseline)
+        }
+        layoutScoreRace()
+    }
+
+    private func captureScoreRaceSnapshot() {
+        if hidesGhostScoreHUD {
+            scoreRaceSnapshot = nil
+            return
+        }
+        if isDailyChallengeMode {
+            let day = dailyChallengeHUDDay
+            let field = BlomixDailyChallenge.shared.cachedDayScoreValues(forDay: day)
+            let top = max(field.max() ?? 0, BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? 0)
+            scoreRaceSnapshot = Self.makeScoreRaceSnapshot(
+                field: field,
+                top: top,
+                personal: 0
+            )
+            return
+        }
+        let boardID = currentLeaderboardIDForHUD()
+        let field = ScoreManager.shared.cachedLeaderboardScores(leaderboardID: boardID)
+        let local = isZenMode
+            ? ScoreManager.shared.getLocalZenHighScore()
+            : ScoreManager.shared.getLocalHighScore()
+        let cachedTop = ScoreManager.shared.cachedLeaderboardTopScore(leaderboardID: boardID)
+        let top = max(field.max() ?? 0, cachedTop, local)
+        scoreRaceSnapshot = Self.makeScoreRaceSnapshot(field: field, top: top, personal: local)
+    }
+
+    private static func makeScoreRaceSnapshot(field: [Int], top: Int, personal: Int) -> ScoreRaceSnapshot {
+        var remaining = field
+        if personal > 0, let i = remaining.firstIndex(of: personal) {
+            remaining.remove(at: i)
+        }
+        if top > 0, let i = remaining.firstIndex(of: top) {
+            remaining.remove(at: i)
+        }
+        return ScoreRaceSnapshot(
+            topScore: max(0, top),
+            personalRecord: max(0, personal),
+            fieldScores: field,
+            grayScores: remaining.filter { $0 > 0 }
+        )
+    }
+
+    private static let scoreRaceGrayRadius: CGFloat = 1.35
+    private static let scoreRaceGreenRadius: CGFloat = 3.5
+    private static let scoreRaceYellowRadius: CGFloat = 5
+    private static let scoreRaceDiamondHalf: CGFloat = 3.6
+    private static let scoreRaceTrackHeight: CGFloat = 1.0
+
+    private enum ScoreRaceCursorStyle {
+        case diamond
+        case green
+        case yellow
+    }
+
+    private func ensureScoreRaceIfNeeded() {
+        if childNode(withName: Self.scoreRaceContainerName) != nil { return }
+        let container = SKNode()
+        container.name = Self.scoreRaceContainerName
+        container.zPosition = 12
+        container.isHidden = !showsScoreRaceHUD
+
+        let track = SKSpriteNode(color: BlomixAppearance.tertiaryTextSK.withAlphaComponent(0.38),
+                                 size: CGSize(width: 1, height: Self.scoreRaceTrackHeight))
+        track.name = Self.scoreRaceTrackName
+        track.anchorPoint = CGPoint(x: 0, y: 0.5)
+        track.zPosition = 0
+        container.addChild(track)
+
+        let grays = SKNode()
+        grays.name = Self.scoreRaceGraysName
+        grays.zPosition = 1
+        container.addChild(grays)
+
+        let green = SKShapeNode(circleOfRadius: Self.scoreRaceGreenRadius)
+        green.name = Self.scoreRaceGreenName
+        green.fillColor = Self.hudGhostLiveBeatColor
+        green.strokeColor = .clear
+        green.lineWidth = 0
+        green.glowWidth = 0
+        green.zPosition = 2
+        green.isHidden = true
+        container.addChild(green)
+
+        let yellow = SKShapeNode(circleOfRadius: Self.scoreRaceYellowRadius)
+        yellow.name = Self.scoreRaceYellowName
+        yellow.fillColor = Self.hudRaceN1Color
+        yellow.strokeColor = .clear
+        yellow.lineWidth = 0
+        yellow.glowWidth = 0
+        yellow.zPosition = 3
+        container.addChild(yellow)
+
+        let cursor = SKShapeNode()
+        cursor.name = Self.scoreRaceCursorName
+        cursor.strokeColor = .clear
+        cursor.lineWidth = 0
+        cursor.glowWidth = 0
+        cursor.zPosition = 4
+        container.addChild(cursor)
+
+        let rank = SKLabelNode(text: "")
+        rank.name = Self.scoreRaceRankName
+        rank.fontName = Self.customUIFontPostScriptName
+        rank.fontSize = 9
+        rank.fontColor = BlomixAppearance.primaryTextSK
+        rank.horizontalAlignmentMode = .center
+        rank.verticalAlignmentMode = .bottom
+        rank.zPosition = 5
+        container.addChild(rank)
+
+        addChild(container)
+    }
+
+    private func layoutScoreRace() {
+        ensureScoreRaceIfNeeded()
+        guard let container = childNode(withName: Self.scoreRaceContainerName),
+              childNode(withName: Self.scoreHudLabelName) != nil
+        else { return }
+
+        if scoreRaceSnapshot == nil { captureScoreRaceSnapshot() }
+        let hide = isStartScreen || !showsScoreRaceHUD
+        container.isHidden = hide
+        guard !hide, let snap = scoreRaceSnapshot, snap.topScore > 0 else {
+            container.isHidden = true
+            return
+        }
+
+        let half = GridLayout.spanPoints / 2
+        let width = GridLayout.spanPoints
+        // RECORD / N°1 restent ; la ligne remonte de 30 % de l’air sous BLOMIX.
+        let ghostTitleY = scoreHudGhostYs().title
+        let oldLineY = ghostTitleY + 15
+        let titleBottom = gameplayWordmarkLetterBottomY()
+        let gap = max(0, titleBottom - oldLineY)
+        let lineY = oldLineY + gap * 0.30
+        container.position = CGPoint(x: gridAreaCenter.x - half, y: lineY)
+
+        if let track = container.childNode(withName: Self.scoreRaceTrackName) as? SKSpriteNode {
+            track.size = CGSize(width: width, height: Self.scoreRaceTrackHeight)
+            track.position = .zero
+            track.color = BlomixAppearance.tertiaryTextSK.withAlphaComponent(0.38)
+        }
+
+        if let grays = container.childNode(withName: Self.scoreRaceGraysName) {
+            grays.removeAllChildren()
+            let grayFill = BlomixAppearance.tertiaryTextSK.withAlphaComponent(0.28)
+            for scoreValue in snap.grayScores {
+                let dot = SKShapeNode(circleOfRadius: Self.scoreRaceGrayRadius)
+                dot.fillColor = grayFill
+                dot.strokeColor = .clear
+                dot.lineWidth = 0
+                dot.glowWidth = 0
+                dot.position = CGPoint(x: Self.scoreRaceX(score: scoreValue, top: snap.topScore, width: width), y: 0)
+                grays.addChild(dot)
+            }
+        }
+
+        if let yellow = container.childNode(withName: Self.scoreRaceYellowName) {
+            yellow.position = CGPoint(x: width, y: 0)
+            yellow.isHidden = false
+        }
+
+        updateScoreRaceMarker(liveScore: displayedScore)
+    }
+
+    private static func scoreRaceX(score: Int, top: Int, width: CGFloat) -> CGFloat {
+        guard top > 0 else { return 0 }
+        let t = CGFloat(max(0, score)) / CGFloat(top)
+        return min(width, max(0, t * width))
+    }
+
+    private static func scoreRaceDiamondPath(half: CGFloat) -> CGPath {
+        let p = CGMutablePath()
+        p.move(to: CGPoint(x: 0, y: half))
+        p.addLine(to: CGPoint(x: half, y: 0))
+        p.addLine(to: CGPoint(x: 0, y: -half))
+        p.addLine(to: CGPoint(x: -half, y: 0))
+        p.closeSubpath()
+        return p
+    }
+
+    private static func scoreRaceCirclePath(radius: CGFloat) -> CGPath {
+        CGPath(
+            ellipseIn: CGRect(x: -radius, y: -radius, width: radius * 2, height: radius * 2),
+            transform: nil
+        )
+    }
+
+    private static func scoreRaceCursorStyle(live: Int, personal: Int, top: Int) -> ScoreRaceCursorStyle {
+        if live >= top { return .yellow }
+        if personal > 0, personal < top, live >= personal { return .green }
+        return .diamond
+    }
+
+    /// Rang live sur la ligne figée : 1 + marqueurs strictement à droite (gris + RECORD encore visible + N°1).
+    private static func scoreRaceLiveRank(live: Int, snap: ScoreRaceSnapshot) -> Int {
+        let top = snap.topScore
+        let personal = snap.personalRecord
+        var greater = 0
+        for other in snap.grayScores where other > live {
+            greater += 1
+        }
+        if personal > 0, personal < top, personal > live {
+            greater += 1
+        }
+        if top > live {
+            greater += 1
+        }
+        return 1 + greater
+    }
+
+    private func updateScoreRaceMarker(liveScore: Int? = nil) {
+        guard showsScoreRaceHUD,
+              let container = childNode(withName: Self.scoreRaceContainerName),
+              !container.isHidden,
+              let snap = scoreRaceSnapshot,
+              snap.topScore > 0
+        else { return }
+
+        let live = max(0, liveScore ?? displayedScore)
+        let width = GridLayout.spanPoints
+        let style = Self.scoreRaceCursorStyle(live: live, personal: snap.personalRecord, top: snap.topScore)
+        let x = Self.scoreRaceX(score: live, top: snap.topScore, width: width)
+
+        let showFixedGreen = snap.personalRecord > 0
+            && snap.personalRecord < snap.topScore
+            && live < snap.personalRecord
+        if let green = container.childNode(withName: Self.scoreRaceGreenName) {
+            green.isHidden = !showFixedGreen
+            if showFixedGreen {
+                green.position = CGPoint(
+                    x: Self.scoreRaceX(score: snap.personalRecord, top: snap.topScore, width: width),
+                    y: 0
+                )
+            }
+        }
+
+        guard let cursor = container.childNode(withName: Self.scoreRaceCursorName) as? SKShapeNode,
+              let rank = container.childNode(withName: Self.scoreRaceRankName) as? SKLabelNode
+        else { return }
+
+        let scoreColor = (childNode(withName: Self.scoreHudLabelName) as? SKLabelNode)?.fontColor
+            ?? BlomixAppearance.primaryTextSK
+        let rankXPad: CGFloat = 10
+        var markerX = x
+        var markerColor = scoreColor
+        var markerHalf: CGFloat = Self.scoreRaceDiamondHalf
+
+        switch style {
+        case .diamond:
+            scoreRaceCursorFollowsScoreAccent = true
+            cursor.isHidden = false
+            cursor.path = Self.scoreRaceDiamondPath(half: Self.scoreRaceDiamondHalf)
+            cursor.fillColor = scoreColor
+            cursor.position = CGPoint(x: x, y: 0)
+            markerColor = scoreColor
+            markerHalf = Self.scoreRaceDiamondHalf
+        case .green:
+            scoreRaceCursorFollowsScoreAccent = false
+            cursor.isHidden = false
+            cursor.path = Self.scoreRaceCirclePath(radius: Self.scoreRaceGreenRadius)
+            cursor.fillColor = Self.hudGhostLiveBeatColor
+            cursor.position = CGPoint(x: x, y: 0)
+            markerColor = Self.hudGhostLiveBeatColor
+            markerHalf = Self.scoreRaceGreenRadius
+        case .yellow:
+            scoreRaceCursorFollowsScoreAccent = false
+            cursor.isHidden = true
+            markerX = width
+            markerColor = Self.hudRaceN1Color
+            markerHalf = Self.scoreRaceYellowRadius
+        }
+
+        rank.text = "\(Self.scoreRaceLiveRank(live: live, snap: snap))"
+        rank.fontSize = 9
+        rank.fontColor = markerColor
+        rank.position = CGPoint(
+            x: min(width - rankXPad, max(rankXPad, markerX)),
+            y: markerHalf + 5
+        )
+        rank.isHidden = false
+    }
+
+    private func applyScoreRaceCursorAccent(_ color: SKColor) {
+        guard scoreRaceCursorFollowsScoreAccent,
+              let container = childNode(withName: Self.scoreRaceContainerName),
+              !container.isHidden,
+              let cursor = container.childNode(withName: Self.scoreRaceCursorName) as? SKShapeNode,
+              !cursor.isHidden
+        else { return }
+        cursor.fillColor = color
+        if let rank = container.childNode(withName: Self.scoreRaceRankName) as? SKLabelNode {
+            rank.fontColor = color
+        }
     }
 
     private func refreshBestScoreHUDIfNeeded() {
@@ -3674,6 +4024,11 @@ final class GameScene: SKScene {
         refreshBestScoreHUDTitle()
         refreshGhostScoreHUDVisibility()
         if hidesGhostScoreHUD { return }
+        // En partie : snapshot local uniquement (pas de GC / CloudKit).
+        if !isStartScreen {
+            applyScoreRaceSnapshotToGhosts()
+            return
+        }
         if isDailyChallengeMode {
             refreshDailyToBeatHUD()
             return
@@ -3800,6 +4155,11 @@ final class GameScene: SKScene {
 
         for (_, discName) in specs {
             Self.startScreenDescendant(named: discName, in: container)?.alpha = 1
+        }
+
+        ScoreManager.shared.prefetchScoreRaceFields()
+        Task { @MainActor in
+            _ = await BlomixDailyChallenge.shared.fetchScores(day: BlomixDailyChallenge.shared.utcToday)
         }
 
         guard GKLocalPlayer.local.isAuthenticated else { return }
@@ -4042,6 +4402,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.bestScoreTitleName)?.removeFromParent()
         childNode(withName: Self.leaderScoreAboveName)?.removeFromParent()
         childNode(withName: Self.leaderScoreTitleName)?.removeFromParent()
+        childNode(withName: Self.scoreRaceContainerName)?.removeFromParent()
         childNode(withName: Self.hudTimerCaptionName)?.removeFromParent()
         childNode(withName: Self.bombHudIconName)?.removeFromParent()
         childNode(withName: Self.hudPvPTurnTimerName)?.removeFromParent()
@@ -6798,6 +7159,8 @@ final class GameScene: SKScene {
         label.text = "\(hudDisplayedScoreValue(forTotal: total))"
         if pvpCoordinator != nil {
             applyDuelHudMeter(CGFloat(hudDisplayedScoreValue(forTotal: total)), animateHot: false)
+        } else {
+            updateScoreRaceMarker(liveScore: total)
         }
     }
 
@@ -6860,7 +7223,9 @@ final class GameScene: SKScene {
                 if duel {
                     self.applyDuelHudMeter(shown, animateHot: true)
                 } else if let lbl = node as? SKLabelNode {
-                    lbl.text = "\(Int(shown))"
+                    let v = Int(shown)
+                    lbl.text = "\(v)"
+                    self.updateScoreRaceMarker(liveScore: v)
                 }
             }
         }
@@ -7718,6 +8083,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.bestScoreTitleName)?.removeFromParent()
         childNode(withName: Self.leaderScoreAboveName)?.removeFromParent()
         childNode(withName: Self.leaderScoreTitleName)?.removeFromParent()
+        childNode(withName: Self.scoreRaceContainerName)?.removeFromParent()
         childNode(withName: Self.hudAttackCaptionName)?.removeFromParent()
         childNode(withName: Self.bombeCaptionName)?.removeFromParent()
         childNode(withName: Self.bombeValueName)?.removeFromParent()
@@ -7832,6 +8198,8 @@ final class GameScene: SKScene {
         addChild(ligneValueLabel)
 
         ensureLignePipsIfNeeded()
+        ensureScoreRaceIfNeeded()
+        if scoreRaceSnapshot == nil { captureScoreRaceSnapshot() }
 
         layoutScoreLabel()
         refreshBestScoreHUDIfNeeded()
@@ -7842,19 +8210,40 @@ final class GameScene: SKScene {
         }
     }
 
+    /// RECORD / N°1 figés par rapport à la grille (pas au gros score).
+    private func scoreHudGhostYs() -> (number: CGFloat, title: CGFloat) {
+        let gridTop = gridAreaCenter.y + GridLayout.spanPoints / 2
+        let baseY = gridTop + (26 + GridLayout.cellPoints / 2) / 2
+        return (baseY + 26 + 8 + 11, baseY + 26 + 8 + 24)
+    }
+
+    /// Bas optique des lettres BLOMIX (hors padding du canvas).
+    private func gameplayWordmarkLetterBottomY() -> CGFloat {
+        let layout = BlomixButtonRelief.wordmarkLayout(fontSize: Self.gameplayWordmarkFontSize)
+        let letterHalf = layout.canvas.height / 2 - BlomixButtonRelief.wordmarkPad
+        if let title = childNode(withName: Self.titleNodeName) {
+            return title.position.y - letterHalf
+        }
+        return gameplayHeaderTopY() - letterHalf * 2
+    }
+
     private func layoutScoreLabel() {
         guard let label = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode else { return }
         label.fontSize = 52
         let half = GridLayout.spanPoints / 2
-        let liftAboveGrid: CGFloat = 26 + GridLayout.cellPoints / 2
+        let ghosts = scoreHudGhostYs()
+        let ghostNumberY = ghosts.number
+        let ghostTitleY  = ghosts.title
+        // Air entre le bas des chiffres RECORD / N°1 (14 pt) et le haut du gros score (52 pt) : 12 → 6.
+        // LIGNE / puces / TEMPS restent calés sur le gros score.
+        let scoreHalf: CGFloat = 52 / 2
+        let ghostNumberHalf: CGFloat = 14 / 2
+        let newAir: CGFloat = 6
         label.position = CGPoint(
             x: gridAreaCenter.x,
-            y: gridAreaCenter.y + half + liftAboveGrid
+            y: ghostNumberY - ghostNumberHalf - newAir - scoreHalf
         )
-        // Ghosts : même bandeau vertical qu’avant (grille / LIGNE / TEMPS inchangés).
         // Arcade/Zen : RECORD à gauche, N°1 à droite. Défi : À BATTRE centré.
-        let ghostNumberY = label.position.y + 26 + 8 + 11
-        let ghostTitleY  = label.position.y + 26 + 8 + 24
         let pairSpread: CGFloat = 56
         let dualGhosts = showsLeaderboardTopHUD
         let personalX = dualGhosts ? gridAreaCenter.x - pairSpread : gridAreaCenter.x
@@ -7912,6 +8301,7 @@ final class GameScene: SKScene {
         }
         layoutLignePips()
         layoutAttackPile()
+        layoutScoreRace()
     }
 
     private func ensureLignePipsIfNeeded() {
@@ -8148,6 +8538,7 @@ final class GameScene: SKScene {
     private func applyScoreAndPileAccent(_ color: SKColor) {
         (childNode(withName: Self.scoreHudLabelName) as? SKLabelNode)?.fontColor = color
         applyAttackPileFillColor(color)
+        applyScoreRaceCursorAccent(color)
     }
 
     private func setAttackPileHotIndex(_ hot: Int?) {
@@ -12251,24 +12642,7 @@ final class GameScene: SKScene {
         title.position = CGPoint(x: size.width / 2, y: titleY)
         title.zPosition = 5
         addChild(title)
-
-        // Sur les petits écrans (H < 700 pt : iPhone SE 2/3, iPhone 8…), le sous-titre est supprimé
-        // pour libérer l'espace entre le titre et le score. Sur les grands écrans, rien ne change.
-        guard size.height >= 700 else { return }
-
-        let subtitle = SKLabelNode(text: BlomixL10n.gameTagline)
-        subtitle.name = Self.gameplaySubtitleUnderTitleName
-        subtitle.fontName = Self.customUIFontPostScriptName
-        subtitle.fontSize = 12
-        subtitle.fontColor = BlomixAppearance.primaryTextSK
-        subtitle.horizontalAlignmentMode = .center
-        subtitle.verticalAlignmentMode = .center
-        subtitle.position = CGPoint(
-            x: size.width / 2,
-            y: titleY - Self.gameplayTitleSubtitleOffset
-        )
-        subtitle.zPosition = 5
-        addChild(subtitle)
+        // 7.8 : plus de sous-titre en partie (espace pour la jauge 0→N°1).
     }
 
     /// Centre de la zone 320×320 ; **+2 cases** en Y pour remonter tout le jeu (grille, HUD bas, preview…) sans changer les écarts relatifs entre ces éléments.
@@ -13534,7 +13908,7 @@ final class GameScene: SKScene {
                     BlomixAvailablePlayersManager.shared.setActiveMatch(false)
                 }
                 if self.isDailyChallengeMode, !self.isStartScreen, !self.isGameOver {
-                    self.refreshBestScoreHUDIfNeeded()
+                    self.applyScoreRaceSnapshotToGhosts()
                 }
             }
         }
@@ -13654,6 +14028,7 @@ final class GameScene: SKScene {
         displayedScore = score
 
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
+        scoreRaceSnapshot = nil
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
         BlomixAvailablePlayersManager.shared.stopHomePresencePolling()

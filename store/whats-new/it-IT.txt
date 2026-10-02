@@ -1,4 +1,4 @@
-• Arcade e Zen: il tuo RECORD e il 1° in classifica affiancati
-• Sfida del giorno: DA BATTERE segue il tuo punteggio se sei in testa
-• Tutorial: niente più RECORD sopra il punteggio
-• Home: il rango Sfida compare subito
+• Arcade, Zen e Sfida: una linea di corsa verso il 1° durante la partita
+• Verde = il tuo RECORD, giallo = 1°, puntini grigi discreti per gli altri
+• Il tuo posto compare sopra il cursore
+• La classifica è fissata all’avvio: la partita non rallenta

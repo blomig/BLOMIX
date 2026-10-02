@@ -64,6 +64,9 @@ final class BlomixDailyChallenge {
     /// Dernier meilleur score CloudKit connu (HUD « À battre »), par jour UTC.
     private var cachedLeaderDay: String?
     private var cachedLeaderScore: Int = 0
+    /// Liste du jour (jauge HUD) — snapshot accueil / hub, pas de refetch en partie.
+    private var cachedDayEntriesDay: String?
+    private var cachedDayEntries: [BlomixDailyScoreEntry] = []
     /// Dernier classement carrière (pastille + onglet) — évite de re-attendre les 60 jours CK.
     private var cachedCareerStandings: [BlomixDailyScoreEntry]?
     private var careerStandingsFetchedAt: Date?
@@ -178,7 +181,15 @@ final class BlomixDailyChallenge {
         if entries.isEmpty, cloudFailed { return .unavailable }
         cachedLeaderDay = day
         cachedLeaderScore = entries.first?.score ?? 0
+        cachedDayEntriesDay = day
+        cachedDayEntries = entries
         return .loaded(entries)
+    }
+
+    /// Scores du jour déjà vus (jauge HUD). Vide si pas encore de fetch pour ce jour.
+    func cachedDayScoreValues(forDay day: String) -> [Int] {
+        guard cachedDayEntriesDay == day else { return [] }
+        return cachedDayEntries.map(\.score)
     }
 
     /// Meilleur score déjà vu pour ce jour (hub / fetch précédent). `nil` si pas encore de fetch.

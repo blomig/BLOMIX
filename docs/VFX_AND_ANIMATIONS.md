@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 7.6  
+> **Version de référence** : 7.9  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : septembre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
@@ -549,6 +549,10 @@ Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
 |---|---|---|
 | Centaine (100…) | 22 dots blancs | 28–130 pt, 0,35–0,65 s |
 | Millier (1000…) | 220 dots multicolores | 56–260 pt (2× distance) |
+
+### 8.4b Jauge 0→N°1 — passage de rang
+
+Quand le chiffre de rang au-dessus du curseur change (on dépasse un autre score de la ligne figée) : **8** paillettes rondes, **couleur du losange** (`BlomixAppearance.primaryTextSK` : blanc Sombre / sombre Clair), r **0,45–0,95**, expulsion radiale **7–14 pt**, **0,20 s** easeOut, fade dès 0,03 s. Pas de son. Premier layout : pas de burst.
 
 ### 8.5 Colonne vidée (`awardFullyClearedColumnBonuses`)
 

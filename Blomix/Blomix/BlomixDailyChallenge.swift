@@ -179,10 +179,14 @@ final class BlomixDailyChallenge {
         mergeLocalFinishedScore(day: day, into: &entries)
         entries.sort { $0.score > $1.score }
         if entries.isEmpty, cloudFailed { return .unavailable }
-        cachedLeaderDay = day
-        cachedLeaderScore = entries.first?.score ?? 0
-        cachedDayEntriesDay = day
-        cachedDayEntries = entries
+        // Jauge HUD = snapshot du jour UTC seulement. Un fetch de la veille
+        // (hub podium / claim) ne doit pas écraser la liste d’aujourd’hui.
+        if day == utcToday {
+            cachedLeaderDay = day
+            cachedLeaderScore = entries.first?.score ?? 0
+            cachedDayEntriesDay = day
+            cachedDayEntries = entries
+        }
         return .loaded(entries)
     }
 
@@ -310,6 +314,22 @@ final class BlomixDailyChallenge {
         case 3: return 1
         default: return 0
         }
+    }
+
+    /// Noms du podium (ordre du classement, max `limit`). Une entrée par joueur.
+    static func podiumDisplayNames(in entries: [BlomixDailyScoreEntry], limit: Int = 3) -> [String] {
+        let ranked = collapsedEntries(entries).sorted { $0.score > $1.score }
+        var names: [String] = []
+        var seen = Set<String>()
+        for entry in ranked {
+            let key = canonicalPlayerID(entry.gamePlayerID)
+            guard seen.insert(key).inserted else { continue }
+            guard podiumPoints(for: entry.gamePlayerID, in: ranked) > 0 else { break }
+            let trimmed = entry.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            names.append(trimmed.isEmpty ? BlomixL10n.startScreenPlayerUnknown : trimmed)
+            if names.count >= limit { break }
+        }
+        return names
     }
 
     func upsertScore(day: String, score: Int) async {

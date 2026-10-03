@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 7.8  
+> **Version de référence** : 7.9  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -239,7 +239,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 ### Défi du jour
 
-`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot **`blomix_daily_save_v1`**. Les trois slots **coexistent** (Arcade `blomix_solo_save_v2`, Zen `blomix_zen_save_v1`, Défi). Hero = Arcade seulement ; chip Zen = Zen seulement ; chip Défi = hub. **Pas** d’abandon croisé, **pas** de « Nouvelle partie » ni dialog d’accueil. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController`. Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot **`blomix_daily_save_v1`**. Les trois slots **coexistent** (Arcade `blomix_solo_save_v2`, Zen `blomix_zen_save_v1`, Défi). Hero = Arcade seulement ; chip Zen = Zen seulement ; chip Défi = hub. **Pas** d’abandon croisé, **pas** de « Nouvelle partie » ni dialog d’accueil. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController` (liste du jour + boîte podium d’hier au-dessus du CTA). Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
@@ -400,7 +400,7 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
   - Arcade / Zen : **RECORD** perso à gauche, **N°1** all-time à droite. Vert live (`#33D959`) + chiffre = run si `score > baseline`. N°1 battu : jaune `#ffb200` jusqu’à la fin.
   - **Défi du jour** : **À BATTRE** centré = leader CloudKit du jour ; suit la run en jaune si en tête
   - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
-- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Points gris discrets = autres scores du board (top 100 GC ou liste du jour). Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Pas en tuto / Duel.
+- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Points gris discrets = autres scores du board (top 100 GC ou liste du jour). Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : petit burst radial jaune N°1. Pas en tuto / Duel.
 - Compteur LIGNE x/10 (gauche)
 - Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
 - Timer stage ou PvP (droite)

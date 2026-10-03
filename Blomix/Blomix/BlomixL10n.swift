@@ -539,6 +539,9 @@ enum BlomixL10n {
     static func dailyCareerPoints(_ points: Int) -> String {
         String(format: tr("daily.career_points_format", comment: "GC tab secondary; %lld = career podium points"), points)
     }
+    static func dailyHubYesterdayPodium(_ names: String) -> String {
+        String(format: tr("daily.hub_yesterday_podium_format", comment: "Hub box above CTA; %@ = yesterday's top 3 names"), names)
+    }
 
     // MARK: - Tutoriel interactif
     static var menuTutorial: String { tr("menu.tutorial", comment: "Tutorial button on home screen and overflow menu") }

@@ -1490,6 +1490,8 @@ final class GameScene: SKScene {
     private var scoreRaceSnapshot: ScoreRaceSnapshot?
     /// Losange : suit le flash de couleur du gros score. Cercle vert / jaune : teinte fixe.
     private var scoreRaceCursorFollowsScoreAccent = true
+    /// Dernier rang affiché sur la jauge. Nil = pas encore posé (pas de paillettes au 1er layout).
+    private var scoreRaceDisplayedRank: Int?
 
     // MARK: - Analyse des coups (BlomixMoveAnalyzer)
 
@@ -1831,6 +1833,7 @@ final class GameScene: SKScene {
     private func resetSessionModelForNewMatch() {
         isZenMode = false
         scoreRaceSnapshot = nil
+        scoreRaceDisplayedRank = nil
         grid = Self.makeEmptyGrid()
         selectedColumn = 3
         currentBlock = nextPlayableBlockForSession()
@@ -3726,6 +3729,7 @@ final class GameScene: SKScene {
     private func captureScoreRaceSnapshot() {
         if hidesGhostScoreHUD {
             scoreRaceSnapshot = nil
+            scoreRaceDisplayedRank = nil
             return
         }
         if isDailyChallengeMode {
@@ -3996,7 +4000,8 @@ final class GameScene: SKScene {
             markerHalf = Self.scoreRaceYellowRadius
         }
 
-        rank.text = "\(Self.scoreRaceLiveRank(live: live, snap: snap))"
+        let newRank = Self.scoreRaceLiveRank(live: live, snap: snap)
+        rank.text = "\(newRank)"
         rank.fontSize = 9
         rank.fontColor = markerColor
         rank.position = CGPoint(
@@ -4004,6 +4009,51 @@ final class GameScene: SKScene {
             y: markerHalf + 5
         )
         rank.isHidden = false
+        if let previous = scoreRaceDisplayedRank, previous != newRank {
+            let origin = container.convert(CGPoint(x: markerX, y: 0), to: self)
+            spawnScoreRacePassSparkles(at: origin)
+        }
+        scoreRaceDisplayedRank = newRank
+    }
+
+    /// Burst radial minuscule (couleur du losange / chrome) quand le curseur dépasse un autre score.
+    private func spawnScoreRacePassSparkles(at center: CGPoint) {
+        let color = BlomixAppearance.primaryTextSK
+        let count = 8
+        let duration: TimeInterval = 0.20
+        for _ in 0..<count {
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let startDist = CGFloat.random(in: 1...3)
+            let endDist = startDist + CGFloat.random(in: 7...14)
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.45...0.95))
+            spark.fillColor = color
+            spark.strokeColor = .clear
+            spark.alpha = 0
+            spark.zPosition = 20
+            spark.position = CGPoint(
+                x: center.x + cos(angle) * startDist,
+                y: center.y + sin(angle) * startDist
+            )
+            addChild(spark)
+            let move = SKAction.move(
+                to: CGPoint(
+                    x: center.x + cos(angle) * endDist,
+                    y: center.y + sin(angle) * endDist
+                ),
+                duration: duration
+            )
+            move.timingMode = .easeOut
+            spark.run(SKAction.sequence([
+                SKAction.group([
+                    move,
+                    SKAction.sequence([
+                        SKAction.fadeAlpha(to: 0.95, duration: 0.03),
+                        SKAction.fadeAlpha(to: 0, duration: duration - 0.03),
+                    ]),
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
     }
 
     private func applyScoreRaceCursorAccent(_ color: SKColor) {
@@ -14029,6 +14079,7 @@ final class GameScene: SKScene {
 
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
         scoreRaceSnapshot = nil
+        scoreRaceDisplayedRank = nil
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
         BlomixAvailablePlayersManager.shared.stopHomePresencePolling()

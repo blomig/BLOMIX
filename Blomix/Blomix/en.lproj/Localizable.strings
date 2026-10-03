@@ -430,3 +430,4 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "daily.game_over_rank_first" = "1st for now";
 "daily.game_over_rank_unavailable" = "Rank unavailable";
 "daily.career_points_format" = "%lld pts";
+"daily.hub_yesterday_podium_format" = "Yesterday's podium: %@";

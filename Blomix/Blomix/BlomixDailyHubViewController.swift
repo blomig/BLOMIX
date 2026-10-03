@@ -2,7 +2,7 @@
 //  BlomixDailyHubViewController.swift
 //  Blomix
 //
-//  Hub du Défi du jour : liste CloudKit du jour UTC + un CTA
+//  Hub du Défi du jour : liste CloudKit du jour UTC, podium d’hier, CTA
 //  (Défi ! / Continuer / Revenez demain).
 //
 
@@ -22,6 +22,9 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let spinner = BlomixPvPSearchBlocksView()
     private let ctaButton = BlomixUIButton()
+    private let yesterdayPodiumBox = UIView()
+    private let yesterdayPodiumLabel = UILabel()
+    private let bottomStack = UIStackView()
 
     private var entries: [BlomixDailyScoreEntry] = [] {
         didSet { tableView.reloadData() }
@@ -73,11 +76,32 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         spinner.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(spinner)
 
-        ctaButton.translatesAutoresizingMaskIntoConstraints = false
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: ctaButton)
         BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 14, left: 16, bottom: 14, right: 16), to: ctaButton)
         ctaButton.addTarget(self, action: #selector(ctaTapped), for: .touchUpInside)
-        view.addSubview(ctaButton)
+
+        yesterdayPodiumBox.backgroundColor = BlomixAppearance.chipFill
+        yesterdayPodiumBox.layer.cornerRadius = 10
+        yesterdayPodiumBox.layer.borderWidth = 1
+        yesterdayPodiumBox.layer.borderColor = BlomixAppearance.chipBorder.cgColor
+        yesterdayPodiumBox.clipsToBounds = true
+        yesterdayPodiumBox.isHidden = true
+        yesterdayPodiumBox.isAccessibilityElement = true
+
+        yesterdayPodiumLabel.translatesAutoresizingMaskIntoConstraints = false
+        yesterdayPodiumLabel.textColor = BlomixAppearance.primaryText
+        yesterdayPodiumLabel.font = BlomixTypography.uiFont(size: 13, weight: .medium)
+        yesterdayPodiumLabel.textAlignment = .center
+        yesterdayPodiumLabel.numberOfLines = 2
+        yesterdayPodiumLabel.lineBreakMode = .byTruncatingTail
+        yesterdayPodiumBox.addSubview(yesterdayPodiumLabel)
+
+        bottomStack.axis = .vertical
+        bottomStack.spacing = 10
+        bottomStack.translatesAutoresizingMaskIntoConstraints = false
+        bottomStack.addArrangedSubview(yesterdayPodiumBox)
+        bottomStack.addArrangedSubview(ctaButton)
+        view.addSubview(bottomStack)
 
         NSLayoutConstraint.activate([
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
@@ -94,15 +118,20 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
-            ctaButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
-            ctaButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
-            ctaButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+            bottomStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
+            bottomStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+            bottomStack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
             ctaButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
+
+            yesterdayPodiumLabel.topAnchor.constraint(equalTo: yesterdayPodiumBox.topAnchor, constant: 8),
+            yesterdayPodiumLabel.bottomAnchor.constraint(equalTo: yesterdayPodiumBox.bottomAnchor, constant: -8),
+            yesterdayPodiumLabel.leadingAnchor.constraint(equalTo: yesterdayPodiumBox.leadingAnchor, constant: 12),
+            yesterdayPodiumLabel.trailingAnchor.constraint(equalTo: yesterdayPodiumBox.trailingAnchor, constant: -12),
 
             tableView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 8),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            tableView.bottomAnchor.constraint(equalTo: ctaButton.topAnchor, constant: -12),
+            tableView.bottomAnchor.constraint(equalTo: bottomStack.topAnchor, constant: -12),
 
             spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
@@ -138,13 +167,17 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         spinner.startAnimating()
         statusLabel.text = BlomixL10n.loading
         let day = BlomixDailyChallenge.shared.utcToday
+        let yesterday = BlomixDailySeed.previousUtcDayString()
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let load = await BlomixDailyChallenge.shared.fetchScores(day: day)
+            async let todayLoad = BlomixDailyChallenge.shared.fetchScores(day: day)
+            async let yesterdayLoad = BlomixDailyChallenge.shared.fetchScores(day: yesterday)
+            let today = await todayLoad
+            let yesterdayResult = await yesterdayLoad
             self.spinner.stopAnimating(settle: false) { [weak self] in
                 self?.spinner.isHidden = true
             }
-            switch load {
+            switch today {
             case .loaded(let rows):
                 self.entries = rows
                 self.statusLabel.text = rows.isEmpty
@@ -154,7 +187,26 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
                 self.entries = []
                 self.statusLabel.text = BlomixL10n.dailyHubError
             }
+            switch yesterdayResult {
+            case .loaded(let rows):
+                self.applyYesterdayPodium(names: BlomixDailyChallenge.podiumDisplayNames(in: rows))
+            case .unavailable:
+                self.applyYesterdayPodium(names: [])
+            }
         }
+    }
+
+    private func applyYesterdayPodium(names: [String]) {
+        guard !names.isEmpty else {
+            yesterdayPodiumBox.isHidden = true
+            yesterdayPodiumLabel.text = nil
+            yesterdayPodiumBox.accessibilityLabel = nil
+            return
+        }
+        let caption = BlomixL10n.dailyHubYesterdayPodium(names.joined(separator: ", "))
+        yesterdayPodiumLabel.text = caption
+        yesterdayPodiumBox.accessibilityLabel = caption
+        yesterdayPodiumBox.isHidden = false
     }
 
     @objc private func closeTapped() {

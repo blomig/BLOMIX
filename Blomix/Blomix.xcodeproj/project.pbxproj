@@ -980,7 +980,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 144;
+				CURRENT_PROJECT_VERSION = 145;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -990,7 +990,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.8;
+				MARKETING_VERSION = 7.9;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1011,7 +1011,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/BlomixRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 144;
+				CURRENT_PROJECT_VERSION = 145;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -1021,7 +1021,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.8;
+				MARKETING_VERSION = 7.9;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1041,7 +1041,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ../Watch/BLOMIXWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 144;
+				CURRENT_PROJECT_VERSION = 145;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../Watch/Info.plist;
@@ -1049,7 +1049,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.8;
+				MARKETING_VERSION = 7.9;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -1067,7 +1067,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ../Watch/BLOMIXWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 144;
+				CURRENT_PROJECT_VERSION = 145;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = ../Watch/Info.plist;
@@ -1075,7 +1075,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.8;
+				MARKETING_VERSION = 7.9;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;

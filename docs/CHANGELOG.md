@@ -7,9 +7,24 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [7.9] — 2026-10
+
+Build **145**. Soumission App Store (mise en ligne auto). **7.8 / 144** en vente.
+
+### Ajouté
+
+- **Jauge** : au passage d’un autre score (chiffre de rang qui change), petit burst radial de paillettes **couleur du losange** (blanc en Sombre, sombre en Clair) au curseur.
+- **Hub défi** : boîte **Podium d’hier** au-dessus du CTA (Jouer / Continuer / Revenez demain) — jusqu’à 3 noms CloudKit du jour UTC clos, ordre du classement.
+
+### Modifié
+
+- **Icône d’app** : nouveau logo 1024×1024 (`AppIcon` iPhone + Watch).
+
+---
+
 ## [7.8] — 2026-10
 
-Build **144**. Soumission App Store (mise en ligne auto). **7.7 / 143** en vente.
+Build **144**. En vente.
 
 ### Ajouté
 

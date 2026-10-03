@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.7 / 143** en vente ; **7.8 / 144** soumise (auto-release).  
+> **Statut** : **7.8 / 144** en vente ; **7.9 / 145** soumission ASC.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 7.8  
+> **Version de référence** : 7.9  
 > **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -33,6 +33,8 @@ Tap chip accueil → **toujours** le hub (liste CloudKit du jour + un CTA) :
 Tap CTA grisé : rien (déjà sur le classement). Tap chip grisé/renommé : **même hub**.
 
 Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, **+5 / +3 / +1** en gouttière (`BlomixCutoutTitleView`) pour les places du jour (égalités = mêmes points, places sautées). Calcul **client**, pas un champ CloudKit. CTA **Revenez demain** : grisé, non cliquable.
+
+Sous la liste, au-dessus du CTA : petite boîte **Podium d’hier** (`DailyScore` du jour UTC précédent). Jusqu’à 3 noms, ordre du classement, ceux qui ont gagné +5/+3/+1. Si personne n’a joué la veille (ou CloudKit KO) : la boîte est masquée. Le fetch de la veille **n’écrase pas** le cache HUD du jour.
 
 **En partie** : au-dessus du gros score, **À BATTRE** + le meilleur score CloudKit du jour (pas le record Arcade). Liste du jour lue **avant** la grille (accueil / hub), snapshot figé — pas de CloudKit pendant la run. Si le score dépasse le leader, le chiffre **suit la run en jaune** (`#ffb200`) jusqu’à la fin. Jauge 0→N°1 : points gris (les autres), pas de vert si aucun score perso du jour, jaune = leader du jour. Rang live au-dessus du curseur.
 

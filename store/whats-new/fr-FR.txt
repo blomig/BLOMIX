@@ -1,4 +1,3 @@
-• Arcade, Zen et Défi : une ligne de course vers le N°1 pendant la partie
-• Vert = votre RECORD, jaune = le N°1, points gris discrets pour les autres
-• Votre rang s’affiche au-dessus du curseur
-• Le classement est figé au lancement : la partie ne ralentit pas
+• Petite étincelle quand vous dépassez un autre joueur sur la ligne
+• Défi du jour : le podium d’hier s’affiche sous le classement
+• Nouvelle icône BLOMIX

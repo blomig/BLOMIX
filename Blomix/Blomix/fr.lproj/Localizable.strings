@@ -443,3 +443,4 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "daily.game_over_rank_first" = "1er pour l’instant";
 "daily.game_over_rank_unavailable" = "Rang indisponible";
 "daily.career_points_format" = "%lld pts";
+"daily.hub_yesterday_podium_format" = "Podium d’hier : %@";

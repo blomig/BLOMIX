@@ -1,4 +1,3 @@
-• Arcade, Zen y Desafío: una línea de carrera hacia el N.º 1 durante la partida
-• Verde = tu RÉCORD, amarillo = N.º 1, puntos grises discretos para los demás
-• Tu puesto aparece encima del cursor
-• La clasificación se fija al empezar: la partida no se ralentiza
+• Un destello al adelantar a otro jugador en la línea
+• Desafío del día: el podio de ayer aparece bajo la clasificación
+• Nuevo icono de BLOMIX

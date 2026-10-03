@@ -1,4 +1,3 @@
-• Arcade, Zen and Daily: a race line toward #1 while you play
-• Green = your BEST, yellow = #1, faint gray dots for everyone else
-• Your rank sits above the cursor
-• The board is frozen at launch, so play stays snappy
+• A tiny sparkle when you pass another player on the race line
+• Daily Challenge: yesterday’s podium sits under today’s ranking
+• New BLOMIX icon

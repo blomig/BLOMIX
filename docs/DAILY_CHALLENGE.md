@@ -1,6 +1,6 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.8 / 144** en vente ; **7.9 / 145** soumission ASC.  
+> **Statut** : **7.8 / 144** en vente ; **7.9 / 145** en review.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
 > **Version de référence** : 7.9  

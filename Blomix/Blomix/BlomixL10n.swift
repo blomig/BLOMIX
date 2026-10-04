@@ -32,10 +32,8 @@ enum BlomixL10n {
 
     static var gameTagline: String { tr("game.tagline", comment: "Subtitle under BLOMIX title") }
     static var startButton: String { tr("start.button", comment: "Start game on welcome screen") }
-    static var startContinue: String { tr("start.continue", comment: "Home — resume saved Arcade or Zen") }
+    static var startContinue: String { tr("start.continue", comment: "Home — caption under Arcade / Zen when a save exists") }
     static var startDiscover: String { tr("start.discover", comment: "Home hero — first launch tutorial") }
-    static var startHeroModeArcade: String { tr("start.hero_mode_arcade", comment: "Tiny subtitle under Continuer Arcade") }
-    static var startHeroModeZen: String { tr("start.hero_mode_zen", comment: "Tiny subtitle under Continuer Zen") }
     static var startDaily: String { tr("start.daily", comment: "Home hero — Daily Challenge") }
     static var startDailyRanking: String { tr("start.daily_ranking", comment: "Home hero after finishing today's challenge") }
     static var startHeroModeDaily: String { tr("start.hero_mode_daily", comment: "Tiny subtitle under Daily chip when a run is in progress") }

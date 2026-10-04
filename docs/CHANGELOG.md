@@ -7,6 +7,18 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.1] — 2026-10
+
+Build **147**. Local — **pas de soumission ASC** tant que **8.0 / 146** est en review.
+
+### Modifié
+
+- **Accueil** : chips Arcade / Zen gardent le **nom du mode** en Changa ; s’il y a une save, caption Nunito **Continuer** (même phrase que le Défi). Plus de titre « Continuer » qui vole le mode.
+- **Jonctions** : à la dissolution d’une chaîne (y compris cascade / COMBO), les barres fondent avec le premier blox du couple (stagger 0,04 s, 0,20 s). Magix / bombe / compactage / COLORX roulette : retrait immédiat inchangé.
+- **Brix** : à l’atterrissage (pose et compactage), éjection de 6–8 micro-carrés au lieu de ronds. Pas de vol HUD (la mort reste la gerbe carrée vers le score).
+
+---
+
 ## [8.0] — 2026-10
 
 Build **146**. En review (mise en ligne auto). **7.9 / 145** en vente.

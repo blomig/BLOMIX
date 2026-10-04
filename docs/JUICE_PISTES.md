@@ -1,6 +1,6 @@
 # BLOMIX — Pistes juice / physique des objets
 
-> **Version de référence** : 7.5  
+> **Version de référence** : 8.1  
 > Recueil **2026-09**. Pistes de **feel**, pas des règles.  
 > Spec en jeu : [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).  
 > Magix (blocs + pistes PACKX…) : [MAGIX.md](MAGIX.md).  
@@ -80,7 +80,7 @@ CHROMAX / CROSSX / SLASHX / BOMBX / TWISTX : `remove` + sprite 0,5→1,35. Ça l
 
 ### 6. Jonctions
 
-`drawGrid` / `remove…Touching`, sans juice. À la dissolution, les barres **sautent** souvent **avant** les blox.
+**Fait (8.1)** : dissolution de chaîne — la barre fond avec le premier blox du couple. Magix / bombe / compactage restent en retrait immédiat (autre verbe). Compactage en vol : toujours sans barres (hors 8.1).
 
 ### 7. Deux easings HUD
 
@@ -102,9 +102,9 @@ Ordre de **cohérence de lecture**, pas un backlog.
 | **A′** | Bombe : paillettes HUD au pic ×1,25 (ronds blox / carrés Brix) + `+N` Brix / +10 au même t ; anim explosion inchangée | Même verbe « matière → score » | **Fait** (local 7.4) |
 | **B** | Magix **consommé** (TWISTX, SCRUMBLX, COLORX-disque) : une fin (fade + mini-burst palette, inverse de l’arrivée) | Plus de fantôme d’une frame | **Fait** (local 7.4) |
 | **C** | Magix qui **mue** (1ʳᵉ case CHROMAX / anneau 0 CROSSX / rang 0 BOMBX / BRIXED) : le disque se **ferme dans** le nouveau corps (modèle SAINTX) | Peinture = contamination, pas teleport | **Fait** (local 7.4) |
-| **D** | Pose Brix : poudre un peu anguleuse, ou 6–8 micro-carrés | Signature, pas une 2ᵉ gerbe de mort | Petit |
+| **D** | Pose Brix : poudre un peu anguleuse, ou 6–8 micro-carrés | Signature, pas une 2ᵉ gerbe de mort | **Fait** (8.1 : 6–8 micro-carrés à l’éjection, pose + compactage) |
 | **E** | COMBO plus petit / plus tard ; toujours pas de vol HUD | Moins de bagarre avec le `+N` | Petit |
-| **F** | Jonctions : fondre avec la case, pas disparaître avant | Le groupe visé a une mort | Petit |
+| **F** | Jonctions : fondre avec la case, pas disparaître avant | Le groupe visé a une mort | **Fait** (8.1 : chaîne / cascade ; immédiat ailleurs) |
 | **G** | Une courbe HUD « matière → chiffre » (linéaire ou ease-in léger) dès qu’il y a pluie | Une seule loi | Petit |
 
 **Hors grammaire** (spectacle) : haptique à la gerbe Magix ; nom Magix plus proche du `+N` ; traîne Magix teintée 1 frame / 3 en palette.
@@ -112,7 +112,7 @@ Ordre de **cohérence de lecture**, pas un backlog.
 **Ne pas toucher** : 824 pt/s, mix paillettes, shatter `+N`, bounce Magix = blox, compactage indépendant du HUD, Brix bloc inerte / chiffre vivant.
 
 Plus rentable **lecture** : **A** + **B**. Plus rentable **poésie** : **C**.  
-**A / A′ / B / C** sont en local (pas encore en vente) ; **D–G** restent ouverts.
+**A / A′ / B / C / D / F** faits ; **E** et **G** restent ouverts.
 
 ---
 

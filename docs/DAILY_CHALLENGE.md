@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **7.9 / 145** en vente ; **8.0 / 146** en review.  
+> **Statut** : **7.9 / 145** en vente ; **8.0 / 146** en review ; **8.1 / 147** local.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 8.0  
+> **Version de référence** : 8.1  
 > **2026-09-21**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -198,7 +198,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 
 - Brix dans les lignes seedées : **comme Arcade**.  
 - Magix effets : **hash d’événement** (ne consomme pas la file).  
-- Chip **en cours** : même pattern qu’Arcade — titre + sous-titre **Continuer**.  
+- Chip **en cours** : même pattern qu’Arcade / Zen — titre = **mode**, caption **Continuer**.  
 - Score de la run : **aussi** une partie Arcade (highscore + moyenne). Les deux classements défi (jour CK / podium GC) restent à part.  
 - Look & feel : hub / GO = chrome existant (puits, capsules, cutout, Sombre/Clair). **Grille = `GameScene` habituelle** (pas une mini-grille).  
 - ID GC : **`dailywins_arc`** (nom ASC `DailyWin_arc`). Classic, Integer, **Meilleur score**, plus haut = mieux.

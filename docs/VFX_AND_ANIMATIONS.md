@@ -1,8 +1,8 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 8.0  
+> **Version de référence** : 8.1  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
-> **Dernière mise à jour** : septembre 2026  
+> **Dernière mise à jour** : octobre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
 
 ---
@@ -141,9 +141,10 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | B — rebond | 0,03 s · y − h×0,13 · x 0,94 / y 1,15 | 0,025 s · y − h×0,07 · x 0,97 / y 1,08 |
 | C — settle | 0,03 s · retour p0 · x/y 1,0 | 0,025 s · idem |
 
-**Particules impact** (`spawnLandingImpactSparkles`) — Blox / Brix, couleur du bloc :
-- Couche éjection : 12 dots, **0,22 s**, rayon 0,8–1,8 pt, drift 12–26 pt
-- Couche poudre : 38 dots, **0,80 s**, rayon 0,5–1,2 pt, drift 1–5 pt
+**Particules impact** (`spawnLandingImpactSparkles`) — couleur du bloc ; pose **et** compactage :
+- Blox — éjection : 12 ronds, **0,22 s**, rayon 0,8–1,8 pt, drift 12–26 pt
+- Brix — éjection : **6–8 micro-carrés**, côté 1,5–2,5 pt, même drift / durée ; **pas** de vol HUD (≠ mort)
+- Poudre (les deux) : 38 ronds, **0,80 s**, rayon 0,5–1,2 pt, drift 1–5 pt
 
 **Gerbe Magix** (`spawnMagixLandingBurst`) — **à la place** de l’impact blanc, tous Magix identiques :
 - 40–48 ronds r **1,0–1,8 pt** (même matière que l’orbite preview)
@@ -199,7 +200,9 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 ### 2.1 Blox couleur
 
 - Sprite plein 36×36 pt (`cellPoints − 4`)
-- **Jonctions** : barres arrondies entre voisins même couleur (`junction_*`, z ≈ 2)
+- **Jonctions** : barres H 4×36 / V 36×4 / diagonales entre voisins même couleur (`junction_*`, z ≈ 2)
+  - **Chaîne / cascade** : la barre fond avec le **premier** des deux blox (`min(index) × 0,04 s`, 0,20 s, z 25, squash dans l’épaisseur du joint). Pas de retrait à t = 0.
+  - **Magix peinture, COLORX roulette, bombe, compactage, réarrangements** : `removeBloxJunctionElementsTouching` immédiat (le réseau est cassé, ce n’est pas une mort de groupe).
 - Couleurs : skin actif (`BlomixSkinCatalog`)
 
 ### 2.2 Brix (Priks)
@@ -250,6 +253,8 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Pop dots | instant | `spawnChainPopDots` |
 | Scale down + brighten | 0,16 s | lerp blanc 30 %, `easeInEaseOut` |
 | Fade | 0,14 s | α → 0 |
+
+**Jonctions** : pas de `remove` à t = 0. Chaque barre H/V/D part avec le premier blox du couple (`dissolveBloxJunctionsWithChainCells`). H : `xScale` → 0,02 ; V : `yScale` → 0,02 ; D : les deux. Fade 0,20 s `easeOut`, z 25 pendant la fonte. Combo / cascade = le même path (le `drawGrid` inter-vague recoud le reste).
 
 **Placeholder gris** (`cell_dissolve_bg_*`) sous le sprite pendant le fondu.
 
@@ -711,7 +716,8 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Empreinte | pleine largeur, hauteur × 1,22 vs secondaires |
 | Puits | dégradé skin (`BlomixSkinGradient`) |
 | Capsule | chrome `chipFill` |
-| Texte | Changa One, ~12 % plus grand que Duel/Zen |
+| Texte | Changa One, ~12 % plus grand que Duel/Zen — **nom du mode** (`Arcade` / `Zen` / `Défi du jour`) |
+| Caption save | Nunito 9 pt **Continuer** sous le titre (Arcade, Zen, Défi). Sans save : pas de caption |
 
 ### 11.2 Boutons (`BlomixSKButtonNode` / `BlomixUIButton`)
 
@@ -791,7 +797,8 @@ Magix consume / morph  18–24 dots +12–28 pt / 0,22 s ; fade 0,18 ; mue pulse
 BrixFlightStretch      x 0,88 | y 1,16
 BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s | 3 étoiles présence 0,64 s
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
-ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | sparkles → score ~820 pt/s (0,25 s centre→score) | cascade 0,07
+ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | sparkles → score ~820 pt/s (0,25 s centre→score) | cascade 0,07 | jonctions 0,20 s avec 1er blox
+BrixLandingSparkles    éjection 6–8 carrés 1,5–2,5 pt (pose / compact) ; poudre ronde inchangée
 PendingLinePreview     jitter X 1,0 Y 0,5 | cycle 1,1
 ScorePopupFeedback     grow 0,58 + shatter burst 6–16 pt / 0,08 + vol ~824 pt/s + stagger 0,14 | dots 14–78 (×1,5) mix cases
 GameOverFocus          total 1,38 | rings 4 | stagger 0,12

@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 8.0  
+> **Version de référence** : 8.1  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -251,7 +251,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
-- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero Continuer+Arcade si slot Arcade, chip Zen Continuer+Zen si slot Zen, sinon Arcade / Découvrir / Zen
+- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero **Arcade** + caption Continuer si slot Arcade, chip **Zen** + caption Continuer si slot Zen, sinon Arcade / Découvrir / Zen
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
@@ -348,7 +348,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
-- **Arcade** hero pleine largeur sous BLOMIX, **Défi du jour** hero en dessous ; Duel + Zen en paire. Entrée chips (y compris Défi) **après** le poinçon BLOMIX (`runStartScreenGameChipEntrance`). Duel : pastille `person.fill` verte (respiration) à droite du libellé, dans la capsule, si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+- **Arcade** hero pleine largeur sous BLOMIX, **Défi du jour** hero en dessous ; Duel + Zen en paire. Titre Changa = **nom du mode** ; s’il y a une save, caption Nunito 9 pt **Continuer** (Arcade, Zen, Défi — même phrase). Entrée chips (y compris Défi) **après** le poinçon BLOMIX (`runStartScreenGameChipEntrance`). Duel : pastille `person.fill` verte (respiration) à droite du libellé, dans la capsule, si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 - 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = rang carrière CloudKit (même liste que l’onglet Défi), pas le board GC ni la liste du jour. Pastille Défi : dernier rang persisté tout de suite, recalcul 60 jours coalescé en arrière-plan (cache 20 s). Écran SCORE : **mêmes 5 onglets, même ordre**.
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
 - Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi / Duel+Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.

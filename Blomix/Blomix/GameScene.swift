@@ -1094,6 +1094,12 @@ final class GameScene: SKScene {
         static let yScale: CGFloat = 1.16
     }
 
+    /// Impact Brix : signature cube, pas une gerbe de mort (pas de vol HUD, pas d’étoiles).
+    private enum BrixLandingSparkles {
+        static let ejectCountRange: ClosedRange<Int> = 6...8
+        static let ejectSideRange: ClosedRange<CGFloat> = 1.5...2.5
+    }
+
     /// Bounce à l'atterrissage — profil plus sec et moins élastique que les blox.
     private enum BrixLandingBounce {
         static let squashDuration:  TimeInterval = 0.07
@@ -1181,6 +1187,10 @@ final class GameScene: SKScene {
 
         /// Courte pause après la phase physique avant de re-scanner la grille (cascades plus lisibles).
         static let cascadeBeatDuration: TimeInterval = 0.07
+        /// Mort des jonctions : même fenêtre que le scale-up du premier blox du couple.
+        static let junctionDissolveDuration: TimeInterval = dissolveScaleUpDuration
+        static let junctionDissolveZ: CGFloat = 25
+        static let junctionDissolveEndScale: CGFloat = 0.02
     }
 
     /// Disparition d'un Brix (compteur → 0) : pop blanc puis implosion + paillettes carrées + étoiles de présence.
@@ -2024,9 +2034,24 @@ final class GameScene: SKScene {
         BlomixSKButtonNode.unifiedSize(for: texts, fontSize: fontSize, maxWidth: maxOuterWidth)
     }
 
-    /// Délègue à `BlomixSKButtonNode` : chip chrome, libellé Nunito SemiBold.
+    /// Délègue à `BlomixSKButtonNode` : chip chrome, libellé Changa One.
     private func makeStartScreenButtonChip(chipName: String, labelName: String, text: String, chipSize: CGSize, fontSize: CGFloat) -> BlomixSKButtonNode {
         BlomixSKButtonNode(name: chipName, labelName: labelName, text: text, size: chipSize, fontSize: fontSize)
+    }
+
+    /// Caption 9 pt Nunito sous le titre Changa (état « Continuer », le mode reste le titre).
+    private func attachStartScreenChipCaption(to chip: BlomixSKButtonNode, name: String, text: String) {
+        chip.labelNode?.position.y = 7
+        let sub = SKLabelNode(text: text)
+        sub.name = name
+        sub.fontName = Self.customUIFontPostScriptName
+        sub.fontSize = 9
+        sub.fontColor = BlomixAppearance.primaryTextSK
+        sub.horizontalAlignmentMode = .center
+        sub.verticalAlignmentMode = .center
+        sub.position = CGPoint(x: 0, y: -11)
+        sub.zPosition = 3
+        chip.capsuleContentNode?.addChild(sub)
     }
 
     /// Teinte de fond hero : mélange ~22 % de la couleur accent dans le gris standard.
@@ -2448,7 +2473,7 @@ final class GameScene: SKScene {
         let pairGap: CGFloat = 12
         let pairChipW = (maxChipOuter - pairGap) / 2
         let modeChipSize = Self.startScreenUnifiedChipSize(
-            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton, BlomixL10n.startContinue],
+            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton],
             fontSize: chipFont,
             maxOuterWidth: pairChipW
         )
@@ -2585,8 +2610,8 @@ final class GameScene: SKScene {
         let heroSubtitle: String?
         switch heroKind {
         case .continueSave:
-            heroTitle = BlomixL10n.startContinue
-            heroSubtitle = BlomixL10n.startHeroModeArcade
+            heroTitle = BlomixL10n.startButton
+            heroSubtitle = BlomixL10n.startContinue
         case .discover:
             heroTitle = BlomixL10n.startDiscover
             heroSubtitle = nil
@@ -2620,17 +2645,11 @@ final class GameScene: SKScene {
         dailyChip.position = CGPoint(x: cx, y: dailyHeroY)
         dailyChip.zPosition = 2
         if let dailySubtitle {
-            dailyChip.labelNode?.position.y = 7
-            let sub = SKLabelNode(text: dailySubtitle)
-            sub.name = Self.startScreenDailySubtitleName
-            sub.fontName = Self.customUIFontPostScriptName
-            sub.fontSize = 9
-            sub.fontColor = BlomixAppearance.primaryTextSK
-            sub.horizontalAlignmentMode = .center
-            sub.verticalAlignmentMode = .center
-            sub.position = CGPoint(x: 0, y: -11)
-            sub.zPosition = 3
-            dailyChip.capsuleContentNode?.addChild(sub)
+            attachStartScreenChipCaption(
+                to: dailyChip,
+                name: Self.startScreenDailySubtitleName,
+                text: dailySubtitle
+            )
         }
         overlay.addChild(dailyChip)
 
@@ -2645,17 +2664,11 @@ final class GameScene: SKScene {
         startChip.position = CGPoint(x: cx, y: arcadeHeroY)
         startChip.zPosition = 2
         if let heroSubtitle {
-            startChip.labelNode?.position.y = 7
-            let sub = SKLabelNode(text: heroSubtitle)
-            sub.name = Self.startScreenHeroSubtitleName
-            sub.fontName = Self.customUIFontPostScriptName
-            sub.fontSize = 9
-            sub.fontColor = BlomixAppearance.primaryTextSK
-            sub.horizontalAlignmentMode = .center
-            sub.verticalAlignmentMode = .center
-            sub.position = CGPoint(x: 0, y: -11)
-            sub.zPosition = 3
-            startChip.capsuleContentNode?.addChild(sub)
+            attachStartScreenChipCaption(
+                to: startChip,
+                name: Self.startScreenHeroSubtitleName,
+                text: heroSubtitle
+            )
         }
         overlay.addChild(startChip)
 
@@ -2675,24 +2688,18 @@ final class GameScene: SKScene {
         let zenChip = makeStartScreenButtonChip(
             chipName: Self.startScreenZenChipName,
             labelName: Self.startScreenZenLabelName,
-            text: zenHasSave ? BlomixL10n.startContinue : BlomixL10n.zenButton,
+            text: BlomixL10n.zenButton,
             chipSize: pairChipSize,
             fontSize: chipFont
         )
         zenChip.position = CGPoint(x: cx + pairChipW / 2 + pairGap / 2, y: secondaryRowY)
         zenChip.zPosition = 2
         if zenHasSave {
-            zenChip.labelNode?.position.y = 7
-            let zenSub = SKLabelNode(text: BlomixL10n.startHeroModeZen)
-            zenSub.name = Self.startScreenZenSubtitleName
-            zenSub.fontName = Self.customUIFontPostScriptName
-            zenSub.fontSize = 9
-            zenSub.fontColor = BlomixAppearance.primaryTextSK
-            zenSub.horizontalAlignmentMode = .center
-            zenSub.verticalAlignmentMode = .center
-            zenSub.position = CGPoint(x: 0, y: -11)
-            zenSub.zPosition = 3
-            zenChip.capsuleContentNode?.addChild(zenSub)
+            attachStartScreenChipCaption(
+                to: zenChip,
+                name: Self.startScreenZenSubtitleName,
+                text: BlomixL10n.startContinue
+            )
         }
         overlay.addChild(zenChip)
 
@@ -6690,11 +6697,10 @@ final class GameScene: SKScene {
         }
 
         hapticLight()
-        let chainCells = Set(ordered)
         let stagger  = ChainClearFeedback.dissolveStagger
         let cellAnim = ChainClearFeedback.dissolvePerCellAnimationDuration
         let tail     = Double(max(ordered.count - 1, 0)) * stagger + cellAnim
-        removeBloxJunctionElementsTouching(chainCells)
+        dissolveBloxJunctionsWithChainCells(ordered: ordered, stagger: stagger)
 
         let zDuringDissolve: CGFloat = 24
 
@@ -12926,7 +12932,7 @@ final class GameScene: SKScene {
         if case .magix = block {
             spawnMagixLandingBurst(at: sceneCenter)
         } else {
-            spawnLandingImpactSparkles(at: sceneCenter, color: blockColor)
+            spawnLandingImpactSparkles(at: sceneCenter, color: blockColor, isBrix: isBrix)
         }
     }
 
@@ -13087,20 +13093,28 @@ final class GameScene: SKScene {
     }
 
     /// Effet d'impact à l'atterrissage : deux couches de paillettes superposées.
-    /// - Couche 1 (éjection) : ~12 particules, déplacement radial rapide, disparaissent en ~0.22s.
-    /// - Couche 2 (nuage/poudre) : ~26 particules très fines, quasi sur place, s'estompent en ~0.55s.
-    private func spawnLandingImpactSparkles(at center: CGPoint, color: SKColor) {
+    /// - Couche 1 (éjection) : blox ~12 ronds ; Brix 6–8 micro-carrés (signature cube, pas vol HUD).
+    /// - Couche 2 (nuage/poudre) : ~38 ronds très fins, quasi sur place, s'estompent en ~0,80 s.
+    private func spawnLandingImpactSparkles(at center: CGPoint, color: SKColor, isBrix: Bool = false) {
         let blockRadius: CGFloat = GridLayout.cellPoints / 2   // 20 pt
 
         // ── Couche 1 : éjection rapide ──────────────────────────────────────────────
         let ejectDuration: TimeInterval = 0.22
+        let ejectCount = isBrix ? Int.random(in: BrixLandingSparkles.ejectCountRange) : 12
 
-        for _ in 0..<12 {
+        for _ in 0..<ejectCount {
             let angle     = CGFloat.random(in: 0...(2 * .pi))
             let startDist = CGFloat.random(in: (blockRadius - 3)...(blockRadius + 3))
             let endDist   = startDist + CGFloat.random(in: 12...26)
 
-            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.8...1.8))
+            let spark: SKShapeNode
+            if isBrix {
+                let side = CGFloat.random(in: BrixLandingSparkles.ejectSideRange)
+                spark = SKShapeNode(rectOf: CGSize(width: side, height: side))
+                spark.zRotation = CGFloat.random(in: 0...(2 * .pi))
+            } else {
+                spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.8...1.8))
+            }
             spark.fillColor   = color
             spark.strokeColor = .clear
             spark.alpha       = 0
@@ -13488,7 +13502,8 @@ final class GameScene: SKScene {
         return (r1 == row && c1 == col) || (r2 == row && c2 == col)
     }
 
-    /// Retire les liaisons (H / V / diagonales) qui touchent au moins une case de la chaîne, **avant** l’animation des blox.
+    /// Retrait **immédiat** (peinture Magix, roulette COLORX, bombe, compactage, réarrangements).
+    /// Verbe « le réseau est cassé ». La mort de chaîne passe par `dissolveBloxJunctionsWithChainCells`.
     private func removeBloxJunctionElementsTouching(_ cells: Set<GridAddress>) {
         guard !cells.isEmpty else { return }
 
@@ -13496,6 +13511,7 @@ final class GameScene: SKScene {
             cells.contains { junctionBorderKeyTouchesCell(key, row: $0.row, col: $0.col) }
         }
         for key in borderKeys {
+            borderConnections[key]?.removeAllActions()
             borderConnections[key]?.removeFromParent()
             borderConnections.removeValue(forKey: key)
         }
@@ -13504,9 +13520,107 @@ final class GameScene: SKScene {
             cells.contains { junctionDiagonalKeyTouchesCell(key, row: $0.row, col: $0.col) }
         }
         for key in diagonalKeys {
+            diagonalConnections[key]?.removeAllActions()
             diagonalConnections[key]?.removeFromParent()
             diagonalConnections.removeValue(forKey: key)
         }
+    }
+
+    private func junctionBorderEndpoints(_ key: String) -> (GridAddress, GridAddress)? {
+        let parts = key.split(separator: "_")
+        guard parts.count == 3, let a = Int(parts[1]), let b = Int(parts[2]) else { return nil }
+        switch parts[0] {
+        case "H":
+            return (GridAddress(row: a, col: b), GridAddress(row: a, col: b + 1))
+        case "V":
+            return (GridAddress(row: a, col: b), GridAddress(row: a + 1, col: b))
+        default:
+            return nil
+        }
+    }
+
+    private func junctionDiagonalEndpoints(_ key: String) -> (GridAddress, GridAddress)? {
+        let parts = key.split(separator: "_")
+        guard parts.count == 5, parts[0] == "D",
+              let r1 = Int(parts[1]), let c1 = Int(parts[2]),
+              let r2 = Int(parts[3]), let c2 = Int(parts[4]) else { return nil }
+        return (GridAddress(row: r1, col: c1), GridAddress(row: r2, col: c2))
+    }
+
+    /// Mort de chaîne : la barre fond avec le **premier** des deux blox (stagger ligne→colonne).
+    /// Combo / cascade : même path, `drawGrid` recoud le réseau restant entre les vagues.
+    private func dissolveBloxJunctionsWithChainCells(ordered: [GridAddress], stagger: TimeInterval) {
+        guard !ordered.isEmpty else { return }
+        var indexByCell: [GridAddress: Int] = [:]
+        indexByCell.reserveCapacity(ordered.count)
+        for (i, addr) in ordered.enumerated() {
+            indexByCell[addr] = i
+        }
+        let chain = Set(ordered)
+
+        func delay(for a: GridAddress, _ b: GridAddress) -> TimeInterval {
+            let ia = indexByCell[a]
+            let ib = indexByCell[b]
+            let idx: Int
+            switch (ia, ib) {
+            case let (x?, y?): idx = min(x, y)
+            case let (x?, nil): idx = x
+            case let (nil, y?): idx = y
+            default: idx = 0
+            }
+            return TimeInterval(idx) * stagger
+        }
+
+        let borders = borderConnections
+        for (key, node) in borders {
+            guard let (a, b) = junctionBorderEndpoints(key),
+                  chain.contains(a) || chain.contains(b) else { continue }
+            borderConnections.removeValue(forKey: key)
+            let squashX = key.hasPrefix("H")
+            let squashY = key.hasPrefix("V")
+            runJunctionDissolve(node, delay: delay(for: a, b), squashX: squashX, squashY: squashY)
+        }
+
+        let diagonals = diagonalConnections
+        for (key, node) in diagonals {
+            guard let (a, b) = junctionDiagonalEndpoints(key),
+                  chain.contains(a) || chain.contains(b) else { continue }
+            diagonalConnections.removeValue(forKey: key)
+            runJunctionDissolve(node, delay: delay(for: a, b), squashX: true, squashY: true)
+        }
+    }
+
+    private func runJunctionDissolve(
+        _ node: SKShapeNode,
+        delay: TimeInterval,
+        squashX: Bool,
+        squashY: Bool
+    ) {
+        node.removeAllActions()
+        let dur = ChainClearFeedback.junctionDissolveDuration
+        let end = ChainClearFeedback.junctionDissolveEndScale
+        let fade = SKAction.fadeOut(withDuration: dur)
+        fade.timingMode = .easeOut
+        var parts: [SKAction] = [fade]
+        if squashX {
+            let sx = SKAction.scaleX(to: end, duration: dur)
+            sx.timingMode = .easeOut
+            parts.append(sx)
+        }
+        if squashY {
+            let sy = SKAction.scaleY(to: end, duration: dur)
+            sy.timingMode = .easeOut
+            parts.append(sy)
+        }
+        let melt = SKAction.group(parts)
+        node.run(SKAction.sequence([
+            SKAction.wait(forDuration: delay),
+            SKAction.run { [weak node] in
+                node?.zPosition = ChainClearFeedback.junctionDissolveZ
+            },
+            melt,
+            SKAction.removeFromParent(),
+        ]))
     }
 
     /// Remonte les traits qui touchent la case du **dernier** blox posé.

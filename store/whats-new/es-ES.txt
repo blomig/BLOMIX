@@ -1,3 +1,2 @@
-• Un destello al adelantar a otro jugador en la línea
-• Desafío del día: el podio de ayer aparece bajo la clasificación
-• Nuevo icono de BLOMIX
+• Clasificaciones: las pestañas de Puntuación siguen la portada — Arcade, Media, Zen, Duelo, Desafío
+• Los Brix se funden con el color del bloque a medida que se debilitan

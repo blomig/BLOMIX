@@ -401,7 +401,20 @@ final class BlomixSkinCatalog: @unchecked Sendable {
         return c
     }
 
+    /// Mix `prikstext` → fond `priks` : n ≥ 5 = 100 % glyphe ; 4=80 % ; 3=60 % ; 2=40 % ; 1=20 %.
+    func priksDigitSKColor(remainingHits n: Int) -> SKColor {
+        let glyph = priksDigitSKColor()
+        let full = PriksRules.initialHitsRemaining
+        guard n < full else { return glyph }
+        let t = CGFloat(max(0, n)) / CGFloat(full)
+        return Self.skColorLerp(priksSKColor(), glyph, t)
+    }
+
     func priksDigitUIColor() -> UIColor { priksDigitSKColor() as UIColor }
+
+    func priksDigitUIColor(remainingHits n: Int) -> UIColor {
+        priksDigitSKColor(remainingHits: n) as UIColor
+    }
 
     func bloxUIColor(forNormalizedKey key: String) -> UIColor? {
         bloxSKColor(forNormalizedKey: key) as UIColor?
@@ -413,6 +426,22 @@ final class BlomixSkinCatalog: @unchecked Sendable {
     }
 
     func priksUIColor() -> UIColor { priksSKColor() as UIColor }
+
+    private static func skColorLerp(_ a: SKColor, _ b: SKColor, _ t: CGFloat) -> SKColor {
+        let u = min(1, max(0, t))
+        var ar: CGFloat = 0, ag: CGFloat = 0, ab: CGFloat = 0, aa: CGFloat = 0
+        var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+        guard a.getRed(&ar, green: &ag, blue: &ab, alpha: &aa),
+              b.getRed(&br, green: &bg, blue: &bb, alpha: &ba) else {
+            return u < 0.5 ? a : b
+        }
+        return SKColor(
+            red: ar + (br - ar) * u,
+            green: ag + (bg - ag) * u,
+            blue: ab + (bb - ab) * u,
+            alpha: aa + (ba - aa) * u
+        )
+    }
 
     private static func skColorFromHexString(_ raw: String) -> SKColor? {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -3769,7 +3798,7 @@ final class GameScene: SKScene {
         )
     }
 
-    private static let scoreRaceGrayRadius: CGFloat = 1.35
+    private static let scoreRaceGrayRadius: CGFloat = 1.5
     private static let scoreRaceGreenRadius: CGFloat = 3.5
     private static let scoreRaceYellowRadius: CGFloat = 5
     private static let scoreRaceDiamondHalf: CGFloat = 3.6
@@ -4509,6 +4538,7 @@ final class GameScene: SKScene {
     private func leaderboardTabForCurrentMode() -> LeaderboardViewController.InitialTab {
         if pvpCoordinator != nil { return .elo }
         if isZenMode { return .zenScore }
+        if isDailyChallengeMode { return .dailyWins }
         return .mainScore
     }
 
@@ -5498,7 +5528,7 @@ final class GameScene: SKScene {
                     let nLbl = SKLabelNode(text: "\(n)")
                     nLbl.fontName               = Self.gridFontName
                     nLbl.fontSize               = cellSize * 0.45
-                    nLbl.fontColor              = .white
+                    nLbl.fontColor              = Self.priksDigitColor(remainingHits: n)
                     nLbl.verticalAlignmentMode  = .center
                     nLbl.horizontalAlignmentMode = .center
                     nLbl.zPosition = 1
@@ -5565,7 +5595,7 @@ final class GameScene: SKScene {
                     let nl = SKLabelNode(text: "\(n)")
                     nl.fontName               = Self.gridFontName
                     nl.fontSize               = pendingLineH * 0.55
-                    nl.fontColor              = .white
+                    nl.fontColor              = Self.priksDigitColor(remainingHits: n)
                     nl.verticalAlignmentMode  = .center
                     nl.horizontalAlignmentMode = .center
                     nl.zPosition = 1
@@ -5625,7 +5655,7 @@ final class GameScene: SKScene {
                 let nl = SKLabelNode(text: "\(n)")
                 nl.fontName               = Self.gridFontName
                 nl.fontSize               = sz * 0.45
-                nl.fontColor              = .white
+                nl.fontColor              = Self.priksDigitColor(remainingHits: n)
                 nl.verticalAlignmentMode  = .center
                 nl.horizontalAlignmentMode = .center
                 nl.zPosition = 1
@@ -6283,10 +6313,12 @@ final class GameScene: SKScene {
         digit.removeAction(forKey: Self.priksDigitAnimKey)
         digit.setScale(1)
         digit.text = "\(fromValue)"
+        digit.fontColor = Self.priksDigitColor(remainingHits: fromValue)
         let grow = SKAction.scale(to: Self.priksDigitPeakScale, duration: Self.priksDigitGrowDuration)
         grow.timingMode = .easeOut
         let swap = SKAction.run { [weak self] in
             digit.text = "\(toValue)"
+            digit.fontColor = Self.priksDigitColor(remainingHits: toValue)
             self?.priksDigitSettleStartedAt[addr] = CACurrentMediaTime()
         }
         let settle = SKAction.scale(to: 1.0, duration: Self.priksDigitSettleDuration)
@@ -6323,11 +6355,13 @@ final class GameScene: SKScene {
             guard remaining > 0.01 else {
                 digit.setScale(1)
                 digit.text = "\(n)"
+                digit.fontColor = Self.priksDigitColor(remainingHits: n)
                 clearPriksDigitAnim(at: addr)
                 continue
             }
             digit.removeAction(forKey: Self.priksDigitAnimKey)
             digit.text = "\(n)"
+            digit.fontColor = Self.priksDigitColor(remainingHits: n)
             digit.setScale(Self.priksDigitSettleScale(elapsed: elapsed))
             let settle = SKAction.scale(to: 1.0, duration: remaining)
             settle.timingMode = .easeInEaseOut
@@ -10195,7 +10229,7 @@ final class GameScene: SKScene {
         digitNode.name = "saintxCountDigit"
         digitNode.fontName = Self.gridFontName
         digitNode.fontSize = startingDigit >= 10 ? 13 : 18
-        digitNode.fontColor = Self.priksDigitLabelColor()
+        digitNode.fontColor = Self.priksDigitColor(remainingHits: startingDigit)
         digitNode.horizontalAlignmentMode = .center
         digitNode.verticalAlignmentMode = .center
         digitNode.position = .zero
@@ -10263,6 +10297,7 @@ final class GameScene: SKScene {
                 guard label.text != text else { return }
                 label.text = text
                 label.fontSize = shown >= 10 ? 13 : 18
+                label.fontColor = Self.priksDigitColor(remainingHits: shown)
             }, withKey: "saintxCount")
         }
 
@@ -11549,7 +11584,7 @@ final class GameScene: SKScene {
             digit.name = Self.queueSlotPriksDigitName
             digit.fontName = Self.gridFontName
             digit.fontSize = priksFont
-            digit.fontColor = Self.priksDigitLabelColor()
+            digit.fontColor = Self.priksDigitColor(remainingHits: value)
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
@@ -12532,7 +12567,7 @@ final class GameScene: SKScene {
             digit.name = Self.previewPriksDigitName
             digit.fontName = Self.gridFontName
             digit.fontSize = 19
-            digit.fontColor = Self.priksDigitLabelColor()
+            digit.fontColor = Self.priksDigitColor(remainingHits: value)
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
@@ -12757,9 +12792,9 @@ final class GameScene: SKScene {
         BlomixSkinCatalog.shared.priksSKColor()
     }
 
-    /// Couleur du chiffre sur les Priks (skin : `prikstext`).
-    private static func priksDigitLabelColor() -> SKColor {
-        BlomixSkinCatalog.shared.priksDigitSKColor()
+    /// n ≥ 5 : `prikstext` plein. En dessous, mix 20 %/cran vers le fond `priks`.
+    private static func priksDigitColor(remainingHits n: Int) -> SKColor {
+        BlomixSkinCatalog.shared.priksDigitSKColor(remainingHits: n)
     }
 
     private static func solidGameplayBloxPixelSize() -> CGSize {
@@ -13008,7 +13043,7 @@ final class GameScene: SKScene {
             let digit = SKLabelNode(text: "\(value)")
             digit.fontName = Self.gridFontName
             digit.fontSize = value >= 10 ? 13 : 18
-            digit.fontColor = Self.priksDigitLabelColor()
+            digit.fontColor = Self.priksDigitColor(remainingHits: value)
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
@@ -13237,7 +13272,7 @@ final class GameScene: SKScene {
             digit.fontName = gridFontName
             // Réduction automatique de la taille de police pour les valeurs à 2 chiffres (≥10).
             digit.fontSize = value >= 10 ? priksDigitFontSize * 0.72 : priksDigitFontSize
-            digit.fontColor = Self.priksDigitLabelColor()
+            digit.fontColor = Self.priksDigitColor(remainingHits: value)
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
@@ -15954,7 +15989,7 @@ final class GameScene: SKScene {
                     if self?.isDailyChallengeMode == true {
                         self?.showDailyHub()
                     } else {
-                        self?.showLeaderboard()
+                        self?.showLeaderboard(initialTab: self?.leaderboardTabForCurrentMode() ?? .mainScore)
                     }
                 }
                 return

@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 7.9  
+> **Version de référence** : 8.0  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : septembre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
@@ -206,6 +206,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 - Fond couleur `priks` du skin
 - Chiffre centré, police joueur ; taille ×0,72 si valeur ≥ 10
+- Teinte du glyphe : mix `prikstext` → fond `priks` selon le compteur (`priksDigitSKColor(remainingHits:)`). n ≥ 5 = 100 % glyphe ; 4 = 80 % ; 3 = 60 % ; 2 = 40 % ; 1 = 20 % (presque le fond). Swap au pic du −1, même cran que le texte.
 - Pas d'animation idle
 
 ### 2.3 Blocs Magix (rendu continu)
@@ -303,7 +304,7 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 ### 4.1 Décrément (compteur > 0)
 
 - Le **bloc** ne bouge pas (pas de scale / colorize).
-- Le **chiffre** : ×1,0 → ×**1,3** en **0,12 s** (`easeOut`) ; **au pic** le texte passe à −1 ; retour ×1,0 en **0,60 s** (`easeInEaseOut`). Pas de SFX.
+- Le **chiffre** : ×1,0 → ×**1,3** en **0,12 s** (`easeOut`) ; **au pic** le texte **et** la teinte passent à n−1 (palier 20 % vers le fond) ; retour ×1,0 en **0,60 s** (`easeInEaseOut`). Pas de SFX.
 - Plusieurs Brix dans la même vague : stagger **0,04 s**/chiffre, ordre `(ligne, colonne)` (même famille que la dissolution). Le compactage attend le dernier swap.
 - **SCRUMBLX** : même anim, **avant** le décalage des lignes (`max(flash 0,18 s, dernier swap)`). Le settle peut continuer pendant le slide.
 

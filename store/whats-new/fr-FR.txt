@@ -1,3 +1,2 @@
-• Petite étincelle quand vous dépassez un autre joueur sur la ligne
-• Défi du jour : le podium d’hier s’affiche sous le classement
-• Nouvelle icône BLOMIX
+• Classements : les onglets SCORE suivent l’accueil — Arcade, Moyenne, Zen, Duel, Défi
+• Les Brix s’estompent vers leur couleur de fond à mesure qu’ils s’affaiblissent

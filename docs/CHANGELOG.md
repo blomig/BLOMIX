@@ -7,9 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.0] — 2026-10
+
+Build **146**. Local (pas encore soumis). **7.9 / 145** en vente.
+
+### Modifié
+
+- **Écran SCORE** : onglets dans le même ordre que les pastilles d’accueil — Arcade, Moyenne, Zen, Duel, Défi (Duel n’est plus en 2ᵉ).
+- **Brix** : le chiffre se fond vers le fond du bloc par paliers de 20 % (5 = `prikstext` plein, 1 = 20 %). n > 5 comme 5. Fill, timing −1 et disparition inchangés.
+- **Jauge** : points gris des autres scores, rayon **1,5** (était 1,35).
+
+---
+
 ## [7.9] — 2026-10
 
-Build **145**. En review (mise en ligne auto). **7.8 / 144** en vente.
+Build **145**. En vente.
 
 ### Ajouté
 

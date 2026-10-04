@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 7.9  
+> **Version de référence** : 8.0  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -125,6 +125,7 @@ Bonus cascade : `+ chainSeriesLevel × 10`.
 | Décrément | −1 par vague si 8-adjacent à une case effacée (max 1/vague) |
 | Disparition | +20 pts, son `priksVanish` |
 | Bombe | destruction instantanée (+20 pts), pas de décrément |
+| Rendu chiffre | Mix `prikstext` → fond `priks` : 100/80/60/40/20 % pour n = 5/4/3/2/1 ; n > 5 = 100 % |
 
 BRIXED (Magix) : crée un Brix(9), **détruit** tous les autres Brix (+20 chacun).  
 SAINTX : laisse un Brix valant le nombre de cases effacées.
@@ -348,7 +349,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - **Arcade** hero pleine largeur sous BLOMIX, **Défi du jour** hero en dessous ; Duel + Zen en paire. Entrée chips (y compris Défi) **après** le poinçon BLOMIX (`runStartScreenGameChipEntrance`). Duel : pastille `person.fill` verte (respiration) à droite du libellé, dans la capsule, si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
-- 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = rang carrière CloudKit (même liste que l’onglet Défi), pas le board GC ni la liste du jour. Pastille Défi : dernier rang persisté tout de suite, recalcul 60 jours coalescé en arrière-plan (cache 20 s).
+- 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = rang carrière CloudKit (même liste que l’onglet Défi), pas le board GC ni la liste du jour. Pastille Défi : dernier rang persisté tout de suite, recalcul 60 jours coalescé en arrière-plan (cache 20 s). Écran SCORE : **mêmes 5 onglets, même ordre**.
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
 - Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi / Duel+Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.

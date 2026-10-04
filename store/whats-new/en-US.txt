@@ -1,3 +1,2 @@
-• A tiny sparkle when you pass another player on the race line
-• Daily Challenge: yesterday’s podium sits under today’s ranking
-• New BLOMIX icon
+• Rankings: SCORE tabs now match the home discs — Arcade, Average, Zen, Duel, Daily
+• Brix fade into their block color as they take hits

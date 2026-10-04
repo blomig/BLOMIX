@@ -12,6 +12,7 @@ import UIKit
 @MainActor
 final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     /// Onglet affiché à l'ouverture (disques de rang sur l'accueil, etc.).
+    /// Même ordre que les pastilles accueil : Arcade, Moyenne, Zen, Duel, Défi.
     enum InitialTab {
         case mainScore
         case averageScore
@@ -49,11 +50,12 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
+    /// Ordre d’affichage des onglets = pastilles accueil (Arcade → Moyenne → Zen → Duel → Défi).
     private enum LeaderboardKind: CaseIterable, Sendable {
         case mainScore
-        case elo
         case averageScore
         case zenScore
+        case elo
         case dailyWins
 
         var title: String {
@@ -191,19 +193,19 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         avgTabButton.setTitle(BlomixL10n.leaderboardAvgTab,  for: .normal)
         zenTabButton.setTitle(BlomixL10n.leaderboardZenTab,  for: .normal)
         dailyTabButton.setTitle(BlomixL10n.leaderboardDailyTab, for: .normal)
-        [mainTabButton, eloTabButton, avgTabButton, zenTabButton, dailyTabButton].forEach {
+        [mainTabButton, avgTabButton, zenTabButton, eloTabButton, dailyTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
             BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4), to: $0)
         }
         mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
-        eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
         avgTabButton.addTarget(self,  action: #selector(avgTabTapped),  for: .touchUpInside)
         zenTabButton.addTarget(self,  action: #selector(zenTabTapped),  for: .touchUpInside)
+        eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
         dailyTabButton.addTarget(self, action: #selector(dailyTabTapped), for: .touchUpInside)
         tabsStack.addArrangedSubview(mainTabButton)
-        tabsStack.addArrangedSubview(eloTabButton)
         tabsStack.addArrangedSubview(avgTabButton)
         tabsStack.addArrangedSubview(zenTabButton)
+        tabsStack.addArrangedSubview(eloTabButton)
         tabsStack.addArrangedSubview(dailyTabButton)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
@@ -371,9 +373,9 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private func updateSelectedLeaderboardUI() {
         subtitleLabel.text = selectedLeaderboardKind.subtitle
         applyTabSelectionStyle(button: mainTabButton, selected: selectedLeaderboardKind == .mainScore)
-        applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
         applyTabSelectionStyle(button: avgTabButton,  selected: selectedLeaderboardKind == .averageScore)
         applyTabSelectionStyle(button: zenTabButton,  selected: selectedLeaderboardKind == .zenScore)
+        applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
         applyTabSelectionStyle(button: dailyTabButton, selected: selectedLeaderboardKind == .dailyWins)
     }
 

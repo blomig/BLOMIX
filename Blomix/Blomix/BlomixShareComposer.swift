@@ -208,7 +208,7 @@ enum BlomixShareComposer {
                         let dFont = BlomixTypography.displayFont(size: cell * 0.42)
                         let dAttrs: [NSAttributedString.Key: Any] = [
                             .font: dFont,
-                            .foregroundColor: BlomixSkinCatalog.shared.priksDigitUIColor(),
+                            .foregroundColor: BlomixSkinCatalog.shared.priksDigitUIColor(remainingHits: n),
                         ]
                         let dSize = digit.size(withAttributes: dAttrs)
                         digit.draw(

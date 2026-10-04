@@ -1,3 +1,2 @@
-• Ein kleines Funkeln, wenn du einen anderen Spieler auf der Linie überholst
-• Tägliche Challenge: das Podium von gestern steht unter der Rangliste
-• Neues BLOMIX-Icon
+• Ranglisten: SCORE folgt dem Startbildschirm — Arcade, Durchschnitt, Zen, Duell, Challenge
+• Brix verblassen in ihre Blockfarbe, je schwächer sie werden

@@ -38,7 +38,7 @@ open Blomix/Blomix.xcodeproj
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **7.9 / 145** en vente. **8.0 / 146** local — ne pas Fastlane tant que 8.0 n’est pas figée.
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **7.9 / 145** en vente. **8.0 / 146** en review (mise en ligne auto).
 
 ---
 

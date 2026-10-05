@@ -17,6 +17,11 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
 
     private let titleView = BlomixCutoutTitleView(text: BlomixL10n.dailyHubTitle, fontSize: 28)
     private let dateLabel = UILabel()
+    private let ghostRow = UIStackView()
+    private let ghostTitleLabel = UILabel()
+    private let ghostValueLabel = UILabel()
+    private let ghostSpinner = UIActivityIndicatorView(style: .medium)
+    private var ghostWaitRevealWork: DispatchWorkItem?
     private let closeButton = BlomixUIButton()
     private let statusLabel = UILabel()
     private let tableView = UITableView(frame: .zero, style: .plain)
@@ -38,6 +43,16 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         buildChrome()
         applyCTA()
         loadScores()
+        BlomixDailyGhostController.shared.onDisplayChange = { [weak self] display in
+            self?.applyGhostDisplay(display)
+        }
+        applyGhostDisplay(BlomixDailyGhostController.shared.display)
+        BlomixDailyGhostController.shared.hubAppeared()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        BlomixDailyGhostController.shared.hubAppeared()
     }
 
     private func buildChrome() {
@@ -56,6 +71,29 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         dateLabel.font = BlomixTypography.uiFont(size: 13, weight: .medium)
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(dateLabel)
+
+        ghostTitleLabel.text = BlomixL10n.dailyGhostTitle
+        ghostTitleLabel.textColor = BlomixAppearance.tertiaryText
+        ghostTitleLabel.font = BlomixTypography.uiFont(size: 12, weight: .regular)
+        ghostTitleLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        ghostValueLabel.textColor = BlomixAppearance.tertiaryText
+        ghostValueLabel.font = BlomixTypography.uiFont(size: 12, weight: .medium)
+        ghostValueLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        ghostSpinner.color = BlomixAppearance.tertiaryText
+        ghostSpinner.hidesWhenStopped = true
+        ghostSpinner.transform = CGAffineTransform(scaleX: 0.72, y: 0.72)
+
+        ghostRow.axis = .horizontal
+        ghostRow.alignment = .center
+        ghostRow.spacing = 8
+        ghostRow.translatesAutoresizingMaskIntoConstraints = false
+        ghostRow.addArrangedSubview(ghostTitleLabel)
+        ghostRow.addArrangedSubview(ghostValueLabel)
+        ghostRow.addArrangedSubview(ghostSpinner)
+        ghostRow.isAccessibilityElement = true
+        view.addSubview(ghostRow)
 
         statusLabel.textColor = BlomixAppearance.secondaryText
         statusLabel.font = BlomixTypography.uiFont(size: 14, weight: .regular)
@@ -114,7 +152,11 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
             dateLabel.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 4),
             dateLabel.leadingAnchor.constraint(equalTo: titleView.leadingAnchor),
 
-            statusLabel.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 12),
+            ghostRow.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 2),
+            ghostRow.leadingAnchor.constraint(equalTo: titleView.leadingAnchor),
+            ghostRow.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20),
+
+            statusLabel.topAnchor.constraint(equalTo: ghostRow.bottomAnchor, constant: 12),
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
@@ -235,6 +277,37 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         dismiss(animated: true) {
             NotificationCenter.default.post(name: .blomixModalDidDismiss, object: nil)
         }
+    }
+
+    private func applyGhostDisplay(_ display: BlomixDailyGhostDisplay) {
+        ghostWaitRevealWork?.cancel()
+        ghostWaitRevealWork = nil
+        switch display {
+        case .ready(let score):
+            ghostSpinner.stopAnimating()
+            ghostValueLabel.text = Self.ghostScoreCaption(score)
+            ghostRow.accessibilityLabel = BlomixL10n.dailyGhostAccessibility(score)
+        case .computing:
+            ghostValueLabel.text = nil
+            ghostSpinner.stopAnimating()
+            ghostRow.accessibilityLabel = BlomixL10n.dailyGhostAccessibilityComputing
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                if case .computing = BlomixDailyGhostController.shared.display {
+                    self.ghostValueLabel.text = BlomixL10n.dailyGhostComputing
+                    self.ghostSpinner.startAnimating()
+                }
+            }
+            ghostWaitRevealWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: work)
+        }
+    }
+
+    private static func ghostScoreCaption(_ score: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = .current
+        return formatter.string(from: NSNumber(value: score)) ?? "\(score)"
     }
 
     private static func utcDateCaption() -> String {

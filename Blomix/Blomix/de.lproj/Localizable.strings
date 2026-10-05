@@ -431,3 +431,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "daily.game_over_rank_unavailable" = "Rang nicht verfügbar";
 "daily.career_points_format" = "%lld Pkt.";
 "daily.hub_yesterday_podium_format" = "Podium von gestern: %@";
+"daily.ghost_title" = "BLOMIX-Referenz";
+"daily.ghost_computing" = "Referenz wird berechnet…";
+"daily.ghost_a11y_format" = "BLOMIX-Referenz, %lld Punkte";
+"daily.ghost_a11y_computing" = "BLOMIX-Referenz wird berechnet";

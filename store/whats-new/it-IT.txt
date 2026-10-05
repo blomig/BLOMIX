@@ -1,2 +1,4 @@
-• Classifiche: le schede Punteggio seguono la home — Arcade, Media, Zen, Duello, Sfida
-• I Brix sfumano nel colore del blocco man mano che si indeboliscono
+• Sfida: un Riferimento BLOMIX sotto la data — un punteggio del giorno da inseguire
+• Home: Arcade e Zen tengono il nome; Continua come didascalia se c’è una partita
+• Le giunzioni si dissolvono con i blox quando una catena sparisce
+• I Brix spargono micro-quadrati all’atterraggio

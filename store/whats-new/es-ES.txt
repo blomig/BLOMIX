@@ -1,2 +1,4 @@
-• Clasificaciones: las pestañas de Puntuación siguen la portada — Arcade, Media, Zen, Duelo, Desafío
-• Los Brix se funden con el color del bloque a medida que se debilitan
+• Desafío: una Referencia BLOMIX bajo la fecha — una puntuación del día a perseguir
+• Inicio: Arcade y Zen conservan su nombre; Continuar como subtítulo si hay partida
+• Las uniones se disuelven con los blox al romper una cadena
+• Los Brix sueltan microcuadrados al aterrizar

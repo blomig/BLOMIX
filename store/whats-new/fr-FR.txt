@@ -1,2 +1,4 @@
-• Classements : les onglets SCORE suivent l’accueil — Arcade, Moyenne, Zen, Duel, Défi
-• Les Brix s’estompent vers leur couleur de fond à mesure qu’ils s’affaiblissent
+• Défi : une Référence BLOMIX sous la date — un score du jour à viser
+• Accueil : Arcade et Zen gardent leur nom ; Continuer en sous-titre s’il y a une partie
+• Les jonctions fondent avec les blox quand une chaîne disparaît
+• Les Brix laissent des micro-carrés à l’atterrissage

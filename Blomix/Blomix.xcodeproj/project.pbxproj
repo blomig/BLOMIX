@@ -90,6 +90,7 @@
 		1000000000000000000002E1 /* BlomixDailyRNG.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E0 /* BlomixDailyRNG.swift */; };
 		1000000000000000000002E3 /* BlomixDailyChallenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E2 /* BlomixDailyChallenge.swift */; };
 		1000000000000000000002E5 /* BlomixDailyHubViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E4 /* BlomixDailyHubViewController.swift */; };
+		1000000000000000000002E7 /* BlomixDailyGhost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002E6 /* BlomixDailyGhost.swift */; };
 		10000000000000000000021C /* tips_of_day.json in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021D /* tips_of_day.json */; };
 		10000000000000000000021E /* BlomixAvailablePlayersManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000021F /* BlomixAvailablePlayersManager.swift */; };
 		100000000000000000000221 /* BlomixSKButtonNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000220 /* BlomixSKButtonNode.swift */; };
@@ -195,6 +196,7 @@
 		1000000000000000000002E0 /* BlomixDailyRNG.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyRNG.swift; sourceTree = "<group>"; };
 		1000000000000000000002E2 /* BlomixDailyChallenge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyChallenge.swift; sourceTree = "<group>"; };
 		1000000000000000000002E4 /* BlomixDailyHubViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyHubViewController.swift; sourceTree = "<group>"; };
+		1000000000000000000002E6 /* BlomixDailyGhost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixDailyGhost.swift; sourceTree = "<group>"; };
 		10000000000000000000021A /* en */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = en; path = en.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000021B /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = fr; path = fr.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000021F /* BlomixAvailablePlayersManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAvailablePlayersManager.swift; sourceTree = "<group>"; };
@@ -334,6 +336,7 @@
 				1000000000000000000002E0 /* BlomixDailyRNG.swift */,
 				1000000000000000000002E2 /* BlomixDailyChallenge.swift */,
 				1000000000000000000002E4 /* BlomixDailyHubViewController.swift */,
+				1000000000000000000002E6 /* BlomixDailyGhost.swift */,
 				1000000000000000000001C0 /* BlomixTypography.swift */,
 				100000000000000000000241 /* BlomixAppearance.swift */,
 				100000000000000000000250 /* BlomixShareComposer.swift */,
@@ -722,6 +725,7 @@
 				1000000000000000000002E1 /* BlomixDailyRNG.swift in Sources */,
 				1000000000000000000002E3 /* BlomixDailyChallenge.swift in Sources */,
 				1000000000000000000002E5 /* BlomixDailyHubViewController.swift in Sources */,
+				1000000000000000000002E7 /* BlomixDailyGhost.swift in Sources */,
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
 				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
 				100000000000000000000251 /* BlomixShareComposer.swift in Sources */,

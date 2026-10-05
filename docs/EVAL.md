@@ -1,8 +1,9 @@
 # Blomix — Fonction d'évaluation (`BlomixMoveAnalyzer`)
 
 > **Version implémentée** : v2 (production)  
-> **Version de référence** : 6.4  
-> Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`
+> **Version de référence** : 8.1  
+> Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`  
+> Fantôme Défi : `Blomix/Blomix/BlomixDailyGhost.swift`
 
 ---
 
@@ -244,6 +245,24 @@ optimalityPercent = moyenne × 100
 3. **Magix et bombes** : non simulés dans le lookahead (`simulateDropAny` retourne vide si P0 est Magix ; le mode bombe n’est pas analysé). Une partie riche en Magix peut donc afficher une justesse basse alors que les effets spéciaux ont été bien utilisés. C’est la limite affichée côté joueur dans [RULES.md](RULES.md) §10.
 4. **Lignes futures** : ignorées au-delà du niveau 1 (compensé partiellement par `urgencyH`).
 5. **`risk` dominant** : même avec le facteur dynamique v2.
+
+---
+
+## Fantôme Défi du jour (`BlomixDailyGhost`)
+
+Le hub affiche **Référence BLOMIX** : le **score Arcade** d’une partie jouée en mémoire sur la seed du jour (pas le score d’`evaluate()`, pas une rejouée, pas une grille).
+
+| | |
+|---|---|
+| Blox / Brix | Colonne = argmax `computeOptimal` (lookahead 3) ; égalité → plus à gauche |
+| Magix | **Hors** lookahead. Colonne = plus petite hauteur jouable, puis gauche. Effets réels via `DailyEffectRNG` (mêmes `event` que `GameScene`) |
+| Bombes | Stock 5 + BOMBX. **Souple** avant un Blox/Brix : `maxH ≥ 7` et le meilleur drop n’abaisse pas `maxH` et n’efface quasiment rien (≤ 1 case). Cible : rayon qui touche une colonne max, max de cases **dans** ces colonnes (3×3 + croix = `stageIndex`). Magix posé dès qu’il est P0 (pas de bombe à sa place). Si plus aucune case d’atterrissage : bombe jusqu’à pouvoir poser ou stock 0 |
+| Timer | Ignoré (le fantôme ne meurt pas au chrono) |
+| Affichage | Hub seulement, sous la date, `tertiaryText` : **Référence BLOMIX** + score. Pas dans CloudKit, pas un faux joueur |
+| CPU | File `blomix.dailyGhost` QoS `.utility`. Pause coopérative (entre deux coups) dès `blomixDidBeginGameplayMatch`. Reprise accueil / hub, même jour, état RAM. Cache `UserDefaults` (`jour` + `engineVersion`) |
+| Attente | Ligne « Calcul de la référence… » + petit spinner inline après 150 ms. CTA jamais bloqué. Pas de % (longueur de run inconnue) |
+
+Ce n’est **pas** un plafond : un humain peut faire mieux (bombe pour construire une cascade, Magix, horizon) ou moins bien (chrono, greedy 3-ply).
 
 ---
 

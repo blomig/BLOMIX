@@ -540,6 +540,18 @@ enum BlomixL10n {
     static func dailyHubYesterdayPodium(_ names: String) -> String {
         String(format: tr("daily.hub_yesterday_podium_format", comment: "Hub box above CTA; %@ = yesterday's top 3 names"), names)
     }
+    static var dailyGhostTitle: String {
+        tr("daily.ghost_title", comment: "Hub line under the date — BLOMIX reference score")
+    }
+    static var dailyGhostComputing: String {
+        tr("daily.ghost_computing", comment: "Hub wait while the daily ghost run is computing")
+    }
+    static func dailyGhostAccessibility(_ score: Int) -> String {
+        String(format: tr("daily.ghost_a11y_format", comment: "VoiceOver; %lld = reference score"), score)
+    }
+    static var dailyGhostAccessibilityComputing: String {
+        tr("daily.ghost_a11y_computing", comment: "VoiceOver while the reference is computing")
+    }
 
     // MARK: - Tutoriel interactif
     static var menuTutorial: String { tr("menu.tutorial", comment: "Tutorial button on home screen and overflow menu") }

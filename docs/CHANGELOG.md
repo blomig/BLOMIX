@@ -9,7 +9,11 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [8.1] — 2026-10
 
-Build **147**. Local — **pas de soumission ASC** tant que **8.0 / 146** est en review.
+Build **147**. Soumission commerciale (mise en ligne auto). **8.0 / 146** en vente.
+
+### Ajouté
+
+- **Défi** : ligne **Référence BLOMIX** sous la date du hub (score Arcade d’une run fantôme seedée : Magix + bombes souples si le plateau est trop haut). Gris, hors classement CloudKit. Calcul en fond, pause dès qu’une partie commence.
 
 ### Modifié
 
@@ -21,7 +25,7 @@ Build **147**. Local — **pas de soumission ASC** tant que **8.0 / 146** est en
 
 ## [8.0] — 2026-10
 
-Build **146**. En review (mise en ligne auto). **7.9 / 145** en vente.
+Build **146**. En vente.
 
 ### Modifié
 

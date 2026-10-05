@@ -309,6 +309,7 @@ L’overlay UIKit paginé (`GameTutorialOverlayView` / `hasSeenGameTutorial`) n�
 - Lookahead 3 niveaux (P0, P1, P2) : 512 simulations max
 - `evalEnabled = true`, `realtimeFeedbackEnabled = false`
 - Stats fin de partie : **justesse** % , pire coup (`worstMistakeSnapshot`) — plus de hint en cours de partie (v6.1). Magix / bombes non simulés → le % ne les compte pas.
+- **Référence BLOMIX** (`BlomixDailyGhost.swift`) : run fantôme de la seed Défi (lookahead 3 + Magix seedés, bombes souples si le meilleur drop ne soulage pas un `maxH ≥ 7`, 0 timer). Score Arcade affiché en gris sous la date du hub. Pause CPU dès qu’une partie commence.
 
 Voir [EVAL.md](EVAL.md).
 
@@ -468,6 +469,7 @@ Blomix/Blomix/
 ├── BlomixDailyRNG.swift              # File seedée + effets Magix hashés (Défi du jour)
 ├── BlomixDailyChallenge.swift        # Save daily, CloudKit `DailyScore`, podium GC
 ├── BlomixDailyHubViewController.swift # Hub du jour (liste + CTA)
+├── BlomixDailyGhost.swift            # Fantôme seedé — Référence BLOMIX (hub)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift  # Classements Elo H2H + défis ; crédits plain-text legacy
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)

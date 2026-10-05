@@ -10,7 +10,7 @@
 import Foundation
 
 /// LCG identique à `BlomixPvPSeededBlockRNG` (même constante), seedé par le jour UTC.
-struct BlomixDailyFileRNG: Equatable {
+struct BlomixDailyFileRNG: Equatable, Sendable {
     /// Graine du jour (figée au lancement de la run).
     let seed: UInt64
     /// État courant du LCG (persisté dans le slot daily).

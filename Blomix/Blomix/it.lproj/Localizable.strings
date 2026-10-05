@@ -419,3 +419,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "daily.game_over_rank_unavailable" = "Posizione non disponibile";
 "daily.career_points_format" = "%lld pt";
 "daily.hub_yesterday_podium_format" = "Podio di ieri: %@";
+"daily.ghost_title" = "Riferimento BLOMIX";
+"daily.ghost_computing" = "Calcolo del riferimento…";
+"daily.ghost_a11y_format" = "Riferimento BLOMIX, %lld punti";
+"daily.ghost_a11y_computing" = "Calcolo del riferimento BLOMIX";

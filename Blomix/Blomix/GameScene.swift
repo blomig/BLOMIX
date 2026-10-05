@@ -21,6 +21,8 @@ extension Notification.Name {
     static let blomixSkinDidChange = Notification.Name("blomixSkinDidChange")
     /// Publié une fois l’UI de partie prête après **START** (tutoriel UIKit dans `GameViewController`).
     static let blomixDidBeginGameplayMatch = Notification.Name("blomixDidBeginGameplayMatch")
+    /// Accueil affiché (hors partie). Reprise éventuelle du fantôme Défi.
+    static let blomixDidPresentStartScreen = Notification.Name("blomixDidPresentStartScreen")
     /// Publié quand les grilles PvP sont prêtes et que le modal de préparation peut se fermer.
     static let blomixPvPBoardsReady = Notification.Name("blomixPvPBoardsReady")
     /// Publié si la préparation PvP échoue avant l’entrée en partie.
@@ -571,7 +573,7 @@ struct GridPosition: Hashable {
 
 /// Contenu d’une case de la grille 8×8 (aligné sur l’ancien `priks.html`).
 /// Variante d'un bloc Magix.
-enum MagixKind: String, Codable, Equatable, CaseIterable {
+enum MagixKind: String, Codable, Equatable, CaseIterable, Sendable {
     /// Transformation serpent (chemin aléatoire ≤ 15 blocs) + grosse chaîne garantie.
     case chromax
     /// Décrémente de 2 tous les Brix de la grille ; reste dans la grille en tant que Brix(9).
@@ -592,7 +594,7 @@ enum MagixKind: String, Codable, Equatable, CaseIterable {
     case bombx
 }
 
-enum BlockType: Equatable {
+enum BlockType: Equatable, Sendable {
     case empty
     /// Couleur logique : `red`, `blue`, … — rendu **sprite plein** (hexa = jonctions).
     case color(String)
@@ -779,14 +781,14 @@ final class BlomixSoloSaveManager: @unchecked Sendable {
 }
 
 /// Règles Priks alignées sur `old_web_code/priks.html` (`getNextBlock`, dégâts de chaîne).
-private enum PriksRules {
+enum PriksRules {
     /// Probabilité Priks par tirage : **1 chance sur 8** (file à lancer + chaque case de la ligne des 10 coups).
     static let spawnProbability: Double = 1.0 / 8.0
     /// Valeur initiale du compteur sur le bloc suivant (même tableau que le web).
     static let initialHitsRemaining: Int = 5
 }
 
-private enum MagixRules {
+enum MagixRules {
     /// Probabilité par variante Magix. L'ordre du tableau détermine la priorité de tirage.
     /// CROSSX + SLASHX se partagent l’ancien 1/216 (½ chacun) : cumul Magix inchangé ≈ 2,9 %.
     static let spawnProbabilityByKind: [(kind: MagixKind, p: Double)] = [
@@ -2408,6 +2410,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
 
         isStartScreen = true
+        NotificationCenter.default.post(name: .blomixDidPresentStartScreen, object: self)
 
         let overlay = SKNode()
         overlay.name = Self.startScreenOverlayName

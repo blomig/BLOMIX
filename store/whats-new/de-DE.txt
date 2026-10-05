@@ -1,2 +1,4 @@
-• Ranglisten: SCORE folgt dem Startbildschirm — Arcade, Durchschnitt, Zen, Duell, Challenge
-• Brix verblassen in ihre Blockfarbe, je schwächer sie werden
+• Challenge: eine BLOMIX-Referenz unter dem Datum — ein Tageswert zum Jagen
+• Start: Arcade und Zen behalten ihren Namen; Weiter als Untertitel bei einem Spielstand
+• Verbindungen lösen sich mit den Blox auf, wenn eine Kette verschwindet
+• Brix streuen Mini-Quadrate beim Landen

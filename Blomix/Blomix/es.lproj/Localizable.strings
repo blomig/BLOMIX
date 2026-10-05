@@ -419,3 +419,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "daily.game_over_rank_unavailable" = "Puesto no disponible";
 "daily.career_points_format" = "%lld pts";
 "daily.hub_yesterday_podium_format" = "Podio de ayer: %@";
+"daily.ghost_title" = "Referencia BLOMIX";
+"daily.ghost_computing" = "Calculando la referencia…";
+"daily.ghost_a11y_format" = "Referencia BLOMIX, %lld puntos";
+"daily.ghost_a11y_computing" = "Calculando la referencia BLOMIX";

@@ -84,6 +84,7 @@
 | **Arcade** (solo stagé) | Mode par défaut | Timer par coup, 6 stages, lignes entrantes, bombes |
 | **Zen** | `isZenMode` | Pas de timer, pas de stages, classement dédié |
 | **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, hub CloudKit + points podium GC `dailywins_arc` |
+| **Référence BLOMIX** | `BlomixDailyGhost` | Score Arcade d’une run fantôme (lookahead 3 + Magix seedés, bombes en souple sur plateau haut, sans timer). Ligne grise sous la date du hub : **Référence BLOMIX** + score — **pas** un joueur CloudKit, **pas** un optimum. |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
 | **Tutoriel** | `tutorialBlockQueue` | Séquence scriptée au premier lancement |
 

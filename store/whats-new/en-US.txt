@@ -1,2 +1,4 @@
-• Rankings: SCORE tabs now match the home discs — Arcade, Average, Zen, Duel, Daily
-• Brix fade into their block color as they take hits
+• Daily: a BLOMIX reference under the date — a score of the day to chase
+• Home: Arcade and Zen keep their names; Continue as a caption if you have a save
+• Junctions fade with the blox when a chain clears
+• Brix scatter micro-squares on landing

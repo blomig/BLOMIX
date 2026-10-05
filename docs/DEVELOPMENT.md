@@ -213,7 +213,9 @@ bundle exec fastlane submit      # envoi à la review (irréversible)
 | `CLEAN=0` | pas de `clean` xcodebuild |
 | `EDIT_LIVE=1` | `metadata` : écrit le promo sur la version **en vente** |
 
-`release` et `beta` bumpent `CURRENT_PROJECT_VERSION` : `max(local, dernier build ASC + 1)`. **Committer le pbxproj** après un bump.
+`release` et `beta` bumpent `CURRENT_PROJECT_VERSION` **iPhone** : `max(local, dernier build ASC + 1)`. La Watch n’est pas bumpée. **Committer le pbxproj** après un bump.
+
+`validate` / `release` lisent `MARKETING_VERSION` de la cible iPhone (`Blomix/Info.plist`) : un écart Watch (ex. 8.0) n’est pas une erreur.
 
 `release` / `metadata` / `submit` **refusent** de tourner si ASC a déjà une version éditable (review, Pending Developer Release, etc.) dont le numéro **diffère** de `MARKETING_VERSION`. `deliver` avec `skip_app_version_update: false` **renomme** cette fiche au lieu d’en créer une nouvelle, et n’attache pas le nouveau binaire (incident 6.9 : fiche 6.8 → 6.9, build 128 conservé).
 

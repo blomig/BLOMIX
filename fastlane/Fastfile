@@ -94,7 +94,7 @@ platform :ios do
         submit_for_review: false
       )
     )
-    UI.success("Build #{get_build_number(xcodeproj: XCODEPROJ)} uploadé pour #{marketing_version}.")
+    UI.success("Build #{iphone_build_number} uploadé pour #{marketing_version}.")
     UI.important("Review non lancee. Quand le build est Valid dans ASC : bundle exec fastlane submit")
   end
 
@@ -104,7 +104,7 @@ platform :ios do
     api = connect_api_key!
     generated = generate_deliver_metadata!
     version = marketing_version
-    build = get_build_number(xcodeproj: XCODEPROJ)
+    build = iphone_build_number
     assert_editable_version_is_ours!(version)
     UI.important("Soumission #{version} (build #{build}) -- automatic_release=true")
     upload_to_app_store(
@@ -195,12 +195,43 @@ def connect_api_key!
   )
 end
 
+# Cible iPhone (`Blomix/Info.plist`). La Watch peut rester en 8.0 / 146.
+def iphone_pbx_setting(key)
+  pbx = File.read(File.join(XCODEPROJ, "project.pbxproj"))
+  values = []
+  pbx.split("isa = XCBuildConfiguration;").each do |block|
+    next unless block.include?("INFOPLIST_FILE = Blomix/Info.plist")
+
+    val = block[/#{Regexp.escape(key)} = ([^;]+);/, 1]
+    values << val.strip if val
+  end
+  values.uniq
+end
+
 def marketing_version
-  pbx = File.read(XCODEPROJ + "/project.pbxproj")
-  versions = pbx.scan(/MARKETING_VERSION = ([^;]+);/).flatten.map(&:strip).uniq
-  UI.user_error!("MARKETING_VERSION introuvable dans le pbxproj") if versions.empty?
-  UI.user_error!("MARKETING_VERSION incohérent : #{versions.join(', ')}") if versions.size > 1
+  versions = iphone_pbx_setting("MARKETING_VERSION")
+  UI.user_error!("MARKETING_VERSION iPhone introuvable dans le pbxproj") if versions.empty?
+  UI.user_error!("MARKETING_VERSION iPhone incohérent : #{versions.join(', ')}") if versions.size > 1
   versions.first
+end
+
+def iphone_build_number
+  builds = iphone_pbx_setting("CURRENT_PROJECT_VERSION")
+  UI.user_error!("CURRENT_PROJECT_VERSION iPhone introuvable") if builds.empty?
+  UI.user_error!("CURRENT_PROJECT_VERSION iPhone incohérent : #{builds.join(', ')}") if builds.size > 1
+  builds.first
+end
+
+def set_iphone_build_number!(nxt)
+  path = File.join(XCODEPROJ, "project.pbxproj")
+  pbx = File.read(path)
+  updated = pbx.split("isa = XCBuildConfiguration;").map.with_index do |block, idx|
+    next block if idx.zero?
+    next block unless block.include?("INFOPLIST_FILE = Blomix/Info.plist")
+
+    block.sub(/CURRENT_PROJECT_VERSION = [^;]+;/, "CURRENT_PROJECT_VERSION = #{nxt};")
+  end
+  File.write(path, updated.join("isa = XCBuildConfiguration;"))
 end
 
 # deliver(skip_app_version_update: false) renomme la version éditable ASC
@@ -235,7 +266,7 @@ def assert_editable_version_is_ours!(intended)
 end
 
 def bump_build_number!(api)
-  local = get_build_number(xcodeproj: XCODEPROJ).to_i
+  local = iphone_build_number.to_i
   remote = 0
   begin
     tf = latest_testflight_build_number(
@@ -265,8 +296,8 @@ def bump_build_number!(api)
   if nxt == local
     UI.success("Build #{local} encore libre -- on le garde.")
   else
-    increment_build_number(xcodeproj: XCODEPROJ, build_number: nxt)
-    UI.success("CURRENT_PROJECT_VERSION → #{nxt} (penser à committer le pbxproj)")
+    set_iphone_build_number!(nxt)
+    UI.success("CURRENT_PROJECT_VERSION iPhone → #{nxt} (Watch inchangée ; committer le pbxproj)")
   end
   nxt
 end

@@ -61,6 +61,18 @@ def pbx_versions(key)
   File.read(PBX).scan(/#{Regexp.escape(key)} = ([^;]+);/).flatten.map(&:strip).uniq
 end
 
+# Cible iPhone seulement (`Blomix/Info.plist`). La Watch peut rester en retard.
+def iphone_pbx_versions(key)
+  values = []
+  File.read(PBX).split("isa = XCBuildConfiguration;").each do |block|
+    next unless block.include?("INFOPLIST_FILE = Blomix/Info.plist")
+
+    val = block[/#{Regexp.escape(key)} = ([^;]+);/, 1]
+    values << val.strip if val
+  end
+  values.uniq
+end
+
 def target_entitlements_by_config
   pbx = File.read(PBX)
   result = {}
@@ -146,17 +158,25 @@ unless skip_entitlements
       errors << "pbxproj Release CODE_SIGN_ENTITLEMENTS=#{release_ent.inspect} (attendu Blomix/BlomixRelease.entitlements)"
     end
 
-    marketing = pbx_versions("MARKETING_VERSION")
-    builds = pbx_versions("CURRENT_PROJECT_VERSION")
+    marketing = iphone_pbx_versions("MARKETING_VERSION")
+    builds = iphone_pbx_versions("CURRENT_PROJECT_VERSION")
     if marketing.size > 1
-      errors << "MARKETING_VERSION incohérent dans le pbxproj : #{marketing.join(', ')}"
+      errors << "MARKETING_VERSION iPhone incohérent dans le pbxproj : #{marketing.join(', ')}"
     elsif marketing.empty?
-      errors << "MARKETING_VERSION introuvable dans le pbxproj"
+      errors << "MARKETING_VERSION iPhone introuvable dans le pbxproj"
     end
     if builds.size > 1
-      warnings << "CURRENT_PROJECT_VERSION incohérent : #{builds.join(', ')}"
+      errors << "CURRENT_PROJECT_VERSION iPhone incohérent : #{builds.join(', ')}"
     end
-    puts "Version Xcode : #{marketing.first || '?'} (build #{builds.first || '?'})" if marketing.any?
+    all_marketing = pbx_versions("MARKETING_VERSION")
+    all_builds = pbx_versions("CURRENT_PROJECT_VERSION")
+    if all_marketing.size > 1
+      warnings << "Watch MARKETING_VERSION distinct de l’iPhone (#{all_marketing.join(', ')}) — OK si la Watch n’est pas bumpée"
+    end
+    if all_builds.size > 1
+      warnings << "Watch CURRENT_PROJECT_VERSION distinct de l’iPhone (#{all_builds.join(', ')})"
+    end
+    puts "Version Xcode iPhone : #{marketing.first || '?'} (build #{builds.first || '?'})" if marketing.any?
   else
     errors << "manquant : #{PBX.relative_path_from(ROOT)}"
   end

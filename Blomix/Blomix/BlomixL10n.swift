@@ -641,7 +641,27 @@ enum BlomixL10n {
     static var pvpBotsBadge: String                 { tr("pvp.bots.badge",                comment: "Badge on a bot row (Elo / Duel list)") }
     static var pvpBotsPlay: String                  { tr("pvp.bots.play",                 comment: "Duel vs bot — launch match button") }
     static func pvpBotsThinkSeconds(_ seconds: Int) -> String {
-        String(format: tr("pvp.bots.think_seconds_format", comment: "Bot think time; %d = seconds per move"), seconds)
+        String(format: tr("pvp.bots.think_seconds_format", comment: "Bot think time; %d = seconds"), seconds)
+    }
+    static func pvpBotsThinkAlwaysRandom(seconds: Int) -> String {
+        String(
+            format: tr("pvp.bots.think_always_random_format", comment: "Bot think; every move random; %d = seconds"),
+            seconds
+        )
+    }
+    static func pvpBotsThinkAlwaysWorst(seconds: Int) -> String {
+        String(
+            format: tr("pvp.bots.think_always_worst_format", comment: "Bot think; every move worst; %d = seconds"),
+            seconds
+        )
+    }
+    static func pvpBotsThinkFractionWorst(seconds: Int, hits: Int, outOf: Int) -> String {
+        String(
+            format: tr("pvp.bots.think_fraction_worst_format", comment: "Bot think; k/n worst; %1$d seconds, %2$d hits, %3$d out of"),
+            seconds,
+            hits,
+            outOf
+        )
     }
     static func pvpAvailableError(_ message: String) -> String {
         String(format: tr("pvp.available_error_format", comment: "Available players — load error; %@ = message"), message)

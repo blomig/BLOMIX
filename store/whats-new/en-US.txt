@@ -1,3 +1,3 @@
-• Duel: take on BOT10, BOT5 or BOTSUPREME — same rules, three tempos
+• Duel: take on BABYBOT, MINIBOT, BOBBOT, BOT10, BOT5 or BOTSUPREME
 • Elo board: bots are players (BOT badge)
 • Daily: the BLOMIX reference aims more accurately

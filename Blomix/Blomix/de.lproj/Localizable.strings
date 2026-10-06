@@ -293,7 +293,10 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "pvp.bots.section_title"        = "Bots";
 "pvp.bots.badge"                = "BOT";
 "pvp.bots.play"                 = "Spielen";
-"pvp.bots.think_seconds_format" = "%d s / Zug";
+"pvp.bots.think_seconds_format" = "%d s";
+"pvp.bots.think_always_random_format" = "%d s · Zufall";
+"pvp.bots.think_always_worst_format"  = "%d s · schlecht";
+"pvp.bots.think_fraction_worst_format" = "%d s · %d/%d schlecht";
 "pvp.available_error_format" = "Spieler konnten nicht geladen werden: %@";
 "pvp.cloud_busy_retry_format" = "Cloud ist ausgelastet. In %d s erneut versuchen.";
 

@@ -9,15 +9,16 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [8.2] — 2026-10
 
-Build **148**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en vente.
+Build **152**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en vente.
 
 ### Ajouté
 
-- **Duel vs bots** : BOT10 / BOT5 / BOTSUPREME (même cerveau `computeOptimal`, horloges 10 / 5 / 1 s). Liste Duel (section Bots, 0 réseau) et fusion dans l’onglet Elo (badge BOT). Elo joueur → `elotype` ; Elo bot → CloudKit `BotEloEvent`. Isolation : Duel humain / H2H / `protocolVersion` inchangés. [BOT_DUEL.md](BOT_DUEL.md).
+- **Duel vs bots** : BABYBOT (tous pire coup) / MINIBOT (tous au hasard) / BOBBOT (2/5 pire) / BOT10 (10 s, 1/2 pire) / BOT5 / BOTSUPREME (`computeOptimal`, 5 s / 1 s). Liste Duel (section Bots, 0 réseau) et fusion dans l’onglet Elo (badge BOT). Elo joueur → `elotype` ; Elo bot → CloudKit `BotEloEvent`. Isolation : Duel humain / H2H / `protocolVersion` inchangés. [BOT_DUEL.md](BOT_DUEL.md).
 
 ### Modifié
 
 - **Référence BLOMIX** : Magix visés (CHROMAX = colonne la plus remplie ; autres = scan 8). Bombes : max de Brix dans les colonnes hautes. Lookahead Blox/Brix : `computeOptimal` avec la ligne des 10 connue. `engineVersion` 5.
+- **Pastille Duel (accueil)** : rang aligné sur l’onglet Elo (filtre des comptes GC figés à 800 / 0 parties + fusion bots). Plus le `GKLeaderboard.Entry.rank` brut.
 
 ---
 

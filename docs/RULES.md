@@ -241,7 +241,7 @@ Même accélération qu’**Arcade** (timer, stages, bombe, Magix). Tout le mond
 
 ### Duel (1 vs 1)
 
-Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BOT10 / BOT5 / BOTSUPREME) :
+Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME) :
 - RNG partagé → mêmes blocs pour les deux joueurs (**pas de Magix**)
 - **3 bombes** au départ, zone **3×3**
 - Attaque : ligne chez l'adversaire à chaque palier **score / 50**
@@ -249,7 +249,7 @@ Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BOT10 / BOT5 
 - Timer de tour : **10 s** par coup ; **geler** tant que le mode bombe est actif
 - **Elo** : rating initial 800, K adaptatif selon le nombre de matchs. Un match bot **fait bouger** ton Elo (`elotype`) ; l’Elo du bot est global (CloudKit).
 - Victoire = adversaire en Game Over ; le score le plus élevé l'emporte
-- Bots : même règles, une seule grille (la tienne). BOT10 / BOT5 / BOTSUPREME ne diffèrent que par le temps de « réflexion » (10 / 5 / 1 s). Noms non traduits. Pas de H2H CloudKit.
+- Bots : même règles, une seule grille (la tienne), **3 bombes**. BABYBOT : tous les coups = pire coup. MINIBOT : tous au hasard. BOBBOT : 2 coups sur 5 = pire coup. BOT10 : 10 s, 1 coup sur 2 = pire coup. BOT5 / BOTSUPREME : `computeOptimal`, 5 s / 1 s. Noms non traduits. Pas de H2H CloudKit.
 
 Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_DUEL.md](BOT_DUEL.md).
 

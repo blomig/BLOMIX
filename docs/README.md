@@ -17,7 +17,7 @@
 | [MODE_PISTES.md](MODE_PISTES.md) | Pistes de 4ᵉ mode (Contrats, Graine du jour, Marée, Poche Magix, Duo, Atelier, Défi Zen) |
 | [JUICE_PISTES.md](JUICE_PISTES.md) | Pistes juice / physique blox · Brix · Magix (pas la spec en jeu) |
 | [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md) | Défi du jour — graine UTC, hub, CloudKit, points podium |
-| [BOT_DUEL.md](BOT_DUEL.md) | Duel vs bots (BOT10 / BOT5 / BOTSUPREME) |
+| [BOT_DUEL.md](BOT_DUEL.md) | Duel vs bots (BABYBOT … BOTSUPREME) |
 | [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Juice Spec : animations, particules, sons, timings |
 | [GLOSSARY.md](GLOSSARY.md) | Terminologie canonique (code ↔ joueur ↔ UI) |
 

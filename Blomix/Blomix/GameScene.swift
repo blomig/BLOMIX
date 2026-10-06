@@ -4254,6 +4254,17 @@ final class GameScene: SKScene {
         guard GKLocalPlayer.local.isAuthenticated else { return }
 
         for (leaderboardID, discName) in specs {
+            if leaderboardID == "elotype" {
+                Task { @MainActor [weak self] in
+                    guard let self, self.isStartScreen else { return }
+                    guard let rank = await BlomixEloManager.shared.fetchDisplayedLocalDuelRank() else { return }
+                    guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
+                          let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
+                    else { return }
+                    self.applyStartScreenDiscRank(rank, discName: discName, in: container)
+                }
+                continue
+            }
             if leaderboardID == ScoreManager.dailyLeaderboardID {
                 if let cached = BlomixDailyChallenge.shared.cachedLocalCareerRank() {
                     applyStartScreenDiscRank(cached, discName: discName, in: container)

@@ -306,7 +306,10 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.bots.section_title"        = "Bots";
 "pvp.bots.badge"                = "BOT";
 "pvp.bots.play"                 = "Jouer";
-"pvp.bots.think_seconds_format" = "%d s / coup";
+"pvp.bots.think_seconds_format" = "%d s";
+"pvp.bots.think_always_random_format" = "%d s · hasard";
+"pvp.bots.think_always_worst_format"  = "%d s · pire";
+"pvp.bots.think_fraction_worst_format" = "%d s · %d/%d pire";
 "pvp.available_error_format" = "Impossible de charger les joueurs : %@";
 "pvp.cloud_busy_retry_format" = "Le cloud est occupé. Réessaie dans %d s.";
 

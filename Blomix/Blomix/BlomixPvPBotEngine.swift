@@ -2,7 +2,7 @@
 //  BlomixPvPBotEngine.swift
 //  Blomix
 //
-//  Duel vs bots : trois horloges, un cerveau (`computeOptimal` / `evaluate`).
+//  Duel vs bots : horloges + éventuel 1/N colonne au hasard, un cerveau (`computeOptimal`).
 //  File `blomix.pvpBot` QoS .utility — jamais `analyzerQueue`, jamais MainActor
 //  pour le lookahead. Pas de Magix, bombes 3×3, attaques palier 50.
 //
@@ -13,12 +13,18 @@ import UIKit
 // MARK: - Identité bot (noms non traduits)
 
 enum BlomixPvPBotKind: String, CaseIterable, Sendable {
+    case babybot = "bot:baby"
+    case minibot = "bot:mini"
+    case bobbot = "bot:bob"
     case bot10 = "bot:10"
     case bot5 = "bot:5"
     case supreme = "bot:supreme"
 
     var displayName: String {
         switch self {
+        case .babybot: return "BABYBOT"
+        case .minibot: return "MINIBOT"
+        case .bobbot: return "BOBBOT"
         case .bot10: return "BOT10"
         case .bot5: return "BOT5"
         case .supreme: return "BOTSUPREME"
@@ -28,11 +34,34 @@ enum BlomixPvPBotKind: String, CaseIterable, Sendable {
     /// Budget de réflexion par coup (secondes). Si `computeOptimal` dépasse : jouer dès que prêt.
     var thinkSeconds: TimeInterval {
         switch self {
+        case .babybot, .minibot, .bobbot, .bot5: return 5
         case .bot10: return 10
-        case .bot5: return 5
         case .supreme: return 1
         }
     }
+
+    /// Colonne de ce coup. BOT5 / BOTSUPREME : toujours optimal.
+    func columnPolicy(moveCount: Int) -> BlomixPvPBotColumnPolicy {
+        switch self {
+        case .babybot:
+            return .worst
+        case .minibot:
+            return .randomLegal
+        case .bobbot:
+            let phase = moveCount % 5
+            return (phase == 0 || phase == 2) ? .worst : .optimal
+        case .bot10:
+            return (moveCount % 2 == 0) ? .worst : .optimal
+        case .bot5, .supreme:
+            return .optimal
+        }
+    }
+}
+
+enum BlomixPvPBotColumnPolicy: Sendable {
+    case optimal
+    case randomLegal
+    case worst
 }
 
 // MARK: - Pause / stop (file bot)
@@ -87,7 +116,7 @@ final class BlomixPvPBotMatchController: @unchecked Sendable {
     func start(seed: UInt64) {
         flags.resetForNewRound()
         let gen = bumpGeneration()
-        let engine = BlomixPvPBotEngine.start(seed: seed)
+        let engine = BlomixPvPBotEngine.start(seed: seed, kind: kind)
         queue.async { [weak self] in
             self?.runLoop(engine: engine, generation: gen)
         }
@@ -236,6 +265,9 @@ struct BlomixPvPBotAddr: Hashable, Sendable {
 // MARK: - Moteur RAM (règles Duel, pas Arcade)
 
 struct BlomixPvPBotEngine: Sendable {
+    private let kind: BlomixPvPBotKind
+    /// Mélange déterministe pour les colonnes « au hasard » — **pas** le RNG des pièces.
+    private let fidgetSeed: UInt64
     private var rng: BlomixPvPSeededBlockRNG
     private var grid: [[BlockType]]
     private var p0: BlockType
@@ -257,13 +289,19 @@ struct BlomixPvPBotEngine: Sendable {
         (1, -1), (1, 0), (1, 1),
     ]
 
-    static func start(seed: UInt64) -> BlomixPvPBotEngine {
+    static func start(seed: UInt64, kind: BlomixPvPBotKind) -> BlomixPvPBotEngine {
         var rng = BlomixPvPSeededBlockRNG(seed: seed)
         let p0 = rng.nextPlayableBlock()
         let p1 = rng.nextPlayableBlock()
         let p2 = rng.nextPlayableBlock()
         let line = rng.nextRandomLineRowIndependentCells()
+        var mix: UInt64 = 0
+        for b in kind.rawValue.utf8 {
+            mix = mix &* 16777619 &+ UInt64(b)
+        }
         return BlomixPvPBotEngine(
+            kind: kind,
+            fidgetSeed: seed &* 0x9E3779B97F4A7C15 &+ mix,
             rng: rng,
             grid: Array(repeating: Array(repeating: .empty, count: cols), count: rows),
             p0: p0, p1: p1, p2: p2,
@@ -352,6 +390,18 @@ struct BlomixPvPBotEngine: Sendable {
     // MARK: Politique (engine 5, sans Magix)
 
     private func pickColumn() -> Int? {
+        switch kind.columnPolicy(moveCount: moveCount) {
+        case .randomLegal:
+            return randomLegalColumn()
+        case .worst:
+            return columnByEval(pickBest: false)
+        case .optimal:
+            return columnByEval(pickBest: true)
+        }
+    }
+
+    /// `pickBest` : argmax `scorePerColumn`. Sinon argmin (pire coup jouable, égalité → gauche).
+    private func columnByEval(pickBest: Bool) -> Int? {
         let result = BlomixMoveAnalyzer.computeOptimal(
             grid: grid,
             piece0: p0,
@@ -360,16 +410,30 @@ struct BlomixPvPBotEngine: Sendable {
             moveCount: moveCount,
             pendingLine: nextLine
         )
-        var bestCol: Int?
-        var bestScore = Int.min
+        var chosen: Int?
+        var chosenScore = pickBest ? Int.min : Int.max
         for c in 0..<Self.cols {
             guard let s = result.scorePerColumn[c] else { continue }
-            if s > bestScore {
-                bestScore = s
-                bestCol = c
+            let better = pickBest ? (s > chosenScore) : (s < chosenScore)
+            if better {
+                chosenScore = s
+                chosen = c
             }
         }
-        return bestCol ?? shortestThenLeftColumn()
+        return chosen ?? shortestThenLeftColumn()
+    }
+
+    /// Colonne avec atterrissage, tirage déterministe (seed match + coup). Pas le RNG des pièces.
+    private func randomLegalColumn() -> Int? {
+        let legal = (0..<Self.cols).filter { landingRow($0) != nil }
+        guard !legal.isEmpty else { return nil }
+        var x = fidgetSeed &+ UInt64(moveCount &+ 1) &* 0x9E3779B97F4A7C15
+        x ^= x >> 30
+        x = x &* 0xBF58476D1CE4E5B9
+        x ^= x >> 27
+        x = x &* 0x94D049BB133111EB
+        x ^= x >> 31
+        return legal[Int(x % UInt64(legal.count))]
     }
 
     private func pickColumnAfterHypotheticalBomb(_ center: BlomixPvPBotAddr) -> Int? {

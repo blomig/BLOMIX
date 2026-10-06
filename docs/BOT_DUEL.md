@@ -5,7 +5,7 @@
 > **2026-10-06**  
 > Voir [PVP_MATCHING.md](PVP_MATCHING.md), [EVAL.md](EVAL.md), [RULES.md](RULES.md) § Duel.
 
-Objectif : pouvoir lancer un Duel contre **BOT10**, **BOT5** ou **BOTSUPREME** — mêmes règles que le Duel humain, une seule grille (la tienne), les trois bots **visibles dans le classement Elo in-app** comme des joueurs.
+Objectif : pouvoir lancer un Duel contre **BABYBOT**, **MINIBOT**, **BOBBOT**, **BOT10**, **BOT5** ou **BOTSUPREME** — mêmes règles que le Duel humain, une seule grille (la tienne), les bots **visibles dans le classement Elo in-app** comme des joueurs.
 
 ---
 
@@ -28,15 +28,18 @@ Si CloudKit bots est KO, si le moteur bot rame, si la fusion Elo rate : **le Due
 
 ## 1. Ce que le joueur voit
 
-### 1.1 Trois adversaires
+### 1.1 Six adversaires
 
-| Id interne | Nom (non traduit, comme un Magix) | Temps de « réflexion » |
-|---|---|---|
-| `bot:10` | **BOT10** | 10 s par coup |
-| `bot:5` | **BOT5** | 5 s par coup |
-| `bot:supreme` | **BOTSUPREME** | 1 s par coup |
+| Id interne | Nom (non traduit, comme un Magix) | Temps | Cerveau |
+|---|---|---|---|
+| `bot:baby` | **BABYBOT** | 5 s | **tous** les coups : pire coup |
+| `bot:mini` | **MINIBOT** | 5 s | **tous** les coups : colonne légale au hasard |
+| `bot:bob` | **BOBBOT** | 5 s | 2 coups sur 5 : pire coup ; sinon `computeOptimal` |
+| `bot:10` | **BOT10** | 10 s | 1 coup sur 2 : pire coup ; sinon `computeOptimal` |
+| `bot:5` | **BOT5** | 5 s | toujours `computeOptimal` |
+| `bot:supreme` | **BOTSUPREME** | 1 s | toujours `computeOptimal` |
 
-Même cerveau (`computeOptimal` / `evaluate`, plateau bas). Seule l’horloge change : BOTSUPREME envoie des attaques plus souvent.
+Le hasard **ne consomme pas** le RNG des pièces (mélange déterministe `fidgetSeed`). Colonne = atterrissage possible, tirage uniforme. Pire coup = même métrique que le récap. BOBBOT : sur 5 coups, 1er et 3e = pire. BOT10 : 1/2 pire, horloge **10 s**. BOT5 / BOTSUPREME inchangés.
 
 Badge **BOT** sur la ligne (classement / HUD). Pas de prénom Game Center, pas d’avatar GC.
 
@@ -44,8 +47,8 @@ Badge **BOT** sur la ligne (classement / HUD). Pas de prénom Game Center, pas d
 
 Deux chemins, **aucun** n’est un défi CloudKit ni un `GKInvite` :
 
-1. **Liste Duel** (Joueurs disponibles) — section basse **Bots**, 3 rangs toujours visibles, 0 réseau. Tap = lance le match local.
-2. **Onglet Elo** — les 3 bots sont **fusionnés** dans la liste (tri par rating, comme un humain). Tap = lance le match local. **Pas** le bouton « Défier » Game Center.
+1. **Liste Duel** (Joueurs disponibles) — section basse **Bots**, 6 rangs toujours visibles, 0 réseau. Tap = lance le match local.
+2. **Onglet Elo** — les 6 bots sont **fusionnés** dans la liste (tri par rating, comme un humain). Tap = lance le match local. **Pas** le bouton « Défier » Game Center.
 
 Les bots **n’apparaissent pas** dans le heartbeat `AvailablePlayer`. On ne peut pas les défier « comme un joueur en ligne ».
 
@@ -54,7 +57,7 @@ Les bots **n’apparaissent pas** dans le heartbeat `AvailablePlayer`. On ne peu
 Identique à un Duel humain **côté joueur** :
 
 - Une grille SpriteKit, timer **toi** 10 s (gelé en visée bombe).
-- HUD Duel : palier 0…50, pile d’attaque, nom de l’adversaire = BOT10 / BOT5 / BOTSUPREME, profondeur de remplissage adverse.
+- HUD Duel : palier 0…50, pile d’attaque, nom de l’adversaire = BABYBOT / … / BOTSUPREME, profondeur de remplissage adverse.
 - File **sans Magix**, 3 bombes **3×3**, ligne des 10, attaques à chaque palier 50.
 - L’adversaire n’est **pas** animé. Le bot est un moteur en mémoire.
 
@@ -78,7 +81,7 @@ Même écran résultat Duel (victoire / défaite, Elo local ±Δ). L’Elo **du 
 ┌──────────────▼──────────────────────────────┐
 │ File `blomix.pvpBot`  QoS .utility           │
 │ BlomixPvPBotEngine  (copie RAM, Sendable)    │
-│  think 1 / 5 / 10 s  +  computeOptimal       │
+│  think 1 / 5 / 10 s  +  computeOptimal / 1/N │
 └─────────────────────────────────────────────┘
 ```
 
@@ -116,7 +119,7 @@ Si le canal `.bot` est buggé, un match **humain** ne l’emprunte jamais.
 
 Politique de pose (alignée fantôme **engine 5**, sans Magix) :
 
-- Blox / Brix : argmax `computeOptimal` (`pendingLine` = prochaine ligne des 10 si connue).
+- Blox / Brix : argmax `computeOptimal` (`pendingLine` = prochaine ligne des 10 si connue), sauf BABYBOT : tous pire coup ; MINIBOT : tous au hasard ; BOBBOT : 2/5 pire ; BOT10 : 1/2 pire.
 - Bombes souples : `maxH ≥ 7` et le meilleur drop n’abaisse pas / n’efface pas ; cible Brix puis colonnes hautes. Survie si plus d’atterrissage.
 - **Ne pas** modifier `evaluate` / `computeOptimal` pour « aider le bot ».
 
@@ -136,7 +139,7 @@ Politique de pose (alignée fantôme **engine 5**, sans Magix) :
 
 ### 3.1 Intention
 
-Les 3 bots **sont des joueurs du classement Elo dans BLOMIX**. Ton Elo Duel **bouge** après un match bot (même formule, même `elotype` pour **toi**). L’Elo du bot **bouge** pour tout le monde.
+Les 6 bots **sont des joueurs du classement Elo dans BLOMIX**. Ton Elo Duel **bouge** après un match bot (même formule, même `elotype` pour **toi**). L’Elo du bot **bouge** pour tout le monde.
 
 ### 3.2 Ce que Game Center ne sait pas faire
 
@@ -154,9 +157,11 @@ On ne peut **pas** publier BOT10 sur `elotype`. Les bots n’existent pas comme 
 Onglet Elo :
 
 1. Charger `elotype` **exactement** comme aujourd’hui (multipage, filtre 800/0, `context`).
-2. Charger les 3 ratings bots (réduction des events, cache).
-3. Fusionner par rating décroissant, insérer les 3 lignes (badge BOT).
+2. Charger les ratings bots (réduction des events, cache).
+3. Fusionner par rating décroissant, insérer les 6 lignes (badge BOT).
 4. Si l’étape 2 échoue : **afficher uniquement l’étape 1** — liste actuelle, zéro ligne bot, zéro régression.
+
+Pastille accueil Duel : **même rang** que l’onglet (`BlomixEloManager.fetchDisplayedLocalDuelRank`) — pas le `GKLeaderboard.Entry.rank` brut (mur des comptes 800 / 0 parties).
 
 Interdit : écrire un score bot sur `elotype` ; changer le filtre humains ; appeler `loadPlayers` / `GKInvite` sur une ligne bot.
 
@@ -256,7 +261,7 @@ Les 2–3 premières semaines à 800, les victoires rapportent (K haut). Documen
 | `BlomixPvPH2HManager.swift` | | **non** (filtre `bot:` si un id fuyait, sinon non) |
 | Watch / Fastlane / `protocolVersion` | | **non** |
 
-l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, accessibilité. Noms **BOT10 / BOT5 / BOTSUPREME** non traduits.
+l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, accessibilité. Noms **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** non traduits.
 
 ---
 
@@ -283,10 +288,11 @@ l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, access
 
 **Bot :**
 
-- [ ] Liste Duel : 3 rangs, tap lance, 0 spinner réseau
+- [ ] Liste Duel : 6 rangs, tap lance, 0 spinner réseau
 - [ ] Elo : 3 lignes badge BOT ; tap ≠ invite GC
 - [ ] Une seule grille ; attaques juice = Duel
-- [ ] BOT10 / BOT5 / BOTSUPREME : délais ressentis 10 / 5 / 1 s, scène fluide
+- [ ] BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME : tous pire / tous hasard / 2/5 pire / 1/2 pire 10 s / 5 s / 1 s, scène fluide
+- [ ] Bombes bot : stock **3**, jamais plus (comme le joueur Duel ; pas de BOMBX)
 - [ ] Fin de manche : ± Elo joueur sur `elotype` ; event CloudKit best-effort
 - [ ] CloudKit KO : manche OK, Elo joueur OK, pas de ligne bot ou ligne périmée cache
 - [ ] ☰ Accueil / abandon : pas de coordinateur GK coincé (`isInActiveMatch`)
@@ -299,7 +305,7 @@ l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, access
 2. Bots = joueurs du classement **in-app**, pas des comptes GC.
 3. Ton Elo `elotype` **change** après un match bot.
 4. Elo bot = events CloudKit, réduction à la lecture, best-effort.
-5. Même cerveau, trois horloges.
+5. BOT5 / BOTSUPREME : optimal. BOT10 : 1/2 pire (10 s). BABYBOT : tous pire. MINIBOT : tous hasard. BOBBOT : 2/5 pire.
 6. `protocolVersion` inchangé.
 7. `protocolVersion` inchangé. Pas de faux `GKPlayer`.
 

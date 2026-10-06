@@ -547,6 +547,134 @@ final class BlomixEloManager {
         )
     }
 
+    // MARK: - Rang accueil (même règle que l’onglet Elo)
+
+    /// Même mur 800/0 que `LeaderboardViewController` (pages GC + filtre joué + bots si cache).
+    private static let displayedRankPageSize = 100
+    private static let displayedRankMaxPages = 5
+
+    /// Rang 1-based affiché sur la pastille Duel. `nil` si pas d’entrée jouée.
+    /// Ne pas utiliser `GKLeaderboard.Entry.rank` brut : il compte les comptes figés à 800 / 0 parties.
+    func fetchDisplayedLocalDuelRank() async -> Int? {
+        let boardID = leaderboardID
+        let startRating = defaultRating
+        let localPlayer = GKLocalPlayer.local
+        let localStableID = localPlayer.teamPlayerID.isEmpty ? localPlayer.gamePlayerID : localPlayer.teamPlayerID
+
+        struct EntrySnap: Sendable {
+            let score: Int
+            let context: Int
+            let playerName: String
+            let teamOrGameID: String
+        }
+        struct PageBundle: Sendable {
+            let snapshots: [EntrySnap]
+            let rawCount: Int
+        }
+
+        let boardBox: BlomixPvPGKLeaderboardBox? = await withCheckedContinuation { cont in
+            GKLeaderboard.loadLeaderboards(IDs: [boardID]) { leaderboards, error in
+                guard error == nil, let board = leaderboards?.first else {
+                    cont.resume(returning: nil)
+                    return
+                }
+                cont.resume(returning: BlomixPvPGKLeaderboardBox(leaderboard: board))
+            }
+        }
+        guard let boardBox else { return nil }
+
+        var snapshots: [EntrySnap] = []
+        var seenIDs = Set<String>()
+        for page in 0..<Self.displayedRankMaxPages {
+            let startRank = 1 + page * Self.displayedRankPageSize
+            let pageBundle: PageBundle = await withCheckedContinuation { cont in
+                boardBox.leaderboard.loadEntries(
+                    for: .global,
+                    timeScope: .allTime,
+                    range: NSRange(location: startRank, length: Self.displayedRankPageSize)
+                ) { _, rankedEntries, _, _ in
+                    let raw = rankedEntries ?? []
+                    let snaps: [EntrySnap] = raw.map { entry in
+                        let gid = entry.player.gamePlayerID
+                        let tid = entry.player.teamPlayerID
+                        let teamOrGame = tid.isEmpty ? gid : tid
+                        return EntrySnap(
+                            score: Int(entry.score),
+                            context: Int(entry.context),
+                            playerName: entry.player.displayName,
+                            teamOrGameID: teamOrGame
+                        )
+                    }
+                    cont.resume(returning: PageBundle(snapshots: snaps, rawCount: raw.count))
+                }
+            }
+            for snap in pageBundle.snapshots {
+                let key = snap.teamOrGameID.isEmpty ? snap.playerName : snap.teamOrGameID
+                guard seenIDs.insert(key).inserted else { continue }
+                snapshots.append(snap)
+            }
+            if pageBundle.rawCount < Self.displayedRankPageSize { break }
+        }
+
+        let localBundle: PageBundle = await withCheckedContinuation { cont in
+            boardBox.leaderboard.loadEntries(for: [localPlayer], timeScope: .allTime) { _, entries, _ in
+                let raw = entries ?? []
+                let snaps: [EntrySnap] = raw.map { entry in
+                    let gid = entry.player.gamePlayerID
+                    let tid = entry.player.teamPlayerID
+                    let teamOrGame = tid.isEmpty ? gid : tid
+                    return EntrySnap(
+                        score: Int(entry.score),
+                        context: Int(entry.context),
+                        playerName: entry.player.displayName,
+                        teamOrGameID: teamOrGame
+                    )
+                }
+                cont.resume(returning: PageBundle(snapshots: snaps, rawCount: raw.count))
+            }
+        }
+
+        func isPlayed(_ score: Int, _ context: Int) -> Bool {
+            context > 0 || score != startRating
+        }
+
+        struct RankRow {
+            let score: Int
+            let name: String
+            let isLocal: Bool
+        }
+        var rows: [RankRow] = snapshots.compactMap { snap in
+            guard isPlayed(snap.score, snap.context) else { return nil }
+            return RankRow(
+                score: snap.score,
+                name: snap.playerName,
+                isLocal: snap.teamOrGameID == localStableID
+            )
+        }
+        if let localSnap = localBundle.snapshots.first, isPlayed(localSnap.score, localSnap.context) {
+            if !rows.contains(where: \.isLocal) {
+                rows.append(RankRow(score: localSnap.score, name: localSnap.playerName, isLocal: true))
+            }
+        }
+        guard rows.contains(where: \.isLocal) else { return nil }
+
+        let botStore = BlomixPvPBotEloStore.shared
+        let profiles = botStore.cachedProfilesIfAny()
+        if !profiles.isEmpty {
+            for kind in BlomixPvPBotKind.allCases {
+                let rating = (profiles[kind] ?? botStore.cachedProfile(for: kind)).rating
+                rows.append(RankRow(score: rating, name: kind.displayName, isLocal: false))
+            }
+        }
+
+        rows.sort { lhs, rhs in
+            if lhs.score != rhs.score { return lhs.score > rhs.score }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+        }
+        guard let idx = rows.firstIndex(where: \.isLocal) else { return nil }
+        return idx + 1
+    }
+
     // MARK: - Errors
 
     nonisolated private static func makeError(code: Int, description: String) -> NSError {

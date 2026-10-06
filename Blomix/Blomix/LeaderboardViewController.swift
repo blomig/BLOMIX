@@ -681,7 +681,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
-    /// Fusionne les 3 bots par rating. Échec CloudKit sans cache → liste humaine inchangée.
+    /// Fusionne tous les bots par rating. Échec CloudKit sans cache → liste humaine inchangée.
     private func mergeBotRowsIntoEloIfPossible() async {
         guard selectedLeaderboardKind == .elo else { return }
         var profiles = BlomixPvPBotEloStore.shared.cachedProfilesIfAny()

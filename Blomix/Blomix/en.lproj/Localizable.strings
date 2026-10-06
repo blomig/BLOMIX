@@ -293,7 +293,10 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.bots.section_title"        = "Bots";
 "pvp.bots.badge"                = "BOT";
 "pvp.bots.play"                 = "Play";
-"pvp.bots.think_seconds_format" = "%d s / move";
+"pvp.bots.think_seconds_format" = "%d s";
+"pvp.bots.think_always_random_format" = "%d s · random";
+"pvp.bots.think_always_worst_format"  = "%d s · worst";
+"pvp.bots.think_fraction_worst_format" = "%d s · %d/%d worst";
 "pvp.available_error_format" = "Could not load players: %@";
 "pvp.cloud_busy_retry_format" = "Cloud is busy. Try again in %d s.";
 

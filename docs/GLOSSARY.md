@@ -74,7 +74,7 @@
 | **LX / L★** | Badge HUD et overlay Arcade/Défi : `L1`…`L5`, Ultime `L★` |
 | **Multiplicateur** | Bonus de score lié au stage atteint |
 | **Justesse / pire coup** | Qualité des placements en fin de partie (`BlomixMoveAnalyzer`) — plus de hint en jeu (v6.1) |
-| **BOT10 / BOT5 / BOTSUPREME** | Adversaires Duel locaux (`bot:10` / `bot:5` / `bot:supreme`). Noms non traduits. Même cerveau, horloges 10 / 5 / 1 s. [BOT_DUEL.md](BOT_DUEL.md) |
+| **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** | Adversaires Duel locaux (`bot:baby` … `bot:supreme`). Noms non traduits. [BOT_DUEL.md](BOT_DUEL.md) |
 
 ---
 
@@ -87,7 +87,7 @@
 | **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, hub CloudKit + points podium GC `dailywins_arc` |
 | **Référence BLOMIX** | `BlomixDailyGhost` | Score Arcade d’une run fantôme (lookahead 3 `computeOptimal`, Magix visés, bombes souples / Brix, sans timer). Ligne grise sous la date du hub : **Référence BLOMIX** + score — **pas** un joueur CloudKit, **pas** un optimum. |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
-| **BOT10 / BOT5 / BOTSUPREME** | spec `BOT_DUEL.md` | Adversaires Duel locaux (même cerveau, horloge 10 / 5 / 1 s). Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |
+| **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** | spec `BOT_DUEL.md` | Adversaires Duel locaux. Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |
 | **Tutoriel** | `tutorialBlockQueue` | Séquence scriptée au premier lancement |
 
 ---

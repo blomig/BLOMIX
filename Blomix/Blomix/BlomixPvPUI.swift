@@ -3345,9 +3345,27 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
         let elo = BlomixPvPBotEloStore.shared.cachedProfile(for: kind)
         let subLabel = UILabel()
-        subLabel.text = "\(BlomixL10n.pvpBotsBadge) · \(BlomixL10n.leaderboardElo(elo.rating)) · \(BlomixL10n.pvpBotsThinkSeconds(Int(kind.thinkSeconds)))"
+        let s = Int(kind.thinkSeconds)
+        let think: String
+        switch kind {
+        case .babybot:
+            think = BlomixL10n.pvpBotsThinkAlwaysWorst(seconds: s)
+        case .minibot:
+            think = BlomixL10n.pvpBotsThinkAlwaysRandom(seconds: s)
+        case .bobbot:
+            think = BlomixL10n.pvpBotsThinkFractionWorst(seconds: s, hits: 2, outOf: 5)
+        case .bot10:
+            think = BlomixL10n.pvpBotsThinkFractionWorst(seconds: s, hits: 1, outOf: 2)
+        case .bot5, .supreme:
+            think = BlomixL10n.pvpBotsThinkSeconds(s)
+        }
+        subLabel.text = "\(BlomixL10n.leaderboardElo(elo.rating)) · \(think)"
         subLabel.textColor = UIColor(white: 0.55, alpha: 1)
         subLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        subLabel.numberOfLines = 1
+        subLabel.lineBreakMode = .byTruncatingTail
+        subLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        subLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         subLabel.translatesAutoresizingMaskIntoConstraints = false
 
         let playBtn = BlomixUIButton()
@@ -3356,6 +3374,8 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14), to: playBtn)
         playBtn.titleLabel?.font = FontTheme.gameFont(size: 14, weight: .semibold)
         playBtn.translatesAutoresizingMaskIntoConstraints = false
+        playBtn.setContentCompressionResistancePriority(.required, for: .horizontal)
+        playBtn.setContentHuggingPriority(.required, for: .horizontal)
         playBtn.tag = index
         playBtn.addTarget(self, action: #selector(botPlayTapped(_:)), for: .touchUpInside)
         playBtn.accessibilityLabel = "\(kind.displayName) \(BlomixL10n.pvpBotsBadge)"
@@ -3365,6 +3385,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         NSLayoutConstraint.activate([
             nameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: topPad),
             nameLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: playBtn.leadingAnchor, constant: -8),
 
             subLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
             subLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
@@ -3373,7 +3394,6 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
             playBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             playBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
-            playBtn.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 8),
         ])
         return container
     }

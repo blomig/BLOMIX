@@ -278,6 +278,10 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "pvp.available_you_visible" = "Eres visible para otros jugadores";
 "pvp.available_you_not_visible" = "No eres visible (activar en el lobby)";
 "pvp.player_in_match"           = "En partida";
+"pvp.bots.section_title"        = "Bots";
+"pvp.bots.badge"                = "BOT";
+"pvp.bots.play"                 = "Jugar";
+"pvp.bots.think_seconds_format" = "%d s / jugada";
 "pvp.available_error_format" = "No se pudieron cargar jugadores: %@";
 "pvp.cloud_busy_retry_format" = "La nube está ocupada. Reintenta en %d s.";
 

@@ -10,7 +10,7 @@ Ce document décrit **précisément** comment deux joueurs BLOMIX peuvent se dé
 
 ## Vue d'ensemble
 
-BLOMIX propose **cinq chemins distincts** pour lancer un duel 1 vs 1. Ils n'utilisent **pas** le même mécanisme de « notification ».
+BLOMIX propose **six chemins distincts** pour lancer un duel 1 vs 1. Ils n'utilisent **pas** le même mécanisme de « notification ».
 
 Depuis **7.2**, Accueil → **Duel** ouvre **directement** la liste Joueurs disponibles (`BlomixPvPAvailablePlayersViewController`, titre gouttière). Plus d’écran Multijoueur à 3 boutons. **Local** et le toggle « OK pour être défié » sont en pied de cette liste. **En ligne** (auto-match Game Center) n’est plus une entrée Accueil. `protocolVersion` inchangé.
 
@@ -21,6 +21,7 @@ Depuis **7.2**, Accueil → **Duel** ouvre **directement** la liste Joueurs disp
 | **C. Classement Elo** | Classement → onglet Elo → « Défier » | GameKit direct | Identique au mode B |
 | **D. Auto-match / En ligne** | Code lobby conservé, **non branché** depuis l’accueil 7.2 | GameKit auto | `GKMatchmaker.findMatch` |
 | **E. Local (proximité)** | Liste Duel → **Local** | MultipeerConnectivity (BT + Wi‑Fi local) | `BlomixPvPLocalSession` — **sans Internet** ; prérequis cache GC |
+| **F. Bots** | Liste Duel → section **Bots**, ou onglet Elo → **Jouer** | Aucun | `BlomixPvPMatchCoordinator` canal `.bot` + `BlomixPvPBotEngine` — 0 octet réseau. Détail : [BOT_DUEL.md](BOT_DUEL.md) |
 
 ### Partie rapide — Local / En ligne
 
@@ -546,6 +547,12 @@ Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 | `BlomixPvPH2HManager.swift` | H2H CloudKit, cache, juge 1 duo accueil + 1 vague Elo idle |
 | `BlomixPublicCloudGate.swift` | Robinet 503 / Retry-After partagé H2H + lobby |
 | `GameScene.swift` | `setup()`, `setActiveMatch`, lancement PvP, timer tour / mode bombe |
+
+---
+
+## Duel vs bots
+
+Spec **hors filaire**, **non joué** : [BOT_DUEL.md](BOT_DUEL.md). Canal local loopback, `protocolVersion` inchangé, pas de `GKPlayer` bot, pas d’écriture `elotype` pour le bot. Si un jour on code : early-return réseau seulement — les chemins GK / Local de **ce** document restent la vérité du Duel humain.
 
 ---
 

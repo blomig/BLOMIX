@@ -4558,6 +4558,9 @@ final class GameScene: SKScene {
         vc.onMatch = { [weak self] match in
             self?.beginPvPWithMatch(match)
         }
+        vc.onBotMatch = { [weak self] kind in
+            self?.beginPvPWithBot(kind)
+        }
         presentFullScreenModal(vc)
         print("[GameScene] LeaderboardViewController présenté (onglet \(initialTab))")
     }
@@ -16419,6 +16422,7 @@ final class GameScene: SKScene {
 
     /// Side-effect H2H uniquement. Toute erreur est avalée dans le manager.
     private func blomixPvP_recordH2HOutcomeBestEffort(localWon: Bool) {
+        guard pvpCoordinator?.isBotMatch != true else { return }
         let remotePlayer = pvpCoordinator?.primaryRemotePlayer
         let remoteGameID = pvpCoordinator?.remoteGamePlayerIDResolved
             ?? remotePlayer?.gamePlayerID
@@ -16556,6 +16560,9 @@ final class GameScene: SKScene {
         avail.onLocalMatch = { [weak self] session in
             self?.beginPvPWithLocalSession(session)
         }
+        avail.onBotMatch = { [weak self] kind in
+            self?.beginPvPWithBot(kind)
+        }
         presentFullScreenModal(avail)
     }
 
@@ -16599,6 +16606,21 @@ final class GameScene: SKScene {
         blomixPvP_beginNewSeriesSession()
         pvpCoordinator?.attach(to: self)
         blomixPvP_showConnectingOverlayIfNeeded()
+    }
+
+    /// Duel vs bot — canal `.bot`, seed locale, 0 réseau.
+    func beginPvPWithBot(_ kind: BlomixPvPBotKind) {
+        if let active = pvpCoordinator, active.isGameActive {
+            BlomixPvPLog.event("begin_pvp_bot_ignored", ["reason": "game_active"])
+            return
+        }
+        preparePvPBoardForIncomingMatch(channel: "bot")
+        pvpCoordinator = BlomixPvPMatchCoordinator(botKind: kind)
+        pvpOpponentDisplayName = kind.displayName
+        pvpLastEloResult = nil
+        blomixPvP_beginNewSeriesSession()
+        blomixPvP_showConnectingOverlayIfNeeded()
+        pvpCoordinator?.attach(to: self)
     }
 
     /// Prépare la scène pour un nouveau match PvP (online ou local).
@@ -17422,6 +17444,19 @@ final class GameScene: SKScene {
                 outcome: outcome,
                 remoteProfile: remoteHint
             )
+
+            if let kind = coordinator.botKind {
+                let matchId: String = {
+                    let seed = coordinator.h2hSharedMatchSeed.map(String.init) ?? "bot"
+                    return "\(seed)-\(self.pvpSeriesGamesPlayed)-\(kind.rawValue)"
+                }()
+                BlomixPvPBotEloStore.shared.recordMatchBestEffort(
+                    botKind: kind,
+                    outcome: outcome,
+                    result: cacheResult,
+                    matchId: matchId
+                )
+            }
 
             // Serpent visible un court instant, puis **déblocage UI** sans attendre le GC.
             try? await Task.sleep(nanoseconds: 350_000_000)

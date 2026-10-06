@@ -1,4 +1,3 @@
-• Daily: a BLOMIX reference under the date — a score of the day to chase
-• Home: Arcade and Zen keep their names; Continue as a caption if you have a save
-• Junctions fade with the blox when a chain clears
-• Brix scatter micro-squares on landing
+• Duel: take on BOT10, BOT5 or BOTSUPREME — same rules, three tempos
+• Elo board: bots are players (BOT badge)
+• Daily: the BLOMIX reference aims more accurately

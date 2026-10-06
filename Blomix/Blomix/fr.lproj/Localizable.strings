@@ -303,6 +303,10 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "pvp.available_you_visible" = "Tu es visible pour les autres joueurs";
 "pvp.available_you_not_visible" = "Tu n'es pas visible (activer dans le lobby)";
 "pvp.player_in_match"           = "En match";
+"pvp.bots.section_title"        = "Bots";
+"pvp.bots.badge"                = "BOT";
+"pvp.bots.play"                 = "Jouer";
+"pvp.bots.think_seconds_format" = "%d s / coup";
 "pvp.available_error_format" = "Impossible de charger les joueurs : %@";
 "pvp.cloud_busy_retry_format" = "Le cloud est occupé. Réessaie dans %d s.";
 

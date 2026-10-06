@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 8.1  
+> **Version de référence** : 8.2  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -17,6 +17,7 @@
 | [MODE_PISTES.md](MODE_PISTES.md) | Pistes de 4ᵉ mode (Contrats, Graine du jour, Marée, Poche Magix, Duo, Atelier, Défi Zen) |
 | [JUICE_PISTES.md](JUICE_PISTES.md) | Pistes juice / physique blox · Brix · Magix (pas la spec en jeu) |
 | [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md) | Défi du jour — graine UTC, hub, CloudKit, points podium |
+| [BOT_DUEL.md](BOT_DUEL.md) | Duel vs bots (BOT10 / BOT5 / BOTSUPREME) |
 | [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Juice Spec : animations, particules, sons, timings |
 | [GLOSSARY.md](GLOSSARY.md) | Terminologie canonique (code ↔ joueur ↔ UI) |
 
@@ -27,6 +28,7 @@
 | [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Référence technique (architecture, HUD, sauvegarde, localisation) |
 | [WATCH_ZEN.md](WATCH_ZEN.md) | Spec Apple Watch v1 — compagnon Zen light (7.4) |
 | [PVP_MATCHING.md](PVP_MATCHING.md) | Appariement PvP : défis CloudKit, invites GameKit, échecs silencieux |
+| [BOT_DUEL.md](BOT_DUEL.md) | Duel vs bots — isolation, Elo in-app, 0 filaire |
 | [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) — récap / pire coup |
 | [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN/DE/ES/IT (`BlomixL10n`) |
 
@@ -51,7 +53,7 @@
 - **Solo stagé** — timer par coup, multiplicateur de score progressif (6 stages)
 - **Zen** — sans timer ni stages, classement dédié
 - **Défi du jour** — même Arcade, file seedée UTC, 1 run / jour
-- **PvP** — 1 vs 1 via Game Center, RNG partagé, attaques par paliers de score
+- **PvP** — 1 vs 1 via Game Center, RNG partagé, attaques par paliers de score (vs bots : [BOT_DUEL.md](BOT_DUEL.md))
 - **Tutoriel** — séquence guidée au premier lancement
 
 ---

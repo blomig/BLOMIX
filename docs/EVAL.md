@@ -1,7 +1,7 @@
 # Blomix — Fonction d'évaluation (`BlomixMoveAnalyzer`)
 
 > **Version implémentée** : v2 (production)  
-> **Version de référence** : 8.1  
+> **Version de référence** : 8.2  
 > Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`  
 > Fantôme Défi : `Blomix/Blomix/BlomixDailyGhost.swift`
 
@@ -184,8 +184,9 @@ Thread : `DispatchQueue` QoS `.userInitiated`.
 
 ### Injection de ligne
 
-Simulée au **niveau 1** si `(moveCount + 1) % 10 == 0` et `pendingLine` connu.  
-Niveaux 2 et 3 : `pendingLine = nil`.
+Simulée à **toute ply** dont `(newMoveCount) % 10 == 0` si `pendingLine` est fourni (`simulateDropAny`).  
+Le **joueur** (justesse / pire coup) ne passe la ligne que lorsqu’elle est visible (`moveCount % 10 == 9`) — les plies 2–3 n’injectent alors rien.  
+Le **fantôme Défi** passe toujours `nextLine` : il voit l’injection 1 à 3 coups à l’avance.
 
 ### Bonus d'effacement immédiat (`immediateClearing`)
 
@@ -243,7 +244,7 @@ optimalityPercent = moyenne × 100
 1. **Cascades profondes** aux niveaux 2–3 : seule la position finale est scorée (partiellement compensé par `immediateClearing`).
 2. **Horizon borné à 3** : setups à 4+ coups sous-évalués.
 3. **Magix et bombes** : non simulés dans le lookahead (`simulateDropAny` retourne vide si P0 est Magix ; le mode bombe n’est pas analysé). Une partie riche en Magix peut donc afficher une justesse basse alors que les effets spéciaux ont été bien utilisés. C’est la limite affichée côté joueur dans [RULES.md](RULES.md) §10.
-4. **Lignes futures** : ignorées au-delà du niveau 1 (compensé partiellement par `urgencyH`).
+4. **Lignes futures** : le joueur ne les passe au lookahead que si visibles ; le fantôme Défi injecte `nextLine` à la ply qui franchit les 10 coups. Au-delà d’une ligne, toujours inconnu (`urgencyH`).
 5. **`risk` dominant** : même avec le facteur dynamique v2.
 
 ---
@@ -254,15 +255,17 @@ Le hub affiche **Référence BLOMIX** : le **score Arcade** d’une partie joué
 
 | | |
 |---|---|
-| Blox / Brix | Colonne = argmax `computeOptimal` (lookahead 3) ; égalité → plus à gauche |
-| Magix | **Hors** lookahead. Colonne = plus petite hauteur jouable, puis gauche. Effets réels via `DailyEffectRNG` (mêmes `event` que `GameScene`) |
-| Bombes | Stock 5 + BOMBX. **Souple** avant un Blox/Brix : `maxH ≥ 7` et le meilleur drop n’abaisse pas `maxH` et n’efface quasiment rien (≤ 1 case). Cible : rayon qui touche une colonne max, max de cases **dans** ces colonnes (3×3 + croix = `stageIndex`). Magix posé dès qu’il est P0 (pas de bombe à sa place). Si plus aucune case d’atterrissage : bombe jusqu’à pouvoir poser ou stock 0 |
+| Blox / Brix | Colonne = argmax `computeOptimal` (lookahead 3, `nextLine` toujours passée) ; égalité → plus à gauche |
+| Magix | **Hors** lookahead. Effets réels via `DailyEffectRNG`. **CHROMAX** : colonne jouable la plus remplie (Blox+Brix), puis gauche. Autres : scan des 8 atterrissages, max Δ score Arcade puis Brix enlevés puis `maxH` min |
+| Bombes | Stock 5 + BOMBX. **Souple** avant un Blox/Brix si le meilleur drop n’abaisse pas `maxH` et n’efface pas une vraie chaîne (`maxH ≥ 7`). Cible : rayon qui touche une colonne max, **max de Brix** puis cases dans ces colonnes (3×3 + croix = `stageIndex`). Magix posé dès qu’il est P0 (pas de bombe à sa place). Si plus aucune case d’atterrissage : bombe jusqu’à pouvoir poser ou stock 0 |
 | Timer | Ignoré (le fantôme ne meurt pas au chrono) |
 | Affichage | Hub seulement, sous la date, `tertiaryText` : **Référence BLOMIX** + score. Pas dans CloudKit, pas un faux joueur |
-| CPU | File `blomix.dailyGhost` QoS `.utility`. Pause coopérative (entre deux coups) dès `blomixDidBeginGameplayMatch`. Reprise accueil / hub, même jour, état RAM. Cache `UserDefaults` (`jour` + `engineVersion`) |
-| Attente | Ligne « Calcul de la référence… » + petit spinner inline après 150 ms. CTA jamais bloqué. Pas de % (longueur de run inconnue) |
+| CPU | File `blomix.dailyGhost` QoS `.utility`. Pause coopérative (entre deux coups) dès `blomixDidBeginGameplayMatch`. Reprise accueil / hub, même jour, état RAM. Cache `UserDefaults` (`jour` + `engineVersion` 5) |
+| Attente | Ligne « Calcul de la référence… » + petit spinner inline après 150 ms. CTA jamais bloqué. Pas de % |
 
 Ce n’est **pas** un plafond : un humain peut faire mieux (bombe pour construire une cascade, Magix, horizon) ou moins bien (chrono, greedy 3-ply).
+
+Un **bot Duel** (spec [BOT_DUEL.md](BOT_DUEL.md), non joué) réutiliserait `computeOptimal` / `evaluate` **sans les modifier** — Duel sans Magix, horloge 1 / 5 / 10 s, pas le fantôme Défi.
 
 ---
 

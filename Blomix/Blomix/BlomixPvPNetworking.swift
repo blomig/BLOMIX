@@ -236,10 +236,14 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private weak var scene: GameScene?
-    /// Canal online (GameKit) — mutuellement exclusif avec `localSession`.
+    /// Canal online (GameKit) — mutuellement exclusif avec `localSession` / bot.
     private var match: GKMatch?
-    /// Canal local Multipeer — mutuellement exclusif avec `match`.
+    /// Canal local Multipeer — mutuellement exclusif avec `match` / bot.
     private var localSession: BlomixPvPLocalSession?
+    /// Canal bot — 0 octet réseau. Mutuellement exclusif avec GK / Local.
+    private(set) var botKind: BlomixPvPBotKind?
+    private var botController: BlomixPvPBotMatchController?
+    var isBotMatch: Bool { botKind != nil }
     /// Identité distante (Elo / nom) — GC players online, ou handshake Multipeer en local.
     private(set) var remotePeerIdentity: BlomixPvPLocalPeerIdentity?
     private var rng: BlomixPvPSeededBlockRNG?
@@ -250,7 +254,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private var isHost: Bool = false
     private var isHostResolved = false
     /// `true` si le match utilise Multipeer (Local) plutôt que GameKit.
-    var isLocalMatch: Bool { localSession != nil }
+    var isLocalMatch: Bool { localSession != nil && botKind == nil }
 
     /// Même instance `GKMatch` déjà attachée (poll roster / `didChange` rejouent `beginPvP`).
     func isBoundTo(gkMatch other: GKMatch) -> Bool {
@@ -322,6 +326,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     init(match: GKMatch) {
         self.match = match
         self.localSession = nil
+        self.botKind = nil
         super.init()
         match.delegate = self
         resolveHostRoleIfNeeded()
@@ -331,6 +336,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     init(localSession: BlomixPvPLocalSession) {
         self.match = nil
         self.localSession = localSession
+        self.botKind = nil
         self.remotePeerIdentity = localSession.remoteIdentity
         super.init()
         localSession.onData = { [weak self] data in
@@ -349,6 +355,16 @@ final class BlomixPvPMatchCoordinator: NSObject {
             }
         }
         resolveHostRoleIfNeeded()
+    }
+
+    /// Duel vs bot : seed locale, handshake immédiat, 0 filaire.
+    init(botKind: BlomixPvPBotKind) {
+        self.match = nil
+        self.localSession = nil
+        self.botKind = botKind
+        super.init()
+        isHost = true
+        isHostResolved = true
     }
 
     /// Calcule et gèle `isHost` dès que les IDs distants sont connus.
@@ -382,6 +398,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     func attach(to scene: GameScene) {
         self.scene = scene
+        if isBotMatch {
+            completeBotHandshakeImmediately()
+            return
+        }
         beginHandshakeMonitoringIfNeeded()
         startHandshakeWatchdog()
         startCriticalRetryTimer()
@@ -395,6 +415,59 @@ final class BlomixPvPMatchCoordinator: NSObject {
             // Relancer l’envoi d’identité n’est plus possible ici ; on force des helloSeed fréquents.
             // Le guest doit recevoir le seed avant le watchdog.
         }
+    }
+
+    private func completeBotHandshakeImmediately() {
+        guard let kind = botKind else { return }
+        let seed = UInt64.random(in: 1...UInt64.max)
+        handshakeSeed = seed
+        rng = BlomixPvPSeededBlockRNG(seed: seed)
+        didEmitHelloSeed = true
+        markHandshakeComplete(isHostSide: true)
+        scene?.blomixPvP_onHandshakeCompleteRestartBoard()
+        startBotController(seed: seed, kind: kind)
+        BlomixPvPLog.event("bot_handshake_complete", [
+            "bot": kind.rawValue,
+            "seed": "\(seed)"
+        ])
+        Task { @MainActor in
+            _ = await BlomixPvPBotEloStore.shared.refreshFromCloudBestEffort()
+        }
+    }
+
+    private func startBotController(seed: UInt64, kind: BlomixPvPBotKind) {
+        botController?.stop()
+        let controller = BlomixPvPBotMatchController(kind: kind, coordinator: self)
+        botController = controller
+        controller.start(seed: seed)
+    }
+
+    func handleBotAttack(_ line: [BlockType]) {
+        guard isBotMatch, didFinishHandshake else { return }
+        incomingAttackLines.append(QueuedAttackLine(id: nextIncomingAttackLineID, line: line))
+        nextIncomingAttackLineID += 1
+        lastReceivedAttackId += 1
+        if var g = rng {
+            g.discardNextRandomLineDrawsMatchingOpponentGeneration()
+            rng = g
+        }
+        scene?.blomixPvP_refreshPendingAttackLinePreview()
+        BlomixPvPLog.event("bot_attack_received", ["queued": "\(incomingAttackLines.count)"])
+    }
+
+    func handleBotFillDepth(_ fillDepth: Int, score: Int) {
+        guard isBotMatch else { return }
+        scene?.blomixPvP_setRemoteBoardFillDepth(max(0, min(8, fillDepth)))
+        scene?.blomixPvP_setRemoteScore(max(0, score))
+    }
+
+    func handleBotLost() {
+        guard isBotMatch, didFinishHandshake, !didReceiveRemoteLoss, !didReportLocalLoss else { return }
+        didReceiveRemoteLoss = true
+        stopTurnTimer()
+        botController?.stop()
+        BlomixPvPLog.event("bot_lost")
+        scene?.blomixPvP_presentRemoteVictory()
     }
 
     private func handleLocalGameData(_ data: Data) {
@@ -471,6 +544,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private func beginHandshakeMonitoringIfNeeded() {
+        if isBotMatch { return }
         resolveHostRoleIfNeeded()
         // Tant que le rôle n'est pas résolu (roster vide), on ne peut pas décider host/guest.
         guard isHostResolved else { return }
@@ -536,6 +610,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     func tearDown() {
+        botController?.stop()
+        botController = nil
         stopTurnTimer()
         stopHandshakeMonitoring()
         stopHandshakeWatchdog()
@@ -609,9 +685,14 @@ final class BlomixPvPMatchCoordinator: NSObject {
         guard var g = rng else { return false }
         let line = g.nextRandomLineRowIndependentCells()
         rng = g
-        let tokens = line.map { $0.blomixPvPWireToken() }
         let attackId = nextOutboundAttackId
         nextOutboundAttackId += 1
+        if isBotMatch {
+            botController?.injectPlayerAttack(line)
+            BlomixPvPLog.event("attack_sent_bot", ["attackId": "\(attackId)", "bracket": "\(bracket)"])
+            return true
+        }
+        let tokens = line.map { $0.blomixPvPWireToken() }
         var env = BlomixPvPWireEnvelope(k: .attackLine, seed: nil, line: tokens, fillDepth: nil)
         env.attackId = attackId
         enqueueCritical(env, maxAttempts: 12)
@@ -635,6 +716,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         awaitingVictoryAck = true
         stopTurnTimer()
         stopHeartbeat()
+        botController?.stop()
         enqueueCritical(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil), maxAttempts: 20)
         BlomixPvPLog.event("local_lost_sent")
         scene?.blomixPvP_presentLocalDefeat()
@@ -647,6 +729,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         awaitingVictoryAck = true
         stopTurnTimer()
         stopHeartbeat()
+        botController?.stop()
         enqueueCritical(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil), maxAttempts: 20)
         BlomixPvPLog.event("forfeit_sent")
     }
@@ -662,8 +745,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
         match?.players.first
     }
 
-    /// Profil Elo distant pour finalisation (online : via GC ; local : snapshot handshake).
+    /// Profil Elo distant pour finalisation (online : via GC ; local : snapshot handshake ; bot : cache events).
     var remoteEloProfileForFinalize: BlomixEloProfile? {
+        if let kind = botKind {
+            return BlomixPvPBotEloStore.shared.cachedProfile(for: kind)
+        }
         if let id = remotePeerIdentity {
             return BlomixEloProfile(rating: id.eloRating, completedMatchCount: id.completedMatchCount)
         }
@@ -671,13 +757,15 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     var remoteDisplayNameResolved: String {
+        if let kind = botKind { return kind.displayName }
         if let n = remotePeerIdentity?.displayName, !n.isEmpty { return n }
         if let n = match?.players.first?.displayName, !n.isEmpty { return n }
         return BlomixL10n.pvpUnknownOpponent
     }
 
-    /// gamePlayerID distant (GK ou Multipeer) — pour H2H / logs. Vide si inconnu.
+    /// gamePlayerID distant (GK ou Multipeer) — pour H2H / logs. Vide si inconnu **ou bot**.
     var remoteGamePlayerIDResolved: String {
+        if isBotMatch { return "" }
         if let id = match?.players.first?.gamePlayerID, !id.isEmpty { return id }
         if let id = remotePeerIdentity?.gamePlayerID, !id.isEmpty { return id }
         return ""
@@ -720,6 +808,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     // MARK: - Envoi / file critique
 
     private func sendEnvelopeRaw(_ env: BlomixPvPWireEnvelope) {
+        if isBotMatch { return }
         guard let data = try? JSONEncoder().encode(env) else { return }
         if let match {
             do {
@@ -736,6 +825,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     private func enqueueCritical(_ env: BlomixPvPWireEnvelope, maxAttempts: Int = 10) {
+        if isBotMatch { return }
         var e = env
         let id = nextMsgId
         nextMsgId += 1
@@ -941,7 +1031,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     /// Envoie le cumul H2H local (2 entiers). Aucun CloudKit. Appeler **après** que la grille soit jouable.
     func sendH2HSnapshotBestEffort() {
-        guard didFinishHandshake else { return }
+        guard didFinishHandshake, !isBotMatch else { return }
         let remoteGame = remoteGamePlayerIDResolved
         let remoteTeam = primaryRemotePlayer?.teamPlayerID ?? ""
         guard !remoteGame.isEmpty || !remoteTeam.isEmpty else { return }
@@ -962,6 +1052,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     // MARK: - Heartbeat
 
     private func startHeartbeat() {
+        if isBotMatch { return }
         stopHeartbeat()
         lastPeerAliveAt = Date()
         let t = Timer.scheduledTimer(withTimeInterval: heartbeatInterval, repeats: true) { [weak self] _ in
@@ -1016,6 +1107,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
     func localPlayerRequestedRematch() {
         guard !localRematchRequested else { return }
         localRematchRequested = true
+        if isBotMatch {
+            remoteRematchRequested = true
+            evaluateRematchLaunchIfReady()
+            return
+        }
         enqueueCritical(BlomixPvPWireEnvelope(k: .rematchRequest, seed: nil, line: nil, fillDepth: nil), maxAttempts: 15)
         startRematchRetryTimer()
         evaluateRematchLaunchIfReady()
@@ -1090,6 +1186,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
         lastSentBoardFillDepth = nil
         lastSentScore = nil
         lastPeerAliveAt = nil
+        if isBotMatch {
+            completeBotHandshakeImmediately()
+            BlomixPvPLog.event("rematch_prepare_bot")
+            return
+        }
         beginHandshakeMonitoringIfNeeded()
         startHandshakeWatchdog()
         BlomixPvPLog.event("rematch_prepare")
@@ -1098,6 +1199,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
     // MARK: - Watchdog & grace
 
     private func startHandshakeWatchdog() {
+        if isBotMatch { return }
         stopHandshakeWatchdog()
         guard !didFinishHandshake else { return }
         let t = Timer.scheduledTimer(withTimeInterval: handshakeWatchdogTimeout, repeats: false) { [weak self] _ in

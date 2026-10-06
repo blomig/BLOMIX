@@ -290,6 +290,10 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "pvp.available_you_visible" = "You are visible to other players";
 "pvp.available_you_not_visible" = "You are not visible (toggle in lobby)";
 "pvp.player_in_match"           = "In match";
+"pvp.bots.section_title"        = "Bots";
+"pvp.bots.badge"                = "BOT";
+"pvp.bots.play"                 = "Play";
+"pvp.bots.think_seconds_format" = "%d s / move";
 "pvp.available_error_format" = "Could not load players: %@";
 "pvp.cloud_busy_retry_format" = "Cloud is busy. Try again in %d s.";
 

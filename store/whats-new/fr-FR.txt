@@ -1,4 +1,3 @@
-• Défi : une Référence BLOMIX sous la date — un score du jour à viser
-• Accueil : Arcade et Zen gardent leur nom ; Continuer en sous-titre s’il y a une partie
-• Les jonctions fondent avec les blox quand une chaîne disparaît
-• Les Brix laissent des micro-carrés à l’atterrissage
+• Duel : affronte BOT10, BOT5 ou BOTSUPREME — mêmes règles, trois cadences
+• Classement Elo : les bots sont des joueurs (badge BOT)
+• Défi : la Référence BLOMIX vise plus juste

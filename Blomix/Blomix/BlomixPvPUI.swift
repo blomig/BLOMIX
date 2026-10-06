@@ -339,6 +339,7 @@ final class BlomixPvPLobbyViewController: UIViewController {
     var onMatch: ((GKMatch) -> Void)?
     /// Match Local Multipeer (Partie rapide → Local).
     var onLocalMatch: ((BlomixPvPLocalSession) -> Void)?
+    var onBotMatch: ((BlomixPvPBotKind) -> Void)?
     /// Présenté depuis la liste Duel : enchaîne tout de suite la recherche Local.
     var launchesStraightIntoLocalSearch = false
     /// Si false, Fermer ne rejoue pas l’accueil (retour à la liste Duel).
@@ -1106,6 +1107,16 @@ final class BlomixPvPLobbyViewController: UIViewController {
             guard let self else { return }
             // Grille / overlay P vs P d’abord (sous le modal), puis fermeture — pas de flash accueil.
             self.onMatch?(match)
+            self.presentingViewController?.dismiss(animated: false)
+        }
+        availVC.onLocalMatch = { [weak self] session in
+            guard let self else { return }
+            self.onLocalMatch?(session)
+            self.presentingViewController?.dismiss(animated: false)
+        }
+        availVC.onBotMatch = { [weak self] kind in
+            guard let self else { return }
+            self.onBotMatch?(kind)
             self.presentingViewController?.dismiss(animated: false)
         }
         present(availVC, animated: true)
@@ -2968,6 +2979,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
 
     var onMatch: ((GKMatch) -> Void)?
     var onLocalMatch: ((BlomixPvPLocalSession) -> Void)?
+    var onBotMatch: ((BlomixPvPBotKind) -> Void)?
 
     private var phase: Phase = .loading
     private var pendingInviteMatch:  GKMatch?
@@ -3190,35 +3202,40 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         phase = newPhase
         switch newPhase {
         case .loading:
-            scrollView.isHidden = true
+            scrollView.isHidden = false
             footerStack.isHidden = false
-            statusLabel.text = BlomixL10n.loading
+            statusLabel.text = ""
             hintLabel.text = ""
-            searchBlocksView.isHidden = false
-            searchBlocksView.startAnimating()
+            searchBlocksView.stopAnimating(settle: false)
+            searchBlocksView.isHidden = true
             stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
+            rebuildPlayerList(items: [], humansCaption: BlomixL10n.loading)
 
         case .loaded(let items):
             scrollView.isHidden = false
             footerStack.isHidden = false
             statusLabel.text = ""
-            hintLabel.text = items.isEmpty ? BlomixL10n.pvpAvailableEmptyHint : ""
+            hintLabel.text = ""
             searchBlocksView.stopAnimating(settle: false)
             searchBlocksView.isHidden = true
             stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
-            rebuildPlayerList(items: items)
+            rebuildPlayerList(
+                items: items,
+                humansCaption: items.isEmpty ? BlomixL10n.pvpAvailableEmpty : nil
+            )
 
         case .empty:
-            scrollView.isHidden = true
+            scrollView.isHidden = false
             footerStack.isHidden = false
-            statusLabel.text = BlomixL10n.pvpAvailableEmpty
-            hintLabel.text = BlomixL10n.pvpAvailableEmptyHint
+            statusLabel.text = ""
+            hintLabel.text = ""
             searchBlocksView.stopAnimating(settle: false)
             searchBlocksView.isHidden = true
             stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
+            rebuildPlayerList(items: [], humansCaption: BlomixL10n.pvpAvailableEmpty)
 
         case .inviting(let name):
             scrollView.isHidden = true
@@ -3231,20 +3248,21 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
             closeButton.alpha = 1; closeButton.isEnabled = true
 
         case .failed(let msg):
-            scrollView.isHidden = true
+            scrollView.isHidden = false
             footerStack.isHidden = false
-            statusLabel.text = msg
+            statusLabel.text = ""
             hintLabel.text = ""
-            searchBlocksView.isHidden = false
-            searchBlocksView.stopAnimating(settle: true)
+            searchBlocksView.stopAnimating(settle: false)
+            searchBlocksView.isHidden = true
             stopCountdown()
             closeButton.alpha = 1; closeButton.isEnabled = true
+            rebuildPlayerList(items: [], humansCaption: msg)
         }
     }
 
     // MARK: - Liste des joueurs
 
-    private func rebuildPlayerList(items: [BlomixAvailablePlayer]) {
+    private func rebuildPlayerList(items: [BlomixAvailablePlayer], humansCaption: String? = nil) {
         playerStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
         // Indicateur de visibilité du joueur local (rappel discret)
@@ -3255,6 +3273,115 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         for (index, item) in items.enumerated() {
             playerStackView.addArrangedSubview(makePlayerRow(item: item, index: index))
         }
+        if let caption = humansCaption, items.isEmpty {
+            playerStackView.addArrangedSubview(makeSectionCaption(caption))
+        }
+
+        playerStackView.addArrangedSubview(makeSectionHeader(BlomixL10n.pvpBotsSectionTitle))
+        for (index, kind) in BlomixPvPBotKind.allCases.enumerated() {
+            playerStackView.addArrangedSubview(makeBotRow(kind: kind, index: index))
+        }
+    }
+
+    private func makeSectionHeader(_ title: String) -> UIView {
+        let label = UILabel()
+        label.text = title.uppercased()
+        label.textColor = BlomixAppearance.tertiaryText
+        label.font = FontTheme.gameFont(size: 12, weight: .semibold)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let wrap = UIView()
+        wrap.translatesAutoresizingMaskIntoConstraints = false
+        wrap.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: wrap.topAnchor, constant: 18),
+            label.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 4),
+            label.trailingAnchor.constraint(equalTo: wrap.trailingAnchor),
+            label.bottomAnchor.constraint(equalTo: wrap.bottomAnchor, constant: -4),
+        ])
+        return wrap
+    }
+
+    private func makeSectionCaption(_ text: String) -> UIView {
+        let label = UILabel()
+        label.text = text
+        label.textColor = BlomixAppearance.tertiaryText
+        label.font = FontTheme.gameFont(size: 13, weight: .regular)
+        label.numberOfLines = 0
+        label.translatesAutoresizingMaskIntoConstraints = false
+        let wrap = UIView()
+        wrap.translatesAutoresizingMaskIntoConstraints = false
+        wrap.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(equalTo: wrap.topAnchor, constant: 4),
+            label.leadingAnchor.constraint(equalTo: wrap.leadingAnchor, constant: 4),
+            label.trailingAnchor.constraint(equalTo: wrap.trailingAnchor, constant: -4),
+            label.bottomAnchor.constraint(equalTo: wrap.bottomAnchor, constant: -4),
+        ])
+        return wrap
+    }
+
+    private func makeBotRow(kind: BlomixPvPBotKind, index: Int) -> UIView {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        if index > 0 {
+            let sep = UIView()
+            sep.backgroundColor = UIColor(white: 0.22, alpha: 1)
+            sep.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(sep)
+            NSLayoutConstraint.activate([
+                sep.topAnchor.constraint(equalTo: container.topAnchor),
+                sep.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                sep.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                sep.heightAnchor.constraint(equalToConstant: 1),
+            ])
+        }
+
+        let nameLabel = UILabel()
+        nameLabel.text = kind.displayName
+        nameLabel.textColor = BlomixAppearance.primaryText
+        nameLabel.font = FontTheme.gameFont(size: 16, weight: .semibold)
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let elo = BlomixPvPBotEloStore.shared.cachedProfile(for: kind)
+        let subLabel = UILabel()
+        subLabel.text = "\(BlomixL10n.pvpBotsBadge) · \(BlomixL10n.leaderboardElo(elo.rating)) · \(BlomixL10n.pvpBotsThinkSeconds(Int(kind.thinkSeconds)))"
+        subLabel.textColor = UIColor(white: 0.55, alpha: 1)
+        subLabel.font = FontTheme.gameFont(size: 13, weight: .regular)
+        subLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let playBtn = BlomixUIButton()
+        playBtn.setTitle(BlomixL10n.pvpBotsPlay, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: playBtn)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14), to: playBtn)
+        playBtn.titleLabel?.font = FontTheme.gameFont(size: 14, weight: .semibold)
+        playBtn.translatesAutoresizingMaskIntoConstraints = false
+        playBtn.tag = index
+        playBtn.addTarget(self, action: #selector(botPlayTapped(_:)), for: .touchUpInside)
+        playBtn.accessibilityLabel = "\(kind.displayName) \(BlomixL10n.pvpBotsBadge)"
+
+        [nameLabel, subLabel, playBtn].forEach { container.addSubview($0) }
+        let topPad: CGFloat = index == 0 ? 10 : 18
+        NSLayoutConstraint.activate([
+            nameLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: topPad),
+            nameLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 4),
+
+            subLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
+            subLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+            subLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
+            subLabel.trailingAnchor.constraint(lessThanOrEqualTo: playBtn.leadingAnchor, constant: -8),
+
+            playBtn.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            playBtn.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -4),
+            playBtn.leadingAnchor.constraint(greaterThanOrEqualTo: nameLabel.trailingAnchor, constant: 8),
+        ])
+        return container
+    }
+
+    @objc private func botPlayTapped(_ sender: UIButton) {
+        let kinds = BlomixPvPBotKind.allCases
+        guard sender.tag < kinds.count else { return }
+        onBotMatch?(kinds[sender.tag])
     }
 
     /// Petite pastille indiquant si le joueur local est lui-même visible.
@@ -3607,6 +3734,11 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
             self.onMatch?(match)
             self.presentingViewController?.dismiss(animated: false)
         }
+        lobby.onBotMatch = { [weak self] kind in
+            guard let self else { return }
+            self.onBotMatch?(kind)
+            self.presentingViewController?.dismiss(animated: false)
+        }
         present(lobby, animated: true)
     }
 
@@ -3627,7 +3759,10 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
     @objc private func handleAvailabilityChanged() {
         updateAvailableToggleAppearance()
         if case .loaded(let items) = phase {
-            rebuildPlayerList(items: items)
+            rebuildPlayerList(
+                items: items,
+                humansCaption: items.isEmpty ? BlomixL10n.pvpAvailableEmpty : nil
+            )
         }
     }
 

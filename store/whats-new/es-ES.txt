@@ -1,4 +1,3 @@
-• Desafío: una Referencia BLOMIX bajo la fecha — una puntuación del día a perseguir
-• Inicio: Arcade y Zen conservan su nombre; Continuar como subtítulo si hay partida
-• Las uniones se disuelven con los blox al romper una cadena
-• Los Brix sueltan microcuadrados al aterrizar
+• Duelo: encárate a BOT10, BOT5 o BOTSUPREME — mismas reglas, tres ritmos
+• Clasificación Elo: los bots son jugadores (insignia BOT)
+• Desafío: la Referencia BLOMIX apunta con más tino

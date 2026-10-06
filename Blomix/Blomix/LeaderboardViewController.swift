@@ -41,10 +41,13 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         let isLocalPlayer: Bool
         /// Nombre de parties ayant servi au calcul (uniquement renseigné pour `.averageScore`, via `entry.context`).
         let gameCount: Int
+        /// Non-nil = ligne bot (tap ≠ `GKInvite`).
+        var botKind: BlomixPvPBotKind? = nil
 
-        /// IDs à croiser avec le cache H2H (game + team, non vides).
+        /// IDs à croiser avec le cache H2H (game + team, non vides). Jamais un id `bot:`.
         var h2hLookupIDs: [String] {
-            [gamePlayerID, teamPlayerID]
+            guard botKind == nil else { return [] }
+            return [gamePlayerID, teamPlayerID]
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty && $0 != "GKPlayerIDUnknown" }
         }
@@ -102,6 +105,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     // MARK: - Callback PvP
     /// Appelé quand un match GK est établi depuis le leaderboard. GameScene le branche sur `beginPvPWithMatch`.
     var onMatch: ((GKMatch) -> Void)?
+    /// Duel vs bot depuis l’onglet Elo. Pas un `GKInvite`.
+    var onBotMatch: ((BlomixPvPBotKind) -> Void)?
 
     // MARK: - UI principale
     private let titleView = BlomixCutoutTitleView(text: BlomixL10n.leaderboardTitle, fontSize: 28)
@@ -651,7 +656,8 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                     teamPlayerID: row.teamPlayerID,
                     score: row.score,
                     isLocalPlayer: row.isLocalPlayer,
-                    gameCount: row.gameCount
+                    gameCount: row.gameCount,
+                    botKind: row.botKind
                 )
             }
 
@@ -665,6 +671,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             statusLabel.text = rows.isEmpty
                 ? BlomixL10n.leaderboardEmpty
                 : BlomixL10n.leaderboardTopCount(rows.count)
+            await mergeBotRowsIntoEloIfPossible()
         } catch {
             guard selectedLeaderboardKind == .elo else { return }
             setLoading(false)
@@ -672,6 +679,51 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             rows = []
             print("[Elo LB] multi-page error: \(error.localizedDescription)")
         }
+    }
+
+    /// Fusionne les 3 bots par rating. Échec CloudKit sans cache → liste humaine inchangée.
+    private func mergeBotRowsIntoEloIfPossible() async {
+        guard selectedLeaderboardKind == .elo else { return }
+        var profiles = BlomixPvPBotEloStore.shared.cachedProfilesIfAny()
+        if let fresh = await BlomixPvPBotEloStore.shared.refreshFromCloudBestEffort() {
+            profiles = fresh
+        }
+        guard !profiles.isEmpty else { return }
+        guard selectedLeaderboardKind == .elo else { return }
+
+        var merged = rows.filter { $0.botKind == nil }
+        for kind in BlomixPvPBotKind.allCases {
+            let profile = profiles[kind] ?? BlomixPvPBotEloStore.shared.cachedProfile(for: kind)
+            merged.append(LeaderboardRow(
+                rank: 0,
+                playerName: kind.displayName,
+                gamePlayerID: kind.rawValue,
+                teamPlayerID: "",
+                score: profile.rating,
+                isLocalPlayer: false,
+                gameCount: profile.completedMatchCount,
+                botKind: kind
+            ))
+        }
+        merged.sort { lhs, rhs in
+            if lhs.score != rhs.score { return lhs.score > rhs.score }
+            return lhs.playerName.localizedCaseInsensitiveCompare(rhs.playerName) == .orderedAscending
+        }
+        merged = merged.enumerated().map { index, row in
+            LeaderboardRow(
+                rank: index + 1,
+                playerName: row.playerName,
+                gamePlayerID: row.gamePlayerID,
+                teamPlayerID: row.teamPlayerID,
+                score: row.score,
+                isLocalPlayer: row.isLocalPlayer,
+                gameCount: row.gameCount,
+                botKind: row.botKind
+            )
+        }
+        applyLocalH2HCacheToEloRows(merged, scheduleCloudJudge: false)
+        rows = merged
+        statusLabel.text = BlomixL10n.leaderboardTopCount(merged.count)
     }
 
     private func loadLeaderboardEntries(for selectedKind: LeaderboardKind) {
@@ -813,7 +865,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             displayNames: rows.map(\.playerName)
         )
         guard scheduleCloudJudge else { return }
-        let remoteRows = rows.filter { !$0.isLocalPlayer }
+        let remoteRows = rows.filter { !$0.isLocalPlayer && $0.botKind == nil }
         BlomixPvPH2HManager.shared.scheduleEloIdleReconcile(
             idGroups: remoteRows.map(\.h2hLookupIDs),
             displayNames: remoteRows.map(\.playerName)
@@ -840,7 +892,11 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }()
 
         var content = UIListContentConfiguration.subtitleCell()
-        content.text = "#\(row.rank)  \(row.playerName)"
+        if row.botKind != nil {
+            content.text = "#\(row.rank)  \(row.playerName)  \(BlomixL10n.pvpBotsBadge)"
+        } else {
+            content.text = "#\(row.rank)  \(row.playerName)"
+        }
         // 2ᵉ ligne : score Elo uniquement — le H2H `X - Y` est à côté de « Défier ».
         content.secondaryText = selectedLeaderboardKind.secondaryText(for: row.score)
         content.textProperties.color = BlomixAppearance.primaryText
@@ -864,10 +920,29 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
 
         // Bouton "Défier" (+ score H2H ou « - » à gauche) sur l'onglet Elo.
-        if selectedLeaderboardKind == .elo && !row.isLocalPlayer && onMatch != nil {
-            cell.accessoryView = makeEloChallengeAccessory(rowIndex: indexPath.row, h2h: h2hForRow)
+        if selectedLeaderboardKind == .elo && !row.isLocalPlayer {
+            if row.botKind != nil {
+                cell.accessoryView = makeEloBotPlayAccessory(rowIndex: indexPath.row)
+            } else if onMatch != nil {
+                cell.accessoryView = makeEloChallengeAccessory(rowIndex: indexPath.row, h2h: h2hForRow)
+            }
         }
         return cell
+    }
+
+    private func makeEloBotPlayAccessory(rowIndex: Int) -> UIView {
+        let btn = BlomixUIButton(type: .system)
+        btn.setTitle(BlomixL10n.pvpBotsPlay, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: btn)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 6, left: 14, bottom: 6, right: 14), to: btn)
+        btn.titleLabel?.font = FontTheme.gameFont(size: 14, fallbackWeight: .semibold)
+        btn.tag = rowIndex
+        btn.addTarget(self, action: #selector(challengeTapped(_:)), for: .touchUpInside)
+        btn.sizeToFit()
+        let btnW = ceil(btn.bounds.width * 1.5)
+        let btnH = btn.bounds.height
+        btn.frame = CGRect(origin: .zero, size: CGSize(width: btnW, height: btnH))
+        return btn
     }
 
     /// Accessory Elo : `[ X - Y ][ Défier ]` si historique H2H, sinon bouton seul.
@@ -938,6 +1013,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     @objc private func challengeTapped(_ sender: UIButton) {
         guard sender.tag < rows.count else { return }
         let row = rows[sender.tag]
+        if let kind = row.botKind {
+            onBotMatch?(kind)
+            return
+        }
         let player = eloGKPlayers[row.gamePlayerID]
             ?? (!row.teamPlayerID.isEmpty ? eloGKPlayers[row.teamPlayerID] : nil)
         guard let player else { return }

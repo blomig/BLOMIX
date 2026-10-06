@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **8.1** (build 147, soumission ASC) — **8.0** (build 146) en vente |
+| Version courante | **8.2** (build 148, soumission) — **8.1** (build 147) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -35,6 +35,7 @@ BLOMIX/
 │   ├── MAGIX.md              # Catalogue Magix + pistes
 │   ├── PROJECT_CONTEXT.md    # Référence technique
 │   ├── PVP_MATCHING.md       # Appariement / CloudKit / GameKit
+│   ├── BOT_DUEL.md           # Spec Duel vs bots (non joué)
 │   ├── EVAL.md               # BlomixMoveAnalyzer
 │   ├── VFX_AND_ANIMATIONS.md # Juice Spec
 │   ├── JUICE_PISTES.md       # Pistes juice / physique des objets
@@ -68,6 +69,7 @@ BLOMIX/
 | Comprendre le jeu | `DOCS/RULES.md` → `DOCS/MAGIX.md` → `DOCS/GLOSSARY.md` |
 | Comprendre le code | `DOCS/PROJECT_CONTEXT.md` → `DOCS/DEVELOPMENT.md` |
 | PvP / défis / bugs matchmaking | `DOCS/PVP_MATCHING.md` |
+| Duel vs bots | `DOCS/BOT_DUEL.md` |
 | Défi du jour | `DOCS/DAILY_CHALLENGE.md` |
 | Hints / optimalité | `DOCS/EVAL.md` |
 | Animations / sons | `DOCS/VFX_AND_ANIMATIONS.md` → pistes `DOCS/JUICE_PISTES.md` |
@@ -98,7 +100,9 @@ La logique gameplay est concentrée dans :
 | Fichier | Rôle |
 |---|---|
 | `BlomixMoveAnalyzer.swift` | Eval pure Swift, hints, lookahead 3 |
-| `BlomixPvPNetworking.swift` | GKMatch, RNG partagé, attaques |
+| `BlomixPvPNetworking.swift` | GKMatch, RNG partagé, attaques ; canal `.bot` (early-return réseau) |
+| `BlomixPvPBotEngine.swift` | Moteur Duel vs bots + horloge `blomix.pvpBot` |
+| `BlomixPvPBotEloStore.swift` | Elo bots : events CloudKit `BotEloEvent` |
 | `BlomixPvPUI.swift` | Lobby, résultats, UI PvP |
 | `BlomixAvailablePlayersManager.swift` | CloudKit « joueurs disponibles » |
 | `BlomixDailyRNG.swift` | File seedée + effets Magix hashés (Défi du jour) |

@@ -7,9 +7,23 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.2] — 2026-10
+
+Build **148**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en vente.
+
+### Ajouté
+
+- **Duel vs bots** : BOT10 / BOT5 / BOTSUPREME (même cerveau `computeOptimal`, horloges 10 / 5 / 1 s). Liste Duel (section Bots, 0 réseau) et fusion dans l’onglet Elo (badge BOT). Elo joueur → `elotype` ; Elo bot → CloudKit `BotEloEvent`. Isolation : Duel humain / H2H / `protocolVersion` inchangés. [BOT_DUEL.md](BOT_DUEL.md).
+
+### Modifié
+
+- **Référence BLOMIX** : Magix visés (CHROMAX = colonne la plus remplie ; autres = scan 8). Bombes : max de Brix dans les colonnes hautes. Lookahead Blox/Brix : `computeOptimal` avec la ligne des 10 connue. `engineVersion` 5.
+
+---
+
 ## [8.1] — 2026-10
 
-Build **147**. Soumission commerciale (mise en ligne auto). **8.0 / 146** en vente.
+Build **147**. En vente.
 
 ### Ajouté
 

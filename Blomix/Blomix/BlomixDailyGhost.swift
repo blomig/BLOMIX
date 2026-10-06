@@ -2,9 +2,8 @@
 //  BlomixDailyGhost.swift
 //  Blomix
 //
-//  Fantôme du Défi du jour : joue la seed UTC en mémoire (lookahead 3 + Magix
-//  seedés, bombes en souple si le meilleur drop ne soulage pas un plateau haut,
-//  sans timer) et expose le score Arcade.
+//  Fantôme du Défi du jour : joue la seed UTC en mémoire (lookahead 3
+//  `computeOptimal`, Magix visés, bombes souples / Brix, sans timer).
 //  File `.utility` dédiée — jamais `analyzerQueue`, jamais GameScene.
 //
 
@@ -38,7 +37,7 @@ final class BlomixDailyGhostController {
     static let shared = BlomixDailyGhostController()
 
     /// Bump si la sim Magix ou le scoring change (invalide le cache).
-    static let engineVersion = 2
+    static let engineVersion = 5
 
     private static let cacheDayKey = "blomix_daily_ghost_day"
     private static let cacheScoreKey = "blomix_daily_ghost_score"
@@ -288,17 +287,18 @@ struct BlomixDailyGhostEngine: Sendable {
     }
 
     private func pickColumn() -> Int? {
-        if case .magix = p0 {
-            return shortestThenLeftColumn()
+        if case .magix(let kind) = p0 {
+            return pickMagixColumn(kind)
         }
-        let pending: [BlockType]? = (moveCount % 10 == 9) ? nextLine : nil
+        // Ligne des 10 toujours connue du fantôme : le lookahead l’injecte
+        // à la ply qui franchit la décennie (le joueur, lui, ne la passe que si visible).
         let result = BlomixMoveAnalyzer.computeOptimal(
             grid: grid,
             piece0: p0,
             piece1: p1,
             piece2: p2,
             moveCount: moveCount,
-            pendingLine: pending
+            pendingLine: nextLine
         )
         var bestCol: Int?
         var bestScore = Int.min
@@ -323,6 +323,85 @@ struct BlomixDailyGhostEngine: Sendable {
             }
         }
         return bestCol
+    }
+
+    /// CHROMAX : colonne jouable la plus remplie (Blox + Brix), puis gauche.
+    private func fullestThenLeftColumn() -> Int? {
+        var bestCol: Int?
+        var bestFill = -1
+        for c in 0..<Self.cols {
+            guard landingRow(c) != nil else { continue }
+            let fill = columnOccupiedCount(c)
+            if fill > bestFill {
+                bestFill = fill
+                bestCol = c
+            }
+        }
+        return bestCol ?? shortestThenLeftColumn()
+    }
+
+    private func columnOccupiedCount(_ column: Int) -> Int {
+        var n = 0
+        for r in 0..<Self.rows where grid[r][column] != .empty { n += 1 }
+        return n
+    }
+
+    private func brixCount(in grid: [[BlockType]]? = nil) -> Int {
+        let g = grid ?? self.grid
+        var n = 0
+        for r in 0..<Self.rows {
+            for c in 0..<Self.cols {
+                if case .priks = g[r][c] { n += 1 }
+            }
+        }
+        return n
+    }
+
+    /// CROSSX / SLASHX / BOMBX / … : simule les 8 atterrissages, garde
+    /// le plus de points Arcade, puis le plus de Brix enlevés, puis le `maxH` le plus bas.
+    private func pickMagixColumn(_ kind: MagixKind) -> Int? {
+        if kind == .chromax {
+            return fullestThenLeftColumn()
+        }
+        let scoreBefore = score
+        let brixBefore = brixCount()
+        var bestCol: Int?
+        var bestDelta = Int.min
+        var bestBrix = -1
+        var bestH = Int.max
+        for c in 0..<Self.cols {
+            guard landingRow(c) != nil else { continue }
+            var trial = self
+            guard trial.playMagixTrial(column: c) else { continue }
+            let delta = trial.score - scoreBefore
+            let brixRemoved = brixBefore - trial.brixCount()
+            let h = trial.maxHeight()
+            let better: Bool
+            if let current = bestCol {
+                better = delta > bestDelta
+                    || (delta == bestDelta && brixRemoved > bestBrix)
+                    || (delta == bestDelta && brixRemoved == bestBrix && h < bestH)
+                    || (delta == bestDelta && brixRemoved == bestBrix && h == bestH && c < current)
+            } else {
+                better = true
+            }
+            if better {
+                bestDelta = delta
+                bestBrix = brixRemoved
+                bestH = h
+                bestCol = c
+            }
+        }
+        return bestCol ?? shortestThenLeftColumn()
+    }
+
+    /// Pose le Magix P0 dans `column` et résout (copie d’essai — ne touche pas `self`).
+    private mutating func playMagixTrial(column: Int) -> Bool {
+        guard case .magix(let kind) = p0 else { return false }
+        guard let row = landingRow(column) else { return false }
+        grid[row][column] = p0
+        applyMagix(kind, at: Addr(row: row, col: column))
+        return !resolveAllScoring(runPlacementHooks: true)
     }
 
     private func landingRow(_ column: Int) -> Int? {
@@ -360,10 +439,9 @@ struct BlomixDailyGhostEngine: Sendable {
         let h = maxHeight()
         guard h >= 7 else { return false }
         guard let col = pickColumn() else { return false }
-        let pending: [BlockType]? = (moveCount % 10 == 9) ? nextLine : nil
         guard let (after, _) = BlomixMoveAnalyzer.simulateDrop(
             grid: grid, block: p0, column: col,
-            moveCount: moveCount, pendingLine: pending
+            moveCount: moveCount, pendingLine: nextLine
         ) else { return false }
         let newH = maxHeight(in: after)
         let net = occupiedCount(in: grid) - occupiedCount(in: after)
@@ -410,6 +488,7 @@ struct BlomixDailyGhostEngine: Sendable {
         let heights = (0..<Self.cols).map { columnHeight($0) }
         let maxH = heights.max() ?? 0
         let tall = Set((0..<Self.cols).filter { heights[$0] == maxH })
+        var bestBrix = -1
         var bestTall = -1
         var bestTotal = -1
         var best: Addr?
@@ -417,24 +496,35 @@ struct BlomixDailyGhostEngine: Sendable {
             for c in 0..<Self.cols {
                 let blast = bombAffectedCells(centerRow: r, centerCol: c)
                 guard blast.contains(where: { tall.contains($0.col) }) else { continue }
+                var brixHit = 0
                 var tallBroken = 0
                 var total = 0
                 for a in blast {
-                    if grid[a.row][a.col] == .empty { continue }
-                    total += 1
-                    if tall.contains(a.col) { tallBroken += 1 }
+                    switch grid[a.row][a.col] {
+                    case .empty:
+                        continue
+                    case .priks:
+                        brixHit += 1
+                        total += 1
+                        if tall.contains(a.col) { tallBroken += 1 }
+                    default:
+                        total += 1
+                        if tall.contains(a.col) { tallBroken += 1 }
+                    }
                 }
                 guard total > 0 else { continue }
                 let better: Bool
                 if let current = best {
-                    better = tallBroken > bestTall
-                        || (tallBroken == bestTall && total > bestTotal)
-                        || (tallBroken == bestTall && total == bestTotal
+                    better = brixHit > bestBrix
+                        || (brixHit == bestBrix && tallBroken > bestTall)
+                        || (brixHit == bestBrix && tallBroken == bestTall && total > bestTotal)
+                        || (brixHit == bestBrix && tallBroken == bestTall && total == bestTotal
                             && (c < current.col || (c == current.col && r < current.row)))
                 } else {
                     better = true
                 }
                 if better {
+                    bestBrix = brixHit
                     bestTall = tallBroken
                     bestTotal = total
                     best = Addr(row: r, col: c)

@@ -60,11 +60,12 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 | Nouveau terme ou renommage | `GLOSSARY.md` |
 | Nouvelle clé UI ou langue | `LOCALIZATION.md` + `BlomixL10n.swift` |
 | Release App Store / version Xcode | `CHANGELOG.md` + `MARKETING_VERSION` + **`store/whats-new/` (5 langues)** |
-| Nouveau document | `docs/README.md` + `README.md` (racine) |
+| Nouveau document | `DOCS/README.md` + `README.md` (racine) |
+| Duel vs bots | `BOT_DUEL.md` (spec) ; **ne pas** toucher `protocolVersion` / filaire / `elotype` bot |
 
 ### Version de référence
 
-Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **8.1** / 147 en soumission ; **8.0 / 146** en vente). La mettre à jour lors d'une release majeure.
+Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **8.2** / 148 soumission ; **8.1 / 147** en vente). La mettre à jour lors d'une release majeure.
 
 ### Nouveautés App Store (systématique à la release)
 

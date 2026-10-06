@@ -551,14 +551,15 @@ enum BlomixMoveAnalyzer {
             // Bonus pour les blocs effacés par la chaîne du coup 0 (non capturés par evaluate(g3)).
             let bonus0 = immediateClearing(before: grid, after: g1)
 
-            // Après niveau 1, la pendingLine a peut-être été injectée → inconnue pour niveaux 2+
+            // `pendingLine` n’est injectée que si `newMC % 10 == 0` (simulateDropAny).
+            // Le fantôme la fournit toujours ; le joueur seulement quand elle est visible.
             var best1 = Int.min
 
             for col1 in 0..<cols {
                 guard piece1 != .empty else { continue }
                 guard let (g2, mc2) = simulateDropAny(
                     grid: g1, block: piece1, column: col1,
-                    moveCount: mc1, pendingLine: nil
+                    moveCount: mc1, pendingLine: pendingLine
                 ) else { continue }
 
                 let bonus1 = immediateClearing(before: g1, after: g2)
@@ -567,7 +568,7 @@ enum BlomixMoveAnalyzer {
                     guard piece2 != .empty else { continue }
                     guard let (g3, mc3) = simulateDropAny(
                         grid: g2, block: piece2, column: col2,
-                        moveCount: mc2, pendingLine: nil
+                        moveCount: mc2, pendingLine: pendingLine
                     ) else { continue }
 
                     let bonus2 = immediateClearing(before: g2, after: g3)

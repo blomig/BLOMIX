@@ -1,4 +1,3 @@
-• Sfida: un Riferimento BLOMIX sotto la data — un punteggio del giorno da inseguire
-• Home: Arcade e Zen tengono il nome; Continua come didascalia se c’è una partita
-• Le giunzioni si dissolvono con i blox quando una catena sparisce
-• I Brix spargono micro-quadrati all’atterraggio
+• Duello: affronta BOT10, BOT5 o BOTSUPREME — stesse regole, tre ritmi
+• Classifica Elo: i bot sono giocatori (badge BOT)
+• Sfida: il Riferimento BLOMIX mira più giusto

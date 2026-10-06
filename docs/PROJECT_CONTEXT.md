@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 8.1  
+> **Version de référence** : 8.2  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -76,7 +76,7 @@ Ce n’est **pas** « 7/8 couleur + 1/8 Brix, plus 3 % Magix par-dessus ».
 | `blockAfterCurrent` | P1 |
 | `blockTwoAhead` | P2 |
 
-En PvP : RNG partagé via `BlomixPvPMatchCoordinator`.  
+En PvP : RNG partagé via `BlomixPvPMatchCoordinator` (canaux GK / Local / `.bot`). Duel vs bots : `BlomixPvPBotEngine` (file `blomix.pvpBot`), Elo bot `BlomixPvPBotEloStore` (`BotEloEvent`). [BOT_DUEL.md](BOT_DUEL.md).  
 En tutoriel : séquence scriptée (`tutorialBlockQueue`).  
 En **Défi du jour** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v1"+YYYY-MM-DD)` FNV-1a 64) ; effets Magix via `BlomixDailyEffectRNG` (hash d’événement, ne consomme pas la File). Auto-drop **non seedé**.
 
@@ -267,6 +267,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Attaque : `score / 50` → **une** ligne chez l’adverse par `addScore` (reste `score % 50` ; HUD et pile montrent ce reste)
 - Timer tour : 10 s ; **gelé** tant que `isBombMode` (`blomixPvP_shouldRunTurnTimer`)
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
+- **Vs bots** (spec, non joué) : [BOT_DUEL.md](BOT_DUEL.md) — canal coordinateur `.bot` loopback, 0 filaire, 0 `elotype` bot ; isolation : au pire le match bot est lent
 - Lobby : Partie rapide (**Local** / **En ligne**), défis CloudKit / récents / classement
 - Overlay attente match sur **grille vide** (pas sur l’accueil)
 - Dialogs d’erreur / timeout : style in-app BLOMIX (`BlomixInAppDialogView`)
@@ -309,7 +310,7 @@ L’overlay UIKit paginé (`GameTutorialOverlayView` / `hasSeenGameTutorial`) n�
 - Lookahead 3 niveaux (P0, P1, P2) : 512 simulations max
 - `evalEnabled = true`, `realtimeFeedbackEnabled = false`
 - Stats fin de partie : **justesse** % , pire coup (`worstMistakeSnapshot`) — plus de hint en cours de partie (v6.1). Magix / bombes non simulés → le % ne les compte pas.
-- **Référence BLOMIX** (`BlomixDailyGhost.swift`) : run fantôme de la seed Défi (lookahead 3 + Magix seedés, bombes souples si le meilleur drop ne soulage pas un `maxH ≥ 7`, 0 timer). Score Arcade affiché en gris sous la date du hub. Pause CPU dès qu’une partie commence.
+- **Référence BLOMIX** (`BlomixDailyGhost.swift`) : run fantôme de la seed Défi (lookahead 3 `computeOptimal` avec ligne des 10 connue, Magix visés, bombes souples ciblant les Brix des colonnes hautes, 0 timer). Score Arcade affiché en gris sous la date du hub. Pause CPU dès qu’une partie commence. `engineVersion` **5**.
 
 Voir [EVAL.md](EVAL.md).
 

@@ -7,6 +7,7 @@
 "quit_confirm.title" = "¿Salir de esta partida?";
 "quit_confirm.message" = "Podrás retomar la partida desde la pantalla de inicio.";
 "quit_confirm.message_zen" = "Podrás retomar la partida desde la pantalla de inicio.";
+"quit_confirm.message_pvp" = "Si sales, pierdes este Duelo.";
 "quit_confirm.quit" = "Salir";
 
 /* Welcome & gameplay */

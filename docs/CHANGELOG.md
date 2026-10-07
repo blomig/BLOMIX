@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [8.2] — 2026-10
 
-Build **152**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en vente.
+Build **153**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en vente. (152 refusé : overlay quit Duel + rangs accueil.)
 
 ### Ajouté
 
@@ -19,6 +19,8 @@ Build **152**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en ven
 
 - **Référence BLOMIX** : Magix visés (CHROMAX = colonne la plus remplie ; autres = scan 8). Bombes : max de Brix dans les colonnes hautes. Lookahead Blox/Brix : `computeOptimal` avec la ligne des 10 connue. `engineVersion` 5.
 - **Pastille Duel (accueil)** : rang aligné sur l’onglet Elo (filtre des comptes GC figés à 800 / 0 parties + fusion bots). Plus le `GKLeaderboard.Entry.rank` brut.
+- **Quitter un Duel (☰ Accueil)** : overlay de confirmation (humain **et** bot). Confirmer = défaite, Elo mis à jour (joueur `elotype` + bot `BotEloEvent`). Annuler reprend le match (timer gelé pendant ☰ / overlay).
+- **Accueil — rangs** : les 5 chiffres (Arcade → Défi) n’apparaissent plus au fil des fetches. Une fois les 5 prêts, stagger gauche → droite (0,07 s).
 
 ---
 

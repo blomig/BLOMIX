@@ -7,6 +7,7 @@
 "quit_confirm.title" = "Quitter la partie ?";
 "quit_confirm.message" = "Ta partie pourra être reprise depuis l’accueil.";
 "quit_confirm.message_zen" = "Ta partie pourra être reprise depuis l’accueil.";
+"quit_confirm.message_pvp" = "Si tu quittes, tu perds ce match Duel.";
 "quit_confirm.quit" = "Quitter";
 
 /* Accueil & jeu */

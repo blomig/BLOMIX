@@ -1,3 +1,4 @@
 • Duel: take on BABYBOT, MINIBOT, BOBBOT, BOT10, BOT5 or BOTSUPREME
 • Elo board: bots are players (BOT badge)
 • Daily: the BLOMIX reference aims more accurately
+• Duel: quitting a match asks for confirmation (you lose)

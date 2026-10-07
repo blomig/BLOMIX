@@ -26,6 +26,10 @@ enum BlomixL10n {
     static var quitConfirmMessageZen: String {
         tr("quit_confirm.message_zen", comment: "Alert: game can be resumed from home (Zen)")
     }
+    /// Duel (humain ou bot) : abandon = défaite + Elo.
+    static var quitConfirmMessagePvp: String {
+        tr("quit_confirm.message_pvp", comment: "Alert: quitting an active Duel counts as a loss")
+    }
     static var quitConfirmQuit:    String { tr("quit_confirm.quit",    comment: "Alert: confirm quit button") }
 
     // MARK: - Accueil & jeu (SpriteKit)

@@ -7,6 +7,7 @@
 "quit_confirm.title" = "Partie beenden?";
 "quit_confirm.message" = "Du kannst diese Partie vom Startbildschirm fortsetzen.";
 "quit_confirm.message_zen" = "Du kannst diese Partie vom Startbildschirm fortsetzen.";
+"quit_confirm.message_pvp" = "Wenn du gehst, verlierst du dieses Duell.";
 "quit_confirm.quit" = "Beenden";
 
 /* Welcome & gameplay */

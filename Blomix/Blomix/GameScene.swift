@@ -1527,6 +1527,8 @@ final class GameScene: SKScene {
     private var hudLeaderScoreBaseline: Int = 0
     /// Ignore les retours asynchrones obsolètes lors des rafraîchissements du record.
     private var bestScoreFetchGeneration: Int = 0
+    /// Vague de révélation des 5 rangs accueil (évite un pop dispersé).
+    private var startScreenRankRevealGeneration: Int = 0
     /// Classement figé au lancement (jauge HUD). Nil = pas de ligne (tuto / Duel).
     private var scoreRaceSnapshot: ScoreRaceSnapshot?
     /// Losange : suit le flash de couleur du gros score. Cercle vert / jaune : teinte fixe.
@@ -2308,7 +2310,6 @@ final class GameScene: SKScene {
             in: container
         ) as? BlomixCutoutWordmarkNode {
             cutout.setText(text)
-            cutout.alpha = 1
             return
         }
         guard let node = Self.startScreenDescendant(
@@ -2316,7 +2317,60 @@ final class GameScene: SKScene {
             in: container
         ) as? SKLabelNode else { return }
         node.text = text
-        node.alpha = 1
+    }
+
+    private func hideStartScreenDiscRank(discName: String, in container: SKNode) {
+        if let cutout = Self.startScreenDescendant(
+            named: discName + Self.rankDiscRankLabelSuffix,
+            in: container
+        ) as? BlomixCutoutWordmarkNode {
+            cutout.removeAllActions()
+            cutout.setText("")
+            cutout.setScale(1)
+            cutout.alpha = 0
+            return
+        }
+        if let node = Self.startScreenDescendant(
+            named: discName + Self.rankDiscRankLabelSuffix,
+            in: container
+        ) as? SKLabelNode {
+            node.removeAllActions()
+            node.text = ""
+            node.setScale(1)
+            node.alpha = 0
+        }
+    }
+
+    /// Chiffre déjà posé (alpha 0) → fade + scale, stagger gauche → droite.
+    private func revealStartScreenDiscRank(discName: String, in container: SKNode, delay: TimeInterval) {
+        let fadeIn = SKAction.group([
+            SKAction.fadeIn(withDuration: 0.16),
+            {
+                let a = SKAction.scale(to: 1.0, duration: 0.18)
+                a.timingMode = .easeOut
+                return a
+            }(),
+        ])
+        let seq = SKAction.sequence([.wait(forDuration: delay), fadeIn])
+        if let cutout = Self.startScreenDescendant(
+            named: discName + Self.rankDiscRankLabelSuffix,
+            in: container
+        ) as? BlomixCutoutWordmarkNode {
+            cutout.removeAllActions()
+            cutout.setScale(0.82)
+            cutout.alpha = 0
+            cutout.run(seq)
+            return
+        }
+        if let node = Self.startScreenDescendant(
+            named: discName + Self.rankDiscRankLabelSuffix,
+            in: container
+        ) as? SKLabelNode {
+            node.removeAllActions()
+            node.setScale(0.82)
+            node.alpha = 0
+            node.run(seq)
+        }
     }
 
     private func runStartScreenGameChipEntrance(on chip: BlomixSKButtonNode, delay: TimeInterval, slideDistance: CGFloat = 14) {
@@ -4228,7 +4282,7 @@ final class GameScene: SKScene {
     }
 
     /// Fetche le rang du joueur sur les 5 pastilles (Arcade, Moyenne, Zen, Duel, Défi).
-    /// Défi : CloudKit 60 jours — on peint d’abord le dernier rang connu, puis on rafraîchit.
+    /// Les chiffres restent vides jusqu’à ce que **tous** les fetches aient répondu, puis stagger L→R.
     private func refreshStartScreenRankDiscsIfVisible() {
         guard isStartScreen else { return }
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
@@ -4242,8 +4296,12 @@ final class GameScene: SKScene {
             (ScoreManager.dailyLeaderboardID,   Self.startScreenRankDiscDailyName),
         ]
 
+        startScreenRankRevealGeneration += 1
+        let generation = startScreenRankRevealGeneration
+
         for (_, discName) in specs {
             Self.startScreenDescendant(named: discName, in: container)?.alpha = 1
+            hideStartScreenDiscRank(discName: discName, in: container)
         }
 
         ScoreManager.shared.prefetchScoreRaceFields()
@@ -4253,48 +4311,53 @@ final class GameScene: SKScene {
 
         guard GKLocalPlayer.local.isAuthenticated else { return }
 
-        for (leaderboardID, discName) in specs {
-            if leaderboardID == "elotype" {
-                Task { @MainActor [weak self] in
-                    guard let self, self.isStartScreen else { return }
-                    guard let rank = await BlomixEloManager.shared.fetchDisplayedLocalDuelRank() else { return }
-                    guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                          let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
-                    else { return }
-                    self.applyStartScreenDiscRank(rank, discName: discName, in: container)
-                }
-                continue
-            }
-            if leaderboardID == ScoreManager.dailyLeaderboardID {
-                if let cached = BlomixDailyChallenge.shared.cachedLocalCareerRank() {
-                    applyStartScreenDiscRank(cached, discName: discName, in: container)
-                }
-                Task { @MainActor [weak self] in
-                    guard let self, self.isStartScreen else { return }
-                    if let rank = await BlomixDailyChallenge.shared.fetchLocalCareerRank() {
-                        guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                              let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
-                        else { return }
-                        self.applyStartScreenDiscRank(rank, discName: discName, in: container)
-                        return
-                    }
-                    if BlomixDailyChallenge.shared.cachedLocalCareerRank() != nil { return }
-                    ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { [weak self] rank in
-                        guard let self, self.isStartScreen, let rank else { return }
-                        guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                              let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
-                        else { return }
-                        self.applyStartScreenDiscRank(rank, discName: discName, in: container)
-                    }
-                }
-                continue
-            }
-            ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { [weak self] rank in
-                guard let self, self.isStartScreen, let rank else { return }
-                guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
-                      let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
-                else { return }
+        let id0 = specs[0].leaderboardID
+        let id1 = specs[1].leaderboardID
+        let id2 = specs[2].leaderboardID
+        let id3 = specs[3].leaderboardID
+        let id4 = specs[4].leaderboardID
+        let discNames = specs.map(\.discName)
+        Task { @MainActor [weak self] in
+            async let r0 = GameScene.loadStartScreenDiscRank(leaderboardID: id0)
+            async let r1 = GameScene.loadStartScreenDiscRank(leaderboardID: id1)
+            async let r2 = GameScene.loadStartScreenDiscRank(leaderboardID: id2)
+            async let r3 = GameScene.loadStartScreenDiscRank(leaderboardID: id3)
+            async let r4 = GameScene.loadStartScreenDiscRank(leaderboardID: id4)
+            let ranks = await [r0, r1, r2, r3, r4]
+            guard let self else { return }
+            guard generation == self.startScreenRankRevealGeneration, self.isStartScreen else { return }
+            guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
+                  let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName)
+            else { return }
+            let stagger: TimeInterval = 0.07
+            for (index, discName) in discNames.enumerated() {
+                guard let rank = ranks[index] else { continue }
                 self.applyStartScreenDiscRank(rank, discName: discName, in: container)
+                self.revealStartScreenDiscRank(
+                    discName: discName,
+                    in: container,
+                    delay: TimeInterval(index) * stagger
+                )
+            }
+        }
+    }
+
+    @MainActor
+    private static func loadStartScreenDiscRank(leaderboardID: String) async -> Int? {
+        if leaderboardID == "elotype" {
+            return await BlomixEloManager.shared.fetchDisplayedLocalDuelRank()
+        }
+        if leaderboardID == ScoreManager.dailyLeaderboardID {
+            if let rank = await BlomixDailyChallenge.shared.fetchLocalCareerRank() {
+                return rank
+            }
+            if let cached = BlomixDailyChallenge.shared.cachedLocalCareerRank() {
+                return cached
+            }
+        }
+        return await withCheckedContinuation { cont in
+            ScoreManager.shared.fetchLocalPlayerRank(leaderboardID: leaderboardID) { rank in
+                cont.resume(returning: rank)
             }
         }
     }
@@ -6049,30 +6112,33 @@ final class GameScene: SKScene {
         unwindToStartScreen()
     }
 
-    /// Bouton **New Game** : retour menu depuis une partie active (hors flux Game Over).
+    /// Bouton **Accueil** (☰) : retour menu depuis une partie active (hors flux Game Over).
     private func returnToStartScreenFromNewGameButton() {
         guard !isStartScreen else { return }
 
-        // Partie solo active (pas PvP, pas encore terminée) → demander confirmation.
-        if pvpCoordinator == nil, !isGameOver {
-            confirmQuitSoloThenUnwind()
-            return
+        // Partie en cours → overlay. Solo : reprise. Duel (humain / bot) : abandon = défaite.
+        if !isGameOver {
+            if pvpCoordinator == nil {
+                showQuitConfirmOverlay()
+                return
+            }
+            if pvpCoordinator?.isGameActive == true {
+                showQuitConfirmOverlay()
+                return
+            }
         }
 
-        // En PvP actif (partie commencée, pas encore terminée) : le joueur local abandonne → défaite.
+        unwindToStartScreen()
+    }
+
+    /// Forfait Duel (humain ou bot) puis accueil. Elo / série **avant** teardown.
+    private func performConfirmedPvPForfeitThenUnwind() {
         if let coord = pvpCoordinator, coord.isGameActive, !isGameOver {
-            // Série + H2H loss (symétrie avec le win du restant via iLost).
             blomixPvP_recordSeriesMatchOutcome(localWon: false)
             blomixPvP_finalizeEloIfNeeded(outcome: .loss)
             coord.forfeitMatch()
         }
         unwindToStartScreen()
-    }
-
-    /// Affiche la dialog SpriteKit de confirmation avant de quitter une partie solo.
-    /// Les boutons sont détectés dans `touchesBegan` via `pendingButtonAction` (fire-on-release).
-    private func confirmQuitSoloThenUnwind() {
-        showQuitConfirmOverlay()
     }
 
     private func showQuitConfirmOverlay() {
@@ -6093,7 +6159,7 @@ final class GameScene: SKScene {
 
         // Panneau central arrondi.
         let panelW: CGFloat = min(300, size.width - 48)
-        let panelH: CGFloat = 185
+        let panelH: CGFloat = pvpCoordinator != nil ? 200 : 185
         let panelRect = CGRect(x: -panelW / 2, y: -panelH / 2, width: panelW, height: panelH)
         let panel = SKShapeNode(rect: panelRect, cornerRadius: 14)
         panel.fillColor   = BlomixAppearance.panelFillSK
@@ -6114,8 +6180,15 @@ final class GameScene: SKScene {
         title.zPosition               = 2
         panel.addChild(title)
 
-        // Message (multi-lignes) : Solo = moyenne ; Zen = score non sauvegardé.
-        let msgText = isZenMode ? BlomixL10n.quitConfirmMessageZen : BlomixL10n.quitConfirmMessage
+        // Message (multi-lignes) : Solo / Zen = reprise ; Duel = défaite.
+        let msgText: String
+        if pvpCoordinator != nil {
+            msgText = BlomixL10n.quitConfirmMessagePvp
+        } else if isZenMode {
+            msgText = BlomixL10n.quitConfirmMessageZen
+        } else {
+            msgText = BlomixL10n.quitConfirmMessage
+        }
         let msg = SKLabelNode(text: msgText)
         msg.fontName                = Self.customUIFontPostScriptName
         msg.fontSize                = 13
@@ -7620,7 +7693,7 @@ final class GameScene: SKScene {
             minSum = mins.reduce(0, +)
         }
         var result = mins
-        var remaining = total - result.reduce(0, +)
+        let remaining = total - result.reduce(0, +)
         let weightSum = bucketSizes.reduce(0, +)
         guard remaining > 0, weightSum > 0 else { return result }
         var leftovers: [(Int, Int)] = []
@@ -9670,7 +9743,7 @@ final class GameScene: SKScene {
     }
 
     /// Rang en trou gouttière (chiffre ×2, sans « # ») + libellé 3 lettres dessous, même style.
-    /// Cliquable (`name`) ; le chiffre est rempli après le fetch Game Center.
+    /// Cliquable (`name`) ; le chiffre est révélé avec les 4 autres (stagger L→R).
     private static func makeRankDiscNode(
         name: String,
         category: String,
@@ -16006,8 +16079,12 @@ final class GameScene: SKScene {
                 pendingButtonAction = { [weak self] in
                     guard let self else { return }
                     self.dismissQuitConfirmOverlay(restoreAimGhost: false)
+                    if self.pvpCoordinator != nil {
+                        self.performConfirmedPvPForfeitThenUnwind()
+                        return
+                    }
                     ScoreManager.shared.recordGameScore(self.score)
-                    if self.pvpCoordinator == nil, !self.isGameOver {
+                    if !self.isGameOver {
                         self.saveCurrentSoloGameState()
                     }
                     self.unwindToStartScreen()
@@ -17275,6 +17352,8 @@ final class GameScene: SKScene {
         guard pvpCoordinator != nil else { return false }
         guard !isStartScreen, !isGameOver else { return false }
         guard !isBombMode else { return false }
+        if gameOverflowMenuDropdownIsOpen() { return false }
+        if childNode(withName: Self.quitConfirmOverlayName) != nil { return false }
         return !isProcessing
     }
 

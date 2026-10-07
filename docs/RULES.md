@@ -249,6 +249,7 @@ Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BABYBOT / MIN
 - Timer de tour : **10 s** par coup ; **geler** tant que le mode bombe est actif
 - **Elo** : rating initial 800, K adaptatif selon le nombre de matchs. Un match bot **fait bouger** ton Elo (`elotype`) ; l’Elo du bot est global (CloudKit).
 - Victoire = adversaire en Game Over ; le score le plus élevé l'emporte
+- **Quitter** (☰ Accueil) : overlay de confirmation. Si tu confirmes, tu **perds** le match (humain ou bot) et l’**Elo** est mis à jour. Annuler reprend la partie.
 - Bots : même règles, une seule grille (la tienne), **3 bombes**. BABYBOT : tous les coups = pire coup. MINIBOT : tous au hasard. BOBBOT : 2 coups sur 5 = pire coup. BOT10 : 10 s, 1 coup sur 2 = pire coup. BOT5 / BOTSUPREME : `computeOptimal`, 5 s / 1 s. Noms non traduits. Pas de H2H CloudKit.
 
 Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_DUEL.md](BOT_DUEL.md).

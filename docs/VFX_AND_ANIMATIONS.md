@@ -706,7 +706,7 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Titre accueil (cold launch) | **~2,0 s** poinçon L→R : 0,20 s vide, B puis L à cadence régulière (~0,26 s), ensuite O-M-I-X légèrement accélérés (dernier impact inchangé ≈ 1,30 s). Squash **1,18 / 0,86**, settle 0,16 s easeOut. Son `place` + paillettes (14 éjections + 32 poussières, couleur blox du skin) à chaque impact. Chrome accueil après `punchIntroChromeDelay` ≈ 1,58 s. Retours ☰ / GO : trou + chrome court. |
 | Wordmark BLOMIX | accueil **60 pt** / jeu 36 pt ; puits clipé sur Changa One |
 | Boutons jeu | cold launch : après le wordmark (`punchIntroChromeDelay` + 0,16 / 0,28 s) ; retour ☰ : PvP+Zen **0,06 s**, Solo **0,10 s**. Slide **14 pt**, scale 1,15→1,0, fade **0,12 s** |
-| Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; rempli async après fetch GC |
+| Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; chiffres **après** les 5 fetches, stagger L→R **0,07 s** (fade 0,16 s + scale 0,82→1, 0,18 s) |
 | Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
 
 **Bouton Solo hero** (même puits que Duel/Zen ; se distingue par la taille)

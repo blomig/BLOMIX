@@ -1,3 +1,4 @@
 • Duel : affronte BABYBOT, MINIBOT, BOBBOT, BOT10, BOT5 ou BOTSUPREME
 • Classement Elo : les bots sont des joueurs (badge BOT)
 • Défi : la Référence BLOMIX vise plus juste
+• Duel : quitter un match se confirme (tu perds)

@@ -1,6 +1,6 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **8.1 / 147** en vente ; **8.2 / 152** soumission.  
+> **Statut** : **8.1 / 147** en vente ; **8.2 / 153** soumission.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
 > **Version de référence** : 8.2  
@@ -128,7 +128,7 @@ Le rang affiché **au GO** est le rang **live** (parmi ceux qui ont déjà fini)
 
 | Surface | Source | Écriture | Doublon |
 |---|---|---|---|
-| Onglet in-app **Défi** + pastille accueil | Recalcul +5/+3/+1 sur `DailyScore` des jours **clos** | **Aucune** (lecture) | Idempotent : 1 record CK / joueur / jour ; 1 podium / joueur / jour. Pastille : dernier rang persisté tout de suite, CK en arrière-plan (coalescé, cache 20 s). |
+| Onglet in-app **Défi** + pastille accueil | Recalcul +5/+3/+1 sur `DailyScore` des jours **clos** | **Aucune** (lecture) | Idempotent : 1 record CK / joueur / jour ; 1 podium / joueur / jour. Pastille accueil : le rang Défi part dans la **vague des 5** (pas d’affichage isolé) ; cache 20 s accélère le fetch. |
 | Board GC `dailywins_arc` | `submitScore` **du joueur local** seulement | Local UserDefaults `credited_{day}` + total GC | Pas d’écriture du score d’un pair |
 
 Ouvrir l’app (toi ou un autre) **ne rajoute pas** de points sur l’onglet in-app : chacun recalcule la même somme. Le 2e qui ouvre soumet **son** +3 à Game Center, ça ne touche pas tes +5.

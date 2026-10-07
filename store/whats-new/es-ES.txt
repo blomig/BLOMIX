@@ -1,3 +1,4 @@
 • Duelo: encárate a BABYBOT, MINIBOT, BOBBOT, BOT10, BOT5 o BOTSUPREME
 • Clasificación Elo: los bots son jugadores (insignia BOT)
 • Desafío: la Referencia BLOMIX apunta con más tino
+• Duelo: salir pide confirmación (pierdes)

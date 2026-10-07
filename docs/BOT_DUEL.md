@@ -1,6 +1,6 @@
 # BLOMIX — Duel vs bots (spec)
 
-> **Statut** : **implémenté** (soumission 8.2 / 152). Schéma CloudKit `BotEloEvent` en Production. `protocolVersion` inchangé.  
+> **Statut** : **implémenté** (soumission 8.2 / 153). Schéma CloudKit `BotEloEvent` en Production. `protocolVersion` inchangé.  
 > **Version de référence** : 8.2  
 > **2026-10-06**  
 > Voir [PVP_MATCHING.md](PVP_MATCHING.md), [EVAL.md](EVAL.md), [RULES.md](RULES.md) § Duel.
@@ -60,6 +60,7 @@ Identique à un Duel humain **côté joueur** :
 - HUD Duel : palier 0…50, pile d’attaque, nom de l’adversaire = BABYBOT / … / BOTSUPREME, profondeur de remplissage adverse.
 - File **sans Magix**, 3 bombes **3×3**, ligne des 10, attaques à chaque palier 50.
 - L’adversaire n’est **pas** animé. Le bot est un moteur en mémoire.
+- **Quitter** (☰ Accueil) : overlay de confirmation, comme un Duel humain. Confirmer = défaite + Elo (`elotype` + `BotEloEvent`). Annuler reprend (timer gelé pendant ☰ / overlay).
 
 Revanche / série : compteur **local session** comme aujourd’hui (HUD série). Pas de H2H CloudKit humain.
 
@@ -240,7 +241,7 @@ Les 2–3 premières semaines à 800, les victoires rapportent (K haut). Documen
 | Juge accueil / Elo | ignore `bot:…` | inchangé |
 | Série HUD | compteur session local OK | inchangé |
 | Déco / Reconnexion | N/A (pas de transport) | inchangé |
-| Quitter ☰ | défaite comme abandon Duel (à aligner sur le comportement actuel Accueil en Duel) | inchangé |
+| Quitter ☰ | overlay « tu perds ce match Duel » ; confirmer = défaite + Elo joueur/bot | **même overlay** (humain aussi) |
 
 ---
 
@@ -295,7 +296,7 @@ l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, access
 - [ ] Bombes bot : stock **3**, jamais plus (comme le joueur Duel ; pas de BOMBX)
 - [ ] Fin de manche : ± Elo joueur sur `elotype` ; event CloudKit best-effort
 - [ ] CloudKit KO : manche OK, Elo joueur OK, pas de ligne bot ou ligne périmée cache
-- [ ] ☰ Accueil / abandon : pas de coordinateur GK coincé (`isInActiveMatch`)
+- [ ] ☰ Accueil / abandon : overlay confirmation ; confirmer = défaite + Elo ; Annuler reprend ; pas de coordinateur GK coincé (`isInActiveMatch`)
 
 ---
 
@@ -311,4 +312,4 @@ l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, access
 
 ---
 
-*Implémenté en 8.2 / 152 (soumission). Checklist §7 à jouer sur device.*
+*Implémenté en 8.2 / 153 (soumission). Checklist §7 à jouer sur device.*

@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 8.2  
+> **Version de référence** : 8.3  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 
@@ -230,7 +230,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 `isInStagedSoloMode = pvpCoordinator == nil && !isTutorialMode && !isZenMode`
 
 6 stages (`soloStages`) : timer décroissant, multiplicateur croissant.  
-Timer relancé **à fond** après chaque coup stable et après overlay de stage. Timeout → `autoDropPreferredColumn()` : hasard parmi les colonnes dont `grid[0][col] == .empty`, sinon toute colonne jouable.
+Timer relancé **à fond** après chaque coup stable et après overlay de stage. Timeout → `autoDropColumnForTimeout()` : visée encore maintenue (colonne jouable) → sinon ghost figé à ≤ 2 s → sinon `autoDropPreferredColumn()` (hasard parmi `grid[0][col] == .empty`, sinon toute colonne jouable).
 
 **Reprise de save :** `resumeStageTimerKeepingRemaining()` avec les secondes persistées, clamp `[1 … durée du stage]`. Un flush mid-anim relance aussi sur le reste.
 
@@ -265,7 +265,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - **Série de revanches** : compteur session local ; HUD après 1ʳᵉ revanche ; overlay fin si ≥ 1 partie (voir `PVP_MATCHING.md`)
 - **H2H** : 0 CloudKit en match ; affichage = **dernier stamp CLOUD-JUDGE** + Δ de la série en cours (plus de max/plancher/grâce, plus de préférence `A:_`) ; juge Elo / accueil ; query `pairKey` `A:_`×`A:_` + IDs match du dernier adversaire, filet `winnerID`
 - Attaque : `score / 50` → **une** ligne chez l’adverse par `addScore` (reste `score % 50` ; HUD et pile montrent ce reste)
-- Timer tour : 10 s ; **gelé** tant que `isBombMode` (`blomixPvP_shouldRunTurnTimer`)
+- Timer tour : 10 s ; **gelé** tant que `isBombMode` (`blomixPvP_shouldRunTurnTimer`). Timeout : `autoDropColumnForTimeout()` (visée maintenue si jouable, sinon hasard)
 - Elo : `BlomixEloManager` (défaut 800 local, K adaptatif) — **pas** d’écriture GC 800/0 à l’init ; 1 update **par partie**
 - **Vs bots** (spec, non joué) : [BOT_DUEL.md](BOT_DUEL.md) — canal coordinateur `.bot` loopback, 0 filaire, 0 `elotype` bot ; isolation : au pire le match bot est lent
 - Lobby : Partie rapide (**Local** / **En ligne**), défis CloudKit / récents / classement
@@ -403,7 +403,7 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
   - Arcade / Zen : **RECORD** perso à gauche, **N°1** all-time à droite. Vert live (`#33D959`) + chiffre = run si `score > baseline`. N°1 battu : jaune `#ffb200` jusqu’à la fin.
   - **Défi du jour** : **À BATTRE** centré = leader CloudKit du jour ; suit la run en jaune si en tête
   - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
-- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Points gris discrets = autres scores du board (top 100 GC ou liste du jour). Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : petit burst radial jaune N°1. Pas en tuto / Duel.
+- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Autres scores encore devant = ticks verticaux 1×4 pt (Sombre blanc 48 %, Clair blanc 36 %) ; déjà dépassés masqués. Prochain devant le curseur = rose `#FF5A9A` (rayon 2,4). Sillage = gouttière 3 pt, même matière (shader peau) que le wordmark BLOMIX, de 0 au curseur ; ligne grise restante 1 pt. Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : le chiffre gonfle et défile ±1 jusqu’à la nouvelle place, plus paillettes rose / chrome. Pas en tuto / Duel.
 - Compteur LIGNE x/10 (gauche)
 - Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
 - Timer stage ou PvP (droite)

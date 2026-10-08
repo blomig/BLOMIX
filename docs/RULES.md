@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 7.0 (local)  
+> **Version de référence** : 8.3  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -227,7 +227,7 @@ Partie infinie avec **timer par coup** et **multiplicateur de score** progressif
 | 5 | 3 000 | 2 s | ×5 |
 | Ultime | 5 000 | 1 s | ×6 |
 
-Quand le timer arrive à 0, le bloc courant est **posé automatiquement** : au hasard parmi les colonnes dont **la ligne du haut est encore vide** ; s’il n’y en a aucune, au hasard parmi toutes les colonnes encore jouables. Si plus aucune colonne n’est libre → Game Over.
+Quand le timer arrive à 0, le bloc courant est **posé automatiquement**. Si tu **maintiens** une visée (appui long) sur une colonne jouable, c’est **cette** colonne. Sinon : au hasard parmi les colonnes dont **la ligne du haut est encore vide** ; s’il n’y en a aucune, au hasard parmi toutes les colonnes encore jouables. Si plus aucune colonne n’est libre → Game Over.
 
 Sauvegarde automatique à la mise en arrière-plan (reprise : voir [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §11).
 
@@ -246,7 +246,7 @@ Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BABYBOT / MIN
 - **3 bombes** au départ, zone **3×3**
 - Attaque : ligne chez l'adversaire à chaque palier **score / 50**
 - Le score affiché est le reste **0–49** avant le prochain palier (le total n’est pas montré)
-- Timer de tour : **10 s** par coup ; **geler** tant que le mode bombe est actif
+- Timer de tour : **10 s** par coup ; **geler** tant que le mode bombe est actif. À 0 s, visée blox/brix encore maintenue → cette colonne ; sinon pose au hasard.
 - **Elo** : rating initial 800, K adaptatif selon le nombre de matchs. Un match bot **fait bouger** ton Elo (`elotype`) ; l’Elo du bot est global (CloudKit).
 - Victoire = adversaire en Game Over ; le score le plus élevé l'emporte
 - **Quitter** (☰ Accueil) : overlay de confirmation. Si tu confirmes, tu **perds** le match (humain ou bot) et l’**Elo** est mis à jour. Annuler reprend la partie.

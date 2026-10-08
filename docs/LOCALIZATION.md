@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
 > **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 8.2
+> **Version de référence** : 8.3
 
 ---
 

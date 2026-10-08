@@ -906,6 +906,8 @@ final class GameScene: SKScene {
     private static let leaderScoreTitleName  = "hudLeaderScoreTitle"
     private static let scoreRaceContainerName = "hudScoreRace"
     private static let scoreRaceTrackName     = "hudScoreRaceTrack"
+    private static let scoreRaceWakeName      = "hudScoreRaceWake"
+    private static let scoreRaceWakeFillName  = "hudScoreRaceWakeFill"
     private static let scoreRaceGraysName     = "hudScoreRaceGrays"
     private static let scoreRaceYellowName    = "hudScoreRaceYellow"
     private static let scoreRaceGreenName     = "hudScoreRaceGreen"
@@ -931,6 +933,8 @@ final class GameScene: SKScene {
     private static let attackPilePeakWidthScale: CGFloat = 1.20
     private static let scorePulseActionKey = "scorePulse"
     private static let scoreRollActionKey  = "scoreRoll"
+    private static let scoreRaceRankTickKey = "scoreRaceRankTick"
+    private static let scoreRaceRankPulseKey = "scoreRaceRankPulse"
     private static let pvpMilestoneScoreFlashKey = "pvpMilestoneFlash"
     /// Calque « fin de partie » : fond + textes ; retiré par `returnToStartScreenFromGameOver()`.
     private static let gameOverOverlayName = "gameOverOverlay"
@@ -1533,8 +1537,10 @@ final class GameScene: SKScene {
     private var scoreRaceSnapshot: ScoreRaceSnapshot?
     /// Losange : suit le flash de couleur du gros score. Cercle vert / jaune : teinte fixe.
     private var scoreRaceCursorFollowsScoreAccent = true
-    /// Dernier rang affiché sur la jauge. Nil = pas encore posé (pas de paillettes au 1er layout).
+    /// Rang actuellement écrit sur le label (peut défiler vers la cible). Nil = pas encore posé.
     private var scoreRaceDisplayedRank: Int?
+    /// Rang logique visé. Le label tick ±1 jusqu’ici.
+    private var scoreRaceRankTarget: Int?
 
     // MARK: - Analyse des coups (BlomixMoveAnalyzer)
 
@@ -1877,6 +1883,7 @@ final class GameScene: SKScene {
         isZenMode = false
         scoreRaceSnapshot = nil
         scoreRaceDisplayedRank = nil
+        scoreRaceRankTarget = nil
         grid = Self.makeEmptyGrid()
         selectedColumn = 3
         currentBlock = nextPlayableBlockForSession()
@@ -3689,6 +3696,8 @@ final class GameScene: SKScene {
     private static let hudGhostLiveBeatColor = SKColor(red: 0.20, green: 0.85, blue: 0.35, alpha: 1)
     /// N°1 / bout de jauge — jaune Default `#ffb200`, hors peau.
     private static let hudRaceN1Color = SKColor(red: 1, green: 178 / 255, blue: 0, alpha: 1)
+    /// Prochain gris à battre — rose `#FF5A9A`, hors peau (lisible Sombre / Clair).
+    private static let hudRaceNextGrayColor = SKColor(red: 1, green: 90 / 255, blue: 154 / 255, alpha: 1)
 
     /// Jauge 0→N°1 : Arcade / Zen / Défi. Pas en tuto ni Duel.
     private var showsScoreRaceHUD: Bool {
@@ -3823,6 +3832,7 @@ final class GameScene: SKScene {
         if hidesGhostScoreHUD {
             scoreRaceSnapshot = nil
             scoreRaceDisplayedRank = nil
+            scoreRaceRankTarget = nil
             return
         }
         if isDailyChallengeMode {
@@ -3862,11 +3872,23 @@ final class GameScene: SKScene {
         )
     }
 
-    private static let scoreRaceGrayRadius: CGFloat = 1.5
+    /// Tick des autres scores encore devant (pas le rose).
+    private static let scoreRaceGrayTickWidth: CGFloat = 1.0
+    private static let scoreRaceGrayTickHeight: CGFloat = 4.0
+    private static let scoreRaceNextGrayRadius: CGFloat = 2.4
     private static let scoreRaceGreenRadius: CGFloat = 3.5
     private static let scoreRaceYellowRadius: CGFloat = 5
     private static let scoreRaceDiamondHalf: CGFloat = 3.6
     private static let scoreRaceTrackHeight: CGFloat = 1.0
+    /// Gouttière parcourue : un peu plus haute que la ligne grise restante.
+    private static let scoreRaceWakeHeight: CGFloat = 3.0
+
+    /// Gris des ticks : un peu plus clair en Sombre, un peu plus sombre en Clair, opaque.
+    private static var scoreRaceAheadGrayFill: SKColor {
+        BlomixAppearance.isDark
+            ? SKColor(white: 0.48, alpha: 1)
+            : SKColor(white: 0.36, alpha: 1)
+    }
 
     private enum ScoreRaceCursorStyle {
         case diamond
@@ -3887,6 +3909,8 @@ final class GameScene: SKScene {
         track.anchorPoint = CGPoint(x: 0, y: 0.5)
         track.zPosition = 0
         container.addChild(track)
+
+        container.addChild(Self.makeScoreRaceWakeNode())
 
         let grays = SKNode()
         grays.name = Self.scoreRaceGraysName
@@ -3933,6 +3957,38 @@ final class GameScene: SKScene {
         addChild(container)
     }
 
+    /// Gouttière 0→curseur : même matière (shader peau) que le wordmark BLOMIX.
+    private static func makeScoreRaceWakeNode() -> SKCropNode {
+        let wake = SKCropNode()
+        wake.name = scoreRaceWakeName
+        wake.zPosition = 0.5
+        wake.isHidden = true
+
+        let mask = SKSpriteNode(color: .white, size: CGSize(width: 1, height: scoreRaceWakeHeight))
+        mask.anchorPoint = CGPoint(x: 0, y: 0.5)
+        mask.position = .zero
+        wake.maskNode = mask
+
+        let fill = SKSpriteNode(
+            texture: BlomixSkinGradient.shaderBaseTexture,
+            size: CGSize(width: 1, height: scoreRaceWakeHeight)
+        )
+        fill.name = scoreRaceWakeFillName
+        fill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        fill.position = .zero
+        BlomixSkinGradient.applyShader(to: fill, timeOffset: 0.08)
+        wake.addChild(fill)
+        return wake
+    }
+
+    private func ensureScoreRaceWakeNode(in container: SKNode) {
+        if let existing = container.childNode(withName: Self.scoreRaceWakeName) {
+            if existing is SKCropNode { return }
+            existing.removeFromParent()
+        }
+        container.addChild(Self.makeScoreRaceWakeNode())
+    }
+
     private func layoutScoreRace() {
         ensureScoreRaceIfNeeded()
         guard let container = childNode(withName: Self.scoreRaceContainerName),
@@ -3963,16 +4019,27 @@ final class GameScene: SKScene {
             track.color = BlomixAppearance.tertiaryTextSK.withAlphaComponent(0.38)
         }
 
+        ensureScoreRaceWakeNode(in: container)
+        if let fill = container.childNode(withName: Self.scoreRaceWakeName)?
+            .childNode(withName: Self.scoreRaceWakeFillName) as? SKSpriteNode {
+            fill.size = CGSize(width: width, height: Self.scoreRaceWakeHeight)
+            fill.position = .zero
+            BlomixSkinGradient.applyShader(to: fill, timeOffset: 0.08)
+        }
+
         if let grays = container.childNode(withName: Self.scoreRaceGraysName) {
             grays.removeAllChildren()
-            let grayFill = BlomixAppearance.tertiaryTextSK.withAlphaComponent(0.28)
+            let grayFill = Self.scoreRaceAheadGrayFill
             for scoreValue in snap.grayScores {
-                let dot = SKShapeNode(circleOfRadius: Self.scoreRaceGrayRadius)
+                let dot = SKShapeNode(path: Self.scoreRaceGrayTickPath())
                 dot.fillColor = grayFill
                 dot.strokeColor = .clear
                 dot.lineWidth = 0
                 dot.glowWidth = 0
                 dot.position = CGPoint(x: Self.scoreRaceX(score: scoreValue, top: snap.topScore, width: width), y: 0)
+                let data = NSMutableDictionary()
+                data["score"] = scoreValue
+                dot.userData = data
                 grays.addChild(dot)
             }
         }
@@ -4008,6 +4075,18 @@ final class GameScene: SKScene {
         )
     }
 
+    private static func scoreRaceGrayTickPath() -> CGPath {
+        CGPath(
+            rect: CGRect(
+                x: -scoreRaceGrayTickWidth / 2,
+                y: -scoreRaceGrayTickHeight / 2,
+                width: scoreRaceGrayTickWidth,
+                height: scoreRaceGrayTickHeight
+            ),
+            transform: nil
+        )
+    }
+
     private static func scoreRaceCursorStyle(live: Int, personal: Int, top: Int) -> ScoreRaceCursorStyle {
         if live >= top { return .yellow }
         if personal > 0, personal < top, live >= personal { return .green }
@@ -4029,6 +4108,49 @@ final class GameScene: SKScene {
             greater += 1
         }
         return 1 + greater
+    }
+
+    /// Plus petit score gris strictement devant le curseur (prochain autre à battre).
+    private static func scoreRaceNextGrayScore(live: Int, snap: ScoreRaceSnapshot) -> Int? {
+        snap.grayScores.filter { $0 > live }.min()
+    }
+
+    private func applyScoreRaceWake(width: CGFloat, in container: SKNode) {
+        ensureScoreRaceWakeNode(in: container)
+        guard let wake = container.childNode(withName: Self.scoreRaceWakeName) as? SKCropNode else { return }
+        let cap = GridLayout.spanPoints
+        let w = min(cap, max(0, width))
+        if let mask = wake.maskNode as? SKSpriteNode {
+            mask.size = CGSize(width: max(w, 0.5), height: Self.scoreRaceWakeHeight)
+            mask.anchorPoint = CGPoint(x: 0, y: 0.5)
+            mask.position = .zero
+        }
+        if let fill = wake.childNode(withName: Self.scoreRaceWakeFillName) as? SKSpriteNode {
+            fill.size = CGSize(width: cap, height: Self.scoreRaceWakeHeight)
+            fill.anchorPoint = CGPoint(x: 0, y: 0.5)
+            fill.position = .zero
+        }
+        wake.isHidden = w < 0.5
+    }
+
+    private func updateScoreRaceGrayDots(live: Int, snap: ScoreRaceSnapshot, in container: SKNode) {
+        guard let grays = container.childNode(withName: Self.scoreRaceGraysName) else { return }
+        let next = Self.scoreRaceNextGrayScore(live: live, snap: snap)
+        let aheadFill = Self.scoreRaceAheadGrayFill
+        for case let dot as SKShapeNode in grays.children {
+            let value = (dot.userData?["score"] as? NSNumber)?.intValue ?? 0
+            if let next, value == next {
+                dot.isHidden = false
+                dot.path = Self.scoreRaceCirclePath(radius: Self.scoreRaceNextGrayRadius)
+                dot.fillColor = Self.hudRaceNextGrayColor
+            } else if value <= live {
+                dot.isHidden = true
+            } else {
+                dot.isHidden = false
+                dot.path = Self.scoreRaceGrayTickPath()
+                dot.fillColor = aheadFill
+            }
+        }
     }
 
     private func updateScoreRaceMarker(liveScore: Int? = nil) {
@@ -4056,6 +4178,8 @@ final class GameScene: SKScene {
                 )
             }
         }
+
+        updateScoreRaceGrayDots(live: live, snap: snap, in: container)
 
         guard let cursor = container.childNode(withName: Self.scoreRaceCursorName) as? SKShapeNode,
               let rank = container.childNode(withName: Self.scoreRaceRankName) as? SKLabelNode
@@ -4093,8 +4217,9 @@ final class GameScene: SKScene {
             markerHalf = Self.scoreRaceYellowRadius
         }
 
+        applyScoreRaceWake(width: markerX, in: container)
+
         let newRank = Self.scoreRaceLiveRank(live: live, snap: snap)
-        rank.text = "\(newRank)"
         rank.fontSize = 9
         rank.fontColor = markerColor
         rank.position = CGPoint(
@@ -4102,24 +4227,33 @@ final class GameScene: SKScene {
             y: markerHalf + 5
         )
         rank.isHidden = false
-        if let previous = scoreRaceDisplayedRank, previous != newRank {
+        scoreRaceRankTarget = newRank
+        if scoreRaceDisplayedRank == nil {
+            rank.text = "\(newRank)"
+            rank.setScale(1)
+            rank.removeAction(forKey: Self.scoreRaceRankTickKey)
+            rank.removeAction(forKey: Self.scoreRaceRankPulseKey)
+            scoreRaceDisplayedRank = newRank
+        } else if newRank != scoreRaceDisplayedRank {
             let origin = container.convert(CGPoint(x: markerX, y: 0), to: self)
-            spawnScoreRacePassSparkles(at: origin)
+            startScoreRaceRankTickIfNeeded(rank, sparkleAt: origin)
+        } else if rank.action(forKey: Self.scoreRaceRankTickKey) == nil {
+            rank.text = "\(newRank)"
         }
-        scoreRaceDisplayedRank = newRank
     }
 
-    /// Burst radial minuscule (couleur du losange / chrome) quand le curseur dépasse un autre score.
+    /// Burst radial (rose du prochain gris) quand le curseur dépasse un autre score.
     private func spawnScoreRacePassSparkles(at center: CGPoint) {
-        let color = BlomixAppearance.primaryTextSK
-        let count = 8
-        let duration: TimeInterval = 0.20
-        for _ in 0..<count {
+        let color = Self.hudRaceNextGrayColor
+        let chrome = BlomixAppearance.primaryTextSK
+        let count = 12
+        let duration: TimeInterval = 0.26
+        for i in 0..<count {
             let angle = CGFloat.random(in: 0...(2 * .pi))
-            let startDist = CGFloat.random(in: 1...3)
-            let endDist = startDist + CGFloat.random(in: 7...14)
-            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.45...0.95))
-            spark.fillColor = color
+            let startDist = CGFloat.random(in: 1...3.5)
+            let endDist = startDist + CGFloat.random(in: 10...18)
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.7...1.35))
+            spark.fillColor = (i % 3 == 0) ? chrome : color
             spark.strokeColor = .clear
             spark.alpha = 0
             spark.zPosition = 20
@@ -4140,12 +4274,50 @@ final class GameScene: SKScene {
                 SKAction.group([
                     move,
                     SKAction.sequence([
-                        SKAction.fadeAlpha(to: 0.95, duration: 0.03),
+                        SKAction.fadeAlpha(to: 1, duration: 0.03),
                         SKAction.fadeAlpha(to: 0, duration: duration - 0.03),
                     ]),
                 ]),
                 SKAction.removeFromParent(),
             ]))
+        }
+    }
+
+    /// Défile le chiffre de rang ±1 jusqu’à la cible, avec un léger gonflement.
+    private func startScoreRaceRankTickIfNeeded(_ rank: SKLabelNode, sparkleAt origin: CGPoint) {
+        if rank.action(forKey: Self.scoreRaceRankTickKey) != nil { return }
+        spawnScoreRacePassSparkles(at: origin)
+        rank.removeAction(forKey: Self.scoreRaceRankPulseKey)
+        let up = SKAction.scale(to: 1.22, duration: 0.10)
+        up.timingMode = .easeOut
+        let hold = SKAction.wait(forDuration: 0.08)
+        let down = SKAction.scale(to: 1.0, duration: 0.16)
+        down.timingMode = .easeIn
+        rank.run(SKAction.sequence([up, hold, down]), withKey: Self.scoreRaceRankPulseKey)
+        let step = SKAction.run { [weak self, weak rank] in
+            self?.advanceScoreRaceRankTick(rank)
+        }
+        rank.run(
+            SKAction.repeatForever(SKAction.sequence([step, SKAction.wait(forDuration: 0.06)])),
+            withKey: Self.scoreRaceRankTickKey
+        )
+    }
+
+    private func advanceScoreRaceRankTick(_ rank: SKLabelNode?) {
+        guard let rank else { return }
+        guard let shown = scoreRaceDisplayedRank, let target = scoreRaceRankTarget else {
+            rank.removeAction(forKey: Self.scoreRaceRankTickKey)
+            return
+        }
+        if shown == target {
+            rank.removeAction(forKey: Self.scoreRaceRankTickKey)
+            return
+        }
+        let next = shown + (shown > target ? -1 : 1)
+        scoreRaceDisplayedRank = next
+        rank.text = "\(next)"
+        if next == scoreRaceRankTarget {
+            rank.removeAction(forKey: Self.scoreRaceRankTickKey)
         }
     }
 
@@ -4394,6 +4566,11 @@ final class GameScene: SKScene {
                 self.updatePreviewSprite()
                 self.refreshUpcomingQueueSlots()
                 self.refreshBombHudIcon()
+                if let fill = self.childNode(withName: Self.scoreRaceContainerName)?
+                    .childNode(withName: Self.scoreRaceWakeName)?
+                    .childNode(withName: Self.scoreRaceWakeFillName) as? SKSpriteNode {
+                    BlomixSkinGradient.applyShader(to: fill, timeOffset: 0.08)
+                }
             }
         }
     }
@@ -14319,6 +14496,7 @@ final class GameScene: SKScene {
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
         scoreRaceSnapshot = nil
         scoreRaceDisplayedRank = nil
+        scoreRaceRankTarget = nil
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
         BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
@@ -14912,9 +15090,9 @@ final class GameScene: SKScene {
             refreshAutoDropGhostIfNeeded()
         }
         if stageTimerSecondsRemaining <= 0 {
-            // Auto-drop dans la colonne figée (ghost) ou heuristique de secours
+            // Visée maintenue > colonne figée (≤ 2 s) > hasard.
             stopStageTimer()
-            let col = autoDropLockedColumn ?? autoDropPreferredColumn()
+            let col = autoDropColumnForTimeout()
             autoDropLockedColumn = nil
             cancelGhostPreview()
             if let col {
@@ -17339,6 +17517,18 @@ final class GameScene: SKScene {
         return (mostOpen.isEmpty ? allPlayable : mostOpen).randomElement()
     }
 
+    /// Timeout Arcade / Défi / Duel : visée encore maintenue si jouable, sinon ghost figé ≤ 2 s, sinon hasard.
+    private func autoDropColumnForTimeout() -> Int? {
+        if ghostTouchIsLive, let aimed = ghostPreviewColumn,
+           highestEmptyRow(inColumn: aimed) != nil {
+            return aimed
+        }
+        if let locked = autoDropLockedColumn, highestEmptyRow(inColumn: locked) != nil {
+            return locked
+        }
+        return autoDropPreferredColumn()
+    }
+
     func blomixPvP_setTurnCountdown(_ seconds: Int) {
         guard pvpCoordinator != nil else { return }
         ensurePvPTurnCountdownLabelIfNeeded()
@@ -17363,12 +17553,13 @@ final class GameScene: SKScene {
         guard !isProcessing else { return }
         if isBombMode { return }
 
-        guard let col = autoDropPreferredColumn() else {
+        guard let col = autoDropColumnForTimeout() else {
             triggerGameOver()
             return
         }
         selectedColumn = col
         updatePreviewSprite()
+        cancelGhostPreview()
         dropBlock(usingColumn: col)
     }
 

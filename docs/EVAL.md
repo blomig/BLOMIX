@@ -1,7 +1,7 @@
 # Blomix — Fonction d'évaluation (`BlomixMoveAnalyzer`)
 
 > **Version implémentée** : v2 (production)  
-> **Version de référence** : 8.2  
+> **Version de référence** : 8.3  
 > Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`  
 > Fantôme Défi : `Blomix/Blomix/BlomixDailyGhost.swift`
 

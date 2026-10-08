@@ -1,6 +1,6 @@
 # Blomix — Documentation
 
-> **Version de référence** : 8.2  
+> **Version de référence** : 8.3  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien
 

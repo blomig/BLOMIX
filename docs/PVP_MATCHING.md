@@ -528,7 +528,7 @@ Logs structurés : préfixe `[PvP]` via `BlomixPvPLog.event(_:_:)`.
 ### In-match (aligné binaire 6.3)
 
 - RNG partagé : **1/8 Brix sinon couleur** — jamais de Magix (`BlomixPvPSeededBlockRNG`).
-- Timer de tour **10 s** ; `blomixPvP_shouldRunTurnTimer` et l’auto-drop **s’arrêtent** tant que `isBombMode` (viser une bombe gèle le chrono).
+- Timer de tour **10 s** ; `blomixPvP_shouldRunTurnTimer` et l’auto-drop **s’arrêtent** tant que `isBombMode` (viser une bombe gèle le chrono). Timeout : visée blox/brix encore maintenue → cette colonne ; sinon hasard (`autoDropColumnForTimeout`).
 - Recents / classement Elo (modes B et C) : attente `didChange .connected` **sans** poll `expectedPlayerCount` (le mode A et le coordinateur le font). Si le peer est déjà connecté au moment du `delegate =`, risque de timeout 60 s.
 - Lecture legacy : records `chal_*` encore reconnus en **lecture seule** (`legacyChallengePrefix`) ; l’écriture est exclusivement `chfrom_*`.
 

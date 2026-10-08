@@ -7,9 +7,20 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.3] — 2026-10
+
+Build **154**. Soumission commerciale (mise en ligne auto). **8.2 / 153** en vente.
+
+### Modifié
+
+- **Jauge 0→N°1** : sillage = gouttière **3 pt** (même shader peau que le titre BLOMIX) de 0 au curseur, plus haute que la ligne grise restante (1 pt). Autres scores encore devant = **ticks** 1×4 pt (Sombre `#7A7A7A`, Clair `#5C5C5C`) ; déjà dépassés **masqués**. Prochain = point **rose** `#FF5A9A`. Au passage d’un rang : le **chiffre de place** gonfle (×1,22) et défile ±1 jusqu’à la nouvelle place, puis revient ; paillettes (12 dots, rose + chrome). Plus de `+1` flottant. Échelle linéaire inchangée. Pas en tuto / Duel.
+- **Timeout visée** (Arcade / Défi / Duel) : si l’appui long est encore maintenu à 0 s, le blox/brix part **dans cette colonne** (plus un tirage au hasard). Colonne pleine → repli ghost figé / hasard.
+
+---
+
 ## [8.2] — 2026-10
 
-Build **153**. Soumission commerciale (mise en ligne auto). **8.1 / 147** en vente. (152 refusé : overlay quit Duel + rangs accueil.)
+Build **153**. En vente. (152 refusé : overlay quit Duel + rangs accueil.)
 
 ### Ajouté
 

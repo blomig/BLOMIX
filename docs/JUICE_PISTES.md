@@ -1,6 +1,6 @@
 # BLOMIX — Pistes juice / physique des objets
 
-> **Version de référence** : 8.2  
+> **Version de référence** : 8.3  
 > Recueil **2026-09**. Pistes de **feel**, pas des règles.  
 > Spec en jeu : [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).  
 > Magix (blocs + pistes PACKX…) : [MAGIX.md](MAGIX.md).  

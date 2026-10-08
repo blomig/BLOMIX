@@ -1,4 +1,3 @@
-• Duel : affronte BABYBOT, MINIBOT, BOBBOT, BOT10, BOT5 ou BOTSUPREME
-• Classement Elo : les bots sont des joueurs (badge BOT)
-• Défi : la Référence BLOMIX vise plus juste
-• Duel : quitter un match se confirme (tu perds)
+• Course : un ruban couleur suit ta run, le prochain score à battre est en rose
+• Ton rang sur la ligne gonfle et défile quand tu dépasses quelqu’un
+• Timer : si tu vises encore à 0 s, le blox tombe dans cette colonne

@@ -1,4 +1,3 @@
-• Duello: affronta BABYBOT, MINIBOT, BOBBOT, BOT10, BOT5 o BOTSUPREME
-• Classifica Elo: i bot sono giocatori (badge BOT)
-• Sfida: il Riferimento BLOMIX mira più giusto
-• Duello: uscire chiede conferma (perdi)
+• Corsa: un nastro colorato segue la tua run, il prossimo punteggio da battere è rosa
+• Il tuo posto sulla linea si gonfia e scorre quando superi qualcuno
+• Timer: se miri ancora a 0 s, il blox cade in quella colonna

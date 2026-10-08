@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 8.2  
+> **Version de référence** : 8.3  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : octobre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
@@ -186,7 +186,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | **z** | container **18** |
 | **Audio** | — |
 | **Réf.** | `showGhostPreview`, `ghostHoldTimer`, `hideDropGhostVisuals` |
-| **Sortie** | Masqué ☰ / overlay quitter / accueil (`clearAutoDropAim`). Colonne auto-drop conservée pendant pause chrome ; réaffichée si ≤ 2 s. |
+| **Sortie** | Masqué ☰ / overlay quitter / accueil (`clearAutoDropAim`). Colonne auto-drop conservée pendant pause chrome ; réaffichée si ≤ 2 s. Timeout (Arcade / Défi / Duel) : si l’appui est encore là, drop **dans cette colonne**. |
 
 ### 1.4 Colonne invalide
 
@@ -556,9 +556,19 @@ Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
 | Centaine (100…) | 22 dots blancs | 28–130 pt, 0,35–0,65 s |
 | Millier (1000…) | 220 dots multicolores | 56–260 pt (2× distance) |
 
-### 8.4b Jauge 0→N°1 — passage de rang
+### 8.4b Jauge 0→N°1 — sillage, prochain gris, passage de rang
 
-Quand le chiffre de rang au-dessus du curseur change (on dépasse un autre score de la ligne figée) : **8** paillettes rondes, **couleur du losange** (`BlomixAppearance.primaryTextSK` : blanc Sombre / sombre Clair), r **0,45–0,95**, expulsion radiale **7–14 pt**, **0,20 s** easeOut, fade dès 0,03 s. Pas de son. Premier layout : pas de burst.
+Sillage : `SKCropNode` `hudScoreRaceWake` — gouttière **3 pt** de 0 au curseur, **même shader peau** que le wordmark BLOMIX (`timeOffset` 0,08). Fenêtre qui s’ouvre sur la matière du titre (le fill reste largeur de grille). Ligne grise non parcourue : **1 pt**. Points gris déjà dépassés **masqués** (plus de voile sous les dots).
+
+Prochain gris (`min` des `grayScores` strictement > live) : rose `#FF5A9A`, rayon **2,4**. Les autres encore devant : ticks **1×4 pt** centrés sur la ligne, opaque (Sombre blanc **0,48** / `#7A7A7A` ; Clair blanc **0,36** / `#5C5C5C`). Déjà dépassés : masqués. Pas de respiration. RECORD vert et N°1 jaune inchangés.
+
+Quand le rang logique change (on dépasse un autre score de la ligne figée) :
+
+**Chiffre de place** (plus de `+1` flottant) : gonflement **×1,22** en **0,10 s** easeOut, hold **0,08 s**, retour **0,16 s** easeIn. En parallèle, le label défile **±1** toutes les **0,06 s** jusqu’à la cible (un saut de 3 places = 50→49→48→47). Si la cible recule encore pendant le défilement, on enchaîne sans relancer le burst. Couleur du chiffre inchangée (losange / vert / jaune).
+
+**Paillettes** (une fois par vague, au curseur) : **12** dots (2/3 rose, 1/3 chrome `primaryTextSK`), r **0,7–1,35**, expulsion radiale **10–18 pt**, **0,26 s** easeOut, fade dès 0,03 s, z 20.
+
+Pas de son. Premier layout : pas de burst ni de tick. Échelle de la ligne **linéaire** (0 → N°1 figé).
 
 ### 8.5 Colonne vidée (`awardFullyClearedColumnBonuses`)
 

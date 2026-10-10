@@ -360,6 +360,13 @@ def generate_deliver_metadata!
         File.read(kw_src, encoding: "UTF-8").gsub("\r\n", "\n").strip + "\n"
       )
     end
+    support_src = File.join(ROOT, "store/support-url/#{locale}.txt")
+    if File.file?(support_src)
+      File.write(
+        File.join(dir, "support_url.txt"),
+        File.read(support_src, encoding: "UTF-8").gsub("\r\n", "\n").strip + "\n"
+      )
+    end
   end
   UI.message("Métadonnées générées (Nouveautés + promo + nom + sous-titre) → #{GENERATED_METADATA}")
   GENERATED_METADATA

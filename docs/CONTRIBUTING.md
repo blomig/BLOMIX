@@ -59,26 +59,26 @@ Le projet cible Swift 6 avec concurrency stricte. Les délégués GameKit utilis
 | Fonction d'évaluation / récap | `EVAL.md` |
 | Nouveau terme ou renommage | `GLOSSARY.md` |
 | Nouvelle clé UI ou langue | `LOCALIZATION.md` + `BlomixL10n.swift` |
-| Release App Store / version Xcode | `CHANGELOG.md` + `MARKETING_VERSION` + **`store/whats-new/` (5 langues)** |
+| Release App Store / version Xcode | `CHANGELOG.md` + `MARKETING_VERSION` + **`store/whats-new/` (6 langues)** |
 | Nouveau document | `DOCS/README.md` + `README.md` (racine) |
 | Duel vs bots | `BOT_DUEL.md` (spec) ; **ne pas** toucher `protocolVersion` / filaire / `elotype` bot |
 
 ### Version de référence
 
-Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **8.3** / 154 soumission ; **8.2 / 153** en vente). La mettre à jour lors d'une release majeure.
+Chaque document technique commence par une ligne **Version de référence** alignée sur `MARKETING_VERSION` (actuellement **8.4** / 155 ; **8.3 / 154** en vente). La mettre à jour lors d'une release majeure.
 
 ### Nouveautés App Store (systématique à la release)
 
-À chaque **nouvelle version marketing**, le lot n’est pas fini sans les 5 fichiers `store/whats-new/` :
+À chaque **nouvelle version marketing**, le lot n’est pas fini sans les 6 fichiers `store/whats-new/` :
 
-1. Rédiger les puces **joueur** (FR), puis **EN, DE, ES, IT** — même ordre, même nombre.
+1. Rédiger les puces **joueur** (FR), puis **EN, DE, ES, IT, PT** — même ordre, même nombre.
 2. Ne pas coller le `CHANGELOG.md` (trop technique). Noms Magix **non traduits**.
 3. Fastlane pousse les fichiers vers App Store Connect (`bundle exec fastlane metadata` ou `release`). Rien n’est lu depuis l’IPA.
 
 **Texte promotionnel** (`store/promotional-text/`) : **stable**, ≤ 170 car. Coller si ASC l’a vidé. **Ne pas** le réécrire avec le CHANGELOG.
 
 Procédure : [LOCALIZATION.md](LOCALIZATION.md) + `store/README.md`.  
-Si un lot ultérieur change encore le bénéfice joueur de **cette** version : mettre à jour les **5** fichiers `whats-new` tout de suite.
+Si un lot ultérieur change encore le bénéfice joueur de **cette** version : mettre à jour les **6** fichiers `whats-new` tout de suite.
 
 ---
 
@@ -113,7 +113,7 @@ Nommer les imagesets de façon explicite (`red_new`, `magix`, `bomb_new`…). Do
 - [ ] Test manuel du flux concerné (solo / Zen / PvP selon le cas)
 - [ ] Documentation mise à jour si le comportement change
 - [ ] `CHANGELOG.md` mis à jour si release
-- [ ] `store/whats-new/` FR+EN+DE+ES+IT si nouvelle version marketing
+- [ ] `store/whats-new/` FR+EN+DE+ES+IT+PT si nouvelle version marketing
 - [ ] Pas de fichiers locaux commités (`.DS_Store`, `xcuserdata/`)
 
 ---

@@ -794,7 +794,7 @@ QA Magix : vecteurs `WatchTests` + long-press DEBUG file sur 40 mm.
 | 0 | Spec. **Local. Branche ≠ 138.** |
 | 1–5 | PRs Watch sur cette branche. `xcodebuild` iOS archive doit rester vert **sur la branche Watch** ; **aucun embed** sur 138 |
 | 6 | `transferUserInfo`, hors review 7.3 |
-| Marketing | **Nouvelle** `MARKETING_VERSION` : CHANGELOG + `store/whats-new/` 5 langues + screenshots Watch. **Pas** 7.3. l10n DE/ES/IT Watch |
+| Marketing | **Nouvelle** `MARKETING_VERSION` : CHANGELOG + `store/whats-new/` 6 langues + screenshots Watch. **Pas** 7.3. l10n DE/ES/IT/PT Watch |
 | Rollback | Retirer Embed Watch Content du `pbxproj` |
 | 7.3 | **Aucun** fichier Watch dans l’archive review |
 

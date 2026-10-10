@@ -1,3 +1,4 @@
-• Carrera: una cinta de color sigue tu partida, el próximo marcador a batir es rosa
-• Tu puesto en la línea crece y avanza al adelantar a alguien
-• Temporizador: si sigues apuntando a 0 s, el blox cae en esa columna
+• Desafío diario: una partida empezada sigue clasificada hasta 2 h tras medianoche UTC, plazo en hora local
+• Hub del desafío: fecha y «completar antes» siempre visibles
+• Zen: RECORD muestra tu récord Zen, no el de Arcade
+• BLOMIX ahora también en portugués (Brasil)

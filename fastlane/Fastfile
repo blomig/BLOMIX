@@ -16,14 +16,15 @@ XCODEPROJ = File.join(ROOT, "Blomix/Blomix.xcodeproj")
 SCHEME = "Blomix"
 BUNDLE_ID = "blomig.BLOMIX"
 TEAM_ID = "337CZP5VR7"
-LOCALES = %w[en-US fr-FR de-DE es-ES it-IT].freeze
+LOCALES = %w[en-US fr-FR de-DE es-ES it-IT pt-BR].freeze
 # deliver n'accepte pas it-IT (dossier = "it"). store/ garde it-IT.txt.
 FASTLANE_LOCALE = {
   "en-US" => "en-US",
   "fr-FR" => "fr-FR",
   "de-DE" => "de-DE",
   "es-ES" => "es-ES",
-  "it-IT" => "it"
+  "it-IT" => "it",
+  "pt-BR" => "pt-BR"
 }.freeze
 GENERATED_METADATA = File.join(ROOT, "fastlane/metadata/.generated")
 
@@ -32,12 +33,12 @@ platform :ios do
     load_root_env!
   end
 
-  desc "Valide store/ (5 langues) + entitlements Release=production"
+  desc "Valide store/ (6 langues) + entitlements Release=production"
   lane :validate do
     validate_project!(require_store: true)
   end
 
-  desc "Pousse Nouveautés + texte promo (5 locales). Ne touche pas description/captures."
+  desc "Pousse Nouveautés + texte promo (6 locales). Ne touche pas description/captures."
   lane :metadata do
     validate_project!(require_store: true)
     generated = generate_deliver_metadata!
@@ -343,6 +344,22 @@ def generate_deliver_metadata!
     File.write(File.join(dir, "promotional_text.txt"), promo.gsub("\r\n", "\n").strip + "\n")
     File.write(File.join(dir, "name.txt"), name.gsub("\r\n", "\n").strip + "\n")
     File.write(File.join(dir, "subtitle.txt"), subtitle.gsub("\r\n", "\n").strip + "\n")
+    # Description / mots-clés : seulement si store/ en a (nouvelle locale, ex. pt-BR).
+    # Absent = deliver ne touche pas le champ ASC existant.
+    desc_src = File.join(ROOT, "store/description/#{locale}.txt")
+    if File.file?(desc_src)
+      File.write(
+        File.join(dir, "description.txt"),
+        File.read(desc_src, encoding: "UTF-8").gsub("\r\n", "\n").strip + "\n"
+      )
+    end
+    kw_src = File.join(ROOT, "store/keywords/#{locale}.txt")
+    if File.file?(kw_src)
+      File.write(
+        File.join(dir, "keywords.txt"),
+        File.read(kw_src, encoding: "UTF-8").gsub("\r\n", "\n").strip + "\n"
+      )
+    end
   end
   UI.message("Métadonnées générées (Nouveautés + promo + nom + sous-titre) → #{GENERATED_METADATA}")
   GENERATED_METADATA

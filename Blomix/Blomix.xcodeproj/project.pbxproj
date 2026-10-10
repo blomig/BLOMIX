@@ -221,6 +221,10 @@
 		10000000000000000000023D /* it */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = it; path = it.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		10000000000000000000023E /* es */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = es; path = es.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		10000000000000000000023F /* it */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = it; path = it.lproj/gameover_quotes.json; sourceTree = "<group>"; };
+		100000000000000000000245 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pt; path = pt.lproj/Localizable.strings; sourceTree = "<group>"; };
+		100000000000000000000246 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pt; path = pt.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		100000000000000000000247 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = pt; path = pt.lproj/tips_of_day.json; sourceTree = "<group>"; };
+		100000000000000000000248 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = pt; path = pt.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		100000000000000000000241 /* BlomixAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAppearance.swift; sourceTree = "<group>"; };
 		100000000000000000000250 /* BlomixShareComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixShareComposer.swift; sourceTree = "<group>"; };
 		100000000000000000000260 /* BlomixPvPLocalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPLocalSession.swift; sourceTree = "<group>"; };
@@ -263,6 +267,7 @@
 		A1000000000000000000004A /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A1000000000000000000004B /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A1000000000000000000004C /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A1000000000000000000004D /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pt; path = pt.lproj/Localizable.strings; sourceTree = "<group>"; };
 		A10000000000000000000009 /* BLOMIXWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BLOMIXWatch.entitlements; sourceTree = "<group>"; };
 		A1000000000000000000000A /* BLOMIX Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "BLOMIX Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -605,6 +610,7 @@
 				de,
 				es,
 				it,
+				pt,
 				Base,
 			);
 			mainGroup = 100000000000000000000011;
@@ -789,6 +795,7 @@
 				100000000000000000000234 /* de */,
 				100000000000000000000238 /* es */,
 				100000000000000000000239 /* it */,
+				100000000000000000000245 /* pt */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -819,6 +826,7 @@
 				100000000000000000000237 /* de */,
 				10000000000000000000023E /* es */,
 				10000000000000000000023F /* it */,
+				100000000000000000000248 /* pt */,
 			);
 			name = gameover_quotes.json;
 			sourceTree = "<group>";
@@ -831,6 +839,7 @@
 				100000000000000000000236 /* de */,
 				10000000000000000000023C /* es */,
 				10000000000000000000023D /* it */,
+				100000000000000000000247 /* pt */,
 			);
 			name = tips_of_day.json;
 			sourceTree = "<group>";
@@ -843,6 +852,7 @@
 				100000000000000000000235 /* de */,
 				10000000000000000000023A /* es */,
 				10000000000000000000023B /* it */,
+				100000000000000000000246 /* pt */,
 			);
 			name = InfoPlist.strings;
 			sourceTree = "<group>";
@@ -856,6 +866,7 @@
 				A1000000000000000000004A /* de */,
 				A1000000000000000000004B /* es */,
 				A1000000000000000000004C /* it */,
+				A1000000000000000000004D /* pt */,
 			);
 			name = Localizable.strings;
 			sourceTree = "<group>";
@@ -992,7 +1003,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -1002,7 +1013,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.3;
+				MARKETING_VERSION = 8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1023,7 +1034,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/BlomixRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -1033,7 +1044,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.3;
+				MARKETING_VERSION = 8.4;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

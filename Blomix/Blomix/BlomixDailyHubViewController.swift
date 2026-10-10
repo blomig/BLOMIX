@@ -2,8 +2,8 @@
 //  BlomixDailyHubViewController.swift
 //  Blomix
 //
-//  Hub du Défi du jour : liste CloudKit du jour UTC, podium d’hier, CTA
-//  (Défi ! / Continuer / Revenez demain).
+//  Hub du Défi du jour : liste CloudKit du jour affiché (save X pendant la
+//  grâce, sinon aujourd’hui), podium d’hier, CTA (Défi ! / Continuer / Revenez demain).
 //
 
 @preconcurrency import GameKit
@@ -17,6 +17,8 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
 
     private let titleView = BlomixCutoutTitleView(text: BlomixL10n.dailyHubTitle, fontSize: 28)
     private let dateLabel = UILabel()
+    private let deadlineLabel = UILabel()
+    private let headerTextStack = UIStackView()
     private let ghostRow = UIStackView()
     private let ghostTitleLabel = UILabel()
     private let ghostValueLabel = UILabel()
@@ -34,25 +36,29 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
     private var entries: [BlomixDailyScoreEntry] = [] {
         didSet { tableView.reloadData() }
     }
-    private let ctaKind = BlomixDailyChallenge.shared.hubCTA
+    private var ctaKind = BlomixDailyChallenge.shared.hubCTA
+    private var displayedDay = BlomixDailyChallenge.shared.displayedHubDay
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = BlomixAppearance.sceneBackground
         addAmbientBlocksBackground(density: .low)
         buildChrome()
-        applyCTA()
-        loadScores()
+        refreshHubState(reloadScores: true)
         BlomixDailyGhostController.shared.onDisplayChange = { [weak self] display in
             self?.applyGhostDisplay(display)
         }
         applyGhostDisplay(BlomixDailyGhostController.shared.display)
-        BlomixDailyGhostController.shared.hubAppeared()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        refreshHubState(reloadScores: false)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        BlomixDailyGhostController.shared.hubAppeared()
+        BlomixDailyGhostController.shared.hubAppeared(day: displayedDay)
     }
 
     private func buildChrome() {
@@ -66,11 +72,20 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         titleView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(titleView)
 
-        dateLabel.text = Self.utcDateCaption()
-        dateLabel.textColor = BlomixAppearance.secondaryText
-        dateLabel.font = BlomixTypography.uiFont(size: 13, weight: .medium)
-        dateLabel.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(dateLabel)
+        dateLabel.textColor = BlomixAppearance.primaryText
+        dateLabel.font = BlomixTypography.displayFont(size: 26)
+        dateLabel.textAlignment = .center
+        dateLabel.numberOfLines = 2
+        dateLabel.adjustsFontSizeToFitWidth = true
+        dateLabel.minimumScaleFactor = 0.7
+        dateLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        deadlineLabel.textColor = BlomixAppearance.secondaryText
+        deadlineLabel.font = BlomixTypography.uiFont(size: 13, weight: .medium)
+        deadlineLabel.textAlignment = .center
+        deadlineLabel.numberOfLines = 1
+        deadlineLabel.adjustsFontSizeToFitWidth = true
+        deadlineLabel.minimumScaleFactor = 0.8
 
         ghostTitleLabel.text = BlomixL10n.dailyGhostTitle
         ghostTitleLabel.textColor = BlomixAppearance.tertiaryText
@@ -88,12 +103,21 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         ghostRow.axis = .horizontal
         ghostRow.alignment = .center
         ghostRow.spacing = 8
-        ghostRow.translatesAutoresizingMaskIntoConstraints = false
         ghostRow.addArrangedSubview(ghostTitleLabel)
         ghostRow.addArrangedSubview(ghostValueLabel)
         ghostRow.addArrangedSubview(ghostSpinner)
         ghostRow.isAccessibilityElement = true
-        view.addSubview(ghostRow)
+
+        headerTextStack.axis = .vertical
+        headerTextStack.alignment = .center
+        headerTextStack.spacing = 8
+        headerTextStack.translatesAutoresizingMaskIntoConstraints = false
+        headerTextStack.addArrangedSubview(dateLabel)
+        headerTextStack.addArrangedSubview(ghostRow)
+        headerTextStack.addArrangedSubview(deadlineLabel)
+        headerTextStack.setCustomSpacing(10, after: dateLabel)
+        headerTextStack.setCustomSpacing(6, after: ghostRow)
+        view.addSubview(headerTextStack)
 
         statusLabel.textColor = BlomixAppearance.secondaryText
         statusLabel.font = BlomixTypography.uiFont(size: 14, weight: .regular)
@@ -149,14 +173,13 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
             titleView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             titleView.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
 
-            dateLabel.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 4),
-            dateLabel.leadingAnchor.constraint(equalTo: titleView.leadingAnchor),
+            headerTextStack.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 14),
+            headerTextStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            headerTextStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            dateLabel.widthAnchor.constraint(equalTo: headerTextStack.widthAnchor),
+            deadlineLabel.widthAnchor.constraint(equalTo: headerTextStack.widthAnchor),
 
-            ghostRow.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 2),
-            ghostRow.leadingAnchor.constraint(equalTo: titleView.leadingAnchor),
-            ghostRow.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -20),
-
-            statusLabel.topAnchor.constraint(equalTo: ghostRow.bottomAnchor, constant: 12),
+            statusLabel.topAnchor.constraint(equalTo: headerTextStack.bottomAnchor, constant: 14),
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
 
@@ -178,6 +201,25 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
             spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
+    }
+
+    private func refreshHubState(reloadScores: Bool) {
+        let previousDay = displayedDay
+        ctaKind = BlomixDailyChallenge.shared.hubCTA
+        displayedDay = BlomixDailyChallenge.shared.displayedHubDay
+        dateLabel.text = Self.utcDateCaption(forDay: displayedDay)
+        if let time = BlomixDailyChallenge.shared.localizedClosureTime(forDay: displayedDay) {
+            deadlineLabel.text = BlomixL10n.dailyDeadlineCompleteBy(time)
+            deadlineLabel.isHidden = false
+        } else {
+            deadlineLabel.text = nil
+            deadlineLabel.isHidden = true
+        }
+        applyCTA()
+        BlomixDailyGhostController.shared.hubAppeared(day: displayedDay)
+        if reloadScores || previousDay != displayedDay {
+            loadScores()
+        }
     }
 
     private func applyCTA() {
@@ -208,14 +250,21 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         spinner.isHidden = false
         spinner.startAnimating()
         statusLabel.text = BlomixL10n.loading
-        let day = BlomixDailyChallenge.shared.utcToday
+        let day = displayedDay
+        let worldToday = BlomixDailyChallenge.shared.utcToday
         let yesterday = BlomixDailySeed.previousUtcDayString()
         Task { @MainActor [weak self] in
             guard let self else { return }
-            async let todayLoad = BlomixDailyChallenge.shared.fetchScores(day: day)
-            async let yesterdayLoad = BlomixDailyChallenge.shared.fetchScores(day: yesterday)
-            let today = await todayLoad
-            let yesterdayResult = await yesterdayLoad
+            let showWorldYesterday = (day == worldToday)
+            let yesterdayOpen = showWorldYesterday && !BlomixDailySeed.isUtcDayClosed(yesterday)
+            async let dayLoad = BlomixDailyChallenge.shared.fetchScores(day: day)
+            let today = await dayLoad
+            let yesterdayResult: BlomixDailyScoresLoad
+            if showWorldYesterday, !yesterdayOpen {
+                yesterdayResult = await BlomixDailyChallenge.shared.fetchScores(day: yesterday)
+            } else {
+                yesterdayResult = .loaded([])
+            }
             self.spinner.stopAnimating(settle: false) { [weak self] in
                 self?.spinner.isHidden = true
             }
@@ -229,16 +278,35 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
                 self.entries = []
                 self.statusLabel.text = BlomixL10n.dailyHubError
             }
-            switch yesterdayResult {
-            case .loaded(let rows):
-                self.applyYesterdayPodium(names: BlomixDailyChallenge.podiumDisplayNames(in: rows))
-            case .unavailable:
-                self.applyYesterdayPodium(names: [])
+            if !showWorldYesterday {
+                self.applyYesterdayPodium(names: [], stillOpen: false, hide: true)
+            } else if yesterdayOpen {
+                self.applyYesterdayPodium(names: [], stillOpen: true, hide: false)
+            } else {
+                switch yesterdayResult {
+                case .loaded(let rows):
+                    self.applyYesterdayPodium(names: BlomixDailyChallenge.podiumDisplayNames(in: rows), stillOpen: false, hide: false)
+                case .unavailable:
+                    self.applyYesterdayPodium(names: [], stillOpen: false, hide: true)
+                }
             }
         }
     }
 
-    private func applyYesterdayPodium(names: [String]) {
+    private func applyYesterdayPodium(names: [String], stillOpen: Bool, hide: Bool) {
+        if hide {
+            yesterdayPodiumBox.isHidden = true
+            yesterdayPodiumLabel.text = nil
+            yesterdayPodiumBox.accessibilityLabel = nil
+            return
+        }
+        if stillOpen {
+            let caption = BlomixL10n.dailyHubYesterdayOpen
+            yesterdayPodiumLabel.text = caption
+            yesterdayPodiumBox.accessibilityLabel = caption
+            yesterdayPodiumBox.isHidden = false
+            return
+        }
         guard !names.isEmpty else {
             yesterdayPodiumBox.isHidden = true
             yesterdayPodiumLabel.text = nil
@@ -310,13 +378,16 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         return formatter.string(from: NSNumber(value: score)) ?? "\(score)"
     }
 
-    private static func utcDateCaption() -> String {
+    private static func utcDateCaption(forDay day: String) -> String {
         let formatter = DateFormatter()
         formatter.calendar = BlomixDailySeed.utcCalendar()
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.locale = .current
         formatter.setLocalizedDateFormatFromTemplate("yMMMMd")
-        return formatter.string(from: Date())
+        if let date = BlomixDailySeed.startOfUtcDay(day) {
+            return formatter.string(from: date)
+        }
+        return formatter.string(from: BlomixDailySeed.now())
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {

@@ -16,3 +16,4 @@ Source de vérité du champ **Sous-titre** ASC.
 | `de-DE.txt` | 5er-Ketten, gratis, werbefrei |
 | `es-ES.txt` | Cadenas de 5. Gratis, sin ads |
 | `it-IT.txt` | Catene da 5, gratis senza ads |
+| `pt-BR.txt` | Cadeias de 5. Grátis, sem ads |

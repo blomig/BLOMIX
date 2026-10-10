@@ -27,7 +27,7 @@ Les PNG sont dans `out/` (gitignoré). **Ne pas** les coller dans le slot Watch.
 
 1. Sélecteur de langue ASC → **English (U.S.)** (pas UK).
 2. Même ordre, fichiers dans `out/en-US/iphone-6.9/` puis `out/en-US/iphone-6.5/`.
-3. DE / ES / IT : peuvent hériter du FR tant qu’on n’a pas d’overlays dédiés.
+3. DE / ES / IT / PT : peuvent hériter du FR (PT : de l’EN si plus lisible) tant qu’on n’a pas d’overlays dédiés.
 
 Si tu colles un 6.9" dans le slot 6.5" (ou l’inverse), Apple refuse. PNG sRGB, **sans** transparence.
 

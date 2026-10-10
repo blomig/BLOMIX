@@ -1879,8 +1879,9 @@ final class GameScene: SKScene {
     }
 
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
-    private func resetSessionModelForNewMatch() {
-        isZenMode = false
+    private func resetSessionModelForNewMatch(zen: Bool = false) {
+        isZenMode = zen
+        bestScoreFetchGeneration += 1
         scoreRaceSnapshot = nil
         scoreRaceDisplayedRank = nil
         scoreRaceRankTarget = nil
@@ -2466,6 +2467,8 @@ final class GameScene: SKScene {
     /// Fond scène plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
     /// `playIntro` : poinçon wordmark uniquement à froid (splash). Retours GO / ☰ : entrée courte.
     private func presentStartScreen(playIntro: Bool = false) {
+        BlomixDailyChallenge.shared.noteActiveSession(day: nil)
+        BlomixDailyChallenge.shared.expireStaleRunIfNeeded()
         BlomixDailyChallenge.shared.claimPodiumIfNeeded()
         clearAutoDropAim()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
@@ -2692,7 +2695,12 @@ final class GameScene: SKScene {
             dailySubtitle = nil
         case .resume:
             dailyTitle = BlomixL10n.startDaily
-            dailySubtitle = BlomixL10n.startHeroModeDaily
+            if let run = BlomixDailyChallenge.shared.loadRun(),
+               let stamp = BlomixDailyChallenge.shared.localizedClosureStamp(forDay: run.utcDay) {
+                dailySubtitle = BlomixL10n.dailyDeadlineShort(stamp)
+            } else {
+                dailySubtitle = BlomixL10n.startHeroModeDaily
+            }
         case .finished:
             dailyTitle = BlomixL10n.startDailyRanking
             dailySubtitle = nil
@@ -3274,6 +3282,7 @@ final class GameScene: SKScene {
         isDailyChallengeMode = false
         dailyLockedDay = nil
         dailyFileRNG = nil
+        BlomixDailyChallenge.shared.noteActiveSession(day: nil)
     }
 
     private func showDailyHub() {
@@ -3285,12 +3294,18 @@ final class GameScene: SKScene {
 
     private func beginDailyChallengeMatch() {
         guard isStartScreen else { return }
+        BlomixDailyChallenge.shared.expireStaleRunIfNeeded()
+        if BlomixDailyChallenge.shared.loadRun() != nil {
+            continueDailyChallengeFromHome()
+            return
+        }
         consumeInMemoryPvPSoloSnapshots()
         cancelGhostPreview()
         let locked = BlomixDailyChallenge.shared.seedForNewRun()
         dailyLockedDay = locked.day
         dailyFileRNG = BlomixDailyFileRNG(seed: locked.seed)
         isDailyChallengeMode = true
+        BlomixDailyChallenge.shared.noteActiveSession(day: locked.day)
         isZenMode = false
         isTutorialMode = false
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
@@ -3318,12 +3333,14 @@ final class GameScene: SKScene {
     }
 
     private func continueDailyChallengeFromHome() {
+        BlomixDailyChallenge.shared.expireStaleRunIfNeeded()
         guard isStartScreen, let run = BlomixDailyChallenge.shared.loadRun() else { return }
         consumeInMemoryPvPSoloSnapshots()
         isDailyChallengeMode = true
         isZenMode = false
         dailyLockedDay = run.utcDay
         dailyFileRNG = BlomixDailyFileRNG(seed: run.seed, state: run.fileRNGState)
+        BlomixDailyChallenge.shared.noteActiveSession(day: run.utcDay)
         restoreFromSoloSave(run.game)
     }
 
@@ -3379,8 +3396,7 @@ final class GameScene: SKScene {
         layoutGameCenterStatusLabel()
         hapticSoft()
 
-        resetSessionModelForNewMatch()
-        isZenMode = true  // activé après reset pour ne pas être écrasé
+        resetSessionModelForNewMatch(zen: true)
 
         addTopTitle()
         setupBombHUD()
@@ -4369,7 +4385,11 @@ final class GameScene: SKScene {
         let leaderboardID = currentLeaderboardIDForHUD()
         ScoreManager.shared.fetchLocalPlayerBestScore(leaderboardID: leaderboardID) { [weak self] result in
             guard let self else { return }
-            guard generation == self.bestScoreFetchGeneration, !self.isDailyChallengeMode else { return }
+            // Accueil seulement : en partie le HUD est le snapshot figé (pas de GC).
+            guard generation == self.bestScoreFetchGeneration,
+                  self.isStartScreen,
+                  !self.isDailyChallengeMode,
+                  leaderboardID == self.currentLeaderboardIDForHUD() else { return }
             let localFallback = self.isZenMode
                 ? ScoreManager.shared.getLocalZenHighScore()
                 : ScoreManager.shared.getLocalHighScore()
@@ -4387,7 +4407,10 @@ final class GameScene: SKScene {
         guard showsLeaderboardTopHUD else { return }
         ScoreManager.shared.fetchLeaderboardTopScore(leaderboardID: leaderboardID) { [weak self] result in
             guard let self else { return }
-            guard generation == self.bestScoreFetchGeneration, self.showsLeaderboardTopHUD else { return }
+            guard generation == self.bestScoreFetchGeneration,
+                  self.isStartScreen,
+                  self.showsLeaderboardTopHUD,
+                  leaderboardID == self.currentLeaderboardIDForHUD() else { return }
             switch result {
             case .success(let top):
                 self.hudLeaderScoreBaseline = max(0, top)
@@ -4478,7 +4501,7 @@ final class GameScene: SKScene {
 
         ScoreManager.shared.prefetchScoreRaceFields()
         Task { @MainActor in
-            _ = await BlomixDailyChallenge.shared.fetchScores(day: BlomixDailyChallenge.shared.utcToday)
+            _ = await BlomixDailyChallenge.shared.fetchScores(day: BlomixDailyChallenge.shared.displayedHubDay)
         }
 
         guard GKLocalPlayer.local.isAuthenticated else { return }
@@ -8556,7 +8579,8 @@ final class GameScene: SKScene {
 
         ensureLignePipsIfNeeded()
         ensureScoreRaceIfNeeded()
-        if scoreRaceSnapshot == nil { captureScoreRaceSnapshot() }
+        scoreRaceSnapshot = nil
+        captureScoreRaceSnapshot()
 
         layoutScoreLabel()
         refreshBestScoreHUDIfNeeded()
@@ -14494,6 +14518,7 @@ final class GameScene: SKScene {
         displayedScore = score
 
         // Passage en mode jeu (comme beginNewMatchFromStartScreen, sans reset)
+        bestScoreFetchGeneration += 1
         scoreRaceSnapshot = nil
         scoreRaceDisplayedRank = nil
         scoreRaceRankTarget = nil
@@ -17017,6 +17042,7 @@ final class GameScene: SKScene {
                 isDailyChallengeMode = true
                 dailyLockedDay = daily.utcDay
                 dailyFileRNG = BlomixDailyFileRNG(seed: daily.seed, state: daily.fileRNGState)
+                BlomixDailyChallenge.shared.noteActiveSession(day: daily.utcDay)
             } else {
                 clearDailyChallengeSessionFlags()
             }

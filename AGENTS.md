@@ -10,11 +10,11 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **8.3** (build 154, soumission) — **8.2** (build 153) en vente |
+| Version courante | **8.4** (build 155, soumission) — **8.3** (build 154) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
-| Langues | FR, EN, DE, ES, IT |
+| Langues | FR, EN, DE, ES, IT, PT (Brésil) |
 | Studio / propriétaire | Projet propriétaire (pas open-source) |
 
 **Genre de jeu** : grille 8×8, gravité **inversée** (compactage vers le haut), chaînes ≥ 5 en **8-connexité**, Brix résistants, Magix, bombes, lignes entrantes tous les 10 coups. Modes : solo stagé, Zen, Défi du jour, PvP 1v1, tutoriel.
@@ -145,7 +145,7 @@ La logique gameplay est concentrée dans :
 | Identifiants Swift | Anglais (`priks`, `MagixKind.chromax`, …) |
 | Commits | FR ou EN, style impératif + préfixe (`feat:`, `fix:`, `docs:`, …) — voir `DOCS/CONTRIBUTING.md` |
 | Chaînes joueur | Via `BlomixL10n` uniquement — **jamais** de texte UI en dur |
-| Nouveautés App Store | `store/whats-new/` — **FR+EN+DE+ES+IT** à chaque version marketing (pas le bundle) |
+| Nouveautés App Store | `store/whats-new/` — **FR+EN+DE+ES+IT+PT** à chaque version marketing (pas le bundle) |
 | Texte promo ASC | `store/promotional-text/` — **stable**, ≤ 170 car. ; Fastlane le re-pousse si ASC l’a vidé ; **ne pas** le réécrire à chaque 6.x |
 | Nom / sous-titre fiche | `store/name/` · `store/subtitle/` — **7.5**, ≤ 30 car. ; icône iPhone reste BLOMIX |
 
@@ -199,7 +199,7 @@ Si le comportement change, mettre à jour **en même temps** :
 | Eval / hints | `DOCS/EVAL.md` |
 | Terme nouveau | `DOCS/GLOSSARY.md` |
 | i18n | `DOCS/LOCALIZATION.md` + lproj |
-| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (5 langues)** + Fastlane `metadata` / `release` (re-pousse aussi le promo si ASC l’a vidé) |
+| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (6 langues)** + Fastlane `metadata` / `release` (re-pousse aussi le promo si ASC l’a vidé) |
 | Nouveau doc | `DOCS/README.md` (+ README racine si besoin) |
 
 Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.
@@ -218,7 +218,7 @@ Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.
 
 **Quoi** :
 - `BlomixL10n.swift` + clés dans les `.lproj` concernés
-- Minimum **FR + EN** ; idéalement aussi **DE / ES / IT** si la chaîne est exposée en prod
+- Minimum **FR + EN** ; idéalement aussi **DE / ES / IT / PT** si la chaîne est exposée en prod
 - Pas de chaînes en dur dans le code UI
 
 Voir `DOCS/LOCALIZATION.md`.
@@ -235,7 +235,7 @@ Release / jalon : mettre aussi à jour `DOCS/CHANGELOG.md` (et la version de ré
 **Quand** : jalon / nouvelle version marketing / préparation ASC (ex. 6.4). Pas à chaque petit fix. Si les notes existent déjà pour cette version et qu’un lot change encore le bénéfice joueur : **rafraîchir les 5 fichiers** dans ce lot.
 
 **Quoi** (même lot que le CHANGELOG, **proactif**) :
-- Réécrire **FR + EN + DE + ES + IT** (`fr-FR.txt`, `en-US.txt`, `de-DE.txt`, `es-ES.txt`, `it-IT.txt`)
+- Réécrire **FR + EN + DE + ES + IT + PT** (`fr-FR.txt`, `en-US.txt`, `de-DE.txt`, `es-ES.txt`, `it-IT.txt`, `pt-BR.txt`)
 - Ton **joueur**, puces courtes, même ordre dans les 5 fichiers ; noms Magix **non traduits**
 - **Pas** dans `BlomixL10n` ni le target Xcode — Apple ne lit pas l’IPA
 - Fastlane pousse `store/` vers ASC (`bundle exec fastlane metadata` ou `release`) — le champ Nouveautés est vide à la création de version
@@ -303,7 +303,7 @@ Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (Debug `deve
 - [ ] Flux impacté pensé (solo / Zen / PvP / tutoriel selon le cas)
 - [ ] **(1) Langues** : clés `BlomixL10n` + `.lproj` à jour (FR+EN min.) si UI touchée
 - [ ] **(2) Doc** : `DOCS/` alignée si le comportement / les règles changent
-- [ ] **(2b) Nouveautés** : `store/whats-new/` FR+EN+DE+ES+IT si jalon / `MARKETING_VERSION`
+- [ ] **(2b) Nouveautés** : `store/whats-new/` FR+EN+DE+ES+IT+PT si jalon / `MARKETING_VERSION`
 - [ ] Terminologie GLOSSARY respectée
 - [ ] Pas de fichiers locaux / secrets dans le diff
 - [ ] **(3) Git** : proposer (ou faire sur demande) commit + push vers GitHub quand le lot est prêt

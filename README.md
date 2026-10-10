@@ -4,10 +4,10 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 8.3 (build 154, soumission) — 8.2 (build 153) en vente |
+| **Version** | 8.4 (build 155, soumission) — 8.3 (build 154) en vente |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
-| **Langues** | Français, Anglais, Allemand, Espagnol, Italien |
+| **Langues** | Français, Anglais, Allemand, Espagnol, Italien, Portugais (Brésil) |
 
 ---
 
@@ -37,7 +37,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/JUICE_PISTES.md](docs/JUICE_PISTES.md) | Pistes juice / physique blox · Brix · Magix |
 | [docs/EVAL.md](docs/EVAL.md) | Moteur d'évaluation des coups et hints |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Terminologie canonique (code ↔ joueur) |
-| [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT) |
+| [docs/LOCALIZATION.md](docs/LOCALIZATION.md) | Guide de localisation (FR/EN/DE/ES/IT/PT) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Build, debug, conventions de code |
 | [docs/DAILY_CHALLENGE.md](docs/DAILY_CHALLENGE.md) | Défi du jour (graine UTC, hub, CloudKit) |
 | [docs/WATCH_ZEN.md](docs/WATCH_ZEN.md) | Spec Apple Watch v1 — compagnon Zen light |

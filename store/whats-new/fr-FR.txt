@@ -1,3 +1,4 @@
-• Course : un ruban couleur suit ta run, le prochain score à battre est en rose
-• Ton rang sur la ligne gonfle et défile quand tu dépasses quelqu’un
-• Timer : si tu vises encore à 0 s, le blox tombe dans cette colonne
+• Défi du jour : une partie commencée reste classée jusqu’à 2 h après minuit UTC, heure limite affichée en local
+• Hub du défi : date et « à compléter avant » toujours visibles
+• Zen : RECORD affiche ton record Zen, plus celui d’Arcade
+• BLOMIX parle aussi portugais (Brésil)

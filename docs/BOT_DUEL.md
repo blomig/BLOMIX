@@ -262,7 +262,7 @@ Les 2–3 premières semaines à 800, les victoires rapportent (K haut). Documen
 | `BlomixPvPH2HManager.swift` | | **non** (filtre `bot:` si un id fuyait, sinon non) |
 | Watch / Fastlane / `protocolVersion` | | **non** |
 
-l10n : FR+EN min. (idéalement 5 langues) — titres section Bots, badge, accessibilité. Noms **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** non traduits.
+l10n : FR+EN min. (idéalement 6 langues) — titres section Bots, badge, accessibilité. Noms **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** non traduits.
 
 ---
 

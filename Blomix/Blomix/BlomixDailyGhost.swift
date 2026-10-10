@@ -52,6 +52,7 @@ final class BlomixDailyGhostController {
     private var isWorkerRunning = false
     private var isPausedForGameplay = false
     private var hubHasRequested = false
+    private var hubDay = BlomixDailySeed.utcDayString()
     private var pausedEngine: BlomixDailyGhostEngine?
     private var didInstallObservers = false
 
@@ -59,9 +60,16 @@ final class BlomixDailyGhostController {
         installObserversIfNeeded()
     }
 
-    func hubAppeared() {
+    func hubAppeared(day: String) {
         installObserversIfNeeded()
         hubHasRequested = true
+        if hubDay != day {
+            hubDay = day
+            pausedEngine = nil
+            if isWorkerRunning {
+                pauseFlag.pause()
+            }
+        }
         startOrResume()
     }
 
@@ -103,7 +111,7 @@ final class BlomixDailyGhostController {
     }
 
     private func startOrResume() {
-        let day = BlomixDailySeed.utcDayString()
+        let day = hubDay
         if let cached = Self.cachedScore(forDay: day) {
             publish(.ready(score: cached))
             pausedEngine = nil

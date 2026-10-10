@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 8.3  
+> **Version de référence** : 8.4  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -237,7 +237,7 @@ Sans timer, sans stages, bombes **3×3** uniquement. Classement Game Center déd
 
 ### Défi du jour
 
-Même accélération qu’**Arcade** (timer, stages, bombe, Magix). Tout le monde joue la **même file** ce jour-là (UTC) : blox, Magix, lignes des 10. Une seule partie par jour. Le score compte **aussi** comme une partie Arcade (meilleur score + moyenne). Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **le lendemain**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+Même accélération qu’**Arcade** (timer, stages, bombe, Magix). Tout le monde joue la **même file** ce jour-là (UTC) : blox, Magix, lignes des 10. Une seule partie par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC** (l’heure limite est affichée en heure locale). Après ça, la partie non terminée n’est plus classée. Le score compte **aussi** comme une partie Arcade (meilleur score + moyenne). Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture** (minuit UTC + 2 h). Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Duel (1 vs 1)
 

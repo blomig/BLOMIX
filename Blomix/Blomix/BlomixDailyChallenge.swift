@@ -3,7 +3,7 @@
 //  Blomix
 //
 //  Défi du jour : slot save dédié, scores CloudKit `DailyScore`, points podium
-//  +5/+3/+1 au lendemain UTC, cumul Game Center `dailywins_arc`.
+//  +5/+3/+1 après clôture (minuit UTC + 2 h), cumul Game Center `dailywins_arc`.
 //
 
 import CloudKit
@@ -61,12 +61,11 @@ final class BlomixDailyChallenge {
     private var publicDB: CKDatabase { ckContainer.publicCloudDatabase }
     private var didSetup = false
     private var isClaimingPodium = false
-    /// Dernier meilleur score CloudKit connu (HUD « À battre »), par jour UTC.
-    private var cachedLeaderDay: String?
-    private var cachedLeaderScore: Int = 0
-    /// Liste du jour (jauge HUD) — snapshot accueil / hub, pas de refetch en partie.
-    private var cachedDayEntriesDay: String?
-    private var cachedDayEntries: [BlomixDailyScoreEntry] = []
+    /// Jauge HUD / « À battre » : une entrée par jour fetché (X pendant la grâce ≠ Y).
+    private var cachedEntriesByDay: [String: [BlomixDailyScoreEntry]] = [:]
+    private var cachedLeaderByDay: [String: Int] = [:]
+    /// Run encore à l’écran : la clôture n’expire pas cette save (GO encore classable).
+    private var activeSessionDay: String?
     /// Dernier classement carrière (pastille + onglet) — évite de re-attendre les 60 jours CK.
     private var cachedCareerStandings: [BlomixDailyScoreEntry]?
     private var careerStandingsFetchedAt: Date?
@@ -83,6 +82,7 @@ final class BlomixDailyChallenge {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.expireStaleRunIfNeeded()
                 self?.flushPendingCareerPoints()
                 self?.claimPodiumIfNeeded()
             }
@@ -93,10 +93,13 @@ final class BlomixDailyChallenge {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
+                self?.expireStaleRunIfNeeded()
                 self?.flushPendingCareerPoints()
                 self?.claimPodiumIfNeeded()
             }
         }
+        expireStaleRunIfNeeded()
+        print("[Daily] utcToday=\(utcToday) hierClos=\(BlomixDailySeed.isUtcDayClosed(BlomixDailySeed.previousUtcDayString()))")
         flushPendingCareerPoints()
         claimPodiumIfNeeded()
         Task { [weak self] in
@@ -114,10 +117,52 @@ final class BlomixDailyChallenge {
         UserDefaults.standard.string(forKey: Self.finishedDayKey) == day
     }
 
+    /// Jour affiché par le hub : save encore valable (même X pendant la grâce), sinon aujourd’hui.
+    var displayedHubDay: String {
+        expireStaleRunIfNeeded()
+        if let run = loadRun() { return run.utcDay }
+        return utcToday
+    }
+
     var hubCTA: BlomixDailyHubCTA {
+        expireStaleRunIfNeeded()
         if hasInProgressRun { return .resume }
         if hasFinished(day: utcToday) { return .finished }
         return .play
+    }
+
+    func noteActiveSession(day: String?) {
+        activeSessionDay = day
+    }
+
+    /// Save d’un jour déjà clos, hors session à l’écran → effacée, pas d’upsert.
+    func expireStaleRunIfNeeded() {
+        guard let run = loadRun() else { return }
+        if activeSessionDay == run.utcDay { return }
+        guard BlomixDailySeed.isUtcDayClosed(run.utcDay) else { return }
+        print("[Daily] save \(run.utcDay) expirée après clôture.")
+        clearRun()
+    }
+
+    /// Tampon date+heure locales de la clôture (chip accueil). `nil` si jour illisible.
+    func localizedClosureStamp(forDay day: String) -> String? {
+        guard let date = BlomixDailySeed.closureDate(afterUtcDay: day) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeZone = TimeZone.current
+        formatter.setLocalizedDateFormatFromTemplate("dMMMjmm")
+        return formatter.string(from: date)
+    }
+
+    /// Heure locale seule (`hh:mm`) de la clôture — ligne permanente du hub.
+    func localizedClosureTime(forDay day: String) -> String? {
+        guard let date = BlomixDailySeed.closureDate(afterUtcDay: day) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.timeZone = TimeZone.current
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 
     var careerPoints: Int {
@@ -150,8 +195,15 @@ final class BlomixDailyChallenge {
     }
 
     /// GO : vide le slot, mémorise le jour/score, pousse CloudKit (best-effort).
+    /// Session encore à l’écran → classé même après clôture. Sinon, jour clos → pas d’upsert.
     func finishRun(day: String, score: Int) {
+        let submit = (activeSessionDay == day) || !BlomixDailySeed.isUtcDayClosed(day)
+        noteActiveSession(day: nil)
         clearRun()
+        guard submit else {
+            print("[Daily] GO \(day) après clôture — non classé.")
+            return
+        }
         UserDefaults.standard.set(day, forKey: Self.finishedDayKey)
         UserDefaults.standard.set(max(0, score), forKey: Self.finishedScoreKey)
         Task { await upsertScore(day: day, score: score) }
@@ -179,27 +231,28 @@ final class BlomixDailyChallenge {
         mergeLocalFinishedScore(day: day, into: &entries)
         entries.sort { $0.score > $1.score }
         if entries.isEmpty, cloudFailed { return .unavailable }
-        // Jauge HUD = snapshot du jour UTC seulement. Un fetch de la veille
-        // (hub podium / claim) ne doit pas écraser la liste d’aujourd’hui.
-        if day == utcToday {
-            cachedLeaderDay = day
-            cachedLeaderScore = entries.first?.score ?? 0
-            cachedDayEntriesDay = day
-            cachedDayEntries = entries
-        }
+        rememberHUDCache(day: day, entries: entries)
         return .loaded(entries)
+    }
+
+    private func rememberHUDCache(day: String, entries: [BlomixDailyScoreEntry]) {
+        cachedEntriesByDay[day] = entries
+        cachedLeaderByDay[day] = entries.first?.score ?? 0
+        if cachedEntriesByDay.count > 16 {
+            let keep = Set(cachedEntriesByDay.keys.sorted().suffix(16))
+            cachedEntriesByDay = cachedEntriesByDay.filter { keep.contains($0.key) }
+            cachedLeaderByDay = cachedLeaderByDay.filter { keep.contains($0.key) }
+        }
     }
 
     /// Scores du jour déjà vus (jauge HUD). Vide si pas encore de fetch pour ce jour.
     func cachedDayScoreValues(forDay day: String) -> [Int] {
-        guard cachedDayEntriesDay == day else { return [] }
-        return cachedDayEntries.map(\.score)
+        cachedEntriesByDay[day]?.map(\.score) ?? []
     }
 
     /// Meilleur score déjà vu pour ce jour (hub / fetch précédent). `nil` si pas encore de fetch.
     func leaderScore(forDay day: String) -> Int? {
-        guard cachedLeaderDay == day else { return nil }
-        return cachedLeaderScore
+        cachedLeaderByDay[day]
     }
 
     /// Si le joueur a fini ce jour (UserDefaults), sa ligne est toujours là — même sans GC / CK.
@@ -363,9 +416,10 @@ final class BlomixDailyChallenge {
     // MARK: - Podium (après clôture UTC)
 
     /// Jours UTC déjà clos, du plus récent au plus ancien.
+    /// Clôture = minuit UTC du lendemain + grâce : on recule l’horloge de `G` avant de lister.
     func closedUtcDays(lookback: Int) -> [String] {
         let cal = BlomixDailySeed.utcCalendar()
-        var date = Date()
+        var date = BlomixDailySeed.now().addingTimeInterval(-BlomixDailySeed.graceAfterUtcMidnight)
         var days: [String] = []
         days.reserveCapacity(max(0, lookback))
         for _ in 0..<max(0, lookback) {
@@ -381,6 +435,7 @@ final class BlomixDailyChallenge {
         Task { @MainActor [weak self] in
             defer { self?.isClaimingPodium = false }
             guard let self else { return }
+            self.expireStaleRunIfNeeded()
             for day in self.closedUtcDays(lookback: 14) {
                 if UserDefaults.standard.bool(forKey: Self.creditedPrefix + day) { continue }
                 if let run = self.loadRun(), run.utcDay == day { continue }

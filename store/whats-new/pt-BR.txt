@@ -1,0 +1,4 @@
+• Desafio do dia: uma partida começada continua no ranking até 2 h após meia-noite UTC, prazo no horário local
+• Hub do desafio: data e “completar até” sempre visíveis
+• Zen: RECORDE mostra seu recorde Zen, não o do Arcade
+• BLOMIX agora em português (Brasil)

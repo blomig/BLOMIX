@@ -439,6 +439,10 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "daily.game_over_rank_unavailable" = "Rank unavailable";
 "daily.career_points_format" = "%lld pts";
 "daily.hub_yesterday_podium_format" = "Yesterday's podium: %@";
+"daily.hub_yesterday_open" = "Yesterday's ranking is still open — some players haven't finished.";
+"daily.deadline_format" = "Ranked if finished by %@";
+"daily.deadline_short_format" = "By %@";
+"daily.deadline_complete_by_format" = "Challenge to complete before %@";
 "daily.ghost_title" = "BLOMIX reference";
 "daily.ghost_computing" = "Computing reference…";
 "daily.ghost_a11y_format" = "BLOMIX reference, %lld points";

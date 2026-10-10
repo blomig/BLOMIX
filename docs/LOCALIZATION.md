@@ -1,7 +1,7 @@
 # Blomix — Guide de localisation
 
-> **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`)  
-> **Version de référence** : 8.3
+> **Langues supportées** : Français (`fr`), Anglais (`en`), Allemand (`de`), Espagnol (`es`), Italien (`it`), Portugais (`pt`, brésilien)  
+> **Version de référence** : 8.4
 
 ---
 
@@ -30,12 +30,19 @@ Blomix/Blomix/
 │   ├── tips_of_day.json
 │   ├── gameover_quotes.json
 │   └── InfoPlist.strings
-└── it.lproj/
+├── it.lproj/
+│   ├── Localizable.strings
+│   ├── tips_of_day.json
+│   ├── gameover_quotes.json
+│   └── InfoPlist.strings
+└── pt.lproj/
     ├── Localizable.strings
     ├── tips_of_day.json
     ├── gameover_quotes.json
     └── InfoPlist.strings
 ```
+
+Le `pt.lproj` est du **portugais brésilien** (`você`). iOS s’en sert aussi en repli pour le portugais du Portugal. Fiche App Store : locale **`pt-BR`** (Brésil). Pas de `pt-PT` magasin pour l’instant.
 
 Fichiers legacy (encore référencés en fallback) :
 - `rules.txt` — anciennes règles statiques (legacy ; non exposé par l’UI moderne)
@@ -70,7 +77,7 @@ Conventions de clés : `section.sous_section` en snake_case (ex. `game_over.rest
 "ma_section.score_format" = "Score: %lld";
 ```
 
-**`fr.lproj/Localizable.strings`** (et `de` / `es` / `it` si la clé est visible dans ces langues)
+**`fr.lproj/Localizable.strings`** (et `de` / `es` / `it` / `pt` si la clé est visible dans ces langues)
 ```
 "ma_section.mon_bouton" = "Mon bouton";
 "ma_section.score_format" = "Score : %lld";
@@ -91,7 +98,7 @@ scoreLabel.text = BlomixL10n.scoreFormat(1250)
 
 Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lproj` et n’est **pas** lu dans l’IPA. Source de vérité : `store/whats-new/`. **Systématique** à chaque version marketing (même lot que le CHANGELOG) — Fastlane pousse ensuite vers ASC (`metadata` / `release`).
 
-### Fichiers (toujours les 5)
+### Fichiers (toujours les 6)
 
 | Fichier | Locale ASC | `lproj` |
 |---|---|---|
@@ -100,14 +107,15 @@ Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lpr
 | `store/whats-new/de-DE.txt` | German | `de` |
 | `store/whats-new/es-ES.txt` | Spanish (Spain) | `es` |
 | `store/whats-new/it-IT.txt` | Italian | `it` |
+| `store/whats-new/pt-BR.txt` | Portuguese (Brazil) | `pt` |
 
 ### Rédaction
 
 1. Partir du **bénéfice joueur** de la version (spec / CHANGELOG), pas des noms de fonctions.
-2. FR d’abord, puis EN / DE / ES / IT **dans le même lot**. Même nombre de puces, même ordre.
+2. FR d’abord, puis EN / DE / ES / IT / PT **dans le même lot**. Même nombre de puces, même ordre.
 3. Puces courtes (`• …`). Limite Apple : 4000 caractères. Noms Magix **non traduits**.
 4. Ne pas recopier `DOCS/CHANGELOG.md`. Ne pas ajouter à `BlomixL10n` ni au target Xcode.
-5. Un lot qui change encore le bénéfice joueur **de cette version** : rafraîchir les **5** fichiers.
+5. Un lot qui change encore le bénéfice joueur **de cette version** : rafraîchir les **6** fichiers.
 
 Détail release : `store/whats-new/README.md`.
 
@@ -130,7 +138,7 @@ Ce n’est **pas** le champ ASC Nouveautés.
 
 Champ ASC **Texte promotionnel** (≤ **170** car.). Ce n’est **pas** une Nouveauté et **pas** une chaîne `lproj`.
 
-- Source : `store/promotional-text/` (`en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`)
+- Source : `store/promotional-text/` (`en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`, `pt-BR`)
 - **Ne pas** le mettre dans `whats-new/` (réécrit à chaque version) ni dans le target Xcode
 - On ne le régénère **pas** à chaque `MARKETING_VERSION` — Fastlane re-pousse les fichiers existants si le champ ASC est vide
 
@@ -142,7 +150,7 @@ Index : `store/README.md`.
 
 Champs ASC **Nom** et **Sous-titre** (≤ **30** car. chacun). Pas le nom sous l’icône (`BLOMIX`).
 
-- Source : `store/name/` et `store/subtitle/` (5 locales)
+- Source : `store/name/` et `store/subtitle/` (6 locales)
 - Fastlane les pousse avec `metadata` / `release` **à partir de la version 7.5**
 - Mots-clés ASC : inchangés (ne pas les dupliquer ici)
 
@@ -215,6 +223,7 @@ Noms Magix (**CHROMAX**, **BRIXED**, etc.) : **ne pas traduire** — identiques 
     <string>de</string>
     <string>es</string>
     <string>it</string>
+    <string>pt</string>
 </array>
 ```
 
@@ -225,7 +234,7 @@ La langue affichée suit les réglages iOS de l'appareil. Pas de sélecteur in-a
 ## Checklist traduction
 
 - [ ] Clé ajoutée dans `BlomixL10n.swift` avec commentaire traducteur
-- [ ] Entrées dans `en`, `fr`, `de`, `es`, `it` (`Localizable.strings`)
+- [ ] Entrées dans `en`, `fr`, `de`, `es`, `it`, `pt` (`Localizable.strings`)
 - [ ] Placeholders `%@`, `%lld`, `%d` identiques dans toutes les langues
 - [ ] Termes gameplay conformes au glossaire
 - [ ] Test visuel sur simulateur (Réglages → Général → Langue) — au minimum FR et EN
@@ -234,10 +243,11 @@ La langue affichée suit les réglages iOS de l'appareil. Pas de sélecteur in-a
 
 ## Ajouter une nouvelle langue
 
-1. Créer `xx.lproj/` avec `Localizable.strings`, `tips_of_day.json`, `gameover_quotes.json`, `InfoPlist.strings`.
+1. Créer `xx.lproj/` iPhone avec `Localizable.strings`, `tips_of_day.json`, `gameover_quotes.json`, `InfoPlist.strings` ; Watch `Watch/xx.lproj/Localizable.strings`.
 2. Ajouter la locale dans `CFBundleLocalizations` (`Info.plist`) et `knownRegions` (`project.pbxproj`).
-3. Enregistrer les fichiers dans les `PBXVariantGroup` Xcode (Localizable, tips, quotes, InfoPlist).
-4. Mettre à jour ce document et `PROJECT_CONTEXT.md` §15.
+3. Enregistrer les fichiers dans les `PBXVariantGroup` Xcode (Localizable, tips, quotes, InfoPlist, Watch).
+4. Fiche ASC : `store/{whats-new,promotional-text,name,subtitle}/<locale>.txt` + Fastlane `LOCALES`.
+5. Mettre à jour ce document et `PROJECT_CONTEXT.md` §15.
 
 ---
 

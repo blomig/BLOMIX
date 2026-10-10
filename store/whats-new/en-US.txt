@@ -1,3 +1,4 @@
-• Race: a color ribbon follows your run, the next score to beat is pink
-• Your place on the line swells and ticks when you pass someone
-• Timer: if you’re still aiming at 0 s, the blox drops in that column
+• Daily Challenge: a started run stays ranked until 2 hours after UTC midnight, deadline shown in local time
+• Challenge hub: date and “complete by” time always visible
+• Zen: RECORD shows your Zen best, not Arcade
+• BLOMIX is now in Portuguese (Brazil)

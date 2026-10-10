@@ -1,3 +1,4 @@
-• Corsa: un nastro colorato segue la tua run, il prossimo punteggio da battere è rosa
-• Il tuo posto sulla linea si gonfia e scorre quando superi qualcuno
-• Timer: se miri ancora a 0 s, il blox cade in quella colonna
+• Sfida del giorno: una partita iniziata resta in classifica fino a 2 h dopo mezzanotte UTC, scadenza in ora locale
+• Hub della sfida: data e «completare entro» sempre visibili
+• Zen: RECORD mostra il tuo record Zen, non Arcade
+• BLOMIX ora anche in portoghese (Brasile)

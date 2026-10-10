@@ -15,3 +15,4 @@ Source de vérité du **nom affiché sur la fiche** ASC (pas le nom sous l’ic�
 | `de-DE.txt` | BLOMIX - Blockpuzzle |
 | `es-ES.txt` | BLOMIX - Puzzle de bloques |
 | `it-IT.txt` | BLOMIX - Puzzle di blocchi |
+| `pt-BR.txt` | BLOMIX - Puzzle de blocos |

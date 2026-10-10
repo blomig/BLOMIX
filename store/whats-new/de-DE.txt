@@ -1,3 +1,4 @@
-• Rennen: ein Farbband folgt deinem Lauf, der nächste Score ist pink
-• Dein Rang auf der Linie wächst und zählt weiter, wenn du jemanden überholst
-• Timer: zielst du bei 0 s noch, fällt der Blox in diese Spalte
+• Tägliche Herausforderung: eine begonnene Runde bleibt bis 2 Std. nach UTC-Mitternacht gewertet, Frist in Ortszeit
+• Hub: Datum und „fertig bis“ immer sichtbar
+• Zen: RECORD zeigt deinen Zen-Rekord, nicht Arcade
+• BLOMIX spricht jetzt Portugiesisch (Brasilien)

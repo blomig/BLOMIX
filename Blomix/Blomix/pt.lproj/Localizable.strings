@@ -1,0 +1,449 @@
+/* Common */
+"common.close" = "Fechar";
+"common.cancel" = "Cancelar";
+"common.loading" = "Carregando…";
+
+/* Quit solo game confirmation */
+"quit_confirm.title" = "Sair desta partida?";
+"quit_confirm.message" = "Você pode retomar esta partida na tela inicial.";
+"quit_confirm.message_zen" = "Você pode retomar esta partida na tela inicial.";
+"quit_confirm.message_pvp" = "Se sair, você perde este Duelo.";
+"quit_confirm.quit" = "Sair";
+
+/* Welcome & gameplay */
+"game.tagline" = "Forme cadeias. Vença a pressão.";
+"start.button" = "Arcade";
+"start.settings" = "Ajustes";
+"start.credits" = "Créditos";
+"start.zen" = "Zen";
+"start.pvp" = "Duelo";
+"start.player_unknown" = "Jogador desconhecido";
+"start.player_name_format" = "Jogador: %@";
+"start.player_elo_format" = "Elo: %lld";
+"start.player_elo_unavailable" = "Elo: —";
+
+"pvp.lobby_title" = "Multijogador";
+"pvp.lobby_play_friend" = "Jogar com um amigo";
+"pvp.lobby_invite_players" = "Convidar jogadores";
+"pvp.lobby_find_opponent" = "Encontrar oponente";
+"pvp.lobby_find_opponent_prompt_title" = "Como encontramos um oponente?";
+"pvp.lobby_random_opponent" = "Oponente aleatório";
+"pvp.lobby_choose_friend_from_find" = "Entre meus amigos";
+"pvp.lobby_pick_friend_title" = "Escolha um amigo";
+"pvp.lobby_no_friends" = "Nenhum amigo do Game Center.";
+"pvp.lobby_status_searching" = "Procurando oponente…";
+"pvp.lobby_status_connecting_friend" = "Conectando ao amigo…";
+"pvp.lobby_preparing_boards" = "Preparando as grades…";
+"pvp.lobby_match_failed" = "Nenhuma partida encontrada.";
+"pvp.lobby_no_players_available" = "Nenhum jogador disponível.";
+"pvp.lobby_preparation_timeout" = "Preparação interrompida. Tente de novo.";
+"pvp.auto_search_active_hint" = "Aguardando um oponente… Você pode fechar e jogar solo, ou desafiar alguém direto.";
+"pvp.lobby_active_players_hint_format" = "%d jogador(es) ativo(s) agora";
+"pvp.unknown_opponent" = "Oponente desconhecido";
+"pvp.match_found_launching" = "Partida encontrada!\nIniciando…";
+"pvp.waiting_phrase_1" = "Conectando ao oponente…";
+"pvp.waiting_phrase_2" = "Preparando as grades…";
+"pvp.waiting_phrase_3" = "Colocando os blox…";
+"pvp.waiting_phrase_4" = "Sorteando…";
+"pvp.remote_fill_label_line1" = "Grade do";
+"pvp.remote_fill_label_line2" = "oponente";
+"pvp.lobby_opponent_found_format" = "Oponente encontrado: %@";
+"pvp.lobby_search_hint" = "Matchmaking Elo";
+"pvp.lobby_matchmaking_error_format" = "Erro: %@";
+
+"pvp.result_you_won" = "Você venceu!";
+"pvp.result_you_lost" = "Você perdeu";
+"pvp.result_victory_against_format" = "Vitória contra %@";
+"pvp.result_defeat_against_format" = "Derrota contra %@";
+"pvp.result_win_subtitle" = "Seu oponente não pode mais jogar.";
+"pvp.result_lose_subtitle" = "Você não conseguiu colocar um bloco.";
+"pvp.result_elo_loading" = "Atualizando Elo…";
+"pvp.result_elo_unavailable" = "Elo indisponível.";
+"pvp.result_elo_current_format" = "Elo: %lld";
+"pvp.result_elo_delta_format" = "%+lld pts";
+"pvp.result_elo_new_format" = "Novo Elo: %lld";
+"pvp.result_back_home" = "Voltar ao início";
+"pvp.result_rematch_ask" = "Revanche?";
+"pvp.result_rematch_waiting" = "Aguardando o oponente…";
+"pvp.result_rematch_opponent_ready" = "Oponente pronto!";
+"pvp.result_rematch_launching" = "Iniciando…";
+"pvp.hud_match_against_format" = "Partida contra: %@";
+"pvp.hud_series_score_format" = "%@  %lld  ·  %lld  %@";
+"pvp.series_end_title" = "Série encerrada";
+"pvp.series_end_you_lead" = "Você lidera a série";
+"pvp.series_end_you_trail" = "Você está atrás";
+"pvp.series_end_tied" = "Empate";
+"pvp.series_end_games_format" = "%lld partidas jogadas";
+"pvp.series_end_ok" = "OK";
+
+"menu.new_game" = "Início";
+"menu.scores" = "Pontos";
+"menu.rules" = "Regras";
+"menu.settings" = "Ajustes";
+"menu.multiplayer" = "Multijogador";
+
+"game_over.title" = "GAME OVER";
+"game_over.focus_title" = "GAME OVER";
+"game_over.score_format" = "PONTOS %lld";
+"game_over.restart" = "INÍCIO";
+"game_over.replay" = "Jogar de novo";
+"game_over.record_title" = "Recorde pessoal!";
+"game_over.record_score_format" = "%lld pts";
+"game_over.record_rank_solo_format" = "Você agora é o #%lld no Arcade";
+"game_over.record_rank_zen_format" = "Você agora é o #%lld no Zen";
+"game_over.leaderboard" = "Ver classificação";
+"game_over.personal_best" = "Novo recorde pessoal!";
+"hud.best_score_title" = "RECORDE";
+"hud.daily_to_beat_title" = "A SUPERAR";
+"hud.leader_score_title" = "N°1";
+"hud.bonus_title" = "BÔNUS";
+"hud.best_score_format" = "%lld";
+
+"hud.next_blox" = "próximos blox";
+"hud.next_line" = "Próxima linha";
+"hud.next_bomb" = "Próxima bomba";
+
+"gc.status.checking" = "GC: …";
+"gc.status.ok" = "GC: OK";
+"gc.status.off" = "GC: Off";
+
+"skin.display.perso" = "Personalizada";
+"skin.display.perso2" = "Personalizada 2";
+"skin.display.alea" = "Alea";
+"skin.display.default" = "Padrão";
+
+/* Rules / credits fallbacks */
+"rules.missing_file" = "As regras aparecerão aqui quando rules.txt for adicionado ao app.";
+"credits.missing_file" = "Adicione o conteúdo de créditos em credits.txt no app para exibi-lo aqui.";
+
+"modal.rules_title" = "Regras";
+"modal.credits_title" = "Créditos";
+
+/* Leaderboard */
+"leaderboard.title" = "Pontos";
+"leaderboard.subtitle" = "BlomixMainScore";
+"leaderboard.loading" = "Carregando classificação…";
+"leaderboard.gc_sign_in" = "Entre no Game Center para ver a classificação.";
+"leaderboard.gc_error_format" = "Erro do Game Center: %@";
+"leaderboard.not_found" = "Classificação não encontrada.";
+"leaderboard.load_error_format" = "Erro ao carregar: %@";
+"leaderboard.empty" = "Ainda não há pontuações.";
+"leaderboard.top_count_format" = "Top %lld";
+"leaderboard.points_format" = "%lld pts";
+"leaderboard.elo_format" = "Elo %lld";
+"leaderboard.main_tab" = "Arc.";
+"leaderboard.elo_tab" = "Duelo";
+"leaderboard.avg_tab" = "Méd.";
+"leaderboard.zen_tab" = "Zen";
+"leaderboard.avg_format" = "méd. %lld pts";
+"leaderboard.avg_game_count" = "%lld partidas";
+
+/* Settings */
+"settings.title" = "Ajustes";
+"settings.section_sound" = "Som";
+"settings.section_appearance" = "Aparência";
+"settings.appearance.dark" = "Escuro";
+"settings.appearance.light" = "Claro";
+"settings.section_font" = "Fonte";
+"settings.section_colors" = "Cores";
+"settings.adjust_sounds" = "Ajustar sons";
+"settings.sounds_slider_label" = "Sons";
+"settings.music_slider_label" = "Música";
+"settings.sound_mix_title" = "Mix de som";
+"settings.font_preview" = "Blomix 123";
+"settings.font.bitcount" = "Bitcount";
+"settings.font.google_sans" = "Google Sans";
+"settings.font.dynapuff" = "DynaPuff";
+"settings.font.alfa_slab_one" = "Alfa Slab One";
+"settings.font.changa_one" = "Changa One";
+"settings.sound_percent_format" = "%lld%%";
+"settings.sound.music" = "Música de fundo";
+"settings.sound.begin" = "Início da partida";
+"settings.sound.place" = "Bloco pousando";
+"settings.sound.bomb" = "Bomba";
+"settings.sound.connect_e" = "Ligação de 2 blocos";
+"settings.sound.connect_f" = "Ligação de 3 blocos";
+"settings.sound.connect_gb" = "Ligação de 4 blocos";
+"settings.sound.chain_basic" = "Cadeia 5+";
+"settings.sound.chain_cascade_1" = "Cadeia 6-8 / cascata 1";
+"settings.sound.chain_cascade_2" = "Cadeia 9+ / cascatas";
+"settings.sound.line" = "Chegada da linha";
+"settings.sound.end" = "Game over";
+"settings.sound.victory" = "Vitória PvP";
+"settings.sound.wrong" = "Coluna cheia";
+"settings.sound.empty_column" = "Coluna esvaziada";
+
+"start_screen.tip_header" = "— Dica do dia —";
+
+"settings.music_picker_label" = "Faixa";
+"settings.music_track_puzzle_game2" = "Puzzle Game 2";
+"settings.music_track_calm" = "Calm";
+"settings.sound.pending_line" = "Aviso da próxima linha";
+"settings.sound.priks_vanish" = "Brix some";
+
+"tutorial.got_it" = "Entendi";
+"tutorial.dont_show_again" = "Mostrar este guia ao iniciar";
+"tutorial.hint_score" = "Sua pontuação";
+"tutorial.hint_grid" = "Toque em uma coluna para lançar um bloco. O objetivo é formar cadeias de 5 blocos da mesma cor.";
+"tutorial.hint_brix" = "De vez em quando aparece um bloco especial (um brix) com um número. Esse brix não some da mesma forma: faça cadeias ao lado (5) para reduzir o número aos poucos...";
+"tutorial.hint_queue" = "Aqui estão os próximos blocos que você pode lançar. A cada 10 blocos colocados, uma linha sobe e bagunça a pilha.";
+"tutorial.hint_bomb" = "Você pode usar uma bomba se ainda tiver uma. Ela limpa uma área grande!";
+"rules.show_guides_at_start" = "Mostrar guias no início da partida";
+"tutorial.page1_title" = "Objetivo do jogo";
+"tutorial.page1_body" = "O objetivo é fazer a maior pontuação. Para pontuar, use blox (pedras coloridas) e coloque-os na grade (de baixo para cima) para formar \"cadeias\" de 5 blox da mesma cor. As cadeias valem pontos e desaparecem, abrindo espaço para os próximos blox.";
+"tutorial.page1_chain_caption" = "= cadeia → pontos!";
+"tutorial.page2_title" = "Não é tão fácil!";
+"tutorial.page2_body" = "O jogo seria fácil demais se bastasse fazer cadeias de cor. A cada 10 blox, uma linha aleatória sobe e bagunça a pilha. E o melhor: há 1 chance em 8 de um blox mutar antes do lançamento e virar um Brix. Essa pedra especial, marcada com um número, não some como as outras — é preciso formar cadeias ao lado (5) para fazê-la desaparecer. Felizmente você tem bombas (uma no início, e uma nova a cada 10 cadeias): a bomba destrói as 9 casas ao redor do impacto e limpa Brix de uma vez!";
+"tutorial.page3_title" = "Sua vez!";
+"tutorial.page3_body" = "Um pequeno bônus é dado se você tiver mais Brix do que a média estatística. Não é muito, mas evita culpar a sorte ;).
+
+Não deixe de experimentar o modo Jogador vs Jogador: as regras são as mesmas, mas a cada 50 pontos você \"envia\" uma linha de blox ao outro jogador. Vence quem ficar por último.
+
+Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do seu jeito.";
+
+"pvp.mode_choice_hint" = "Como você quer jogar?";
+"pvp.mode_auto_desc" = "Pronto para jogar";
+"pvp.mode_recent_desc" = "Oponente recente";
+"pvp.mode_available_desc" = "Jogadores disponíveis";
+"pvp.available_toggle_label" = "OK para ser desafiado";
+"pvp.recent_title" = "Oponentes recentes";
+"pvp.recent_no_players" = "Nenhum oponente recente.\nJogue sua primeira partida PvP para vê-los aqui.";
+"pvp.recent_challenge" = "Desafiar";
+"pvp.recent_elo_loading" = "Elo…";
+"pvp.recent_elo_unavailable" = "Elo —";
+"pvp.recent_invite_sent_format" = "Convite enviado a %@";
+"pvp.recent_invite_hint" = "Aguardando resposta…";
+"pvp.recent_invite_failed" = "Convite recusado ou expirado.";
+"pvp.invite_challenge_format" = "%@ está te desafiando!";
+"pvp.invite_accept" = "Aceitar";
+"pvp.invite_decline" = "Recusar";
+
+"update.banner_available" = "Versão %@ disponível — Atualizar ↗";
+
+"pvp.leaderboard_invite_not_recent_player" = "O Game Center só permite desafios entre jogadores que jogaram juntos recentemente. Use o matchmaking PvP para encontrar este jogador.";
+
+"menu.tutorial" = "Tutorial";
+"tutorial.skip" = "Pular";
+"tutorial.intro_text" = "Toque em uma coluna para colocar um bloco";
+"tutorial.chain_prompt" = "Faça uma cadeia de 5 blocos da mesma cor";
+"tutorial.chain_hint" = "Tente com os azuis ↓";
+"tutorial.chain_success" = "Ótimo! 5 blocos = limpos!";
+"tutorial.brix_prompt" = "Os Brix são mais difíceis de limpar";
+"tutorial.brix_hint" = "Faça cadeias ao lado para desgastá-los";
+"tutorial.brix_success" = "Ótimo! O Brix está sumindo!";
+"tutorial.bomb_prompt" = "Sua bomba explode blocos e Brix!";
+"tutorial.bomb_hint" = "Toque primeiro no ícone da bomba, depois em uma casa da grade";
+"tutorial.bomb_success" = "Ótimo! Você já sabe tudo — bom jogo!";
+
+"tutorial.magix_intro" = "Ainda há algumas surpresas: você as descobre jogando";
+"tutorial.line_arrival" = "A cada 10 blocos, uma nova linha empurra a grade para cima!";
+
+/* Transition overlays */
+"transition.level_prefix" = "Nível";
+"transition.tutorial.title"        = "TUTORIAL";
+"transition.tutorial.subtitle"     = "1 min para aprender o jogo";
+"transition.tutorial_end.title"    = "TUTORIAL CONCLUÍDO";
+"transition.tutorial_end.subtitle" = "Sua vez";
+
+/* Zen mode intro */
+"zen.overlay.level_prefix" = "Modo";
+"zen.overlay.stage_text" = "Zen";
+"zen.overlay.line1" = "de boa";
+
+/* Stage transition overlay (Arcade / Daily) */
+"stage.overlay.stats_format" = "%llds · ×%lld";
+
+/* Rank discs (start screen) */
+"rank_disc.solo" = "ARC.";
+"rank_disc.avg" = "MÉD.";
+"rank_disc.zen" = "ZEN";
+"rank_disc.duel" = "DUELO";
+
+/* HUD captions */
+"hud.time_caption" = "TEMPO";
+"hud.line_caption" = "LINHA";
+
+/* Game over — move analysis */
+"game_over.optimality_label" = "acerto";
+"game_over.move_stats_format" = "✦ %lld jogadas excelentes  •  %lld erros";
+"game_over.view_worst_move" = "Ver sua pior jogada";
+"game_over.worst_move_title" = "Sua pior jogada";
+"game_over.tap_to_close" = "Toque para fechar";
+"game_over.best_move_legend" = "⭐ : melhor jogada";
+"game_over.worst_move_legend" = "💀 : sua pior jogada";
+"game_over.incoming_line_label" = "linha entrante";
+
+/* PvP — invite error */
+"pvp.invite_error.title"   = "Erro de conexão";
+"pvp.invite_error.message" = "Não foi possível conectar à partida de %@. Tente de novo.";
+
+/* PvP — disconnect overlay */
+"pvp.disconnect.title"   = "Oponente desconectado";
+"pvp.disconnect.message" = "Seu oponente saiu da partida — você venceu!";
+"pvp.disconnect.neutral_message" = "Seu oponente saiu.";
+"pvp.connection_failed.title" = "Conexão perdida";
+"pvp.connection_failed.message" = "Não foi possível iniciar a partida. Voltando ao início…";
+
+/* Generic */
+"pvp.available_title" = "Jogadores disponíveis";
+"pvp.available_empty" = "Nenhum jogador disponível agora.";
+"pvp.available_empty_hint" = "Ative \"OK para ser desafiado\" no lobby para aparecer nesta lista.";
+"pvp.available_you_visible" = "Você está visível para outros jogadores";
+"pvp.available_you_not_visible" = "Você não está visível (ative no lobby)";
+"pvp.player_in_match"           = "Em partida";
+"pvp.bots.section_title"        = "Bots";
+"pvp.bots.badge"                = "BOT";
+"pvp.bots.play"                 = "Jogar";
+"pvp.bots.think_seconds_format" = "%d s";
+"pvp.bots.think_always_random_format" = "%d s · aleatório";
+"pvp.bots.think_always_worst_format"  = "%d s · pior";
+"pvp.bots.think_fraction_worst_format" = "%d s · %d/%d pior";
+"pvp.available_error_format" = "Não foi possível carregar os jogadores: %@";
+"pvp.cloud_busy_retry_format" = "A nuvem está ocupada. Tente de novo em %d s.";
+
+"pvp.gc_not_connected" = "⚠️ Game Center desconectado";
+"pvp.gc_connected_format" = "✓ %@";
+"pvp.availability_sending" = "⏳ Enviando…";
+"pvp.availability_cloudkit_error_format" = "Erro CloudKit: %@";
+
+"generic.ok" = "OK";
+"whatsnew.title" = "Novidades desta versão";
+"whatsnew.twistx" = "O TWISTX agora usa este símbolo";
+"whatsnew.slashx" = "Um novo Magix chegou: SLASHX";
+"whatsnew.chrome" = "Botões e menus: um poço nas cores da sua pele";
+"whatsnew.magix_round" = "Os Magix são redondos, como as bombas";
+"whatsnew.home" = "Início: o BLOMIX atravessa a mesa, título no centro";
+"whatsnew.saintx" = "O SAINTX vira um Brix que conta até o total";
+"whatsnew.layout" = "Início: ícones no topo, BLOMIX no centro";
+"whatsnew.cutout_titles" = "Ajustes, Guia e Créditos: o mesmo poço do BLOMIX";
+"whatsnew.empty_grid" = "Arcade: o bônus +500 de grade vazia é multiplicado pelo stage";
+"whatsnew.alea" = "A paleta Alea ficou mais viva; os dígitos dos Brix continuam legíveis";
+"whatsnew.punch" = "Início: o BLOMIX pousa com brilhos em cada letra";
+"whatsnew.daily" = "Novo modo: todos os dias, a mesma partida Arcade para todo mundo!";
+"whatsnew.duel_presence" = "Início: um bonequinho verde no Duelo quando há jogadores em Disponíveis";
+"whatsnew.dont_show" = "Não mostrar de novo";
+
+/* Appearance */
+"appearance.toggle_a11y" = "Alternar aparência clara e escura";
+"appearance.dark" = "Escuro";
+"appearance.light" = "Claro";
+
+/* Share */
+"share.button" = "Compartilhar";
+"share.a11y" = "Compartilhar BLOMIX";
+"share.card.record_badge" = "Novo recorde";
+"share.home.score_format" = "Vem pro BLOMIX e tenta bater meus %@ pontos!";
+"share.home.score_zen_format" = "Vem pro BLOMIX e tenta bater meu recorde Zen de %@!";
+"share.home.noscore" = "Vem pro BLOMIX — um puzzle de cadeias. Topa?";
+"share.gameover.score_format" = "Acabei de fazer %@ no BLOMIX. Acha que consegue mais?";
+"share.gameover.score_zen_format" = "Acabei de fazer %@ no modo Zen do BLOMIX. Acha que consegue mais?";
+"share.gameover.record_format" = "Novo recorde pessoal no BLOMIX: %@! Consegue superar?";
+"share.gameover.record_zen_format" = "Novo recorde Zen no BLOMIX: %@! Consegue superar?";
+
+/* PvP robustness */
+"pvp.mode_quick_desc" = "Partida rápida";
+"pvp.protocol_mismatch.message" = "Versões incompatíveis. Atualize o BLOMIX nos dois aparelhos.";
+"pvp.reconnecting.message" = "Reconectando…";
+"pvp.available_invite_app_open_hint" = "Convite só no app — o oponente precisa ter o BLOMIX aberto.";
+
+/* PvP — quick match Local / Online */
+"pvp.quick_match.title" = "Partida rápida";
+"pvp.quick_match.local_title" = "Local";
+"pvp.quick_match.local_subtitle" = "Bluetooth ou Wi-Fi local — sem Internet";
+"pvp.quick_match.online_title" = "Online";
+"pvp.quick_match.online_subtitle" = "Matchmaking pelo Game Center";
+"pvp.local.searching" = "Procurando um jogador por perto…";
+"pvp.local.connecting" = "Conectando…";
+"pvp.local.timeout" = "Nenhum jogador por perto. Confira se os dois escolheram Local.";
+"pvp.local.connection_failed" = "Falha na conexão local.";
+"pvp.local.identity_failed" = "Não foi possível trocar as infos dos jogadores.";
+"pvp.local.gc_required_title" = "Game Center obrigatório";
+"pvp.local.gc_required_message" = "Entre no Game Center uma vez com rede. Depois você joga Local mesmo offline.";
+"pvp.local.pick_peer_title" = "Jogadores por perto";
+"pvp.local.pick_peer_message" = "Escolha com quem jogar.";
+
+/* Credits screen (cards) */
+"credits.tagline" = "Quem tornou o jogo possível.";
+"credits.version_format" = "Versão %@ (%@)";
+"credits.review_hint" = "Uma avaliação na App Store ajuda o BLOMIX a ser descoberto.";
+"credits.review_button" = "Deixar uma avaliação";
+"credits.section.studio.title" = "Estúdio";
+"credits.section.studio.body" = "BLOMIX © Terrasse studio\nDesign / Lomig";
+"credits.section.code.title" = "Código";
+"credits.section.code.body" = "Grok.com & Cursor.com\nValeu, Max, pela ajuda!";
+"credits.section.fonts.title" = "Fontes";
+"credits.section.fonts.body" = "Google Fonts\nEduardo Tunni — Changa One\nVernon Adams, Cyreal, Jacques Le Bailly — Nunito";
+"credits.section.sounds.title" = "Sons";
+"credits.section.sounds.body" = "Freesound.org, vocalremover.org/pitch, pitchchanger.io\nAgradecimentos: HelloIJustWantSomeSounds, Cat-Fox_alex, NoiseCollector, rhodesmas, Anomaex, HenryRichard, Moutain_Man, Rvgerxini, Squirrel_404, collwyn, ConManVD, cherrysylv, Navadaux";
+"credits.section.music.title" = "Música";
+"credits.section.music.body" = "\"Puzzle Game 2\" by Eric Matyas — Soundimage.org";
+"credits.section.palette.title" = "Paleta de cores";
+"credits.section.palette.body" = "Coolors.com — inicialmente Tropical Sunset Vibes, um pouco aprimorada";
+"credits.section.beta.title" = "Beta";
+"credits.section.beta.body" = "Obrigado a Gontman, flyingbearcub, stephies, paul_cglt, Napoleon1212, PilotePépère106, Lapluben, Floridezic";
+
+"pvp.series_end_series_caption" = "Série";
+"pvp.series_end_total_caption" = "Total geral";
+
+"start.continue" = "Continuar";
+"start.discover" = "Descobrir";
+"start.new_game" = "Nova partida";
+"start.new_game_confirm_title" = "Nova partida?";
+"start.new_game_confirm_message" = "A partida atual será descartada.";
+"start.abandon_save_title" = "Partida salva";
+"start.abandon_save_message" = "Você vai perder a partida salva. Continuar mesmo assim?";
+"start.abandon_save_confirm" = "Continuar";
+"start.hero_mode_arcade" = "Arcade";
+"start.hero_mode_zen" = "Zen";
+"home.icon.settings" = "Ajustes";
+"home.icon.tutorial" = "Tutorial";
+"home.icon.theme" = "Tema";
+"home.icon.share" = "Compartilhar";
+"home.icon.credits" = "Créditos";
+"hud.attack_caption" = "ataque";
+"hud.time_aiming_caption" = "mira";
+"game_over.optimality_excludes" = "Não inclui Magix nem bombas";
+"pvp.challenge_keep_app_open" = "Deixe o app aberto · 60 s";
+"guide.title" = "Guia";
+"guide.replay_tutorial" = "Rever o tutorial";
+"guide.section.blox.title" = "Blox e cadeias";
+"guide.section.blox.body" = "Grade 8×8, gravidade para cima.\nUma cadeia: 5 ou mais blox da mesma cor em contato, inclusive na diagonal.";
+"guide.section.brix.title" = "Brix";
+"guide.section.brix.body" = "Blocos numerados. Uma cadeia adjacente tira 1 (uma vez por onda).\nEm 0 eles somem: +20 pts.";
+"guide.section.line.title" = "Linha entrante";
+"guide.section.line.body" = "A cada 10 blox / Brix colocados, uma fileira aleatória sobe de baixo.\nUsar uma bomba não é um lance: o contador LINHA não avança.";
+"guide.section.bombs.title" = "Bombas";
+"guide.section.bombs.body" = "Estoque: 5 no Arcade/Zen, 3 no Duelo.\nZen, Duelo e tutorial: explosão 3×3.\nArcade: 3×3 no Stage 1, depois uma cruz que alonga a cada Stage.";
+"guide.section.magix.title" = "Magix";
+"guide.section.magix.intro" = "Blocos especiais com efeitos fortes, bem raros, e só aparecem no Arcade ou no Zen na fila de blox / Brix a lançar.";
+"guide.section.magix.body" = "CHROMAX (?) — caminho colorido aleatório no impacto, mais ou menos longo.\nBRIXED (9) — vira Brix(9); todos os outros Brix são destruídos (+20).\nCROSSX (+) — linha + coluna pintadas de uma cor, depois cadeias.\nSLASHX (X) — diagonais pintadas de uma cor, depois cadeias.\nSCRUMBLX (=) — cada linha desliza um número aleatório de casas; −1 em todos os Brix.\nCOLORX (O) — limpa todos os blox de uma cor aleatória.\nSAINTX (∞) — esvazia a grade, deixa um Brix; +200 × stage.\nTWISTX (§) — troca uma cor de blox pelo Brix mais baixo.\nBOMBX (B) — mancha de cor aleatória, depois adiciona uma bomba ao estoque.";
+"guide.section.score.title" = "Pontuação";
+"guide.section.score.body" = "Cadeias: 5 pontos para uma cadeia de 5 blox, até 20 para uma bem longa. +10 para uma cadeia em cascata.\nColuna esvaziada: +10. Grade totalmente vazia: +500 (Arcade/Zen, sem multiplicador de stage).";
+"guide.section.duel.title" = "Duelo";
+"guide.section.duel.body" = "O número grande e a barra são o medidor de ataque (0…50): a cada 50 pontos, uma linha vai para o outro jogador.\nColocar uma bomba congela o timer do seu turno.";
+
+/* Daily Challenge */
+"start.daily" = "Desafio do dia";
+"start.daily_ranking" = "Ranking do desafio";
+"start.hero_mode_daily" = "Continuar";
+"rank_disc.daily" = "DIA";
+"leaderboard.daily_tab" = "Dia";
+"daily.hub_title" = "Desafio do dia";
+"daily.cta_play" = "Desafio!";
+"daily.cta_continue" = "Continuar";
+"daily.cta_tomorrow" = "Volte amanhã";
+"daily.hub_empty" = "Ainda não há pontuações hoje.";
+"daily.hub_error" = "O ranking de hoje está indisponível.";
+"daily.game_over_rank_format" = "Posição #%lld";
+"daily.game_over_rank_first" = "1º por enquanto";
+"daily.game_over_rank_unavailable" = "Posição indisponível";
+"daily.career_points_format" = "%lld pts";
+"daily.hub_yesterday_podium_format" = "Pódio de ontem: %@";
+"daily.hub_yesterday_open" = "O ranking de ontem ainda está aberto — alguns jogadores não terminaram.";
+"daily.deadline_format" = "Classificado se terminar até %@";
+"daily.deadline_short_format" = "Até %@";
+"daily.deadline_complete_by_format" = "Desafio a completar antes de %@";
+"daily.ghost_title" = "Referência BLOMIX";
+"daily.ghost_computing" = "Calculando a referência…";
+"daily.ghost_a11y_format" = "Referência BLOMIX, %lld pontos";
+"daily.ghost_a11y_computing" = "Calculando a referência BLOMIX";

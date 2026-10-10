@@ -1,10 +1,10 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **8.1 / 147** en vente ; **8.2 / 153** soumission.  
+> **Statut** : **8.3 / 154** en vente ; **8.4 / 155** local.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 8.3  
-> **2026-09-21**  
+> **Version de référence** : 8.4  
+> **2026-10-10**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
 Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes des 10). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **victoires** cumulées.
@@ -22,19 +22,19 @@ Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lign
 
 ### Hub unique (un seul écran « jour »)
 
-Tap chip accueil → **toujours** le hub (liste CloudKit du jour + un CTA) :
+Tap chip accueil → **toujours** le hub (date du jour **Changa One centrée**, Référence BLOMIX, **Défi à compléter avant hh:mm** en heure locale — toujours visible — puis liste CloudKit + un CTA) :
 
 | État | Libellé du chip accueil | CTA du hub |
 |---|---|---|
 | Pas encore joué | **Défi du jour** | **Défi !** (lance) |
-| Run en cours (save) | **Défi du jour** (ou Continuer défi) | **Continuer** |
-| GO déjà fait aujourd’hui | **Classement du défi** | **Revenez demain** (grisé, non lancable) |
+| Run en cours (save, y compris jour X pendant la grâce) | **Défi du jour** + caption **Avant le …** (clôture **locale**) | **Continuer** |
+| GO déjà fait aujourd’hui (UTC) | **Classement du défi** | **Revenez demain** (grisé, non lancable) |
 
 Tap CTA grisé : rien (déjà sur le classement). Tap chip grisé/renommé : **même hub**.
 
 Dans la liste : noms 1 / 2 / 3 en **Changa One** (1er plus grand) ; à droite, **+5 / +3 / +1** en gouttière (`BlomixCutoutTitleView`) pour les places du jour (égalités = mêmes points, places sautées). Calcul **client**, pas un champ CloudKit. CTA **Revenez demain** : grisé, non cliquable.
 
-Sous la liste, au-dessus du CTA : petite boîte **Podium d’hier** (`DailyScore` du jour UTC précédent). Jusqu’à 3 noms, ordre du classement, ceux qui ont gagné +5/+3/+1. Si personne n’a joué la veille (ou CloudKit KO) : la boîte est masquée. Le fetch de la veille **n’écrase pas** le cache HUD du jour.
+Sous la liste, au-dessus du CTA : petite boîte **Podium d’hier** (`DailyScore` du jour UTC précédent). Jusqu’à 3 noms, ordre du classement, ceux qui ont gagné +5/+3/+1 — **seulement une fois le jour clos** (minuit UTC + 2 h). Pendant la grâce : texte seul **« Classement d’hier encore ouvert »** (pas de noms, pas de +5). Si personne n’a joué la veille (ou CloudKit KO) : la boîte est masquée. Un fetch de la veille ne masque pas le cache HUD du jour affiché (cache **par jour**).
 
 **En partie** : au-dessus du gros score, **À BATTRE** + le meilleur score CloudKit du jour (pas le record Arcade). Liste du jour lue **avant** la grille (accueil / hub), snapshot figé — pas de CloudKit pendant la run. Si le score dépasse le leader, le chiffre **suit la run en jaune** (`#ffb200`) jusqu’à la fin. Jauge 0→N°1 : gouttière peau 0→curseur (3 pt) ; ticks 1×4 encore devant ; déjà dépassés masqués ; prochain en rose ; pas de vert si aucun score perso du jour ; jaune = leader du jour. Rang live au-dessus du curseur ; le chiffre gonfle et défile au passage d’un rang, plus paillettes.
 
@@ -94,23 +94,30 @@ Skin Alea / thème chrome : **visuel**, pas dans la graine.
 | SAINTX +200 | Oui, **× le stage** | Comme Arcade |
 | Auto-drop | Hasard **OK** (comme Arcade) | Colonne différente sans importance |
 | Retry | **1 seule partie** / jour UTC | Bouton grisé « revenez demain » après GO |
-| Fuseau | **UTC** | Un seul jour mondial |
+| Fuseau | **UTC** | Un seul jour mondial ; clôture = minuit UTC + **2 h** |
 | Continuer Arcade / Zen / Défi | Trois slots ; pas d’abandon croisé | Duel accueil = lobby, sans clear |
 
 ---
 
 ## 4. Graine calendaire
 
-- Clé jour : `YYYY-MM-DD` en **UTC** (tranché).
+- Clé jour : `YYYY-MM-DD` en **UTC** (tranché). Pas de seed par fuseau : Tokyo, Paris et Los Angeles jouent la **même** partie ce jour UTC-là.
 - `seed = hash("blomix-daily-v1" + date)` → `UInt64` (algorithme **documenté**, reproductible).
-- La partie **verrouille** la date/seed au **lancement**. Un run commencé à 23:59 UTC se termine sur **cette** graine même après minuit.
+- La partie **verrouille** la date/seed au **lancement**.
+- **Clôture** : `00:00 UTC du lendemain + 2 h` (instant mondial unique). L’heure **affichée** est cet instant en fuseau **local** (date + heure, jamais « 02:00 UTC »).
+- **Pendant la grâce** (00:00–02:00 UTC) :
+  - save X encore valable → hub / jauge / fantôme = **X**, CTA Continuer, pas de run Y ;
+  - pas de save X → hub **Y** (Défi ! / Revenez demain) ; boîte d’hier = « encore ouvert » ;
+  - liste CloudKit de X peut encore bouger ; **aucun** +5/+3/+1 ni submit `dailywins_arc` pour X.
+- **Après la clôture** : save X hors grille → **effacée**, pas d’upsert. Grille **encore ouverte** (jamais revenu à l’accueil) → le GO est **classé** sur X (décision au `triggerGameOver`). Puis hub Y.
+- Reprendre **le lendemain matin** (France) = trop tard : voulu, d’où la deadline sur le chip.
 - Version de format `v1` dans le hash : si on change le tirage Magix plus tard, les vieux scores ne se mélangent pas.
 
 ---
 
 ## 5. Points podium et les deux classements
 
-**Tranché.** Podium **UTC, à la clôture du jour** (pas au Game Over) :
+**Tranché.** Podium **UTC, à la clôture du jour** (minuit UTC + 2 h, pas au Game Over, pas à 00:00 UTC pile) :
 
 | Place du jour (score) | Points GC |
 |---|---|
@@ -133,7 +140,7 @@ Le rang affiché **au GO** est le rang **live** (parmi ceux qui ont déjà fini)
 
 Ouvrir l’app (toi ou un autre) **ne rajoute pas** de points sur l’onglet in-app : chacun recalcule la même somme. Le 2e qui ouvre soumet **son** +3 à Game Center, ça ne touche pas tes +5.
 
-Au lendemain (accueil / foreground / auth GC), le client parcourt les **14** derniers jours clos : s’il est 1/2/3 et n’a pas encore crédité ce `day`, il ajoute 5/3/1 **chez lui** puis `submitScore` du total GC.
+Après clôture (accueil / foreground / auth GC), le client parcourt les **14** derniers jours **clos** (horloge reculée de 2 h) : s’il est 1/2/3 et n’a pas encore crédité ce `day`, il ajoute 5/3/1 **chez lui** puis `submitScore` du total GC. Pas de serveur : un client 8.3 peut encore écrire un `DailyScore` après freeze (best-effort, comme le reste de CK).
 
 | | Classement **du jour** (GO + bouton) | Classement **points défi** (GC, disque accueil) |
 |---|---|---|
@@ -178,7 +185,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 | `ScoreManager` / `LeaderboardViewController` | Score de la run → **aussi** Arcade (highscore `BlomixMainScore_v3` + moyenne). Onglet `dailywins_arc` = **uniquement** les points podium |
 | CloudKit | Nouveau record type + index `day` ; Dashboard prod **et** dev |
 | ASC | Créer le leaderboard victoires ; **pas** une version magasin tant qu’on reste en TF |
-| l10n | Bouton, GO, vide, erreur CK, nom d’onglet — **5 langues** |
+| l10n | Bouton, GO, vide, erreur CK, nom d’onglet — **6 langues** |
 | Juice | Réutiliser tel quel |
 | PvP / pastille Duel | Défi en cours : capture slot défi + reprise post-match (pas l’Arcade) |
 
@@ -190,7 +197,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 
 1. **Points** : 1er +5, 2e +3, 3e +1, le reste 0 ; égalité = mêmes points ; cumul GC. Crédit **après clôture UTC** (§5).  
 2. **Retry** : une seule partie. Hub CTA **Revenez demain** après GO.  
-3. **Fuseau** : UTC.  
+3. **Fuseau** : UTC, clôture = minuit UTC + 2 h ; deadline affichée en heure locale.  
 4. **Layout accueil** : Arcade sous BLOMIX, chip Défi en dessous, style hero Arcade. 5ᵉ disque **défi** (carrière GC).  
 5. **Chemin** : chip → **hub** (liste du jour + CTA Défi ! / Continuer / Revenez demain). Après GO, chip = **Classement du défi** → même hub. Disque ≠ hub.
 
@@ -210,7 +217,7 @@ Eval (`BlomixMoveAnalyzer`) : ignore déjà les Magix. Recap GO **off** en Défi
 | Risque | Mitigation |
 |---|---|
 | Un `Double.random` oublié (file, lignes, CHROMAX, remplacement Magix→couleur) | Inventaire unique : **file + effets Magix** seedés ; auto-drop hors de ça |
-| Minuit / voyageur | Seed figée au start |
+| Minuit / voyageur | Seed figée au start ; grâce 2 h ; save hors grille expirée à la clôture |
 | Triche (rejouer, outil) | 7.1 : best-effort comme le reste ; pas d’anti-cheat serveur |
 | GC « victoires » soumis dans le désordre | Toujours envoyer le **max** connu localement |
 | Liste du jour vide au GO | Afficher le score + « 1er pour l’instant » / « rang indisponible » |

@@ -16,5 +16,6 @@ Source de vérité du champ **Texte promotionnel** (Promotional Text) d’App St
 | `de-DE.txt` | German |
 | `es-ES.txt` | Spanish (Spain) |
 | `it-IT.txt` | Italian |
+| `pt-BR.txt` | Portuguese (Brazil) |
 
 Les `.txt` sont le texte **exact** collé dans ASC (une ligne ou deux, sans titre de fichier).

@@ -1,8 +1,8 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 8.3  
+> **Version de référence** : 8.4  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
-> **Langues** : Français, Anglais, Allemand, Espagnol, Italien
+> **Langues** : Français, Anglais, Allemand, Espagnol, Italien, Portugais (Brésil)
 
 ---
 
@@ -240,7 +240,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 ### Défi du jour
 
-`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot **`blomix_daily_save_v1`**. Les trois slots **coexistent** (Arcade `blomix_solo_save_v2`, Zen `blomix_zen_save_v1`, Défi). Hero = Arcade seulement ; chip Zen = Zen seulement ; chip Défi = hub. **Pas** d’abandon croisé, **pas** de « Nouvelle partie » ni dialog d’accueil. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController` (liste du jour + boîte podium d’hier au-dessus du CTA). Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` (classement du jour). Points carrière podium : Game Center `dailywins_arc`. Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot **`blomix_daily_save_v1`**. Les trois slots **coexistent** (Arcade `blomix_solo_save_v2`, Zen `blomix_zen_save_v1`, Défi). Hero = Arcade seulement ; chip Zen = Zen seulement ; chip Défi = hub. **Pas** d’abandon croisé, **pas** de « Nouvelle partie » ni dialog d’accueil. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController` (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui ; boîte podium d’hier au-dessus du CTA). Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` du jour **verrouillé** si `now < clôture` ou si la grille était encore ouverte. Points carrière podium : Game Center `dailywins_arc`, crédités **après** clôture (minuit UTC + 2 h). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
@@ -360,7 +360,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - Titres Réglages / Guide / Crédits / Score / Multijoueur / Joueurs disponibles : `BlomixCutoutTitleView` (même trou dégradé que BLOMIX). Duel Accueil → liste directe (Local + toggle en pied).
 - Modal crédits : fond scène + blox ambiants + **Fermer** ; header BLOMIX + tagline + version marketing/build
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
-- Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT) ; `credits.txt` legacy non branché UI
+- Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT/PT) ; `credits.txt` legacy non branché UI
 - Crédits : bouton chrome **Laisser un avis** → `?action=write-review` (pas de pop-up custom, guideline 5.6.1)
 - GO Arcade/Zen : après ≥ 3 parties terminées, 1× par `MARKETING_VERSION`, `AppStore.requestReview` (pause 2,5 s, pas pendant overlay record) ; hors tuto / Duel
 - **Conseil du jour** : ancré à 10 % de la hauteur. Si l’iTunes Lookup signale une MAJ, une bannière (lien App Store) **prend ce slot et masque les conseils** ; ✕ rétablit les conseils pour la session.
@@ -376,7 +376,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | PvP | Hors scope v1 |
 
 - Score accueil : best Solo, sinon Zen, sinon message sans score ; mention « Zen » seulement si Zen
-- Messages localisés FR/EN/DE/ES/IT (`share.*`)
+- Messages localisés FR/EN/DE/ES/IT/PT (`share.*`)
 - Icône : dessin vectoriel custom (`BlomixAppearance.shareButtonTexture`), pas le glyphe système `square.and.arrow.up`
 
 ### Police (`BlomixTypography`)
@@ -428,6 +428,7 @@ SpriteKit : **un** `SKShader` puits (et un Magix), décalage de phase via `SKAtt
 | Allemand | `de.lproj/` |
 | Espagnol | `es.lproj/` |
 | Italien | `it.lproj/` |
+| Portugais (Brésil) | `pt.lproj/` |
 
 | Fichier | Contenu |
 |---|---|

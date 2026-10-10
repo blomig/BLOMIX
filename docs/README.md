@@ -1,8 +1,8 @@
 # Blomix — Documentation
 
-> **Version de référence** : 8.3  
+> **Version de référence** : 8.4  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
-> **Langues** : Français, Anglais, Allemand, Espagnol, Italien
+> **Langues** : Français, Anglais, Allemand, Espagnol, Italien, Portugais (Brésil)
 
 ---
 
@@ -30,7 +30,7 @@
 | [PVP_MATCHING.md](PVP_MATCHING.md) | Appariement PvP : défis CloudKit, invites GameKit, échecs silencieux |
 | [BOT_DUEL.md](BOT_DUEL.md) | Duel vs bots — isolation, Elo in-app, 0 filaire |
 | [EVAL.md](EVAL.md) | Fonction d'évaluation des coups (`BlomixMoveAnalyzer`) — récap / pire coup |
-| [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN/DE/ES/IT (`BlomixL10n`) |
+| [LOCALIZATION.md](LOCALIZATION.md) | Guide de localisation FR/EN/DE/ES/IT/PT (`BlomixL10n`) |
 
 ### Projet et maintenance
 

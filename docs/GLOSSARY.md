@@ -84,7 +84,7 @@
 |---|---|---|
 | **Arcade** (solo stagé) | Mode par défaut | Timer par coup, 6 stages, lignes entrantes, bombes |
 | **Zen** | `isZenMode` | Pas de timer, pas de stages, classement dédié |
-| **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, hub CloudKit + points podium GC `dailywins_arc` |
+| **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, clôture minuit UTC + 2 h, hub CloudKit + points podium GC `dailywins_arc` |
 | **Référence BLOMIX** | `BlomixDailyGhost` | Score Arcade d’une run fantôme (lookahead 3 `computeOptimal`, Magix visés, bombes souples / Brix, sans timer). Ligne grise sous la date du hub : **Référence BLOMIX** + score — **pas** un joueur CloudKit, **pas** un optimum. |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
 | **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** | spec `BOT_DUEL.md` | Adversaires Duel locaux. Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |

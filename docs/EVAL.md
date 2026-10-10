@@ -259,7 +259,7 @@ Le hub affiche **Référence BLOMIX** : le **score Arcade** d’une partie joué
 | Magix | **Hors** lookahead. Effets réels via `DailyEffectRNG`. **CHROMAX** : colonne jouable la plus remplie (Blox+Brix), puis gauche. Autres : scan des 8 atterrissages, max Δ score Arcade puis Brix enlevés puis `maxH` min |
 | Bombes | Stock 5 + BOMBX. **Souple** avant un Blox/Brix si le meilleur drop n’abaisse pas `maxH` et n’efface pas une vraie chaîne (`maxH ≥ 7`). Cible : rayon qui touche une colonne max, **max de Brix** puis cases dans ces colonnes (3×3 + croix = `stageIndex`). Magix posé dès qu’il est P0 (pas de bombe à sa place). Si plus aucune case d’atterrissage : bombe jusqu’à pouvoir poser ou stock 0 |
 | Timer | Ignoré (le fantôme ne meurt pas au chrono) |
-| Affichage | Hub seulement, sous la date, `tertiaryText` : **Référence BLOMIX** + score. Pas dans CloudKit, pas un faux joueur |
+| Affichage | Hub seulement, sous la date Changa, `tertiaryText` : **Référence BLOMIX** + score. Pas dans CloudKit, pas un faux joueur |
 | CPU | File `blomix.dailyGhost` QoS `.utility`. Pause coopérative (entre deux coups) dès `blomixDidBeginGameplayMatch`. Reprise accueil / hub, même jour, état RAM. Cache `UserDefaults` (`jour` + `engineVersion` 5) |
 | Attente | Ligne « Calcul de la référence… » + petit spinner inline après 150 ms. CTA jamais bloqué. Pas de % |
 

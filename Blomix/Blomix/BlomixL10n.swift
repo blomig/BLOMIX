@@ -2,7 +2,7 @@
 //  BlomixL10n.swift
 //  Blomix
 //
-//  Chaînes UI : tables `en.lproj` / `fr.lproj` → Localizable.strings.
+//  Chaînes UI : tables `en` / `fr` / `de` / `es` / `it` / `pt` → Localizable.strings.
 //
 
 import Foundation
@@ -543,6 +543,18 @@ enum BlomixL10n {
     }
     static func dailyHubYesterdayPodium(_ names: String) -> String {
         String(format: tr("daily.hub_yesterday_podium_format", comment: "Hub box above CTA; %@ = yesterday's top 3 names"), names)
+    }
+    static var dailyHubYesterdayOpen: String {
+        tr("daily.hub_yesterday_open", comment: "Hub box during the 2h grace after UTC midnight")
+    }
+    static func dailyDeadline(_ stamp: String) -> String {
+        String(format: tr("daily.deadline_format", comment: "Hub line; %@ = local date+time of ranking close"), stamp)
+    }
+    static func dailyDeadlineShort(_ stamp: String) -> String {
+        String(format: tr("daily.deadline_short_format", comment: "Home chip caption when a daily run is in progress; %@ = local date+time"), stamp)
+    }
+    static func dailyDeadlineCompleteBy(_ time: String) -> String {
+        String(format: tr("daily.deadline_complete_by_format", comment: "Hub under BLOMIX reference; %@ = local hh:mm of ranking close"), time)
     }
     static var dailyGhostTitle: String {
         tr("daily.ghost_title", comment: "Hub line under the date — BLOMIX reference score")

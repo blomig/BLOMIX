@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Valide store/whats-new + promotional-text + name + subtitle (5 locales ASC)
+# Valide store/whats-new + promotional-text + name + subtitle (6 locales ASC)
 # et les entitlements Debug/Release (aps-environment).
 #
 # Usage :
@@ -14,7 +14,7 @@
 require "pathname"
 
 ROOT = Pathname.new(__dir__).parent.expand_path
-LOCALES = %w[en-US fr-FR de-DE es-ES it-IT].freeze
+LOCALES = %w[en-US fr-FR de-DE es-ES it-IT pt-BR].freeze
 WHATS_NEW_MAX = 4000
 PROMO_MAX = 170
 NAME_MAX = 30
@@ -116,6 +116,27 @@ unless skip_store
         bullets[locale] = n
         warnings << "store/whats-new/#{locale}.txt : aucune puce • (vérifier le format joueur)" if n.zero?
       end
+    end
+
+    # Description / mots-clés : optionnels (nouvelle locale seulement).
+    {
+      "description" => 4000,
+      "keywords" => 100,
+    }.each do |kind, limit|
+      path = ROOT.join("store", kind, "#{locale}.txt")
+      next unless path.file?
+
+      text, read_errors = read_utf8(path)
+      errors.concat(read_errors)
+      next unless text.valid_encoding?
+
+      stripped = text.gsub("\r\n", "\n").strip
+      if stripped.empty?
+        errors << "store/#{kind}/#{locale}.txt est vide"
+        next
+      end
+      len = grapheme_len(stripped)
+      errors << "store/#{kind}/#{locale}.txt : #{len} car. > limite Apple #{limit}" if len > limit
     end
   end
 

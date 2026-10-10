@@ -452,6 +452,10 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "daily.game_over_rank_unavailable" = "Rang indisponible";
 "daily.career_points_format" = "%lld pts";
 "daily.hub_yesterday_podium_format" = "Podium d’hier : %@";
+"daily.hub_yesterday_open" = "Classement d’hier encore ouvert — certains n’ont pas fini.";
+"daily.deadline_format" = "À classer avant le %@";
+"daily.deadline_short_format" = "Avant le %@";
+"daily.deadline_complete_by_format" = "Défi à compléter avant %@";
 "daily.ghost_title" = "Référence BLOMIX";
 "daily.ghost_computing" = "Calcul de la référence…";
 "daily.ghost_a11y_format" = "Référence BLOMIX, %lld points";

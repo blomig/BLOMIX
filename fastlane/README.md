@@ -4,7 +4,7 @@ Pipeline local vers App Store Connect. Procédure complète : [`DOCS/DEVELOPMENT
 
 | Lane | Effet |
 |---|---|
-| `validate` | `store/` (5 langues) + entitlements Release = production |
+| `validate` | `store/` (6 langues) + entitlements Release = production |
 | `metadata` | PATCH Nouveautés + texte promo **uniquement** |
 | `beta` | Archive Release → TestFlight |
 | `release` | Archive + binaire + textes — **pas** de review |

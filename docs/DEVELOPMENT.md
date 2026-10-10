@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 8.3  
+> **Version de référence** : 8.4  
 > **Dernière mise à jour** : octobre 2026
 
 ---
@@ -31,14 +31,14 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 8.3 (iPhone) ; Watch **8.0** |
-| `CURRENT_PROJECT_VERSION` | 154 (iPhone) ; Watch **146** |
+| `MARKETING_VERSION` | 8.4 (iPhone) ; Watch **8.0** |
+| `CURRENT_PROJECT_VERSION` | 155 (iPhone) ; Watch **146** |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.2 / 153** en vente. **8.3 / 154** soumission iPhone. Watch reste **8.0 / 146** (ne pas bumper avec l’iPhone).
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.3 / 154** en vente. **8.4 / 155** local iPhone. Watch reste **8.0 / 146** (ne pas bumper avec l’iPhone).
 
 ---
 
@@ -63,6 +63,27 @@ Fichier : `Blomix/Blomix/Blomix.entitlements`
 
 - Authentification Game Center au lancement (`GameCenterManager.swift`, `ScoreManager.swift`).
 - Simulateur : se connecter via Réglages → Game Center.
+
+### Tester la clôture du Défi (grâce 2 h)
+
+En **Debug** seulement, décaler l’horloge du Défi sans toucher à l’heure iOS :
+
+```
+blomix_debug_daily_now_offset  // UserDefaults, TimeInterval en secondes ajoutées à Date()
+```
+
+Exemples (lldb, app en pause, puis continuer et passer l’app en arrière-plan / premier plan) :
+
+```
+expr UserDefaults.standard.set(TimeInterval(3 * 3600), forKey: "blomix_debug_daily_now_offset")
+```
+
+- Offset qui tombe **0–2 h après minuit UTC** → grâce (save X encore là, hub Y « encore ouvert »).
+- Offset **≥ 2 h après minuit UTC** → save hors grille expirée, podium créditable.
+- Remettre à 0 : `expr UserDefaults.standard.removeObject(forKey: "blomix_debug_daily_now_offset")`.
+- Console : `[Daily] utcToday=… hierClos=…`.
+
+Ne pas committer un offset non nul. Release ignore la clé.
 
 ---
 
@@ -157,7 +178,7 @@ Lors d'une évolution majeure du gameplay, mettre à jour **en priorité** :
 4. `EVAL.md` si la fonction d'évaluation change
 5. `GLOSSARY.md` si un terme est ajouté ou renommé
 6. `CHANGELOG.md` à chaque release
-7. `store/whats-new/` (5 langues) à chaque **version marketing**
+7. `store/whats-new/` (6 langues) à chaque **version marketing**
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nommage.
 
@@ -165,9 +186,9 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nom
 
 ## Déploiement App Store Connect
 
-Les champs **Nouveautés**, **Texte promotionnel**, **Nom de fiche** et **Sous-titre** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/`, `store/promotional-text/`, `store/name/`, `store/subtitle/` (5 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures). Nom/sous-titre : poussés avec `release` / `metadata`. Captures : upload manuel (`store/asc-assets/README.md`).
+Les champs **Nouveautés**, **Texte promotionnel**, **Nom de fiche** et **Sous-titre** ne sont **pas** dans l’IPA. Source de vérité : `store/whats-new/`, `store/promotional-text/`, `store/name/`, `store/subtitle/` (6 locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`, `pt-BR`). Fastlane les pousse via l’API ; **ne pas** lancer `fastlane deliver init` (ça duplique toute la fiche et peut écraser description / captures). Nom/sous-titre : poussés avec `release` / `metadata`. Captures : upload manuel (`store/asc-assets/README.md`).
 
-Rédaction : [LOCALIZATION.md](LOCALIZATION.md), `store/README.md`. À chaque `MARKETING_VERSION`, écrire les 5 Nouveautés dans le même lot que le CHANGELOG. Le texte promo est **figé** (≤ 170 car.) — on le re-pousse parce qu’Apple le vide souvent à la création de version.
+Rédaction : [LOCALIZATION.md](LOCALIZATION.md), `store/README.md`. À chaque `MARKETING_VERSION`, écrire les 6 Nouveautés dans le même lot que le CHANGELOG. Le texte promo est **figé** (≤ 170 car.) — on le re-pousse parce qu’Apple le vide souvent à la création de version.
 
 ### Prérequis (une fois)
 
@@ -200,7 +221,7 @@ Depuis la racine du dépôt :
 
 ```bash
 bundle exec fastlane validate    # store/ + entitlements (aucun réseau ASC)
-bundle exec fastlane metadata    # Nouveautés + promo, 5 langues
+bundle exec fastlane metadata    # Nouveautés + promo, 6 langues
 bundle exec fastlane beta        # archive Release → TestFlight
 bundle exec fastlane release     # archive + binaire + textes — PAS de review
 bundle exec fastlane submit      # envoi à la review (irréversible)
@@ -227,7 +248,7 @@ Fastlane nomme l’italien `it` (pas `it-IT`) dans le dossier généré ; les fi
 
 ### Checklist release
 
-1. `store/whats-new/` à jour (5 langues, mêmes puces) + CHANGELOG.
+1. `store/whats-new/` à jour (6 langues, mêmes puces) + CHANGELOG.
 2. `bundle exec fastlane validate`
 3. `bundle exec fastlane release` (ou `beta` puis `metadata`)
 4. Vérifier dans ASC : Nouveautés / promo, build **Valid**, APS production.

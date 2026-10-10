@@ -93,6 +93,20 @@ struct BlomixDailyEffectRNG {
 enum BlomixDailySeed {
     static let formatVersion = "v1"
     private static let salt = "blomix-daily-v1"
+    /// Après minuit UTC, les saves du jour précédent restent classables pendant `G`.
+    static let graceAfterUtcMidnight: TimeInterval = 2 * 3600
+    #if DEBUG
+    private static let debugNowOffsetKey = "blomix_debug_daily_now_offset"
+    #endif
+
+    /// Horloge du Défi (UTC). En Debug, `blomix_debug_daily_now_offset` décale l’horloge.
+    static func now() -> Date {
+        #if DEBUG
+        let offset = UserDefaults.standard.double(forKey: debugNowOffsetKey)
+        if offset != 0 { return Date().addingTimeInterval(offset) }
+        #endif
+        return Date()
+    }
 
     static func utcCalendar() -> Calendar {
         var cal = Calendar(identifier: .gregorian)
@@ -100,15 +114,42 @@ enum BlomixDailySeed {
         return cal
     }
 
-    static func utcDayString(from date: Date = Date()) -> String {
+    static func utcDayString(from date: Date = BlomixDailySeed.now()) -> String {
         let c = utcCalendar().dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
-    static func previousUtcDayString(from date: Date = Date()) -> String {
+    static func previousUtcDayString(from date: Date = BlomixDailySeed.now()) -> String {
         let cal = utcCalendar()
         let yesterday = cal.date(byAdding: .day, value: -1, to: date) ?? date.addingTimeInterval(-86_400)
         return utcDayString(from: yesterday)
+    }
+
+    /// Minuit UTC du jour `YYYY-MM-DD`.
+    static func startOfUtcDay(_ day: String) -> Date? {
+        let parts = day.split(separator: "-")
+        guard parts.count == 3,
+              let year = Int(parts[0]), let month = Int(parts[1]), let dayN = Int(parts[2]) else { return nil }
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        comps.day = dayN
+        comps.hour = 0
+        comps.minute = 0
+        comps.second = 0
+        return utcCalendar().date(from: comps)
+    }
+
+    /// Instant après lequel plus aucun score de `day` n’est classé : minuit UTC du lendemain + grâce.
+    static func closureDate(afterUtcDay day: String) -> Date? {
+        guard let start = startOfUtcDay(day) else { return nil }
+        let nextMidnight = utcCalendar().date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
+        return nextMidnight.addingTimeInterval(graceAfterUtcMidnight)
+    }
+
+    static func isUtcDayClosed(_ day: String, now nowDate: Date = BlomixDailySeed.now()) -> Bool {
+        guard let closure = closureDate(afterUtcDay: day) else { return true }
+        return nowDate >= closure
     }
 
     /// FNV-1a 64 de `"blomix-daily-v1" + YYYY-MM-DD`. Jamais 0.

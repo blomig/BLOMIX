@@ -3378,7 +3378,7 @@ final class BlomixPvPAvailablePlayersViewController: UIViewController {
         playBtn.setContentHuggingPriority(.required, for: .horizontal)
         playBtn.tag = index
         playBtn.addTarget(self, action: #selector(botPlayTapped(_:)), for: .touchUpInside)
-        playBtn.accessibilityLabel = "\(kind.displayName) \(BlomixL10n.pvpBotsBadge)"
+        playBtn.accessibilityLabel = "\(kind.displayName) BOT"
 
         [nameLabel, subLabel, playBtn].forEach { container.addSubview($0) }
         let topPad: CGFloat = index == 0 ? 10 : 18

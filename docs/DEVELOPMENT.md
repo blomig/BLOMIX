@@ -32,13 +32,13 @@ open Blomix/Blomix.xcodeproj
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
 | `MARKETING_VERSION` | 8.4 (iPhone) ; Watch **8.0** |
-| `CURRENT_PROJECT_VERSION` | 155 (iPhone) ; Watch **146** |
+| `CURRENT_PROJECT_VERSION` | 156 (iPhone) ; Watch **146** |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.3 / 154** en vente. **8.4 / 155** local iPhone. Watch reste **8.0 / 146** (ne pas bumper avec l’iPhone).
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.3 / 154** en vente. **8.4 / 156** local iPhone. Watch reste **8.0 / 146** (ne pas bumper avec l’iPhone).
 
 ---
 

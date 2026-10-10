@@ -292,7 +292,7 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "pvp.available_you_not_visible" = "Você não está visível (ative no lobby)";
 "pvp.player_in_match"           = "Em partida";
 "pvp.bots.section_title"        = "Bots";
-"pvp.bots.badge"                = "BOT";
+"pvp.bots.badge"                = "🤖";
 "pvp.bots.play"                 = "Jogar";
 "pvp.bots.think_seconds_format" = "%d s";
 "pvp.bots.think_always_random_format" = "%d s · aleatório";

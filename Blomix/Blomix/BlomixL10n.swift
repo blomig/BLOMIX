@@ -654,7 +654,7 @@ enum BlomixL10n {
     static var pvpAvailableYouAreNotVisible: String { tr("pvp.available_you_not_visible", comment: "Available players — local player not visible badge") }
     static var pvpPlayerInMatch: String             { tr("pvp.player_in_match",           comment: "Available players — player currently in a PvP match") }
     static var pvpBotsSectionTitle: String          { tr("pvp.bots.section_title",        comment: "Duel list — Bots section header") }
-    static var pvpBotsBadge: String                 { tr("pvp.bots.badge",                comment: "Badge on a bot row (Elo / Duel list)") }
+    static var pvpBotsBadge: String                 { tr("pvp.bots.badge",                comment: "Badge on a bot row (Elo / Duel list) — robot emoji") }
     static var pvpBotsPlay: String                  { tr("pvp.bots.play",                 comment: "Duel vs bot — launch match button") }
     static func pvpBotsThinkSeconds(_ seconds: Int) -> String {
         String(format: tr("pvp.bots.think_seconds_format", comment: "Bot think time; %d = seconds"), seconds)

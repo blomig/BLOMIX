@@ -894,8 +894,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         var content = UIListContentConfiguration.subtitleCell()
         if row.botKind != nil {
             content.text = "#\(row.rank)  \(row.playerName)  \(BlomixL10n.pvpBotsBadge)"
+            cell.accessibilityLabel = "#\(row.rank) \(row.playerName), BOT"
         } else {
             content.text = "#\(row.rank)  \(row.playerName)"
+            cell.accessibilityLabel = nil
         }
         // 2ᵉ ligne : score Elo uniquement — le H2H `X - Y` est à côté de « Défier ».
         content.secondaryText = selectedLeaderboardKind.secondaryText(for: row.score)

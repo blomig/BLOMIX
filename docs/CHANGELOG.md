@@ -9,10 +9,11 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [8.4] — 2026-10
 
-Build **155**. Envoi ASC (8.3 / 154 en vente). Watch **8.0 / 146**.
+Build **156** (155 retiré de review). Watch **8.0 / 146**.
 
 ### Modifié
 
+- **Onglet Elo** : les lignes bots portent le badge **🤖** (plus le mot BOT). Noms BABYBOT / … inchangés. [BOT_DUEL.md](BOT_DUEL.md).
 - **Défi du jour — clôture** : une run commencée le jour UTC X reste **rejouable et classée sur X** jusqu’à **minuit UTC + 2 h**. Hub / jauge / fantôme suivent la save (pas l’horloge). Deadline **locale** (chip + hub). Passé ce délai : save effacée, pas d’upsert. Grille encore ouverte : le GO reste classé. Pendant la grâce, le hub Y des autres affiche « classement d’hier encore ouvert » (sans noms ni +5). Points podium / `dailywins_arc` **uniquement après** la clôture. [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 - **Hub Défi** : date du jour en **Changa One** centrée ; Référence BLOMIX en dessous ; sous la référence, **Défi à compléter avant hh:mm** (heure locale, toujours visible).
 - **HUD Zen** : RECORD ne reprend plus le PB Arcade si un fetch Game Center lancé depuis l’accueil arrive en cours de partie (hors réseau / lent). N°1 Zen inchangé. Snapshot figé en jeu.

@@ -280,7 +280,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "pvp.available_you_not_visible" = "Non sei visibile (attiva in lobby)";
 "pvp.player_in_match"           = "In partita";
 "pvp.bots.section_title"        = "Bot";
-"pvp.bots.badge"                = "BOT";
+"pvp.bots.badge"                = "🤖";
 "pvp.bots.play"                 = "Gioca";
 "pvp.bots.think_seconds_format" = "%d s";
 "pvp.bots.think_always_random_format" = "%d s · caso";

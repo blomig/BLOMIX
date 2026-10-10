@@ -41,7 +41,7 @@ Si CloudKit bots est KO, si le moteur bot rame, si la fusion Elo rate : **le Due
 
 Le hasard **ne consomme pas** le RNG des pièces (mélange déterministe `fidgetSeed`). Colonne = atterrissage possible, tirage uniforme. Pire coup = même métrique que le récap. BOBBOT : sur 5 coups, 1er et 3e = pire. BOT10 : 1/2 pire, horloge **10 s**. BOT5 / BOTSUPREME inchangés.
 
-Badge **BOT** sur la ligne (classement / HUD). Pas de prénom Game Center, pas d’avatar GC.
+Badge **🤖** sur la ligne (classement Elo). Pas de prénom Game Center, pas d’avatar GC.
 
 ### 1.2 Entrées
 
@@ -159,7 +159,7 @@ Onglet Elo :
 
 1. Charger `elotype` **exactement** comme aujourd’hui (multipage, filtre 800/0, `context`).
 2. Charger les ratings bots (réduction des events, cache).
-3. Fusionner par rating décroissant, insérer les 6 lignes (badge BOT).
+3. Fusionner par rating décroissant, insérer les 6 lignes (badge 🤖).
 4. Si l’étape 2 échoue : **afficher uniquement l’étape 1** — liste actuelle, zéro ligne bot, zéro régression.
 
 Pastille accueil Duel : **même rang** que l’onglet (`BlomixEloManager.fetchDisplayedLocalDuelRank`) — pas le `GKLeaderboard.Entry.rank` brut (mur des comptes 800 / 0 parties).
@@ -290,7 +290,7 @@ l10n : FR+EN min. (idéalement 6 langues) — titres section Bots, badge, access
 **Bot :**
 
 - [ ] Liste Duel : 6 rangs, tap lance, 0 spinner réseau
-- [ ] Elo : 3 lignes badge BOT ; tap ≠ invite GC
+- [ ] Elo : 6 lignes badge 🤖 ; tap ≠ invite GC
 - [ ] Une seule grille ; attaques juice = Duel
 - [ ] BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME : tous pire / tous hasard / 2/5 pire / 1/2 pire 10 s / 5 s / 1 s, scène fluide
 - [ ] Bombes bot : stock **3**, jamais plus (comme le joueur Duel ; pas de BOMBX)

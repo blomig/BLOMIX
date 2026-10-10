@@ -292,7 +292,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "pvp.available_you_not_visible" = "Du bist nicht sichtbar (in der Lobby aktivieren)";
 "pvp.player_in_match"           = "Im Match";
 "pvp.bots.section_title"        = "Bots";
-"pvp.bots.badge"                = "BOT";
+"pvp.bots.badge"                = "🤖";
 "pvp.bots.play"                 = "Spielen";
 "pvp.bots.think_seconds_format" = "%d s";
 "pvp.bots.think_always_random_format" = "%d s · Zufall";

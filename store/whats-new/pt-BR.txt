@@ -1,4 +1,3 @@
-• Desafio do dia: uma partida começada continua no ranking até 2 h após meia-noite UTC, prazo no horário local
-• Hub do desafio: data e “completar até” sempre visíveis
-• Zen: RECORDE mostra seu recorde Zen, não o do Arcade
-• BLOMIX agora em português (Brasil)
+• CONNECT: uma cadeia que liga as duas bordas do tabuleiro vale +100
+• Magix e bomba: partículas em órbita assim que aparecem na fila
+• Duelo: o bot de 5 s se chama BOTSUPREME; o de 1 s se chama BOT1

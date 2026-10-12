@@ -1,4 +1,3 @@
-• Daily Challenge: a started run stays ranked until 2 hours after UTC midnight, deadline shown in local time
-• Challenge hub: date and “complete by” time always visible
-• Zen: RECORD shows your Zen best, not Arcade
-• BLOMIX is now in Portuguese (Brazil)
+• CONNECT: a chain that links both sides of the board scores +100
+• Magix and bombs now orbit with particles as soon as they appear in the queue
+• Duel: the 5 s bot is BOTSUPREME; the 1 s bot is BOT1

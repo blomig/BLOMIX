@@ -1,4 +1,3 @@
-• Desafío diario: una partida empezada sigue clasificada hasta 2 h tras medianoche UTC, plazo en hora local
-• Hub del desafío: fecha y «completar antes» siempre visibles
-• Zen: RECORD muestra tu récord Zen, no el de Arcade
-• BLOMIX ahora también en portugués (Brasil)
+• CONNECT: una cadena que une ambos bordes del tablero da +100
+• Magix y bomba: partículas en órbita al aparecer en la cola
+• Duelo: el bot de 5 s se llama BOTSUPREME; el de 1 s se llama BOT1

@@ -4,7 +4,7 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 8.4 (build 156, local) — 8.3 (build 154) en vente |
+| **Version** | 8.5 (build 157, local) — 8.4 (build 156) en vente |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
 | **Langues** | Français, Anglais, Allemand, Espagnol, Italien, Portugais (Brésil) |
@@ -32,7 +32,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/MAGIX.md](docs/MAGIX.md) | Catalogue Magix + pistes |
 | [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) | Référence technique (mécaniques, HUD, sauvegarde) |
 | [docs/PVP_MATCHING.md](docs/PVP_MATCHING.md) | Appariement PvP (CloudKit, GameKit, revanche) |
-| [docs/BOT_DUEL.md](docs/BOT_DUEL.md) | Duel vs bots (BABYBOT … BOTSUPREME) |
+| [docs/BOT_DUEL.md](docs/BOT_DUEL.md) | Duel vs bots (BABYBOT … BOT1) |
 | [docs/VFX_AND_ANIMATIONS.md](docs/VFX_AND_ANIMATIONS.md) | Juice Spec : sons, particules, timings |
 | [docs/JUICE_PISTES.md](docs/JUICE_PISTES.md) | Pistes juice / physique blox · Brix · Magix |
 | [docs/EVAL.md](docs/EVAL.md) | Moteur d'évaluation des coups et hints |

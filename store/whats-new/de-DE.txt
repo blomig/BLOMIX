@@ -1,4 +1,3 @@
-• Tägliche Herausforderung: eine begonnene Runde bleibt bis 2 Std. nach UTC-Mitternacht gewertet, Frist in Ortszeit
-• Hub: Datum und „fertig bis“ immer sichtbar
-• Zen: RECORD zeigt deinen Zen-Rekord, nicht Arcade
-• BLOMIX spricht jetzt Portugiesisch (Brasilien)
+• CONNECT: eine Kette, die beide Spielfeldränder verbindet, bringt +100
+• Magix und Bombe: Orbit-Partikel, sobald sie in der Reihe erscheinen
+• Duell: der 5-s-Bot heißt BOTSUPREME; der 1-s-Bot heißt BOT1

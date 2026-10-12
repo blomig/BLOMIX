@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 7.6
+> **Version de référence** : 8.5
 
 ---
 
@@ -26,6 +26,7 @@
 | **Case vide** | `BlockType.empty` | Cellule sans contenu |
 | **Grille** | `grid[row][col]` | 8×8 ; `row 0` = haut, `row 7` = bas |
 | **Chaîne** | — | Groupe 8-connexe de ≥ 5 blox de même couleur |
+| **CONNECT** | `LateralConnectBonus` | Chaîne qui touche les deux bords latéraux ; +100 + popup CONNECT |
 | **Cascade** | — | Résolutions en chaîne après gravité (plusieurs vagues) |
 | **Gravité inversée** | — | Les blocs remontent vers le haut ; les vides restent en bas |
 
@@ -74,7 +75,7 @@
 | **LX / L★** | Badge HUD et overlay Arcade/Défi : `L1`…`L5`, Ultime `L★` |
 | **Multiplicateur** | Bonus de score lié au stage atteint |
 | **Justesse / pire coup** | Qualité des placements en fin de partie (`BlomixMoveAnalyzer`) — plus de hint en jeu (v6.1) |
-| **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** | Adversaires Duel locaux (`bot:baby` … `bot:supreme`). Noms non traduits. [BOT_DUEL.md](BOT_DUEL.md) |
+| **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOTSUPREME / BOT1** | Adversaires Duel locaux (`bot:baby` … `bot:supreme`). Noms non traduits. [BOT_DUEL.md](BOT_DUEL.md) |
 
 ---
 
@@ -87,7 +88,7 @@
 | **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, clôture minuit UTC + 2 h, hub CloudKit + points podium GC `dailywins_arc` |
 | **Référence BLOMIX** | `BlomixDailyGhost` | Score Arcade d’une run fantôme (lookahead 3 `computeOptimal`, Magix visés, bombes souples / Brix, sans timer). Ligne grise sous la date du hub : **Référence BLOMIX** + score — **pas** un joueur CloudKit, **pas** un optimum. |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
-| **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME** | spec `BOT_DUEL.md` | Adversaires Duel locaux. Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |
+| **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOTSUPREME / BOT1** | spec `BOT_DUEL.md` | Adversaires Duel locaux. Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |
 | **Tutoriel** | `tutorialBlockQueue` | Séquence scriptée au premier lancement |
 
 ---

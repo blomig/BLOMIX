@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 8.4  
+> **Version de référence** : 8.5  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -127,7 +127,9 @@ Exemples :
 
 Si plusieurs composantes indépendantes existent dans la même vague, elles partagent le même `chainSeriesLevel`.
 
-En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à ×6), y compris le bonus grille vide.
+**CONNECT** : si une chaîne touche **les deux bords latéraux** de la grille (colonne 0 et colonne 7, n’importe quel chemin 8-connexe), **+100 pts** en plus du score de chaîne. Popup **CONNECT** (même cinématique que COMBO). Pas de bonus cascade supplémentaire sur ce 100.
+
+En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à ×6), y compris le bonus grille vide et CONNECT.
 
 ### Brix
 
@@ -241,7 +243,7 @@ Même accélération qu’**Arcade** (timer, stages, bombe, Magix). Tout le mond
 
 ### Duel (1 vs 1)
 
-Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BABYBOT / MINIBOT / BOBBOT / BOT10 / BOT5 / BOTSUPREME) :
+Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BABYBOT / MINIBOT / BOBBOT / BOT10 / BOTSUPREME / BOT1) :
 - RNG partagé → mêmes blocs pour les deux joueurs (**pas de Magix**)
 - **3 bombes** au départ, zone **3×3**
 - Attaque : ligne chez l'adversaire à chaque palier **score / 50**
@@ -250,7 +252,7 @@ Via **Game Center** (en ligne), **Multipeer** (Local) ou **bots** (BABYBOT / MIN
 - **Elo** : rating initial 800, K adaptatif selon le nombre de matchs. Un match bot **fait bouger** ton Elo (`elotype`) ; l’Elo du bot est global (CloudKit).
 - Victoire = adversaire en Game Over ; le score le plus élevé l'emporte
 - **Quitter** (☰ Accueil) : overlay de confirmation. Si tu confirmes, tu **perds** le match (humain ou bot) et l’**Elo** est mis à jour. Annuler reprend la partie.
-- Bots : même règles, une seule grille (la tienne), **3 bombes**. BABYBOT : tous les coups = pire coup. MINIBOT : tous au hasard. BOBBOT : 2 coups sur 5 = pire coup. BOT10 : 10 s, 1 coup sur 2 = pire coup. BOT5 / BOTSUPREME : `computeOptimal`, 5 s / 1 s. Noms non traduits. Pas de H2H CloudKit.
+- Bots : même règles, une seule grille (la tienne), **3 bombes**. BABYBOT : tous les coups = pire coup. MINIBOT : tous au hasard. BOBBOT : 2 coups sur 5 = pire coup. BOT10 : 10 s, 1 coup sur 2 = pire coup. BOTSUPREME / BOT1 : `computeOptimal`, 5 s / 1 s. Noms non traduits. Pas de H2H CloudKit.
 
 Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_DUEL.md](BOT_DUEL.md).
 

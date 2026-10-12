@@ -643,6 +643,9 @@ struct BlomixDailyGhostEngine: Sendable {
             var cleared = Set<Addr>()
             for comp in components {
                 addScore(Self.chainPoints(level: chainSeriesLevel, groupSize: comp.count))
+                if Self.componentSpansLateralEdges(comp) {
+                    addScore(100)
+                }
                 cleared.formUnion(comp)
             }
             for a in cleared { grid[a.row][a.col] = .empty }
@@ -720,6 +723,10 @@ struct BlomixDailyGhostEngine: Sendable {
             }
         }
         return components
+    }
+
+    private static func componentSpansLateralEdges(_ component: Set<Addr>) -> Bool {
+        component.contains { $0.col == 0 } && component.contains { $0.col == cols - 1 }
     }
 
     private func flood8(start: Addr, colorName: String, visited: inout Set<Addr>) -> Set<Addr> {

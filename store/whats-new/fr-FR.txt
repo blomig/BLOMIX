@@ -1,4 +1,3 @@
-• Défi du jour : une partie commencée reste classée jusqu’à 2 h après minuit UTC, heure limite affichée en local
-• Hub du défi : date et « à compléter avant » toujours visibles
-• Zen : RECORD affiche ton record Zen, plus celui d’Arcade
-• BLOMIX parle aussi portugais (Brésil)
+• CONNECT : une chaîne qui relie les deux bords de la grille rapporte +100
+• Magix et bombe : grains en orbite dès qu’ils apparaissent en file
+• Duel : le bot 5 s s’appelle BOTSUPREME ; le bot 1 s s’appelle BOT1

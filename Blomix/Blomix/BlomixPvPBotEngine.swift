@@ -20,14 +20,15 @@ enum BlomixPvPBotKind: String, CaseIterable, Sendable {
     case bot5 = "bot:5"
     case supreme = "bot:supreme"
 
+    /// Libellés 8.5. Ne pas changer les `rawValue` : l’Elo CloudKit (`BotEloEvent.botId`) les utilise.
     var displayName: String {
         switch self {
         case .babybot: return "BABYBOT"
         case .minibot: return "MINIBOT"
         case .bobbot: return "BOBBOT"
         case .bot10: return "BOT10"
-        case .bot5: return "BOT5"
-        case .supreme: return "BOTSUPREME"
+        case .bot5: return "BOTSUPREME"
+        case .supreme: return "BOT1"
         }
     }
 
@@ -40,7 +41,7 @@ enum BlomixPvPBotKind: String, CaseIterable, Sendable {
         }
     }
 
-    /// Colonne de ce coup. BOT5 / BOTSUPREME : toujours optimal.
+    /// Colonne de ce coup. BOTSUPREME / BOT1 : toujours optimal.
     func columnPolicy(moveCount: Int) -> BlomixPvPBotColumnPolicy {
         switch self {
         case .babybot:
@@ -637,6 +638,9 @@ struct BlomixPvPBotEngine: Sendable {
             var cleared = Set<BlomixPvPBotAddr>()
             for comp in components {
                 addScore(Self.chainPoints(level: chainSeriesLevel, groupSize: comp.count))
+                if Self.componentSpansLateralEdges(comp) {
+                    addScore(100)
+                }
                 cleared.formUnion(comp)
             }
             for a in cleared { grid[a.row][a.col] = .empty }
@@ -713,6 +717,10 @@ struct BlomixPvPBotEngine: Sendable {
             }
         }
         return components
+    }
+
+    private static func componentSpansLateralEdges(_ component: Set<BlomixPvPBotAddr>) -> Bool {
+        component.contains { $0.col == 0 } && component.contains { $0.col == cols - 1 }
     }
 
     private func flood8(

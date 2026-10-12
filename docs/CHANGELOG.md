@@ -7,9 +7,21 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.5] — 2026-10
+
+Build **157**. Watch **8.0 / 146**.
+
+### Modifié
+
+- **Orbites Magix / bombe** : les grains naissent dans la couronne colorée (épaisseur = 2 liserés noirs du disque), plus nombreux, mélange petit (0,4–0,8 pt) + calibre d’avant ; ils restent visibles sur le halo et s’éteignent à son bord. File, HUD, preview et chute. [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).
+- **CONNECT** : une chaîne qui relie les deux bords latéraux rapporte **+100** (× stage Arcade) ; popup CONNECT + flash blanc sur les blox murs, calé sur le stagger de dissolution. Ghost Défi et bot Duel comptent le bonus. [RULES.md](RULES.md).
+- **Noms bots Duel** : le 5 s (`bot:5`, ex-BOT5) s’affiche **BOTSUPREME** ; le 1 s (`bot:supreme`, ex-BOTSUPREME) s’affiche **BOT1**. Ids CloudKit / Elo inchangés. [BOT_DUEL.md](BOT_DUEL.md).
+
+---
+
 ## [8.4] — 2026-10
 
-Build **156** (155 retiré de review). Watch **8.0 / 146**.
+Build **156**. En vente. Watch **8.0 / 146**.
 
 ### Modifié
 

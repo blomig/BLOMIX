@@ -1,6 +1,6 @@
 # Blomix — Documentation du projet
 
-> **Version de référence** : 8.4  
+> **Version de référence** : 8.5  
 > **Plateforme** : iOS (UIKit + SpriteKit), Swift  
 > **Langues** : Français, Anglais, Allemand, Espagnol, Italien, Portugais (Brésil)
 
@@ -112,7 +112,8 @@ En **Défi du jour** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-
 | 9 | 15 |
 | 10+ | 20 |
 
-Bonus cascade : `+ chainSeriesLevel × 10`.
+Bonus cascade : `+ chainSeriesLevel × 10`.  
+**CONNECT** : si la composante touche col 0 et col 7, `+100` (puis × stage Arcade). Pas de `+10 × cascade` extra sur ce 100.
 
 ---
 

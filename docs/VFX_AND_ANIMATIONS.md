@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 8.3  
+> **Version de référence** : 8.5  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : octobre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
@@ -219,7 +219,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Forme | **Disque inscrit** (taille bombe : `cell − 4 pt`) + couronne noire (même recette shader que la bombe) |
 | Shader | Dégradé 6 couleurs animé via `u_time` (GLSL) |
 | Halo (`magixGlow`) | Spread **16 pt**, α pulse 0,28↔0,55, cycle **1,2 s** |
-| Particules orbitales | Spawn toutes **0,175 ± 0,09 s** ; dot r 1,0–1,8 pt ; fade in 0,28 s, hold 0,35 s, out 0,62 s ; drift 6–12 pt en **1,25 s** |
+| Particules orbitales | Spawn **0,12 ± 0,06 s**, **2–3** grains/burst (~2/3 petits r 0,40–0,80, le reste 1,0–1,8). Naissance dans la **couronne colorée** (épaisseur = 2 liserés noirs, UV 0,38←0,50). Vol jusqu’au **bord du halo** (spread 16 pt) en **1,55 s** ; opaque pendant le disque + halo interne (fade in 0,25 / hold 0,80) ; fade out **0,50 s** au bout du halo. α 0,82, z 1. Même recette bombe (`SpecialOrbitJuice`). |
 | Symbole | Police ×0,69 hauteur bloc, noir, z 5 |
 | En chute | Même rendu via `makeMagixShaderSprite` |
 | Après effet | Blox / Brix restants **carrés** |
@@ -228,6 +228,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 - Disque + couronne noire (shader)
 - Shader noir → rouge → jaune (cycle 3 couleurs)
+- Halo + orbites : **même géométrie** que Magix (`SpecialOrbitJuice`) ; dots rouge / jaune / quasi-noir
 - Chiffre « nuke » si stage ≥ 2
 - Activation : `bombLoad` ; tremblement pré-explosion **0,3 s** (±6 pt, 6 oscillations × 0,05 s)
 
@@ -301,6 +302,16 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 - Grow scale 0,12→1,0 en **0,58 s** `easeOut`
 - Shrink 1,0→0,72 + fade **0,33 s**
 - Couleur = couleur de la plus grande composante
+
+### 3.6 CONNECT (pont latéral)
+
+| | |
+|---|---|
+| **Déclencheur** | Composante chaîne qui touche col 0 **et** col 7 |
+| **Score** | +100 (puis × stage Arcade) ; inclus dans le `+N` de la composante |
+| **Popup** | **CONNECT**, même cinématique que COMBO (delay 0,45 s). Si COMBO la même vague : CONNECT 70 pt plus haut, un seul shake (celui du COMBO) |
+| **Flash** | Point blanc (r 3,6 pt) sur la **face externe** d’un blox mur G et d’un blox mur D (paire à plus petit écart de ligne). Départ = stagger de **cette** case ; grow 0,20 s puis fade 0,30 s (fenêtre de dissolution) |
+| **Réf.** | `LateralConnectBonus`, `spawnConnectLabelPopup`, `spawnLateralConnectFlash` |
 
 ---
 

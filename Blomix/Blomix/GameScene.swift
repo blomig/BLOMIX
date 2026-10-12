@@ -1142,6 +1142,32 @@ final class GameScene: SKScene {
         static let morphScaleDownDuration: TimeInterval = 0.08
     }
 
+    /// Grains qui partent du disque Magix / bombe (file, HUD, preview, chute).
+    /// Spawn dans la couronne colorée, épaisseur = 2 liserés noirs du shader (UV 0,38 → 0,50).
+    private enum SpecialOrbitJuice {
+        /// Bord coloré plein — GLSL `ring` start 0,38 (Magix et bombe).
+        static let colorRadiusUV: CGFloat = 0.38
+        /// Bord extérieur du disque — GLSL `a` end 0,50.
+        static let outerRadiusUV: CGFloat = 0.50
+        static let spawnBandStrokeCount: CGFloat = 2
+        static let spawnWait: TimeInterval = 0.12
+        static let spawnWaitRange: TimeInterval = 0.06
+        static let burstCount: ClosedRange<Int> = 2...3
+        static let smallRadius: ClosedRange<CGFloat> = 0.40...0.80
+        static let largeRadius: ClosedRange<CGFloat> = 1.0...1.8
+        static let smallProbability: CGFloat = 0.68
+        /// Même spread que le sprite `magixGlow` : le grain s’éteint au bord du halo.
+        static let haloSpread: CGFloat = 16
+        static let endRadiusJitter: ClosedRange<CGFloat> = -1.5...1.5
+        static let fadeIn: TimeInterval = 0.25
+        static let fadeOut: TimeInterval = 0.50
+        static let moveDuration: TimeInterval = 1.55
+        static var hold: TimeInterval { moveDuration - fadeIn - fadeOut }
+        static let peakAlpha: CGFloat = 0.82
+        /// Au-dessus du shader, sous le glyphe Magix (z 5) et le nuke (z 2).
+        static let zPosition: CGFloat = 1
+    }
+
     private enum CompactRiseAnimation {
         /// Fenêtre file de jeu (premier départ → dernière arrivée), toutes colonnes.
         static let duration: TimeInterval = 0.20
@@ -1197,6 +1223,16 @@ final class GameScene: SKScene {
         static let junctionDissolveDuration: TimeInterval = dissolveScaleUpDuration
         static let junctionDissolveZ: CGFloat = 25
         static let junctionDissolveEndScale: CGFloat = 0.02
+    }
+
+    /// Bonus : chaîne 8-connexe qui touche les deux bords latéraux (col 0 et col 7).
+    private enum LateralConnectBonus {
+        static let points = 100
+        static let flashRadius: CGFloat = 3.6
+        static let flashPeakScale: CGFloat = 1.55
+        static let flashZ: CGFloat = 26
+        /// Décale CONNECT au-dessus du COMBO si les deux partent ensemble.
+        static let popupYLiftWhenCombo: CGFloat = 70
     }
 
     /// Disparition d'un Brix (compteur → 0) : pop blanc puis implosion + paillettes carrées + étoiles de présence.
@@ -4281,7 +4317,7 @@ final class GameScene: SKScene {
             let move = SKAction.move(
                 to: CGPoint(
                     x: center.x + cos(angle) * endDist,
-                    y: center.y + sin(angle) * endDist
+                        y: center.y + sin(angle) * endDist
                 ),
                 duration: duration
             )
@@ -6485,6 +6521,40 @@ final class GameScene: SKScene {
         return components
     }
 
+    /// La composante touche la colonne 0 **et** la colonne 7 (chemin 8-connexe déjà dans le groupe).
+    private static func componentSpansLateralEdges(_ component: Set<GridAddress>) -> Bool {
+        let lastCol = GridLayout.columnCount - 1
+        return component.contains(where: { $0.col == 0 })
+            && component.contains(where: { $0.col == lastCol })
+    }
+
+    /// Une case mur gauche + une mur droit, écart de ligne minimal (paire stable).
+    private static func lateralConnectEdgePair(
+        in component: Set<GridAddress>
+    ) -> (left: GridAddress, right: GridAddress)? {
+        let lastCol = GridLayout.columnCount - 1
+        let lefts = component.filter { $0.col == 0 }
+        let rights = component.filter { $0.col == lastCol }
+        guard let firstLeft = lefts.first, let firstRight = rights.first else { return nil }
+        var bestLeft = firstLeft
+        var bestRight = firstRight
+        var bestDist = abs(bestLeft.row - bestRight.row)
+        for l in lefts {
+            for r in rights {
+                let d = abs(l.row - r.row)
+                let better = d < bestDist
+                    || (d == bestDist && (l.row < bestLeft.row
+                        || (l.row == bestLeft.row && r.row < bestRight.row)))
+                if better {
+                    bestDist = d
+                    bestLeft = l
+                    bestRight = r
+                }
+            }
+        }
+        return (bestLeft, bestRight)
+    }
+
     /// Toute case `.priks` dont au moins un **voisin 8-con** est dans `touchingRemovedCells` perd **1** sur son compteur
     /// pour cette vague (même idée que `priksAffected` dans `priks.html` : un Priks ne perd qu’au plus un point par résolution).
     /// Compteur ≤ 0 → la case devient `.empty` (disparition + bonus +10).
@@ -6911,8 +6981,15 @@ final class GameScene: SKScene {
 
         // Score : **une** attribution par composante ≥ 5, même `chainSeriesLevel` pour toutes les composantes de cette vague.
         // La couleur de la composante est extraite (première cellule .color) pour teinter les dots et le label.
+        let sparkleWindow = chainSparkleArrivalWindow(
+            cells: Self.orderedChainRemovalCells(from: components)
+        )
+        var connectFlashCells = Set<GridAddress>()
+        var connectPopups: [(center: CGPoint, color: SKColor)] = []
         for component in components {
-            let pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
+            var pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
+            let spans = Self.componentSpansLateralEdges(component)
+            if spans { pts += LateralConnectBonus.points }
             let floatAt = sceneCentroid(for: component)
             let dotColor: SKColor? = component.lazy.compactMap { [self] addr -> SKColor? in
                 if case .color(let name) = self.grid[addr.row][addr.col] {
@@ -6920,9 +6997,6 @@ final class GameScene: SKScene {
                 }
                 return nil
             }.first
-            let sparkleWindow = chainSparkleArrivalWindow(
-                cells: Self.orderedChainRemovalCells(from: components)
-            )
             addScore(
                 points: pts,
                 chainMultiplier: chainSeriesLevel,
@@ -6931,12 +7005,20 @@ final class GameScene: SKScene {
                 scoreRollStartAt: sparkleWindow?.first,
                 scoreRollHoldUntil: sparkleWindow?.last
             )
+            if spans {
+                if let pair = Self.lateralConnectEdgePair(in: component) {
+                    connectFlashCells.insert(pair.left)
+                    connectFlashCells.insert(pair.right)
+                }
+                connectPopups.append((floatAt, dotColor ?? .white))
+            }
         }
 
         // Popup « COMBO » / « SUPER COMBO » à partir du niveau 2 de cascade.
         // Couleur = celle de la plus grande composante (lue avant que la grille soit effacée).
         // Position = centroïde de toutes les composantes de la vague.
-        if chainSeriesLevel >= 1 {
+        let comboShown = chainSeriesLevel >= 1
+        if comboShown {
             let allCells = Set(components.flatMap { $0 })
             let center   = sceneCentroid(for: allCells)
             let largest  = components.max(by: { $0.count < $1.count }) ?? []
@@ -6948,13 +7030,24 @@ final class GameScene: SKScene {
             let color = Self.bloxTrailColor(for: blockType)
             spawnComboLabelPopup(level: chainSeriesLevel, at: center, color: color)
         }
+        let connectLift: CGFloat = comboShown ? LateralConnectBonus.popupYLiftWhenCombo : 0
+        for pop in connectPopups {
+            spawnConnectLabelPopup(
+                at: CGPoint(x: pop.center.x, y: pop.center.y + connectLift),
+                color: pop.color,
+                shakes: !comboShown
+            )
+        }
 
         if isTutorialMode { tutorialChainDetected() }
 
         pendingScoredChainClearCells = winningCells
 
         // Dissolution sur les **sprites** existants ; la grille logique reste inchangée jusqu’à `applyChainClearPhysicalWave`.
-        animateWinningChainDisappearance(components: components) { [weak self] in
+        animateWinningChainDisappearance(
+            components: components,
+            connectFlashCells: connectFlashCells
+        ) { [weak self] in
             guard let self else { return }
             self.applyChainClearPhysicalWave(winningCells: winningCells)
         }
@@ -6974,6 +7067,7 @@ final class GameScene: SKScene {
     /// avec décalage case par case ; grille **non** mutée avant `completion`.
     private func animateWinningChainDisappearance(
         components: [Set<GridAddress>],
+        connectFlashCells: Set<GridAddress> = [],
         completion: @escaping () -> Void
     ) {
         let ordered = Self.orderedChainRemovalCells(from: components)
@@ -6993,6 +7087,8 @@ final class GameScene: SKScene {
         dissolveBloxJunctionsWithChainCells(ordered: ordered, stagger: stagger)
 
         let zDuringDissolve: CGFloat = 24
+        let lastCol = GridLayout.columnCount - 1
+        let spriteHalf = (GridLayout.cellPoints - 4) / 2
 
         for (index, address) in ordered.enumerated() {
             let nodeName = "cell_\(address.row)_\(address.col)"
@@ -7007,7 +7103,9 @@ final class GameScene: SKScene {
 
             let slotSize = CGSize(width: GridLayout.cellPoints - 4,
                                   height: GridLayout.cellPoints - 4)
-            let prep = SKAction.run {
+            let flashOnOuterEdge = connectFlashCells.contains(address)
+                && (address.col == 0 || address.col == lastCol)
+            let prep = SKAction.run { [weak self] in
                 sprite.removeAction(forKey: Self.compactLandingBounceKey)
                 sprite.xScale = 1
                 sprite.yScale = 1
@@ -7023,6 +7121,13 @@ final class GameScene: SKScene {
                 bg.zPosition   = 0
                 bg.name        = "cell_dissolve_bg_\(address.row)_\(address.col)"
                 container.addChild(bg)
+                if flashOnOuterEdge {
+                    let xOff: CGFloat = address.col == 0 ? -spriteHalf : spriteHalf
+                    self?.spawnLateralConnectFlash(
+                        at: CGPoint(x: sprite.position.x + xOff, y: sprite.position.y),
+                        in: container
+                    )
+                }
             }
 
             // Phase 1 : grossissement ×1.30, pas d'éclaircissement
@@ -8042,6 +8147,59 @@ final class GameScene: SKScene {
             SKAction.group([shrink, fade]),
             SKAction.removeFromParent(),
         ]))
+    }
+
+    /// Popup « CONNECT » : même grow / shrink / delay que COMBO. `shakes` = false si un COMBO part déjà.
+    private func spawnConnectLabelPopup(at position: CGPoint, color: SKColor, shakes: Bool) {
+        let delay: TimeInterval = 0.45
+        let container = SKNode()
+        container.position = position
+        container.setScale(0.12)
+        container.alpha = 1
+        container.zPosition = 37
+        addChild(container)
+
+        let lbl = SKLabelNode(text: "CONNECT")
+        lbl.fontName = Self.gridFontName
+        lbl.fontSize = 62
+        lbl.fontColor = color
+        lbl.horizontalAlignmentMode = .center
+        lbl.verticalAlignmentMode = .center
+        container.addChild(lbl)
+
+        let grow = SKAction.scale(to: 1.0, duration: 0.58)
+        grow.timingMode = .easeOut
+        let shrink = SKAction.scale(to: 0.72, duration: 0.33)
+        shrink.timingMode = .easeIn
+        let fade = SKAction.fadeOut(withDuration: 0.33)
+        var steps: [SKAction] = [SKAction.wait(forDuration: delay)]
+        if shakes {
+            steps.append(SKAction.run { [weak self] in self?.shakeScreen(intensity: 1.4) })
+        }
+        steps.append(grow)
+        steps.append(SKAction.group([shrink, fade]))
+        steps.append(SKAction.removeFromParent())
+        container.run(SKAction.sequence(steps))
+    }
+
+    /// Point blanc sur la face externe d’un blox mur (L ou R), calé sur la dissolution de cette case.
+    private func spawnLateralConnectFlash(at localPoint: CGPoint, in container: SKNode) {
+        let dot = SKShapeNode(circleOfRadius: LateralConnectBonus.flashRadius)
+        dot.fillColor = .white
+        dot.strokeColor = .clear
+        dot.position = localPoint
+        dot.zPosition = LateralConnectBonus.flashZ
+        dot.setScale(0.35)
+        container.addChild(dot)
+        let grow = SKAction.scale(to: LateralConnectBonus.flashPeakScale,
+                                  duration: ChainClearFeedback.dissolveScaleUpDuration)
+        grow.timingMode = .easeOut
+        let fade = SKAction.fadeOut(
+            withDuration: ChainClearFeedback.dissolveScaleDownDuration
+                + ChainClearFeedback.dissolveFadeDuration
+        )
+        fade.timingMode = .easeIn
+        dot.run(SKAction.sequence([grow, fade, SKAction.removeFromParent()]))
     }
 
     /// Points de score : accent chrome par défaut, ou couleur de la chaîne si `color` est fourni.
@@ -9993,6 +10151,66 @@ final class GameScene: SKScene {
         return container
     }
 
+    /// Orbites Magix / bombe : naissance dans la couronne colorée, puis vol radial vers l’extérieur.
+    private static func attachSpecialOrbitParticles(
+        to sprite: SKSpriteNode,
+        size: CGSize,
+        pickColor: @escaping () -> SKColor?
+    ) {
+        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        let blackStroke = (SpecialOrbitJuice.outerRadiusUV - SpecialOrbitJuice.colorRadiusUV) * size.width
+        let rOuter = SpecialOrbitJuice.colorRadiusUV * size.width
+        let rInner = max(0.5, rOuter - SpecialOrbitJuice.spawnBandStrokeCount * blackStroke)
+        let spawnRange: ClosedRange<CGFloat> = rInner <= rOuter ? rInner...rOuter : rOuter...rOuter
+
+        let orbitSpawner = SKAction.repeatForever(SKAction.sequence([
+            SKAction.wait(
+                forDuration: SpecialOrbitJuice.spawnWait,
+                withRange: SpecialOrbitJuice.spawnWaitRange
+            ),
+            SKAction.run { [weak sprite] in
+                guard let sprite else { return }
+                let n = Int.random(in: SpecialOrbitJuice.burstCount)
+                for _ in 0..<n {
+                    guard let color = pickColor() else { continue }
+                    let angle = CGFloat.random(in: 0..<(2 * .pi))
+                    let r = CGFloat.random(in: spawnRange)
+                    let pos = CGPoint(x: cos(angle) * r, y: sin(angle) * r)
+                    let haloOuter = size.width * SpecialOrbitJuice.outerRadiusUV
+                        + SpecialOrbitJuice.haloSpread
+                    let endR = max(
+                        r + 1,
+                        haloOuter + CGFloat.random(in: SpecialOrbitJuice.endRadiusJitter)
+                    )
+                    let endPos = CGPoint(x: cos(angle) * endR, y: sin(angle) * endR)
+                    let small = CGFloat.random(in: 0...1) < SpecialOrbitJuice.smallProbability
+                    let radius = CGFloat.random(
+                        in: small ? SpecialOrbitJuice.smallRadius : SpecialOrbitJuice.largeRadius
+                    )
+                    let dot = SKShapeNode(circleOfRadius: radius)
+                    dot.fillColor = color
+                    dot.strokeColor = .clear
+                    dot.position = pos
+                    dot.alpha = 0
+                    dot.zPosition = SpecialOrbitJuice.zPosition
+                    sprite.addChild(dot)
+                    dot.run(.sequence([
+                        .group([
+                            .sequence([
+                                .fadeAlpha(to: SpecialOrbitJuice.peakAlpha, duration: SpecialOrbitJuice.fadeIn),
+                                .wait(forDuration: SpecialOrbitJuice.hold),
+                                .fadeOut(withDuration: SpecialOrbitJuice.fadeOut)
+                            ]),
+                            .move(to: endPos, duration: SpecialOrbitJuice.moveDuration)
+                        ]),
+                        .removeFromParent()
+                    ]))
+                }
+            }
+        ]))
+        sprite.run(orbitSpawner, withKey: MagixRules.orbitParticlesActionKey)
+    }
+
     private static func applyMagixShader(to sprite: SKSpriteNode, size: CGSize,
                                           kind: MagixKind, symbolLabelName: String) {
         // La texture blanche garantit que v_tex_coord est correctement interpolé.
@@ -10006,7 +10224,7 @@ final class GameScene: SKScene {
         // ── Halo dégradé radial (glow) — blanc en sombre, noir en clair ────────
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
-        let haloSpread: CGFloat = 16   // pts au-delà du bord du bloc jusqu'au transparent total
+        let haloSpread = SpecialOrbitJuice.haloSpread
         let haloTexture = Self.makeMagixHaloTexture(blockSize: size, spread: haloSpread)
         let glow = SKSpriteNode(texture: haloTexture,
                                 size: CGSize(width:  size.width  + haloSpread * 2,
@@ -10022,40 +10240,9 @@ final class GameScene: SKScene {
         ])))
         sprite.addChild(glow)
 
-        // ── Particules orbitales colorées (palette du joueur) ──────────────────
-        // Rayon de base : bord du bloc + 35 % du spread (zone lumineuse du dégradé).
-        let orbitR = size.width * 0.5 + haloSpread * 0.35
-        let orbitSpawner = SKAction.repeatForever(SKAction.sequence([
-            SKAction.wait(forDuration: 0.175, withRange: 0.09),
-            SKAction.run { [weak sprite] in
-                guard let sprite else { return }
-                let colors = BlomixSkinCatalog.shared.bloxSKColors()
-                guard !colors.isEmpty else { return }
-                let color = colors.randomElement()!
-                let angle  = CGFloat.random(in: 0..<(2 * .pi))
-                let r      = CGFloat.random(in: (orbitR - 3)...(orbitR + 4))
-                let pos    = CGPoint(x: cos(angle) * r,  y: sin(angle) * r)
-                let drift  = CGFloat.random(in: 6...12)
-                let endPos = CGPoint(x: cos(angle) * (r + drift), y: sin(angle) * (r + drift))
-                let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 1.0...1.8))
-                dot.fillColor   = color
-                dot.strokeColor = .clear
-                dot.position    = pos
-                dot.alpha       = 0
-                dot.zPosition   = -1   // entre le halo (-2) et le corps du bloc (0+)
-                sprite.addChild(dot)
-                dot.run(.sequence([
-                    .group([
-                        .sequence([.fadeAlpha(to: 0.82, duration: 0.28),
-                                   .wait(forDuration: 0.35),
-                                   .fadeOut(withDuration: 0.62)]),
-                        .move(to: endPos, duration: 1.25),
-                    ]),
-                    .removeFromParent(),
-                ]))
-            },
-        ]))
-        sprite.run(orbitSpawner, withKey: MagixRules.orbitParticlesActionKey)
+        attachSpecialOrbitParticles(to: sprite, size: size) {
+            BlomixSkinCatalog.shared.bloxSKColors().randomElement()
+        }
 
         // ── Symbole "?", "+", "9" ──────────────────────────────────────────────
         sprite.childNode(withName: symbolLabelName)?.removeFromParent()
@@ -10152,7 +10339,7 @@ final class GameScene: SKScene {
         // ── Halo dégradé radial — blanc en sombre, noir en clair ───────────────
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
-        let haloSpread: CGFloat = 16
+        let haloSpread = SpecialOrbitJuice.haloSpread
         let haloTexture = makeMagixHaloTexture(blockSize: size, spread: haloSpread)
         let glow = SKSpriteNode(texture: haloTexture,
                                 size: CGSize(width:  size.width  + haloSpread * 2,
@@ -10167,44 +10354,15 @@ final class GameScene: SKScene {
         ])))
         sprite.addChild(glow)
 
-        // ── Particules orbitales noir / rouge joueur / jaune joueur ────────────
-        let orbitR = size.width * 0.5 + haloSpread * 0.35
-        let orbitSpawner = SKAction.repeatForever(SKAction.sequence([
-            SKAction.wait(forDuration: 0.175, withRange: 0.09),
-            SKAction.run { [weak sprite] in
-                guard let sprite else { return }
-                // Couleurs : rouge palette, jaune palette, ou quasi-noir.
-                let roll = Int.random(in: 0..<3)
-                let color: SKColor
-                switch roll {
-                case 0: color = bloxSolidFillColor(colorName: "red")    ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
-                case 1: color = bloxSolidFillColor(colorName: "yellow") ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
-                default: color = SKColor(white: 0.12, alpha: 1)
-                }
-                let angle  = CGFloat.random(in: 0..<(2 * .pi))
-                let r      = CGFloat.random(in: (orbitR - 3)...(orbitR + 4))
-                let pos    = CGPoint(x: cos(angle) * r,  y: sin(angle) * r)
-                let drift  = CGFloat.random(in: 6...12)
-                let endPos = CGPoint(x: cos(angle) * (r + drift), y: sin(angle) * (r + drift))
-                let dot = SKShapeNode(circleOfRadius: CGFloat.random(in: 1.0...1.8))
-                dot.fillColor   = color
-                dot.strokeColor = .clear
-                dot.position    = pos
-                dot.alpha       = 0
-                dot.zPosition   = -1
-                sprite.addChild(dot)
-                dot.run(.sequence([
-                    .group([
-                        .sequence([.fadeAlpha(to: 0.82, duration: 0.28),
-                                   .wait(forDuration: 0.35),
-                                   .fadeOut(withDuration: 0.62)]),
-                        .move(to: endPos, duration: 1.25),
-                    ]),
-                    .removeFromParent(),
-                ]))
-            },
-        ]))
-        sprite.run(orbitSpawner, withKey: MagixRules.orbitParticlesActionKey)
+        attachSpecialOrbitParticles(to: sprite, size: size) {
+            switch Int.random(in: 0..<3) {
+            case 0: return bloxSolidFillColor(colorName: "red")
+                ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
+            case 1: return bloxSolidFillColor(colorName: "yellow")
+                ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
+            default: return SKColor(white: 0.12, alpha: 1)
+            }
+        }
     }
 
     /// Preview guide (6.4) : même sprite bombe que le HUD.
@@ -14303,7 +14461,10 @@ final class GameScene: SKScene {
 
             chainClearWaveCount += 1
             for component in components {
-                let pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
+                var pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
+                if Self.componentSpansLateralEdges(component) {
+                    pts += LateralConnectBonus.points
+                }
                 addScoreSynchronously(points: pts, chainMultiplier: chainSeriesLevel)
             }
             applyPhysicalChainWaveSynchronously(winningCells: winningCells)

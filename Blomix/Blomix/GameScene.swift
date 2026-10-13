@@ -1166,6 +1166,9 @@ final class GameScene: SKScene {
         static let peakAlpha: CGFloat = 0.82
         /// Au-dessus du shader, sous le glyphe Magix (z 5) et le nuke (z 2).
         static let zPosition: CGFloat = 1
+        /// Gerbe locale à la mort d’une case (bombe, wipe Magix, ou disparition née d’un Magix) : même grain, nœuds scène.
+        static let lingerCount = 10
+        static let lingerZ: CGFloat = 37
     }
 
     private enum CompactRiseAnimation {
@@ -1231,8 +1234,14 @@ final class GameScene: SKScene {
         static let flashRadius: CGFloat = 3.6
         static let flashPeakScale: CGFloat = 1.55
         static let flashZ: CGFloat = 26
+        static let pathZ: CGFloat = 25.8
+        static let pathLineWidth: CGFloat = 3.2
         /// Décale CONNECT au-dessus du COMBO si les deux partent ensemble.
         static let popupYLiftWhenCombo: CGFloat = 70
+
+        static var chromeSK: SKColor {
+            BlomixAppearance.isDark ? .white : .black
+        }
     }
 
     /// Disparition d'un Brix (compteur → 0) : pop blanc puis implosion + paillettes carrées + étoiles de présence.
@@ -1611,6 +1620,8 @@ final class GameScene: SKScene {
     /// Toujours ≥ 0 (on ne pénalise pas un déficit de brix).
     /// Profondeur de combo **dans la résolution en cours** : 0 = première chaîne de la vague, puis +1 après chaque vague avec suppression (comme `chainSeriesLevel` dans `checkChains`).
     private var chainSeriesLevel: Int = 0
+    /// Vrai pendant la résolution d’un Magix : chaînes, cascades et Brix → 0 nés de cet effet reçoivent les grains d’orbite linger (même recette que COLORX / SAINTX / BRIXED). Pas persisté.
+    private var magixCausedDisappearLinger = false
 
     /// Multijoueur temps réel (nil = solo, chemins PvP inactifs).
     private var pvpCoordinator: BlomixPvPMatchCoordinator?
@@ -1950,6 +1961,7 @@ final class GameScene: SKScene {
         gameOverShareIsNewPB = false
         gameOverShareCardImage = nil
         chainSeriesLevel = 0
+        magixCausedDisappearLinger = false
         currentStageIndex = 0
         stageTimerSecondsRemaining = Self.soloStages[0].timerSeconds
         pendingBottomLineBloopaSoundPlayedAtMoveCount = nil
@@ -6555,6 +6567,41 @@ final class GameScene: SKScene {
         return (bestLeft, bestRight)
     }
 
+    /// Plus court chemin 8-connexe **dans la composante** entre les deux murs flash.
+    private static func shortestLateralConnectPath(
+        from start: GridAddress,
+        to goal: GridAddress,
+        in component: Set<GridAddress>
+    ) -> [GridAddress]? {
+        guard component.contains(start), component.contains(goal) else { return nil }
+        if start == goal { return [start] }
+        var parent: [GridAddress: GridAddress] = [:]
+        var queue: [GridAddress] = [start]
+        var head = 0
+        var seen: Set<GridAddress> = [start]
+        while head < queue.count {
+            let cur = queue[head]
+            head += 1
+            for delta in Self.chainNeighborDeltas8 {
+                let next = GridAddress(row: cur.row + delta.dr, col: cur.col + delta.dc)
+                guard component.contains(next), seen.insert(next).inserted else { continue }
+                parent[next] = cur
+                if next == goal {
+                    var path = [goal]
+                    var step = goal
+                    while step != start, let prev = parent[step] {
+                        path.append(prev)
+                        step = prev
+                    }
+                    path.reverse()
+                    return path
+                }
+                queue.append(next)
+            }
+        }
+        return nil
+    }
+
     /// Toute case `.priks` dont au moins un **voisin 8-con** est dans `touchingRemovedCells` perd **1** sur son compteur
     /// pour cette vague (même idée que `priksAffected` dans `priks.html` : un Priks ne perd qu’au plus un point par résolution).
     /// Compteur ≤ 0 → la case devient `.empty` (disparition + bonus +10).
@@ -6786,7 +6833,12 @@ final class GameScene: SKScene {
     }
 
     /// Anime la disparition des Priks arrivés à 0 (pop blanc → implosion + paillettes carrées), puis appelle `completion`.
-    private func animateVanishingPriks(cells: Set<GridAddress>, completion: @escaping () -> Void) {
+    /// Gerbe d’orbite Magix si `specialOrbitLinger` (BRIXED) **ou** si la vague vient d’un Magix (`magixCausedDisappearLinger`).
+    private func animateVanishingPriks(
+        cells: Set<GridAddress>,
+        specialOrbitLinger: Bool = false,
+        completion: @escaping () -> Void
+    ) {
         guard !cells.isEmpty else {
             completion()
             return
@@ -6830,6 +6882,9 @@ final class GameScene: SKScene {
                 let scenePoint = self.convert(sprite.position, from: container)
                 self.spawnBrixVanishSquareDots(at: scenePoint, color: blockColor)
                 self.spawnBrixVanishPresenceStars(at: scenePoint)
+                if specialOrbitLinger || self.magixCausedDisappearLinger {
+                    self.spawnSpecialOrbitLingerSparks(at: scenePoint, pickColor: Self.pickMagixOrbitColor)
+                }
             }
 
             let implodeScale = SKAction.scale(to: BrixVanishFeedback.implodeScale,
@@ -6878,6 +6933,8 @@ final class GameScene: SKScene {
         // Aucune chaîne : fin de vague / de partie — reset du combo (`priks.html` : `else { chainSeriesLevel = 0 }` dans la boucle).
         guard !winningCells.isEmpty else {
             chainSeriesLevel = 0
+            // Fin de l’effet Magix : les lignes décennie / attaques qui suivent ne sont plus « causées par le Magix ».
+            magixCausedDisappearLinger = false
             // BOMBX : si aucune case peinte n’a été effacée (0 clear sur la tâche), dots depuis la zone peinte.
             tryLaunchBombxBonusDots(clearedBombxCells: nil)
             if shouldRunPostPlacementHooks {
@@ -6985,6 +7042,7 @@ final class GameScene: SKScene {
             cells: Self.orderedChainRemovalCells(from: components)
         )
         var connectFlashCells = Set<GridAddress>()
+        var connectPaths: [[GridAddress]] = []
         var connectPopups: [(center: CGPoint, color: SKColor)] = []
         for component in components {
             var pts = Self.chainClearScorePoints(chainSeriesLevel: chainSeriesLevel, groupSize: component.count)
@@ -7009,6 +7067,11 @@ final class GameScene: SKScene {
                 if let pair = Self.lateralConnectEdgePair(in: component) {
                     connectFlashCells.insert(pair.left)
                     connectFlashCells.insert(pair.right)
+                    if let path = Self.shortestLateralConnectPath(
+                        from: pair.left, to: pair.right, in: component
+                    ) {
+                        connectPaths.append(path)
+                    }
                 }
                 connectPopups.append((floatAt, dotColor ?? .white))
             }
@@ -7046,7 +7109,8 @@ final class GameScene: SKScene {
         // Dissolution sur les **sprites** existants ; la grille logique reste inchangée jusqu’à `applyChainClearPhysicalWave`.
         animateWinningChainDisappearance(
             components: components,
-            connectFlashCells: connectFlashCells
+            connectFlashCells: connectFlashCells,
+            connectPaths: connectPaths
         ) { [weak self] in
             guard let self else { return }
             self.applyChainClearPhysicalWave(winningCells: winningCells)
@@ -7068,6 +7132,7 @@ final class GameScene: SKScene {
     private func animateWinningChainDisappearance(
         components: [Set<GridAddress>],
         connectFlashCells: Set<GridAddress> = [],
+        connectPaths: [[GridAddress]] = [],
         completion: @escaping () -> Void
     ) {
         let ordered = Self.orderedChainRemovalCells(from: components)
@@ -7085,6 +7150,13 @@ final class GameScene: SKScene {
         let cellAnim = ChainClearFeedback.dissolvePerCellAnimationDuration
         let tail     = Double(max(ordered.count - 1, 0)) * stagger + cellAnim
         dissolveBloxJunctionsWithChainCells(ordered: ordered, stagger: stagger)
+        spawnLateralConnectPaths(
+            connectPaths,
+            ordered: ordered,
+            stagger: stagger,
+            cellAnim: cellAnim,
+            in: container
+        )
 
         let zDuringDissolve: CGFloat = 24
         let lastCol = GridLayout.columnCount - 1
@@ -7140,6 +7212,9 @@ final class GameScene: SKScene {
                 guard let self else { return }
                 let scenePoint = self.convert(sprite.position, from: container)
                 self.spawnChainPopDots(at: scenePoint, color: dotColor)
+                if self.magixCausedDisappearLinger {
+                    self.spawnSpecialOrbitLingerSparks(at: scenePoint, pickColor: Self.pickMagixOrbitColor)
+                }
             }
 
             // Phase 2 (suite) : rétrécissement + éclaircissement simultanés
@@ -8182,10 +8257,96 @@ final class GameScene: SKScene {
         container.run(SKAction.sequence(steps))
     }
 
-    /// Point blanc sur la face externe d’un blox mur (L ou R), calé sur la dissolution de cette case.
+    /// Fil chrome le long du plus court pont 8-connexe : faces externes + centres, fade dans la fenêtre des blox du chemin.
+    private func spawnLateralConnectPaths(
+        _ paths: [[GridAddress]],
+        ordered: [GridAddress],
+        stagger: TimeInterval,
+        cellAnim: TimeInterval,
+        in container: SKNode
+    ) {
+        guard !paths.isEmpty else { return }
+        let fadeInMax = ChainClearFeedback.dissolveScaleUpDuration
+        let fadeOutMax = ChainClearFeedback.dissolveScaleDownDuration
+            + ChainClearFeedback.dissolveFadeDuration
+        for path in paths {
+            let indices = path.compactMap { addr in ordered.firstIndex(of: addr) }
+            guard let i0 = indices.min(), let i1 = indices.max() else { continue }
+            let t0 = Double(i0) * stagger
+            let window = max(0, Double(i1) * stagger + cellAnim - t0)
+            let fadeIn = min(fadeInMax, window * 0.4)
+            let fadeOut = min(fadeOutMax, max(0, window - fadeIn))
+            let hold = max(0, window - fadeIn - fadeOut)
+            spawnLateralConnectPath(
+                cells: path,
+                in: container,
+                delay: t0,
+                fadeIn: fadeIn,
+                hold: hold,
+                fadeOut: fadeOut
+            )
+        }
+    }
+
+    private func spawnLateralConnectPath(
+        cells: [GridAddress],
+        in container: SKNode,
+        delay: TimeInterval,
+        fadeIn: TimeInterval,
+        hold: TimeInterval,
+        fadeOut: TimeInterval
+    ) {
+        guard let start = cells.first, let goal = cells.last else { return }
+        let lastCol = GridLayout.columnCount - 1
+        let spriteHalf = (GridLayout.cellPoints - 4) / 2
+        let cgPath = CGMutablePath()
+        let startCenter = Self.gridContainerLocalCellCenter(row: start.row, column: start.col)
+        let startOuterX = start.col == 0 ? startCenter.x - spriteHalf
+            : (start.col == lastCol ? startCenter.x + spriteHalf : startCenter.x)
+        cgPath.move(to: CGPoint(x: startOuterX, y: startCenter.y))
+        for addr in cells {
+            let c = Self.gridContainerLocalCellCenter(row: addr.row, column: addr.col)
+            cgPath.addLine(to: c)
+        }
+        let goalCenter = Self.gridContainerLocalCellCenter(row: goal.row, column: goal.col)
+        let goalOuterX = goal.col == lastCol ? goalCenter.x + spriteHalf
+            : (goal.col == 0 ? goalCenter.x - spriteHalf : goalCenter.x)
+        cgPath.addLine(to: CGPoint(x: goalOuterX, y: goalCenter.y))
+
+        let line = SKShapeNode(path: cgPath)
+        line.strokeColor = LateralConnectBonus.chromeSK
+        line.fillColor = .clear
+        line.lineWidth = LateralConnectBonus.pathLineWidth
+        line.lineCap = .round
+        line.lineJoin = .round
+        line.alpha = 0
+        line.zPosition = LateralConnectBonus.pathZ
+        line.name = "cell_connect_path_\(start.row)_\(start.col)_\(goal.row)_\(goal.col)"
+        container.addChild(line)
+
+        var steps: [SKAction] = []
+        if delay > 0 { steps.append(SKAction.wait(forDuration: delay)) }
+        if fadeIn > 0 {
+            let fade = SKAction.fadeIn(withDuration: fadeIn)
+            fade.timingMode = .easeOut
+            steps.append(fade)
+        } else {
+            steps.append(SKAction.fadeIn(withDuration: 0))
+        }
+        if hold > 0 { steps.append(SKAction.wait(forDuration: hold)) }
+        if fadeOut > 0 {
+            let fade = SKAction.fadeOut(withDuration: fadeOut)
+            fade.timingMode = .easeIn
+            steps.append(fade)
+        }
+        steps.append(SKAction.removeFromParent())
+        line.run(SKAction.sequence(steps))
+    }
+
+    /// Point chrome sur la face externe d’un blox mur (L ou R), calé sur la dissolution de cette case.
     private func spawnLateralConnectFlash(at localPoint: CGPoint, in container: SKNode) {
         let dot = SKShapeNode(circleOfRadius: LateralConnectBonus.flashRadius)
-        dot.fillColor = .white
+        dot.fillColor = LateralConnectBonus.chromeSK
         dot.strokeColor = .clear
         dot.position = localPoint
         dot.zPosition = LateralConnectBonus.flashZ
@@ -9689,7 +9850,7 @@ final class GameScene: SKScene {
 
             // Traîne de paillettes pour chaque colonne de la ligne entrante.
             run(makeTrailSpawnAction(riseDuration: duration,
-                                     color: Self.bloxTrailColor(for: block),
+                                     pickColor: { Self.bloxTrailColor(for: block) },
                                      trackedSprite: sprite))
 
             let endPoint = scenePointCellCenter(row: placement.row, column: col)
@@ -9878,7 +10039,13 @@ final class GameScene: SKScene {
         run(SKAction.sequence([
             SKAction.wait(forDuration: 0.001),
             makeTrailSpawnAction(riseDuration: riseDuration,
-                                 color: Self.bloxTrailColor(for: placedBlock),
+                                 pickColor: {
+                                     if case .magix = placedBlock {
+                                         return Self.pickMagixOrbitColor()
+                                            ?? SKColor(white: 0.92, alpha: 1)
+                                     }
+                                     return Self.bloxTrailColor(for: placedBlock)
+                                 },
                                  trackedSprite: falling),
         ]))
 
@@ -10240,9 +10407,7 @@ final class GameScene: SKScene {
         ])))
         sprite.addChild(glow)
 
-        attachSpecialOrbitParticles(to: sprite, size: size) {
-            BlomixSkinCatalog.shared.bloxSKColors().randomElement()
-        }
+        attachSpecialOrbitParticles(to: sprite, size: size, pickColor: pickMagixOrbitColor)
 
         // ── Symbole "?", "+", "9" ──────────────────────────────────────────────
         sprite.childNode(withName: symbolLabelName)?.removeFromParent()
@@ -10354,15 +10519,7 @@ final class GameScene: SKScene {
         ])))
         sprite.addChild(glow)
 
-        attachSpecialOrbitParticles(to: sprite, size: size) {
-            switch Int.random(in: 0..<3) {
-            case 0: return bloxSolidFillColor(colorName: "red")
-                ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
-            case 1: return bloxSolidFillColor(colorName: "yellow")
-                ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
-            default: return SKColor(white: 0.12, alpha: 1)
-            }
-        }
+        attachSpecialOrbitParticles(to: sprite, size: size, pickColor: pickBombOrbitColor)
     }
 
     /// Preview guide (6.4) : même sprite bombe que le HUD.
@@ -10414,6 +10571,7 @@ final class GameScene: SKScene {
 
     /// Dispatche vers la bonne routine selon la variante du bloc Magix qui vient d'atterrir.
     private func applyMagixEffect(kind: MagixKind, at cell: GridAddress) {
+        magixCausedDisappearLinger = true
         // Popup "CHROMAX" / "BRIXED" / "CROSSX" centré sur la case d'atterrissage.
         spawnMagixNamePopup(name: MagixRules.label(for: kind),
                             at: scenePointCellCenter(row: cell.row, column: cell.col))
@@ -10642,6 +10800,7 @@ final class GameScene: SKScene {
                     guard let self, let sprite else { return }
                     let scenePos = self.convert(sprite.position, from: container)
                     self.spawnChainPopDots(at: scenePos, color: sprite.color)
+                    self.spawnSpecialOrbitLingerSparks(at: scenePos, pickColor: Self.pickMagixOrbitColor)
                 },
                 SKAction.group([
                     SKAction.scale(to: 0.01, duration: 0.14),
@@ -10810,6 +10969,7 @@ final class GameScene: SKScene {
                     sprite.removeAction(forKey: "cleanxColorCycle")
                     let scenePos = self.convert(sprite.position, from: container)
                     self.spawnChainPopDots(at: scenePos, color: sprite.color)
+                    self.spawnSpecialOrbitLingerSparks(at: scenePos, pickColor: Self.pickMagixOrbitColor)
                     sprite.run(SKAction.sequence([
                         SKAction.group([
                             SKAction.sequence([
@@ -10890,6 +11050,7 @@ final class GameScene: SKScene {
         var twistRNG = makeDailyEffectRNG(event: "twistx", at: cell)
         guard let chosenColor = twistRNG?.pick(presentColors) ?? presentColors.randomElement() else {
             // Aucune couleur dans la grille → rien à faire.
+            magixCausedDisappearLinger = false
             drawGrid()
             isProcessing = false
             return
@@ -11165,7 +11326,7 @@ final class GameScene: SKScene {
                     )
                 },
             ]))
-            animateVanishingPriks(cells: vanishedPriks) { [weak self] in
+            animateVanishingPriks(cells: vanishedPriks, specialOrbitLinger: true) { [weak self] in
                 guard let self else { return }
                 self.drawGrid()
                 continueAfterVanish()
@@ -11559,6 +11720,7 @@ final class GameScene: SKScene {
                 let point = scenePointCellCenter(row: addr.row, column: addr.col)
                 spawnBrixVanishSquareDots(at: point, color: priksColor)
                 spawnBrixVanishPresenceStars(at: point)
+                spawnSpecialOrbitLingerSparks(at: point, pickColor: Self.pickMagixOrbitColor)
             }
             let window = brixSparkleArrivalWindow(cells: Array(vanishedBrixAddrs), spawnAt: 0)
             addScore(
@@ -12453,6 +12615,7 @@ final class GameScene: SKScene {
                 SKAction.wait(forDuration: Double(index) * stagger + scaleUp),
                 SKAction.run { [weak self] in
                     self?.spawnChainPopDots(at: point, color: color)
+                    self?.spawnSpecialOrbitLingerSparks(at: point, pickColor: Self.pickBombOrbitColor)
                 },
             ]))
         }
@@ -12464,6 +12627,7 @@ final class GameScene: SKScene {
                 SKAction.run { [weak self] in
                     self?.spawnBrixVanishSquareDots(at: point, color: priksColor)
                     self?.spawnBrixVanishPresenceStars(at: point)
+                    self?.spawnSpecialOrbitLingerSparks(at: point, pickColor: Self.pickBombOrbitColor)
                 },
             ]))
         }
@@ -12788,7 +12952,7 @@ final class GameScene: SKScene {
         run(SKAction.sequence([
             SKAction.wait(forDuration: 0.001),
             makeTrailSpawnAction(riseDuration: 0.4,
-                                 color: SKColor(red: 1.0, green: 0.75, blue: 0.2, alpha: 1),
+                                 pickColor: { Self.pickBombOrbitColor() ?? SKColor(white: 0.12, alpha: 1) },
                                  trackedSprite: falling),
         ]))
 
@@ -13450,6 +13614,51 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Dizaine de grains d’orbite dans une case détruite par bombe, wipe Magix, ou chaîne / Brix nés d’un Magix. Scène, pas HUD, compactage n’attend pas.
+    private func spawnSpecialOrbitLingerSparks(
+        at center: CGPoint,
+        pickColor: () -> SKColor?
+    ) {
+        let cellHalf = GridLayout.cellPoints * 0.42
+        for _ in 0..<SpecialOrbitJuice.lingerCount {
+            guard let color = pickColor() else { continue }
+            let angle = CGFloat.random(in: 0..<(2 * .pi))
+            let origin = CGPoint(
+                x: center.x + CGFloat.random(in: -cellHalf...cellHalf),
+                y: center.y + CGFloat.random(in: -cellHalf...cellHalf)
+            )
+            let travel = SpecialOrbitJuice.haloSpread
+                + CGFloat.random(in: SpecialOrbitJuice.endRadiusJitter)
+            let end = CGPoint(
+                x: origin.x + cos(angle) * travel,
+                y: origin.y + sin(angle) * travel
+            )
+            let small = CGFloat.random(in: 0...1) < SpecialOrbitJuice.smallProbability
+            let radius = CGFloat.random(
+                in: small ? SpecialOrbitJuice.smallRadius : SpecialOrbitJuice.largeRadius
+            )
+            let spark = SKShapeNode(circleOfRadius: radius)
+            spark.fillColor = color
+            spark.strokeColor = .clear
+            spark.alpha = 0
+            spark.zPosition = SpecialOrbitJuice.lingerZ
+            spark.position = origin
+            addChild(spark)
+            let move = SKAction.move(to: end, duration: SpecialOrbitJuice.moveDuration)
+            spark.run(SKAction.sequence([
+                SKAction.group([
+                    SKAction.sequence([
+                        SKAction.fadeAlpha(to: SpecialOrbitJuice.peakAlpha, duration: SpecialOrbitJuice.fadeIn),
+                        SKAction.wait(forDuration: SpecialOrbitJuice.hold),
+                        SKAction.fadeOut(withDuration: SpecialOrbitJuice.fadeOut),
+                    ]),
+                    move,
+                ]),
+                SKAction.removeFromParent(),
+            ]))
+        }
+    }
+
     /// Halo, orbite, glyphe, shader — le corps du sprite reste.
     private func stripMagixAura(from sprite: SKSpriteNode) {
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
@@ -13653,12 +13862,31 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Palette d’orbite Magix (même tirage que `attachSpecialOrbitParticles`).
+    private static func pickMagixOrbitColor() -> SKColor? {
+        BlomixSkinCatalog.shared.bloxSKColors().randomElement()
+    }
+
+    /// Palette d’orbite bombe : rouge / jaune / quasi-noir.
+    private static func pickBombOrbitColor() -> SKColor? {
+        switch Int.random(in: 0..<3) {
+        case 0:
+            return bloxSolidFillColor(colorName: "red")
+                ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
+        case 1:
+            return bloxSolidFillColor(colorName: "yellow")
+                ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
+        default:
+            return SKColor(white: 0.12, alpha: 1)
+        }
+    }
+
     /// Retourne une SKAction qui lit la position de `trackedSprite` à intervalles réguliers
     /// et dépose des paillettes (SKShapeNode, même technique que les score dots) directement
     /// dans la scène. Chaque paillette s'estompe en ~0.38 s.
     private func makeTrailSpawnAction(
         riseDuration: TimeInterval,
-        color: SKColor,
+        pickColor: @escaping () -> SKColor,
         trackedSprite: SKSpriteNode
     ) -> SKAction {
         let interval: TimeInterval = 0.04          // ~25 spawns/s → 10 points pour 0.4 s
@@ -13675,7 +13903,7 @@ final class GameScene: SKScene {
                         ? CGFloat.random(in: 1.8...3.0)   // traîne centrale
                         : CGFloat.random(in: 1.0...2.0)   // traînes latérales, plus fines
                     let dot = SKShapeNode(circleOfRadius: radius)
-                    dot.fillColor   = color
+                    dot.fillColor   = pickColor()
                     dot.strokeColor = .clear
                     dot.alpha       = 0.9
                     dot.zPosition   = 36
@@ -13695,7 +13923,7 @@ final class GameScene: SKScene {
                 // 4 micro-paillettes supplémentaires à positions X/Y entièrement aléatoires.
                 for _ in 0..<4 {
                     let micro = SKShapeNode(circleOfRadius: 1.0)
-                    micro.fillColor   = color
+                    micro.fillColor   = pickColor()
                     micro.strokeColor = .clear
                     micro.alpha       = 0.9
                     micro.zPosition   = 36
@@ -14519,6 +14747,7 @@ final class GameScene: SKScene {
         isInjectingBottomRandomLine = false
         pendingScoredChainClearCells = nil
         pendingGridWrite = nil
+        magixCausedDisappearLinger = false
     }
 
     /// Resynchronise l’affichage après un flush logique (app toujours en mémoire, pas tuée).
@@ -14668,6 +14897,7 @@ final class GameScene: SKScene {
         shouldRunPostPlacementHooks = false
         isProcessing = false
         isInjectingBottomRandomLine = false
+        magixCausedDisappearLinger = false
         isTutorialMode = false
         pvpMatchSetupInProgress = false
 

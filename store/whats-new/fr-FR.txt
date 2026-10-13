@@ -1,3 +1,3 @@
-• CONNECT : une chaîne qui relie les deux bords de la grille rapporte +100
-• Magix et bombe : grains en orbite dès qu’ils apparaissent en file
-• Duel : le bot 5 s s’appelle BOTSUPREME ; le bot 1 s s’appelle BOT1
+• CONNECT : un trait chrome dessine le plus court pont d’un bord à l’autre
+• Magix et bombe : sillage coloré à la pose, paillettes dans chaque case qui disparaît
+• Tous les Magix (COLORX, CHROMAX, SLASHX…) : les mêmes paillettes sur les chaînes qu’ils déclenchent

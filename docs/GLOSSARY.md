@@ -1,7 +1,7 @@
 # Blomix — Glossaire
 
 > Terminologie canonique pour aligner la documentation, le code et l'UI.  
-> **Version de référence** : 8.5
+> **Version de référence** : 8.6
 
 ---
 
@@ -26,7 +26,7 @@
 | **Case vide** | `BlockType.empty` | Cellule sans contenu |
 | **Grille** | `grid[row][col]` | 8×8 ; `row 0` = haut, `row 7` = bas |
 | **Chaîne** | — | Groupe 8-connexe de ≥ 5 blox de même couleur |
-| **CONNECT** | `LateralConnectBonus` | Chaîne qui touche les deux bords latéraux ; +100 + popup CONNECT |
+| **CONNECT** | `LateralConnectBonus` | Chaîne qui touche les deux bords latéraux ; +100 + popup CONNECT + trait chrome sur le plus court pont |
 | **Cascade** | — | Résolutions en chaîne après gravité (plusieurs vagues) |
 | **Gravité inversée** | — | Les blocs remontent vers le haut ; les vides restent en bas |
 

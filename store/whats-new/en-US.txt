@@ -1,3 +1,3 @@
-• CONNECT: a chain that links both sides of the board scores +100
-• Magix and bombs now orbit with particles as soon as they appear in the queue
-• Duel: the 5 s bot is BOTSUPREME; the 1 s bot is BOT1
+• CONNECT: a chrome line traces the shortest bridge from one side to the other
+• Magix and bombs: colored trail on drop, sparkles in every cell they clear
+• Every Magix (COLORX, CHROMAX, SLASHX…): the same sparkles on the chains they trigger

@@ -7,9 +7,20 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.6] — 2026-10
+
+Build **158**. Watch **8.0 / 146**.
+
+### Modifié
+
+- **CONNECT** : un trait chrome (blanc Sombre / noir Clair) suit le plus court chemin 8-connexe **dans la composante**, centres des blox du pont, extrémités = faces externes (mêmes points). Fade dans la fenêtre de dissolution de ces blox ; compactage inchangé. Les points suivent le même chrome. [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).
+- **Magix / bombe — sillage et mort de cases** : traînée de pose Magix = palette d’orbite (plus le blanc) ; pose bombe = rouge / jaune / quasi-noir. **Toute disparition causée par un Magix** (wipe COLORX / SAINTX, Brix BRIXED / SCRUMBLX, **et** chaînes + Brix → 0 après CHROMAX / CROSSX / SLASHX / TWISTX / BOMBX, y compris cascades) gagne ~10 grains d’orbite locaux (pas vers le score) au pic. Bombe : mêmes grains sur le blast, pas sur les chaînes suivantes. Compactage / saisie n’attendent pas. [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).
+
+---
+
 ## [8.5] — 2026-10
 
-Build **157**. Watch **8.0 / 146**.
+Build **157**. En vente. Watch **8.0 / 146**.
 
 ### Modifié
 
@@ -21,7 +32,7 @@ Build **157**. Watch **8.0 / 146**.
 
 ## [8.4] — 2026-10
 
-Build **156**. En vente. Watch **8.0 / 146**.
+Build **156**. Watch **8.0 / 146**.
 
 ### Modifié
 

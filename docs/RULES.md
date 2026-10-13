@@ -1,6 +1,6 @@
 # Blomix — Règles du jeu
 
-> **Version de référence** : 8.5  
+> **Version de référence** : 8.6  
 > Aligné sur le comportement du binaire (build 118).
 
 ## 1. La grille
@@ -127,7 +127,7 @@ Exemples :
 
 Si plusieurs composantes indépendantes existent dans la même vague, elles partagent le même `chainSeriesLevel`.
 
-**CONNECT** : si une chaîne touche **les deux bords latéraux** de la grille (colonne 0 et colonne 7, n’importe quel chemin 8-connexe), **+100 pts** en plus du score de chaîne. Popup **CONNECT** (même cinématique que COMBO). Pas de bonus cascade supplémentaire sur ce 100.
+**CONNECT** : si une chaîne touche **les deux bords latéraux** de la grille (colonne 0 et colonne 7, n’importe quel chemin 8-connexe), **+100 pts** en plus du score de chaîne. Popup **CONNECT** (même cinématique que COMBO). Pendant la disparition, un trait relie les deux bords le long du pont. Pas de bonus cascade supplémentaire sur ce 100.
 
 En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à ×6), y compris le bonus grille vide et CONNECT.
 

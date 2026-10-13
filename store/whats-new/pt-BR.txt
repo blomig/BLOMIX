@@ -1,3 +1,3 @@
-• CONNECT: uma cadeia que liga as duas bordas do tabuleiro vale +100
-• Magix e bomba: partículas em órbita assim que aparecem na fila
-• Duelo: o bot de 5 s se chama BOTSUPREME; o de 1 s se chama BOT1
+• CONNECT: uma linha cromada traça a ponte mais curta de uma borda à outra
+• Magix e bomba: rastro colorido na queda, faíscas em cada casa que some
+• Todos os Magix (COLORX, CHROMAX, SLASHX…): as mesmas faíscas nas cadeias que disparam

@@ -4,7 +4,7 @@ Puzzle combinatoire **8×8** pour iOS : placez des blox colorés, formez des cha
 
 | | |
 |---|---|
-| **Version** | 8.5 (build 157, local) — 8.4 (build 156) en vente |
+| **Version** | 8.6 (build 158, local) — 8.5 (build 157) en vente |
 | **Plateforme** | iOS 18+ (portrait) |
 | **Stack** | Swift 6, UIKit, SpriteKit, Game Center |
 | **Langues** | Français, Anglais, Allemand, Espagnol, Italien, Portugais (Brésil) |

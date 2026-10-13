@@ -1,3 +1,3 @@
-• CONNECT: una catena che unisce i due bordi della griglia vale +100
-• Magix e bomba: particelle in orbita appena compaiono in coda
-• Duello: il bot da 5 s si chiama BOTSUPREME; quello da 1 s si chiama BOT1
+• CONNECT: una linea cromata traccia il ponte più corto da un bordo all’altro
+• Magix e bomba: scia colorata in caduta, scintille in ogni casella che scompare
+• Tutti i Magix (COLORX, CHROMAX, SLASHX…): le stesse scintille sulle catene che innescano

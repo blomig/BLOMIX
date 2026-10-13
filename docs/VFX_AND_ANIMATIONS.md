@@ -1,6 +1,6 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 8.5  
+> **Version de référence** : 8.6  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
 > **Dernière mise à jour** : octobre 2026  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
@@ -124,12 +124,12 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Blox / Magix | 0,82 | 1,25 | `FlightStretch` |
 | Brix | 0,88 | 1,16 | `BrixFlightStretch` |
 
-**Traînée de particules** (`makeTrailSpawnAction`) — identique Blox et Brix :
+**Traînée de particules** (`makeTrailSpawnAction`) — Blox / Brix identiques ; Magix / bombe = palette d’orbite **par grain** :
 - Intervalle spawn : **0,04 s** (~25/s)
 - 3 traînées (centre + ±9 pt) + 4 micro-dots aléatoires
-- Rayon dots : 1,8–3,0 pt (centre), 1,0–2,0 pt (latérales)
+- Rayon dots : 1,8–3,0 pt (centre), 1,0–2,0 pt (latérales) — pas les rayons d’orbite (lisibilité à 1280 pt/s)
 - Fade-out : **0,38 s**
-- Couleur : blox = couleur skin ; brix = `priksSolidFillColor()`
+- Couleur : blox = couleur skin ; brix = `priksSolidFillColor()` ; **Magix** = `bloxSKColors` aléatoire ; **bombe** (pose) = rouge / jaune / quasi-noir
 
 **Atterrissage** (`playLandingBounce`) — profil selon le type posé :
 
@@ -266,6 +266,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 - Couleur = couleur exacte du blox
 - HUD : le roulement **part à la première** arrivée et **s’arrête à la dernière**. Compactage / cascade / saisie **n’attendent pas**.
 - Dots du `+N` : plus de vol t0. Le glyphe se brise à **t = 0,58 s** (voir § 8.1) ; les paillettes de cases restent indépendantes.
+- **Magix** : si la chaîne est née d’un Magix (peinture CHROMAX / CROSSX / SLASHX / TWISTX / BOMBX, ou cascade après COLORX / SAINTX / BRIXED / SCRUMBLX), **+10 grains d’orbite** locaux au même pic (`spawnSpecialOrbitLingerSparks`, palette Magix, pas HUD). Coup joueur ou bombe : pas de linger Magix.
 
 ### 3.2 Sons de chaîne (`playChainClearSound`)
 
@@ -310,8 +311,9 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 | **Déclencheur** | Composante chaîne qui touche col 0 **et** col 7 |
 | **Score** | +100 (puis × stage Arcade) ; inclus dans le `+N` de la composante |
 | **Popup** | **CONNECT**, même cinématique que COMBO (delay 0,45 s). Si COMBO la même vague : CONNECT 70 pt plus haut, un seul shake (celui du COMBO) |
-| **Flash** | Point blanc (r 3,6 pt) sur la **face externe** d’un blox mur G et d’un blox mur D (paire à plus petit écart de ligne). Départ = stagger de **cette** case ; grow 0,20 s puis fade 0,30 s (fenêtre de dissolution) |
-| **Réf.** | `LateralConnectBonus`, `spawnConnectLabelPopup`, `spawnLateralConnectFlash` |
+| **Flash** | Point chrome (r 3,6 pt, blanc Sombre / noir Clair) sur la **face externe** d’un blox mur G et d’un blox mur D (paire à plus petit écart de ligne). Départ = stagger de **cette** case ; grow 0,20 s puis fade 0,30 s (fenêtre de dissolution) |
+| **Pont** | Trait chrome (même teinte, largeur 3,2 pt) : face G → centres du **plus court chemin 8-connexe dans la composante** → face D. Fade in / hold / fade out dans la fenêtre stagger des blox du chemin (≤ compactage). `z` 25,8 (sous les points). Pas enfant des sprites. |
+| **Réf.** | `LateralConnectBonus`, `spawnConnectLabelPopup`, `spawnLateralConnectFlash`, `spawnLateralConnectPath` |
 
 ---
 
@@ -361,6 +363,8 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 
 SCRUMBLX : carrés + étoiles + `+N` au trou (pas de pop/implosion, le slide suit). **Bombe** : mêmes étoiles dans chaque case Brix au pic ×1,25 (explosion inchangée).
 
+**Magix** : si le Brix → 0 est causé par un Magix (BRIXED, SCRUMBLX, ou décrément adjacent d’une chaîne Magix), **+10 grains d’orbite** Magix au pic du pop (en plus des carrés HUD / étoiles). Chaîne joueur / bombe : pas de linger Magix.
+
 ---
 
 ## 5. Bombe
@@ -388,6 +392,7 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 | Particules radiales | 50 dots blancs, v 60–200 pts/s, flight 0,30–0,65 s |
 | Blocs 3×3 | stagger **0,02 s**/case ; push radial 12–20 pt (**0,18 s**) ; scale up ×1,25 (**0,12 s**) ; rotation 15–30° (**0,2 s**) ; collapse scale→0,01 + fade (**0,22 s**) |
 | Paillettes score | au pic ×1,25 : ronds blox (`spawnChainPopDots`) / carrés Brix (`spawnBrixVanishSquareDots`) → HUD ~824 pt/s. Anim des blocs **inchangée**. 50 dots blancs **restent** (pas HUD) |
+| Grains d’orbite | **+10** / case occupée, même recette idle (`SpecialOrbitJuice`), palette bombe, vol local ~16 pt **1,55 s**, z 37, nœuds scène. **Pas** vers le score. Compactage n’attend pas. `spawnSpecialOrbitLingerSparks` |
 
 **Emitters SKEmitterNode** (option `spawnEmitter: true`, non utilisé en solo actuel) :
 - Gerbe blanche : 72 particules, lifetime 0,32 s, speed 100±60
@@ -405,6 +410,8 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 
 **Pose commune** (avant l’effet) : bounce blox **0,15 s** + gerbe palette §1.1 (`spawnMagixLandingBurst`). Popup nom : `spawnMagixNamePopup` — texte 22 pt, montée **44 pt** en **0,85 s**, fade après **0,38 s**.
 
+**Langue linger** : toute disparition de blox / Brix **causée par un Magix** (wipe direct **ou** chaînes / cascades / Brix → 0 après peinture) reçoit ~10 grains d’orbite Magix (`spawnSpecialOrbitLingerSparks`) au pic, en plus du HUD. Compactage n’attend pas. Bombe : linger sur le blast seulement (§5.2). Flag `magixCausedDisappearLinger` de `applyMagixEffect` jusqu’à la fin des cascades (pas persisté).
+
 ### 6.1 CHROMAX
 
 | | |
@@ -412,7 +419,7 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 | **Visuel** | Chemin serpentin ≤ 15 cases → couleur aléatoire. **Case d’atterrissage** : le disque **mue** en blox (strip aura, pulse ×1,18). Autres cases : pop 0,5→1,4→1,0 |
 | **Timing** | **0,08 s**/case + pause finale 0,12 s |
 | **Audio** | `playChromaxTick` procédural |
-| **Suite** | `resolveChains()` |
+| **Suite** | `resolveChains()` — chaînes / Brix → 0 nés de la peinture : linger Magix (§3.1 / §4.2) |
 
 ### 6.2 BRIXED
 
@@ -421,7 +428,8 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 | **Visuel** | Le disque **mue** en Brix(9) (même sprite, pulse ×1,18) ; flash blanc α 0,85 sur tous les Brix, **0,20 s** |
 | **Logique** | Devient Brix(9) ; **détruit** tous les autres Brix (+20 chacun) |
 | **Audio** | `playBrixedImpact()` |
-| **Suite** | Gravité + `resolveChains()` |
+| **Orbite locale** | Au pic du pop : +10 grains palette Magix / case (en plus des carrés HUD) |
+| **Suite** | Gravité + `resolveChains()` — chaînes / Brix suivants : même linger |
 
 ### 6.3 CROSSX
 
@@ -430,7 +438,7 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 | **Visuel** | Ligne + colonne → couleur aléatoire ; expansion par distance Manhattan. **Centre** : mue du disque ; autres cases : pop 0,5→1,35→1,0 |
 | **Timing** | **0,06 s**/anneau |
 | **Audio** | `playCrosxPulse(ring)` |
-| **Suite** | `resolveChains()` |
+| **Suite** | `resolveChains()` — chaînes / Brix → 0 nés de la peinture : linger Magix (§3.1 / §4.2) |
 
 ### 6.3b SLASHX
 
@@ -441,17 +449,17 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | **Visuel** | Diagonales → couleur aléatoire ; expansion depuis le centre. **Centre** : mue du disque |
 | **Timing** | **0,06 s**/anneau (identique CROSSX) |
 | **Audio** | `playCrosxPulse(ring)` (cousin) |
-| **Suite** | `resolveChains()` |
+| **Suite** | `resolveChains()` — chaînes / Brix → 0 nés de la peinture : linger Magix (§3.1 / §4.2) |
 
 ### 6.4 SCRUMBLX
 
 | | |
 |---|---|
-| **Visuel** | Gerbe palette **consommation** + flash blanc sprite ; **chiffres Brix −1** (même anim §4.1) avant le mélange ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation |
+| **Visuel** | Gerbe palette **consommation** + flash blanc sprite ; **chiffres Brix −1** (même anim §4.1) avant le mélange ; décalage horizontal par ligne 1–7 cases, wrap-around ; **0,08 s**/cran, délai **0,3 s** entre lignes ; **placeholders gris** (`white: 0.12`) sur cases vidées (Brix −1→0, atterrissage) pour l’animation. Brix → 0 : carrés HUD + **+10 grains d’orbite Magix** (linger, pas score) |
 | **Logique** | −1 tous Brix avant shift |
 | **Audio** | `scrumblx` + `priksVanish` staggeré pour Brix à 0 |
 | **Fin d’anim** | Attente = **max** sur toutes les lignes de `preShiftHold + idx×0,3 + steps×0,08` (`preShiftHold = max(flash 0,18 s, dernier swap chiffre)`) ; réapplication idempotente des shifts depuis snapshot pré-décalage ; `drawGrid` puis compaction vers le haut |
-| **Suite** | compaction animée + `resolveChains()` |
+| **Suite** | compaction animée + `resolveChains()` — chaînes / Brix suivants : linger Magix |
 
 ### 6.5 COLORX
 
@@ -460,19 +468,21 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante ; **jonctions H/V/D retirées avant** le 1er overlay |
 | **Timing** | `[0,10, 0,15, 0,22, 0,30, 0,50]` s/étape ; pop scale ×1,25 |
 | **Fin du disque** | gerbe palette consommation + fade **0,18 s** (avant la dissolution des blox) |
-| **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30 (0,10 s) → paillettes HUD → 0,01 + fade 0,14 s ; max 8 pops audio |
+| **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30 (0,10 s) → paillettes HUD **et** +10 grains d’orbite Magix (linger scène) → 0,01 + fade 0,14 s ; max 8 pops audio |
 | **Audio** | `playColorxRouletteClick` + `playColorxDissolvePop` |
 | **Score** | Formule chaîne sur le nombre de blocs effacés |
+| **Suite** | compaction + `resolveChains()` — cascades suivantes : même linger |
 
 ### 6.6 SAINTX (cleanx)
 
 | | |
 |---|---|
 | **Visuel** | Overlay blanc 0,1→1,0 sur toutes les cases, **2,0 s** ; cycle couleurs 0,40 s/bloc |
-| **Dissolution** | Fade overlay 0,20 s ; pop particules + scale 1,30→0,01 |
+| **Dissolution** | Fade overlay 0,20 s ; pop particules HUD **et** +10 grains d’orbite Magix / case ; scale 1,30→0,01 |
 | **Transform** | Dès l’atterrissage : SAINTX → Brix visuel **0** ; le chiffre défile linéairement jusqu’à **N** pile à l’explosion (2,2 s) |
 | **Audio** | `cleanx` |
 | **Score** | +200 pts + Brix(N) sur grille |
+| **Suite** | compaction + `resolveChains()` — cascades suivantes : linger Magix |
 
 ### 6.7 TWISTX
 
@@ -481,7 +491,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | **Visuel** | Disque **consommé** (gerbe palette + fade 0,18 s) ; swap couleur↔Brix case par case, ordre mélangé |
 | **Timing** | stagger **0,04 s** ; scale pop 0,5→1,35→1,0 |
 | **Audio** | `playTwistxFlip(index)` |
-| **Suite** | `resolveChains()` |
+| **Suite** | `resolveChains()` — chaînes / Brix → 0 nés du swap : linger Magix (§3.1 / §4.2) |
 
 ### 6.8 BOMBX
 
@@ -490,7 +500,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | **Visuel** | Tâche 3 rangs sur cases occupées. **Rang 0** : mue du disque ; autres : pop 0,5→1,35→1,0 |
 | **Timing** | **0,055 s**/case (R0→R1→R2→R3) + pause finale 0,12 s |
 | **Audio** | `playBombxStain(rank, indexInRank)` — R0 plus fort/long, pitch monte avec le rang ; pas `bomb.wav` / bombLoad |
-| **Suite** | `resolveChains()` ; dots couleur → HUD bombe (+1) |
+| **Suite** | `resolveChains()` ; dots couleur → HUD bombe (+1) ; chaînes / Brix nés de la tâche : linger Magix |
 
 ---
 

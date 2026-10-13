@@ -1,7 +1,7 @@
 # BLOMIX — Duel vs bots (spec)
 
 > **Statut** : **implémenté** (soumission 8.2 / 153). Schéma CloudKit `BotEloEvent` en Production. `protocolVersion` inchangé.  
-> **Version de référence** : 8.5  
+> **Version de référence** : 8.6  
 > **2026-10-06**  
 > Voir [PVP_MATCHING.md](PVP_MATCHING.md), [EVAL.md](EVAL.md), [RULES.md](RULES.md) § Duel.
 

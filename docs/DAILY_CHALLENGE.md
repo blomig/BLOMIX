@@ -1,9 +1,9 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **8.4 / 156** en vente ; **8.5 / 157** local.  
+> **Statut** : **8.5 / 157** en vente ; **8.6 / 158** local.  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**.  
 > **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
-> **Version de référence** : 8.5  
+> **Version de référence** : 8.6  
 > **2026-10-10**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 

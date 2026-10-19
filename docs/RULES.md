@@ -251,7 +251,7 @@ Deux défis **indépendants** (graines distinctes) :
 | Graine | `blomix-daily-v1` | `blomix-five-v1` |
 | Score de la run | Arcade + moyenne | `FiveMode` seulement |
 | Carrière podium | `dailywins_arc` | `dailywins_five` |
-| CloudKit | `DailyScore` | `FiveDailyScore` (local-ready jusqu’au schéma prod) |
+| CloudKit | `DailyScore` | `FiveDailyScore` (Production) |
 
 Tout le monde joue la **même file** ce jour-là (UTC) pour **ce** défi. Une seule partie par défi et par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC**. Après ça, la partie non terminée n’est plus classée. Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 

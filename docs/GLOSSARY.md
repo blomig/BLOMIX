@@ -67,7 +67,7 @@
 |---|---|
 | **File d'attente** | 3 prochains blocs jouables : P0 (courant), P1, P2 |
 | **Ligne entrante** | Nouvelle rangée injectée en bas tous les 10 **coups de pose** (une bombe n’est pas un coup) ; jamais de Magix |
-| **Bombe** | Stock (5 Arcade/Zen, 3 Duel) ; explosion sur une case ciblée. Arcade : zone 3×3 puis croix nuke selon le stage. Duel/Zen/tuto : 3×3 |
+| **Bombe** | Stock (5 Arcade/Zen/Five, 3 Duel) ; explosion sur une case ciblée. Arcade : zone 3×3 puis croix nuke selon le stage. Duel/Zen/Five/tuto : 3×3 |
 | **Nuke** | Bombe Arcade à partir du stage 2 : 3×3 + bras cardinaux (`bombCrossArmLength` = index de stage) |
 | **Placement** | Le joueur choisit une colonne ; le bloc remonte (gravité inversée) |
 | **Toucher un Brix** | 8-connexité avec un Brix pendant une vague → compteur −1 (max 1/vague) |
@@ -85,7 +85,9 @@
 |---|---|---|
 | **Arcade** (solo stagé) | Mode par défaut | Timer par coup, 6 stages, lignes entrantes, bombes |
 | **Zen** | `isZenMode` | Pas de timer, pas de stages, classement dédié |
-| **Défi du jour** | `isDailyChallengeMode` | Même Arcade, file seedée UTC, 1 run / jour, clôture minuit UTC + 2 h, hub CloudKit + points podium GC `dailywins_arc` |
+| **Five** | `isFiveMode` | Pas de timer, pas de stages, ligne tous les **5**, classement `FiveMode`. Nom non traduit. |
+| **Défi Arcade** | `isDailyChallengeMode` + Arcade | Même Arcade, file seedée UTC (`blomix-daily-v1`), 1 run / jour, clôture minuit UTC + 2 h, hub CloudKit + points podium GC `dailywins_arc` |
+| **Défi Five** | `isDailyChallengeMode` + `isFiveMode` | Même Five, file seedée UTC (`blomix-five-v1`), 1 run / jour, CK `FiveDailyScore`, podium `dailywins_five` |
 | **Référence BLOMIX** | `BlomixDailyGhost` | Score Arcade d’une run fantôme (lookahead 3 `computeOptimal`, Magix visés, bombes souples / Brix, sans timer). Ligne grise sous la date du hub : **Référence BLOMIX** + score — **pas** un joueur CloudKit, **pas** un optimum. |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
 | **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOTSUPREME / BOT1** | spec `BOT_DUEL.md` | Adversaires Duel locaux. Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |
@@ -100,7 +102,7 @@
 | **Score de chaîne** | Points pour une chaîne (taille, couleur, multiplicateur) |
 | **Bonus Brix** | +20 pts quand un Brix atteint 0 |
 | **Bonus SAINTX** | +200 pts (× stage en Arcade) en plus du Brix laissé sur la grille |
-| **Bonus grille vide** | +500 pts (× stage en Arcade) si une vague vide toute la grille — Arcade / Zen |
+| **Bonus grille vide** | +500 pts (× stage en Arcade) si une vague vide toute la grille — Arcade / Zen / Five |
 | **Milestone** | Seuils HUD 100 / 1000 (animation score) |
 | **Best score** | Record personnel (Game Center + local) |
 | **Elo** | Classement compétitif Duel (`BlomixEloManager`) |
@@ -115,7 +117,7 @@
 |---|---|---|
 | **SimGrid** | `BlomixMoveAnalyzer` | Copie de grille pour simulation |
 | **Lookahead** | `BlomixMoveAnalyzer` | Exploration 3 niveaux (P0→P1→P2) |
-| **Solo save v7** | `BlomixSoloSaveManager` | Arcade `blomix_solo_save_v2` + Zen `blomix_zen_save_v1` |
+| **Solo save v8** | `BlomixSoloSaveManager` | Arcade `blomix_solo_save_v2` + Zen `blomix_zen_save_v1` + Five `blomix_five_save_v1` (`isFiveMode`). `minReadableVersion` **7**. |
 | **Skin** | `BlomixSkinCatalog` / `color_skins.json` | Palette de couleurs des blox (indépendant du thème chrome) |
 | **Thème chrome** | `BlomixAppearance` | Mode **Sombre** / **Clair** de l’UI (fonds, textes, chips) |
 | **Puits / capsule** | `BlomixSKButtonNode`, `BlomixUIButton` | Bouton 6.7 : creux dégradé skin + face chrome |

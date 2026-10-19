@@ -30,7 +30,7 @@ Noms Magix **non traduits** (UI, doc, ASC). Code : `MagixKind` / `MagixRules` da
 | **COLORX** | `.colorx` | O | 1/180 | Roulette : **efface** tous les blox d’une couleur (score chaîne) |
 | **SAINTX** | `.cleanx` | ∞ | 1/500 | Vide la grille ; laisse un Brix(N = cases enlevées) ; **+200** (× stage en Arcade). Juice : Brix(0) immédiat, chiffre → N à l’explosion |
 | **TWISTX** | `.twistx` | § | 1/324 | Échange auto : une couleur **présente** ↔ tous les Brix (valeur = min des Brix, défaut 3) |
-| **BOMBX** | `.bombx` | B | 1/500 | Tâche 3 rangs sur cases **occupées** → chaînes → **+1 bombe** (garanti). Arcade / Zen seulement |
+| **BOMBX** | `.bombx` | B | 1/500 | Tâche 3 rangs sur cases **occupées** → chaînes → **+1 bombe** (garanti). Arcade / Zen / Five seulement |
 
 Cumul Magix ≈ **2,9 %** (SLASHX + CROSSX = ancien 1/216 CROSSX). Glyphe TWISTX = **§** (Changa One n’a pas de double flèche).
 

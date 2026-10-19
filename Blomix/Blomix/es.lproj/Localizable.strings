@@ -16,6 +16,7 @@
 "start.settings" = "Ajustes";
 "start.credits" = "Créditos";
 "start.zen" = "Zen";
+"start.five" = "Five";
 "start.pvp" = "Duelo";
 "start.player_unknown" = "Jugador desconocido";
 "start.player_name_format" = "Jugador: %@";
@@ -91,6 +92,7 @@
 "game_over.record_score_format" = "%lld pts";
 "game_over.record_rank_solo_format" = "Ahora eres el #%lld en Arcade";
 "game_over.record_rank_zen_format" = "Ahora eres el #%lld en Zen";
+"game_over.record_rank_five_format" = "Ahora eres el #%lld en Five";
 "game_over.leaderboard" = "Ver clasificación";
 "game_over.personal_best" = "¡Nuevo récord personal!";
 "hud.best_score_title" = "RÉCORD";
@@ -133,6 +135,8 @@
 "leaderboard.elo_tab" = "Duelo";
 "leaderboard.avg_tab" = "Med.";
 "leaderboard.zen_tab" = "Zen";
+"leaderboard.five_tab" = "Five";
+"leaderboard.five_daily_tab" = "F.Reto";
 "leaderboard.avg_format" = "med. %lld pts";
 "leaderboard.avg_game_count" = "%lld partidas";
 
@@ -245,11 +249,16 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "tranquilo";
 
+"five.overlay.level_prefix" = "Modo";
+"five.overlay.stage_text" = "Five";
+"five.overlay.line1" = "línea cada 5";
+
 "stage.overlay.stats_format" = "%llds · ×%lld";
 
 "rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "MED.";
 "rank_disc.zen" = "ZEN";
+"rank_disc.five" = "FIVE";
 "rank_disc.duel" = "DUELO";
 
 "hud.time_caption" = "TIEMPO";
@@ -327,6 +336,8 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "share.gameover.score_zen_format" = "Acabo de hacer %@ en modo Zen en BLOMIX. ¿Crees que puedes superarlo?";
 "share.gameover.record_format" = "¡Nuevo récord en BLOMIX: %@! ¿Te atreves a superarlo?";
 "share.gameover.record_zen_format" = "¡Nuevo récord Zen en BLOMIX: %@! ¿Te atreves a superarlo?";
+"share.gameover.score_five_format" = "Acabo de hacer %@ en el modo Five de BLOMIX. ¿Crees que puedes superarlo?";
+"share.gameover.record_five_format" = "¡Nuevo récord Five en BLOMIX: %@! ¿Te atreves a superarlo?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Partida rápida";
@@ -399,24 +410,29 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Bloques numerados. Una cadena adyacente les resta 1 (máx. una vez por oleada).\nAl llegar a 0 desaparecen: +20 pts.";
 "guide.section.line.title" = "Línea entrante";
-"guide.section.line.body" = "Cada 10 blox / Brix colocados, una fila aleatoria sube desde abajo.\nUsar una bomba no es un movimiento: el contador LÍNEA no avanza.";
+"guide.section.line.body" = "Cada 10 blox / Brix colocados (cada 5 en Five), una fila aleatoria sube desde abajo.\nUsar una bomba no es un movimiento: el contador LÍNEA no avanza.";
 "guide.section.bombs.title" = "Bombas";
-"guide.section.bombs.body" = "Reserva: 5 en Arcade/Zen, 3 en Duelo.\nZen, Duelo y tutorial: explosión en una zona de 3×3.\nArcade: 3×3 en el Stage 1, luego una cruz que se alarga en cada Stage.";
+"guide.section.bombs.body" = "Reserva: 5 en Arcade/Zen/Five, 3 en Duelo.\nZen, Five, Duelo y tutorial: explosión en una zona de 3×3.\nArcade: 3×3 en el Stage 1, luego una cruz que se alarga en cada Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Bloques especiales con grandes poderes, muy raros, y solo aparecen en Arcade o Zen en la cola de blox / Brix a lanzar.";
+"guide.section.magix.intro" = "Bloques especiales con grandes poderes, muy raros, y solo aparecen en Arcade, Zen o Five en la cola de blox / Brix a lanzar.";
 "guide.section.magix.body" = "CHROMAX (?) — camino de color aleatorio al impacto, más o menos largo.\nBRIXED (9) — se convierte en Brix(9); los demás Brix se destruyen (+20).\nCROSSX (+) — fila + columna repintadas de un color, luego cadenas.\nSLASHX (X) — diagonales repintadas de un color, luego cadenas.\nSCRUMBLX (=) — cada fila se desplaza un número aleatorio de casillas; −1 en todos los Brix.\nCOLORX (O) — borra todos los blox de un color aleatorio.\nSAINTX (∞) — vacía la cuadrícula, deja un Brix; +200 × etapa.\nTWISTX (§) — intercambia un color de blox por el Brix mínimo.\nBOMBX (B) — mancha de color aleatoria, luego añade una bomba al stock.";
 "guide.section.score.title" = "Puntuación";
-"guide.section.score.body" = "Cadenas: 5 puntos por una cadena de 5 blox, y hasta 20 por una cadena muy larga. +10 por una cadena en cascada.\nColumna vacía: +10. Tablero vacío: +500 (Arcade/Zen, sin ×etapa).";
+"guide.section.score.body" = "Cadenas: 5 puntos por una cadena de 5 blox, y hasta 20 por una cadena muy larga. +10 por una cadena en cascada.\nColumna vacía: +10. Tablero vacío: +500 (Arcade/Zen/Five, sin ×etapa).";
 "guide.section.duel.title" = "Duelo";
 "guide.section.duel.body" = "El número grande y la barra son el medidor de ataque (0…50): cada 50 puntos envía una línea al otro jugador.\nColocar una bomba congela tu temporizador de turno.";
+"guide.section.five.title" = "Five";
+"guide.section.five.body" = "Sin temporizador ni etapas, como Zen, pero una línea cada 5 blox / Brix colocados (las bombas no cuentan).\nMagix sí. Bombas 3×3, reserva 5. HUD LÍNEA x/5.\n+500 tablero vacío y SAINTX +200, sin ×etapa. Clasificación FiveMode.";
 
 /* Desafío del día */
-"start.daily" = "Desafío del día";
-"start.daily_ranking" = "Clasificación del desafío";
+"start.daily" = "Desafío";
+"start.daily_ranking" = "Clasificación";
 "start.hero_mode_daily" = "Continuar";
 "rank_disc.daily" = "RETO";
+"rank_disc.five_daily" = "F.RETO";
 "leaderboard.daily_tab" = "Reto";
 "daily.hub_title" = "Desafío del día";
+"daily.hub_title_arcade" = "Desafío Arcade";
+"daily.hub_title_five" = "Desafío Five";
 "daily.cta_play" = "¡Desafío!";
 "daily.cta_continue" = "Continuar";
 "daily.cta_tomorrow" = "Vuelve mañana";

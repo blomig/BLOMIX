@@ -33,8 +33,12 @@ final class ScoreManager {
     nonisolated static let averageLeaderboardID = "BlomixAverageScore_v1"
     /// Leaderboard dédié au mode Zen.
     nonisolated static let zenLeaderboardID     = "ZenMode"
-    /// Cumul des points podium du Défi du jour (`DailyWin_arc` / `dailywins_arc`).
-    nonisolated static let dailyLeaderboardID   = BlomixDailyChallenge.leaderboardID
+    /// Cumul des points podium du Défi Arcade (`DailyWin_arc` / `dailywins_arc`).
+    nonisolated static let dailyLeaderboardID   = BlomixDailyKind.arcade.leaderboardID
+    /// Leaderboard dédié au mode Five.
+    nonisolated static let fiveLeaderboardID    = "FiveMode"
+    /// Cumul des points podium du Défi Five (`DailyWin_five` / `dailywins_five`).
+    nonisolated static let fiveDailyLeaderboardID = BlomixDailyKind.five.leaderboardID
 
     private init() {
         migrateScoreVersionIfNeeded()
@@ -85,6 +89,10 @@ final class ScoreManager {
         static let pendingGCScoreKey = "BlomixPendingGCScore"
         /// Meilleur score Zen hors ligne / échec GC — resoumis sur `zenLeaderboardID` à l’auth.
         static let pendingZenGCScoreKey = "BlomixPendingZenGCScore"
+        /// Meilleur score Five enregistré localement (indépendant d’Arcade / Zen).
+        static let fiveHighScoreKey = "BlomixLocalFiveHighScore"
+        /// Meilleur score Five hors ligne / échec GC — resoumis sur `fiveLeaderboardID` à l’auth.
+        static let pendingFiveGCScoreKey = "BlomixPendingFiveGCScore"
         /// Version du système de score. Incrémentée quand les scores ne sont plus comparables (nouveau leaderboard, nouveau système de points…).
         static let scoreVersionKey   = "BlomixScoreVersion"
         static let currentScoreVersion = 3   // v3 : nouveau leaderboard BlomixMainScore_v3 + nouveau système de points
@@ -106,6 +114,12 @@ final class ScoreManager {
     private var localZenHighScore: Int {
         get { UserDefaults.standard.integer(forKey: LocalPersistence.zenHighScoreKey) }
         set { UserDefaults.standard.set(newValue, forKey: LocalPersistence.zenHighScoreKey) }
+    }
+
+    /// Meilleur score Five enregistré sur l'appareil, indépendant d’Arcade / Zen.
+    private var localFiveHighScore: Int {
+        get { UserDefaults.standard.integer(forKey: LocalPersistence.fiveHighScoreKey) }
+        set { UserDefaults.standard.set(newValue, forKey: LocalPersistence.fiveHighScoreKey) }
     }
 
     /// Met à jour le high-score Solo **disque** uniquement si `score` est strictement supérieur à la valeur actuelle.
@@ -139,6 +153,19 @@ final class ScoreManager {
     /// Retourne le meilleur score Zen persisté localement (0 si aucune partie enregistrée).
     func getLocalZenHighScore() -> Int { localZenHighScore }
 
+    /// Met à jour le high-score Five **disque** uniquement si `score` est strictement supérieur.
+    @discardableResult
+    func updateLocalFiveHighScoreIfBetter(_ score: Int) -> Bool {
+        guard score > localFiveHighScore else { return false }
+        localFiveHighScore = score
+        savePendingGCScore(score, leaderboardID: ScoreManager.fiveLeaderboardID)
+        print("[ScoreManager] Backup Five local mis à jour : nouveau record Five = \(score).")
+        return true
+    }
+
+    /// Retourne le meilleur score Five persisté localement (0 si aucune partie enregistrée).
+    func getLocalFiveHighScore() -> Int { localFiveHighScore }
+
     // MARK: - Référence Game Center (pour comparaisons « record personnel »)
 
     /// `true` après au moins un **`fetchLocalPlayerBestScore`** réussi (même si le joueur n’a pas encore d’entrée → score 0 côté GC).
@@ -152,6 +179,9 @@ final class ScoreManager {
         if leaderboardID == ScoreManager.zenLeaderboardID {
             hasFetchedGameCenterZenPersonalBest = true
             cachedGameCenterZenPersonalBest = best ?? 0
+        } else if leaderboardID == ScoreManager.fiveLeaderboardID {
+            hasFetchedGameCenterFivePersonalBest = true
+            cachedGameCenterFivePersonalBest = best ?? 0
         } else {
             hasFetchedGameCenterPersonalBest = true
             cachedGameCenterPersonalBest = best ?? 0
@@ -179,6 +209,18 @@ final class ScoreManager {
         let local = getLocalZenHighScore()
         let reference = hasFetchedGameCenterZenPersonalBest
             ? max(local, cachedGameCenterZenPersonalBest)
+            : local
+        return score > reference
+    }
+
+    // ── Cache Game Center Five (symétrique Zen) ────────────────────────────────
+    private var hasFetchedGameCenterFivePersonalBest = false
+    private var cachedGameCenterFivePersonalBest: Int = 0
+
+    func isNewFivePersonalBest(_ score: Int) -> Bool {
+        let local = getLocalFiveHighScore()
+        let reference = hasFetchedGameCenterFivePersonalBest
+            ? max(local, cachedGameCenterFivePersonalBest)
             : local
         return score > reference
     }
@@ -244,15 +286,19 @@ final class ScoreManager {
         if leaderboardID == ScoreManager.zenLeaderboardID {
             return LocalPersistence.pendingZenGCScoreKey
         }
+        if leaderboardID == ScoreManager.fiveLeaderboardID {
+            return LocalPersistence.pendingFiveGCScoreKey
+        }
         if leaderboardID == ScoreManager.mainLeaderboardID {
             return LocalPersistence.pendingGCScoreKey
         }
-        // Autres leaderboards (moyenne, Elo…) : pas de file « best score » ici.
+        // Autres leaderboards (moyenne, Elo, carrière défi…) : pas de file « best score » ici.
         return nil
     }
 
     private func localHighScore(forLeaderboardID leaderboardID: String) -> Int {
         if leaderboardID == ScoreManager.zenLeaderboardID { return getLocalZenHighScore() }
+        if leaderboardID == ScoreManager.fiveLeaderboardID { return getLocalFiveHighScore() }
         if leaderboardID == ScoreManager.mainLeaderboardID { return getLocalHighScore() }
         return 0
     }
@@ -319,7 +365,7 @@ final class ScoreManager {
     /// Pousse Solo / Zen : `max(hiscore local, pending)` — **sans** clear pending avant succès réseau.
     private func flushBestLocalScoresToGCIfNeeded(reason: String) {
         guard isAuthenticated else { return }
-        for leaderboardID in [ScoreManager.mainLeaderboardID, ScoreManager.zenLeaderboardID] {
+        for leaderboardID in [ScoreManager.mainLeaderboardID, ScoreManager.zenLeaderboardID, ScoreManager.fiveLeaderboardID] {
             let toUpload = bestScoreToUpload(forLeaderboardID: leaderboardID)
             guard toUpload > 0 else { continue }
             // Si GC cache déjà ≥ local et pas de pending, inutile de re-soumettre en boucle.
@@ -337,6 +383,12 @@ final class ScoreManager {
                cachedGameCenterPersonalBest >= local {
                 continue
             }
+            if pending == 0,
+               leaderboardID == ScoreManager.fiveLeaderboardID,
+               hasFetchedGameCenterFivePersonalBest,
+               cachedGameCenterFivePersonalBest >= local {
+                continue
+            }
             print("[ScoreManager] Sync GC (\(reason)) — upload \(toUpload) → « \(leaderboardID) » (local=\(local), pending=\(pending)).")
             submitScore(toUpload, leaderboardID: leaderboardID, completion: nil)
         }
@@ -347,7 +399,7 @@ final class ScoreManager {
         guard isAuthenticated, !isSyncingBestScores else { return }
         isSyncingBestScores = true
         let group = DispatchGroup()
-        for leaderboardID in [ScoreManager.mainLeaderboardID, ScoreManager.zenLeaderboardID] {
+        for leaderboardID in [ScoreManager.mainLeaderboardID, ScoreManager.zenLeaderboardID, ScoreManager.fiveLeaderboardID] {
             let local = localHighScore(forLeaderboardID: leaderboardID)
             guard local > 0 else { continue }
             group.enter()
@@ -490,9 +542,12 @@ final class ScoreManager {
         // Backup disque **toujours** tenté en premier (hors ligne, échec réseau Game Center, ou joueur non connecté).
         // Nouveau record local → pending aligné (via updateLocal*).
         let isZen = (leaderboardID == ScoreManager.zenLeaderboardID)
-        let isBestScoreBoard = isZen || leaderboardID == ScoreManager.mainLeaderboardID
+        let isFive = (leaderboardID == ScoreManager.fiveLeaderboardID)
+        let isBestScoreBoard = isZen || isFive || leaderboardID == ScoreManager.mainLeaderboardID
         if isZen {
             _ = updateLocalZenHighScoreIfBetter(score)
+        } else if isFive {
+            _ = updateLocalFiveHighScoreIfBetter(score)
         } else if leaderboardID == ScoreManager.mainLeaderboardID {
             _ = updateLocalHighScoreIfBetter(score)
         }
@@ -503,7 +558,9 @@ final class ScoreManager {
                 let localBackup = localHighScore(forLeaderboardID: leaderboardID)
                 savePendingGCScore(max(score, localBackup), leaderboardID: leaderboardID)
             }
-            let localBackup = isZen ? getLocalZenHighScore() : getLocalHighScore()
+            let localBackup = isZen
+                ? getLocalZenHighScore()
+                : (isFive ? getLocalFiveHighScore() : getLocalHighScore())
             let error = NSError(
                 domain: "ScoreManager",
                 code: 1,
@@ -650,20 +707,25 @@ final class ScoreManager {
 
     private var cachedMainTopScore: Int = 0
     private var cachedZenTopScore: Int = 0
+    private var cachedFiveTopScore: Int = 0
     private var hasFetchedMainTopScore = false
     private var hasFetchedZenTopScore = false
+    private var hasFetchedFiveTopScore = false
     private var cachedMainBoardScores: [Int] = []
     private var cachedZenBoardScores: [Int] = []
+    private var cachedFiveBoardScores: [Int] = []
 
     /// Dernier n°1 connu pour le board (0 si jamais chargé).
     func cachedLeaderboardTopScore(leaderboardID: String) -> Int {
         if leaderboardID == ScoreManager.zenLeaderboardID { return cachedZenTopScore }
+        if leaderboardID == ScoreManager.fiveLeaderboardID { return cachedFiveTopScore }
         return cachedMainTopScore
     }
 
     /// `true` après au moins un fetch n°1 réussi (y compris board vide → 0).
     func hasFetchedLeaderboardTopScore(leaderboardID: String) -> Bool {
         if leaderboardID == ScoreManager.zenLeaderboardID { return hasFetchedZenTopScore }
+        if leaderboardID == ScoreManager.fiveLeaderboardID { return hasFetchedFiveTopScore }
         return hasFetchedMainTopScore
     }
 
@@ -671,6 +733,9 @@ final class ScoreManager {
         if leaderboardID == ScoreManager.zenLeaderboardID {
             hasFetchedZenTopScore = true
             cachedZenTopScore = max(0, score)
+        } else if leaderboardID == ScoreManager.fiveLeaderboardID {
+            hasFetchedFiveTopScore = true
+            cachedFiveTopScore = max(0, score)
         } else {
             hasFetchedMainTopScore = true
             cachedMainTopScore = max(0, score)
@@ -680,6 +745,7 @@ final class ScoreManager {
     /// Scores du board (top 100), 0 si jamais chargé. Pour la jauge HUD.
     func cachedLeaderboardScores(leaderboardID: String) -> [Int] {
         if leaderboardID == ScoreManager.zenLeaderboardID { return cachedZenBoardScores }
+        if leaderboardID == ScoreManager.fiveLeaderboardID { return cachedFiveBoardScores }
         return cachedMainBoardScores
     }
 
@@ -687,16 +753,19 @@ final class ScoreManager {
         let cleaned = scores.map { max(0, $0) }
         if leaderboardID == ScoreManager.zenLeaderboardID {
             cachedZenBoardScores = cleaned
+        } else if leaderboardID == ScoreManager.fiveLeaderboardID {
+            cachedFiveBoardScores = cleaned
         } else {
             cachedMainBoardScores = cleaned
         }
         recordLeaderboardTopScore(cleaned.first ?? 0, leaderboardID: leaderboardID)
     }
 
-    /// Arcade + Zen : liste top 100 (accueil / auth). **Ne pas** appeler en partie.
+    /// Arcade + Zen + Five : liste top 100 (accueil / auth). **Ne pas** appeler en partie.
     func prefetchScoreRaceFields() {
         fetchLeaderboardField(leaderboardID: ScoreManager.mainLeaderboardID) { _ in }
         fetchLeaderboardField(leaderboardID: ScoreManager.zenLeaderboardID) { _ in }
+        fetchLeaderboardField(leaderboardID: ScoreManager.fiveLeaderboardID) { _ in }
     }
 
     /// Charge jusqu’à 100 scores all-time (jauge + n°1).

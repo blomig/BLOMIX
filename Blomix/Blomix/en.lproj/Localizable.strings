@@ -16,6 +16,7 @@
 "start.settings" = "Settings";
 "start.credits" = "Credits";
 "start.zen" = "Zen";
+"start.five" = "Five";
 "start.pvp" = "Duel";
 "start.player_unknown" = "Unknown player";
 "start.player_name_format" = "Player: %@";
@@ -91,6 +92,7 @@
 "game_over.record_score_format" = "%lld pts";
 "game_over.record_rank_solo_format" = "You are now ranked #%lld in Arcade";
 "game_over.record_rank_zen_format" = "You are now ranked #%lld in Zen";
+"game_over.record_rank_five_format" = "You are now ranked #%lld in Five";
 "game_over.leaderboard" = "View leaderboard";
 "game_over.personal_best" = "New personal best!";
 "hud.best_score_title" = "BEST";
@@ -135,6 +137,8 @@
 "leaderboard.elo_tab" = "Duel";
 "leaderboard.avg_tab" = "Moy.";
 "leaderboard.zen_tab" = "Zen";
+"leaderboard.five_tab" = "Five";
+"leaderboard.five_daily_tab" = "F.Day";
 "leaderboard.avg_format" = "avg. %lld pts";
 "leaderboard.avg_game_count" = "%lld games";
 
@@ -250,6 +254,11 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "chill";
 
+/* Five mode intro */
+"five.overlay.level_prefix" = "Mode";
+"five.overlay.stage_text" = "Five";
+"five.overlay.line1" = "a line every 5";
+
 /* Stage transition overlay (Arcade / Daily) */
 "stage.overlay.stats_format" = "%llds · ×%lld";
 
@@ -257,6 +266,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "AVG.";
 "rank_disc.zen" = "ZEN";
+"rank_disc.five" = "FIVE";
 "rank_disc.duel" = "DUEL";
 
 /* HUD captions */
@@ -339,6 +349,8 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "share.gameover.score_zen_format" = "I just scored %@ in Zen mode on BLOMIX. Think you can beat that?";
 "share.gameover.record_format" = "New personal best on BLOMIX: %@! Think you can top that?";
 "share.gameover.record_zen_format" = "New Zen personal best on BLOMIX: %@! Think you can top that?";
+"share.gameover.score_five_format" = "I just scored %@ in Five mode on BLOMIX. Think you can beat that?";
+"share.gameover.record_five_format" = "New Five personal best on BLOMIX: %@! Think you can top that?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Quick match";
@@ -411,24 +423,29 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Numbered blocks. An adjacent chain knocks 1 off (once per wave).\nAt 0 they vanish: +20 pts.";
 "guide.section.line.title" = "Incoming line";
-"guide.section.line.body" = "Every 10 placed blox / Brix, a random row rises from the bottom.\nUsing a bomb is not a move: the LINE counter does not advance.";
+"guide.section.line.body" = "Every 10 placed blox / Brix (every 5 in Five), a random row rises from the bottom.\nUsing a bomb is not a move: the LINE counter does not advance.";
 "guide.section.bombs.title" = "Bombs";
-"guide.section.bombs.body" = "Stock: 5 in Arcade/Zen, 3 in Duel.\nZen, Duel and tutorial: a 3×3 blast zone.\nArcade: 3×3 at Stage 1, then a cross that lengthens each Stage.";
+"guide.section.bombs.body" = "Stock: 5 in Arcade/Zen/Five, 3 in Duel.\nZen, Five, Duel and tutorial: a 3×3 blast zone.\nArcade: 3×3 at Stage 1, then a cross that lengthens each Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Special blocks with powerful effects, very rare, and they only appear in Arcade or Zen in the blox / Brix launch queue.";
+"guide.section.magix.intro" = "Special blocks with powerful effects, very rare, and they only appear in Arcade, Zen or Five in the blox / Brix launch queue.";
 "guide.section.magix.body" = "CHROMAX (?) — random coloured path on impact, more or less long.\nBRIXED (9) — becomes Brix(9); all other Brix are destroyed (+20).\nCROSSX (+) — row + column repainted one colour, then chains.\nSLASHX (X) — diagonals repainted one colour, then chains.\nSCRUMBLX (=) — each row shifts a random number of cells; −1 on every Brix.\nCOLORX (O) — clears all blox of a random colour.\nSAINTX (∞) — clears the board, leaves a Brix; +200 × stage.\nTWISTX (§) — swaps one blox colour for the lowest Brix.\nBOMBX (B) — random colour stain, then adds a bomb to the stock.";
 "guide.section.score.title" = "Score";
-"guide.section.score.body" = "Chains: 5 points for a chain of 5 blox, up to 20 for a very long chain. +10 for a cascade chain.\nCleared column: +10. Fully empty board: +500 (Arcade/Zen, no stage multiplier).";
+"guide.section.score.body" = "Chains: 5 points for a chain of 5 blox, up to 20 for a very long chain. +10 for a cascade chain.\nCleared column: +10. Fully empty board: +500 (Arcade/Zen/Five, no stage multiplier).";
 "guide.section.duel.title" = "Duel";
 "guide.section.duel.body" = "The big number and the bar are the attack meter (0…50): every 50 points sends a line to the other player.\nPlacing a bomb freezes your turn timer.";
+"guide.section.five.title" = "Five";
+"guide.section.five.body" = "No timer and no stages, like Zen, but a line every 5 placed blox / Brix (bombs don’t count).\nMagix yes. 3×3 bombs, stock of 5. LINE HUD x/5.\n+500 empty board and SAINTX +200, no stage multiplier. FiveMode leaderboard.";
 
 /* Daily Challenge */
-"start.daily" = "Daily Challenge";
-"start.daily_ranking" = "Challenge ranking";
+"start.daily" = "Challenge";
+"start.daily_ranking" = "Ranking";
 "start.hero_mode_daily" = "Continue";
 "rank_disc.daily" = "DAY";
+"rank_disc.five_daily" = "F.DAY";
 "leaderboard.daily_tab" = "Day";
 "daily.hub_title" = "Daily Challenge";
+"daily.hub_title_arcade" = "Arcade Challenge";
+"daily.hub_title_five" = "Five Challenge";
 "daily.cta_play" = "Challenge!";
 "daily.cta_continue" = "Continue";
 "daily.cta_tomorrow" = "Come back tomorrow";

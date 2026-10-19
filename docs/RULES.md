@@ -49,7 +49,7 @@ Blocs spéciaux rares (~**3 %** de probabilité cumulée) déclenchant un effet 
 | **COLORX** | O | Roulette de couleur : efface tous les blocs de la couleur choisie (score chaîne) |
 | **SAINTX** (cleanx) | ∞ | Efface toute la grille et laisse un Brix valant le nombre de cases supprimées ; **+200 pts** bonus (en Arcade : × le multiplicateur du stage) |
 | **TWISTX** | § | Échange **automatique** : une couleur aléatoire présente sur la grille ↔ tous les Brix (valeur = minimum des Brix existants, défaut 3) |
-| **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; puis **+1 bombe** au stock (garanti même sans clear). Rareté ≈ SAINTX. **Arcade / Zen** uniquement |
+| **BOMBX** | B | Peint (cases **déjà occupées** seulement) : atterrissage + voisins 8-connexes + 1 hop aléatoire par voisin + **encore 1 hop** (tâche 3 rangs) en une couleur ; chaînes ; puis **+1 bombe** au stock (garanti même sans clear). Rareté ≈ SAINTX. **Arcade / Zen / Five** uniquement |
 
 Les fractions exactes par variante sont dans [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) §7. Catalogue et pistes : [MAGIX.md](MAGIX.md).
 
@@ -150,24 +150,24 @@ En **Arcade**, les points passent par le multiplicateur du stage courant (×1 à
 
 **+10 pts** par colonne qui contenait au moins un bloc avant la vague et se retrouve entièrement vide après.
 
-### Grille entièrement vide (Arcade / Zen)
+### Grille entièrement vide (Arcade / Zen / Five)
 
-Si une vague part d’une grille **non vide** et la laisse **entièrement vide** : **+500 pts** (**× le multiplicateur du stage** en Arcade ; plat en Zen), **en plus** des +10 par colonne. Absent en Duel et en tutoriel.
+Si une vague part d’une grille **non vide** et la laisse **entièrement vide** : **+500 pts** (**× le multiplicateur du stage** en Arcade ; plat en Zen et Five), **en plus** des +10 par colonne. Absent en Duel et en tutoriel.
 
 ### SAINTX (cleanx)
 
 **+200 pts** bonus à l'activation (en plus du Brix laissé sur la grille).  
-En Arcade, ce bonus **est multiplié** par le ×stage (×1 à ×6). En Zen : +200 plat.
+En Arcade, ce bonus **est multiplié** par le ×stage (×1 à ×6). En Zen et Five : +200 plat.
 
 ---
 
-## 7. La ligne entrante (tous les 10 coups)
+## 7. La ligne entrante (tous les 10 coups, tous les 5 en Five)
 
-Tous les **10 coups de pose** (`moveCount % 10 == 0`), une rangée de 8 blocs **monte depuis le bas** et occupe la première case vide de chaque colonne.
+Tous les **10 coups de pose** (`moveCount % period == 0`, period **10** Arcade / Zen / Défi Arcade, period **5** Five / Défi Five), une rangée de 8 blocs **monte depuis le bas** et occupe la première case vide de chaque colonne.
 
 Un **coup** = une pose de bloc (Blox, Brix ou Magix) dont la résolution est terminée. **Poser une bombe n’est pas un coup** : le compteur LIGNE n’avance pas.
 
-- Le compteur **LIGNE x/10** est visible en permanence dans le HUD.
+- Le compteur **LIGNE x/period** est visible en permanence dans le HUD (**/10** Arcade, **/5** Five).
 - La composition est **prévisualisée au coup 9** (demi-cases en bas de grille).
 - Chaque case est tirée indépendamment comme un bloc de file, **puis** tout Magix est remplacé par une couleur. En tutoriel, les Brix des lignes sont aussi remplacés par des couleurs.
 - Si une colonne est déjà pleine au moment de l'injection → **Game Over**.
@@ -180,7 +180,7 @@ Invariant Duel : si au **lancement** d’un blox/Brix aucune ligne n’est affic
 
 ## 8. Les bombes
 
-| Paramètre | Arcade / Zen | Duel |
+| Paramètre | Arcade / Zen / Five | Duel |
 |---|---|---|
 | Stock initial | **5** | **3** |
 
@@ -200,7 +200,7 @@ Taper à nouveau l'icône bombe **annule** le mode et restitue la bombe au stock
 
 | Mode | Zone |
 |---|---|
-| Zen, Duel, tutoriel | Toujours **3×3** (8-connexité autour de la case) |
+| Zen, Five, Duel, tutoriel | Toujours **3×3** (8-connexité autour de la case) |
 | Arcade stage 1 | **3×3** |
 | Arcade stage 2 | 3×3 + **1** case par bras cardinal (croix) |
 | Arcade stage 3 | 3×3 + **2** cases par bras |
@@ -235,11 +235,25 @@ Sauvegarde automatique à la mise en arrière-plan (reprise : voir [PROJECT_CONT
 
 ### Mode Zen
 
-Sans timer, sans stages, bombes **3×3** uniquement. Classement Game Center dédié (`ZenMode`). Multiplicateur ×1.
+Sans timer, sans stages, bombes **3×3** uniquement. Classement Game Center dédié (`ZenMode`). Multiplicateur ×1. Ligne tous les **10** coups.
+
+### Mode Five
+
+Nom **Five**, non traduit. Sans timer, sans stages, Magix oui, bombes **3×3** (stock 5), auto-drop **non**. Ligne tous les **5** coups (HUD LIGNE x/5, aperçu au coup 4). +500 grille vide et SAINTX +200 **plats**. Classement Game Center dédié (`FiveMode`). Ce n’est **pas** un habillage de Zen : slot save `blomix_five_save_v1`, podium séparé. Une partie Five **n’alimente pas** Arcade ni Zen.
 
 ### Défi du jour
 
-Même accélération qu’**Arcade** (timer, stages, bombe, Magix). Tout le monde joue la **même file** ce jour-là (UTC) : blox, Magix, lignes des 10. Une seule partie par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC** (l’heure limite est affichée en heure locale). Après ça, la partie non terminée n’est plus classée. Le score compte **aussi** comme une partie Arcade (meilleur score + moyenne). Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture** (minuit UTC + 2 h). Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+Deux défis **indépendants** (graines distinctes) :
+
+| | Défi Arcade | Défi Five |
+|---|---|---|
+| Règles | Même accélération qu’Arcade (timer, stages, bombe, Magix, ligne /10) | Même règles que Five (sans timer, ligne /5) |
+| Graine | `blomix-daily-v1` | `blomix-five-v1` |
+| Score de la run | Arcade + moyenne | `FiveMode` seulement |
+| Carrière podium | `dailywins_arc` | `dailywins_five` |
+| CloudKit | `DailyScore` | `FiveDailyScore` (local-ready jusqu’au schéma prod) |
+
+Tout le monde joue la **même file** ce jour-là (UTC) pour **ce** défi. Une seule partie par défi et par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC**. Après ça, la partie non terminée n’est plus classée. Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Duel (1 vs 1)
 
@@ -267,7 +281,7 @@ Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_D
 
 ## 10. Analyse des coups
 
-En fin de partie Arcade / Zen, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie.
+En fin de partie Arcade / Zen / Five, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie. Absent en Défi.
 
 Le pourcentage **ne compte pas** les Magix ni les bombes : seuls les placements de Blox / Brix sont évalués, sur un horizon de 3 blocs visibles (P0, P1, P2).
 
@@ -282,9 +296,9 @@ Le jeu se termine quand :
 - Une ligne entrante (ou d’attaque) provoque un débordement (colonne pleine)
 - En Arcade, le timer expire alors qu’aucune colonne n’est jouable
 
-L'écran Arcade / Zen affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
+L'écran Arcade / Zen / Five affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
 
-En **Défi du jour** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer.
+En **Défi Arcade** et **Défi Five** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer.
 
 ---
 

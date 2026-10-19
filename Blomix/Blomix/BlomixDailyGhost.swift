@@ -34,16 +34,27 @@ private final class BlomixDailyGhostPauseFlag: @unchecked Sendable {
 @MainActor
 final class BlomixDailyGhostController {
 
-    static let shared = BlomixDailyGhostController()
+    static let arcade = BlomixDailyGhostController(kind: .arcade)
+    static let five = BlomixDailyGhostController(kind: .five)
+    /// Alias historique = fantôme Défi Arcade.
+    static var shared: BlomixDailyGhostController { arcade }
+
+    static func controller(for kind: BlomixDailyKind) -> BlomixDailyGhostController {
+        switch kind {
+        case .arcade: return arcade
+        case .five: return five
+        }
+    }
 
     /// Bump si la sim Magix ou le scoring change (invalide le cache).
     static let engineVersion = 5
 
-    private static let cacheDayKey = "blomix_daily_ghost_day"
-    private static let cacheScoreKey = "blomix_daily_ghost_score"
-    private static let cacheVerKey = "blomix_daily_ghost_ver"
+    private let kind: BlomixDailyKind
+    private var cacheDayKey: String { kind.ghostCacheDayKey }
+    private var cacheScoreKey: String { kind.ghostCacheScoreKey }
+    private var cacheVerKey: String { kind.ghostCacheVerKey }
 
-    private let queue = DispatchQueue(label: "blomix.dailyGhost", qos: .utility)
+    private let queue: DispatchQueue
     private let pauseFlag = BlomixDailyGhostPauseFlag()
 
     private(set) var display: BlomixDailyGhostDisplay = .computing
@@ -56,7 +67,9 @@ final class BlomixDailyGhostController {
     private var pausedEngine: BlomixDailyGhostEngine?
     private var didInstallObservers = false
 
-    private init() {
+    private init(kind: BlomixDailyKind) {
+        self.kind = kind
+        self.queue = DispatchQueue(label: "blomix.dailyGhost.\(kind.rawValue)", qos: .utility)
         installObserversIfNeeded()
     }
 
@@ -112,7 +125,7 @@ final class BlomixDailyGhostController {
 
     private func startOrResume() {
         let day = hubDay
-        if let cached = Self.cachedScore(forDay: day) {
+        if let cached = cachedScore(forDay: day) {
             publish(.ready(score: cached))
             pausedEngine = nil
             return
@@ -124,10 +137,15 @@ final class BlomixDailyGhostController {
         if isWorkerRunning { return }
         publish(.computing)
 
-        let seed = BlomixDailySeed.seed(forDay: day)
+        let seed = BlomixDailySeed.seed(forDay: day, salt: kind.seedSalt)
         var engine = pausedEngine
         if engine == nil || engine?.utcDay != day || engine?.seed != seed {
-            engine = BlomixDailyGhostEngine.start(day: day, seed: seed)
+            engine = BlomixDailyGhostEngine.start(
+                day: day,
+                seed: seed,
+                linePeriod: kind.linePeriod,
+                untimed: kind.isUntimed
+            )
         }
         pausedEngine = nil
         guard let started = engine else { return }
@@ -152,7 +170,7 @@ final class BlomixDailyGhostController {
                     }
                 case .finished(let score, let moves):
                     self.pausedEngine = nil
-                    Self.storeCache(day: day, score: score)
+                    self.storeCache(day: day, score: score)
                     self.publish(.ready(score: score))
                     #if DEBUG
                     let ms = Int((CFAbsoluteTimeGetCurrent() - startedAt) * 1000)
@@ -168,17 +186,17 @@ final class BlomixDailyGhostController {
         onDisplayChange?(display)
     }
 
-    private static func cachedScore(forDay day: String) -> Int? {
+    private func cachedScore(forDay day: String) -> Int? {
         let d = UserDefaults.standard
-        guard d.integer(forKey: cacheVerKey) == engineVersion,
+        guard d.integer(forKey: cacheVerKey) == Self.engineVersion,
               d.string(forKey: cacheDayKey) == day,
               d.object(forKey: cacheScoreKey) != nil else { return nil }
         return d.integer(forKey: cacheScoreKey)
     }
 
-    private static func storeCache(day: String, score: Int) {
+    private func storeCache(day: String, score: Int) {
         let d = UserDefaults.standard
-        d.set(engineVersion, forKey: cacheVerKey)
+        d.set(Self.engineVersion, forKey: cacheVerKey)
         d.set(day, forKey: cacheDayKey)
         d.set(score, forKey: cacheScoreKey)
     }
@@ -194,6 +212,8 @@ private struct Addr: Hashable {
 struct BlomixDailyGhostEngine: Sendable {
     let utcDay: String
     let seed: UInt64
+    let linePeriod: Int
+    let untimed: Bool
 
     private var file: BlomixDailyFileRNG
     private var grid: [[BlockType]]
@@ -220,7 +240,12 @@ struct BlomixDailyGhostEngine: Sendable {
         (1, -1), (1, 0), (1, 1),
     ]
 
-    static func start(day: String, seed: UInt64) -> BlomixDailyGhostEngine {
+    static func start(
+        day: String,
+        seed: UInt64,
+        linePeriod: Int = 10,
+        untimed: Bool = false
+    ) -> BlomixDailyGhostEngine {
         var file = BlomixDailyFileRNG(seed: seed)
         let p0 = drawPlayable(using: &file)
         let p1 = drawPlayable(using: &file)
@@ -229,6 +254,8 @@ struct BlomixDailyGhostEngine: Sendable {
         return BlomixDailyGhostEngine(
             utcDay: day,
             seed: seed,
+            linePeriod: max(2, linePeriod),
+            untimed: untimed,
             file: file,
             grid: Array(repeating: Array(repeating: .empty, count: cols), count: rows),
             p0: p0, p1: p1, p2: p2,
@@ -306,7 +333,8 @@ struct BlomixDailyGhostEngine: Sendable {
             piece1: p1,
             piece2: p2,
             moveCount: moveCount,
-            pendingLine: nextLine
+            pendingLine: nextLine,
+            linePeriod: linePeriod
         )
         var bestCol: Int?
         var bestScore = Int.min
@@ -588,9 +616,12 @@ struct BlomixDailyGhostEngine: Sendable {
         (0..<cols).map { _ in .color(rng.pick(palette) ?? "red") }
     }
 
-    // MARK: Scoring Arcade
+    // MARK: Scoring Arcade / Five (untimed = ×1, pas de stages)
 
-    private var stageMul: Int { Self.stageMuls[min(stageIndex, Self.stageMuls.count - 1)] }
+    private var stageMul: Int {
+        if untimed { return 1 }
+        return Self.stageMuls[min(stageIndex, Self.stageMuls.count - 1)]
+    }
 
     private mutating func addScore(_ base: Int) {
         guard base > 0 else { return }
@@ -598,6 +629,7 @@ struct BlomixDailyGhostEngine: Sendable {
     }
 
     private mutating func refreshStage() {
+        if untimed { return }
         var target = 0
         for (i, minScore) in Self.stageMins.enumerated() where score >= minScore {
             target = i
@@ -631,7 +663,7 @@ struct BlomixDailyGhostEngine: Sendable {
                     hooks = false
                     moveCount += 1
                     refreshStage()
-                    if moveCount > 0, moveCount % 10 == 0 {
+                    if moveCount > 0, moveCount % linePeriod == 0 {
                         if injectLineIsFatal() { return true }
                         injectLine()
                         continue

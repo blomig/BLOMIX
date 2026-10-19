@@ -1,9 +1,9 @@
 # Blomix — Fonction d'évaluation (`BlomixMoveAnalyzer`)
 
 > **Version implémentée** : v2 (production)  
-> **Version de référence** : 8.3  
+> **Version de référence** : 8.6  
 > Fichier source : `Blomix/Blomix/BlomixMoveAnalyzer.swift`  
-> Fantôme Défi : `Blomix/Blomix/BlomixDailyGhost.swift`
+> Fantôme Défi : `Blomix/Blomix/BlomixDailyGhost.swift` (Arcade + Five, `linePeriod` 10 / 5)
 
 ---
 
@@ -30,7 +30,7 @@ La plupart des termes sont des **pénalités** (négatifs) ; les termes positifs
 ## Signature
 
 ```swift
-static func evaluate(grid: SimGrid, moveCount: Int) -> Int
+static func evaluate(grid: SimGrid, moveCount: Int, linePeriod: Int = 10) -> Int
 ```
 
 **Retourne :**
@@ -184,9 +184,11 @@ Thread : `DispatchQueue` QoS `.userInitiated`.
 
 ### Injection de ligne
 
-Simulée à **toute ply** dont `(newMoveCount) % 10 == 0` si `pendingLine` est fourni (`simulateDropAny`).  
-Le **joueur** (justesse / pire coup) ne passe la ligne que lorsqu’elle est visible (`moveCount % 10 == 9`) — les plies 2–3 n’injectent alors rien.  
-Le **fantôme Défi** passe toujours `nextLine` : il voit l’injection 1 à 3 coups à l’avance.
+`linePeriod` = **10** Arcade / Zen / Défi Arcade, **5** Five / Défi Five (`GameScene.incomingLinePeriod`). Défaut analyseur : 10.
+
+Simulée à **toute ply** dont `(newMoveCount) % linePeriod == 0` si `pendingLine` est fourni (`simulateDropAny`).  
+Le **joueur** (justesse / pire coup) ne passe la ligne que lorsqu’elle est visible (`moveCount % linePeriod == linePeriod - 1`) — les plies 2–3 n’injectent alors rien.  
+Le **fantôme Défi** (Arcade ou Five) passe toujours `nextLine` + le `linePeriod` du kind : il voit l’injection 1 à 3 coups à l’avance.
 
 ### Bonus d'effacement immédiat (`immediateClearing`)
 

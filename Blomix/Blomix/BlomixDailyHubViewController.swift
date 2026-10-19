@@ -15,7 +15,19 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
     var onPlay: (() -> Void)?
     var onContinue: (() -> Void)?
 
-    private let titleView = BlomixCutoutTitleView(text: BlomixL10n.dailyHubTitle, fontSize: 28)
+    let kind: BlomixDailyKind
+    private var challenge: BlomixDailyChallenge { BlomixDailyChallenge.service(kind) }
+    private var ghost: BlomixDailyGhostController { BlomixDailyGhostController.controller(for: kind) }
+
+    private let titleView: BlomixCutoutTitleView
+
+    init(kind: BlomixDailyKind = .arcade) {
+        self.kind = kind
+        self.titleView = BlomixCutoutTitleView(text: BlomixL10n.dailyHubTitle(for: kind), fontSize: 28)
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     private let dateLabel = UILabel()
     private let deadlineLabel = UILabel()
     private let headerTextStack = UIStackView()
@@ -36,8 +48,8 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
     private var entries: [BlomixDailyScoreEntry] = [] {
         didSet { tableView.reloadData() }
     }
-    private var ctaKind = BlomixDailyChallenge.shared.hubCTA
-    private var displayedDay = BlomixDailyChallenge.shared.displayedHubDay
+    private var ctaKind: BlomixDailyHubCTA = .play
+    private var displayedDay = BlomixDailySeed.utcDayString()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -45,10 +57,10 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         addAmbientBlocksBackground(density: .low)
         buildChrome()
         refreshHubState(reloadScores: true)
-        BlomixDailyGhostController.shared.onDisplayChange = { [weak self] display in
+        ghost.onDisplayChange = { [weak self] display in
             self?.applyGhostDisplay(display)
         }
-        applyGhostDisplay(BlomixDailyGhostController.shared.display)
+        applyGhostDisplay(ghost.display)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -58,7 +70,7 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        BlomixDailyGhostController.shared.hubAppeared(day: displayedDay)
+        ghost.hubAppeared(day: displayedDay)
     }
 
     private func buildChrome() {
@@ -205,10 +217,10 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
 
     private func refreshHubState(reloadScores: Bool) {
         let previousDay = displayedDay
-        ctaKind = BlomixDailyChallenge.shared.hubCTA
-        displayedDay = BlomixDailyChallenge.shared.displayedHubDay
+        ctaKind = challenge.hubCTA
+        displayedDay = challenge.displayedHubDay
         dateLabel.text = Self.utcDateCaption(forDay: displayedDay)
-        if let time = BlomixDailyChallenge.shared.localizedClosureTime(forDay: displayedDay) {
+        if let time = challenge.localizedClosureTime(forDay: displayedDay) {
             deadlineLabel.text = BlomixL10n.dailyDeadlineCompleteBy(time)
             deadlineLabel.isHidden = false
         } else {
@@ -216,7 +228,7 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
             deadlineLabel.isHidden = true
         }
         applyCTA()
-        BlomixDailyGhostController.shared.hubAppeared(day: displayedDay)
+        ghost.hubAppeared(day: displayedDay)
         if reloadScores || previousDay != displayedDay {
             loadScores()
         }
@@ -251,17 +263,17 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
         spinner.startAnimating()
         statusLabel.text = BlomixL10n.loading
         let day = displayedDay
-        let worldToday = BlomixDailyChallenge.shared.utcToday
+        let worldToday = challenge.utcToday
         let yesterday = BlomixDailySeed.previousUtcDayString()
         Task { @MainActor [weak self] in
             guard let self else { return }
             let showWorldYesterday = (day == worldToday)
             let yesterdayOpen = showWorldYesterday && !BlomixDailySeed.isUtcDayClosed(yesterday)
-            async let dayLoad = BlomixDailyChallenge.shared.fetchScores(day: day)
+            async let dayLoad = self.challenge.fetchScores(day: day)
             let today = await dayLoad
             let yesterdayResult: BlomixDailyScoresLoad
             if showWorldYesterday, !yesterdayOpen {
-                yesterdayResult = await BlomixDailyChallenge.shared.fetchScores(day: yesterday)
+                yesterdayResult = await self.challenge.fetchScores(day: yesterday)
             } else {
                 yesterdayResult = .loaded([])
             }
@@ -361,7 +373,7 @@ final class BlomixDailyHubViewController: UIViewController, UITableViewDataSourc
             ghostRow.accessibilityLabel = BlomixL10n.dailyGhostAccessibilityComputing
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
-                if case .computing = BlomixDailyGhostController.shared.display {
+                if case .computing = ghost.display {
                     self.ghostValueLabel.text = BlomixL10n.dailyGhostComputing
                     self.ghostSpinner.startAnimating()
                 }

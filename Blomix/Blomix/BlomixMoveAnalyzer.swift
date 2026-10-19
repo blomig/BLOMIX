@@ -75,7 +75,7 @@ struct BlomixWorstMistakeSnapshot {
     let nextBlock: BlockType
     /// Bloc d'après visible dans la file (p2).
     let blockTwoAhead: BlockType
-    /// Ligne entrante visible uniquement quand moveCount % 10 == 9 (nil sinon).
+    /// Ligne entrante visible uniquement au coup d’aperçu (`moveCount % linePeriod == linePeriod - 1`).
     let pendingLine: [BlockType]?
     /// Colonne choisie par le joueur.
     let chosenColumn: Int
@@ -165,17 +165,18 @@ enum BlomixMoveAnalyzer {
     // MARK: - Drop + résolution complète
 
     /// Pose `block` dans `column`, résout toutes les cascades, injecte la ligne bonus
-    /// si `(moveCount+1) % 10 == 0` et que `pendingLine` est connu.
+    /// si `(moveCount+1) % linePeriod == 0` et que `pendingLine` est connu.
     /// Retourne `nil` si la colonne est pleine ou si l'injection déclenche un game-over.
     static func simulateDrop(
         grid: SimGrid,
         block: BlockType,
         column: Int,
         moveCount: Int,
-        pendingLine: [BlockType]?
+        pendingLine: [BlockType]?,
+        linePeriod: Int = 10
     ) -> (grid: SimGrid, newMoveCount: Int)? {
         simulateDropAny(grid: grid, block: block, column: column,
-                        moveCount: moveCount, pendingLine: pendingLine)
+                        moveCount: moveCount, pendingLine: pendingLine, linePeriod: linePeriod)
     }
 
     private static func simulateDropAny(
@@ -183,7 +184,8 @@ enum BlomixMoveAnalyzer {
         block: BlockType,
         column: Int,
         moveCount: Int,
-        pendingLine: [BlockType]?
+        pendingLine: [BlockType]?,
+        linePeriod: Int = 10
     ) -> (grid: SimGrid, newMoveCount: Int)? {
 
         guard block != .empty else { return nil }
@@ -197,8 +199,9 @@ enum BlomixMoveAnalyzer {
 
         let newMC = moveCount + 1
 
-        // Injection de la ligne si on franchit une décennie ET qu'on la connaît.
-        if newMC % 10 == 0, let line = pendingLine, line.count == cols {
+        // Injection de la ligne si on franchit la période ET qu'on la connaît.
+        let period = max(2, linePeriod)
+        if newMC % period == 0, let line = pendingLine, line.count == cols {
             // Si une colonne est déjà pleine → branche invalide (game over).
             guard (0..<cols).allSatisfy({ landingRow(in: g, column: $0) != nil }) else { return nil }
             var injected = g
@@ -311,7 +314,7 @@ enum BlomixMoveAnalyzer {
     /// Ordre d'exécution : hauteurs → landing rows → groupes/accessibilité/cellGroupSize
     ///   → preChainScore par colonne → risk (facteur dynamique) → clearing (brixTouch)
     ///   → brixPotential → stabilité → somme.
-    static func evaluate(grid: SimGrid, moveCount: Int) -> Int {
+    static func evaluate(grid: SimGrid, moveCount: Int, linePeriod: Int = 10) -> Int {
 
         // ── 1. Hauteurs ───────────────────────────────────────────────────────────
         // Blocs compactés vers le haut (row 0 = sommet) ; hauteur = première rangée vide.
@@ -322,8 +325,9 @@ enum BlomixMoveAnalyzer {
             sumH += h
             if h == rows { fullCols += 1 }
         }
-        let k = 10 - (moveCount % 10)                  // coups avant la prochaine ligne [1..10]
-        let t = Double(10 - k) / 9.0                   // 0.0 quand k=10, 1.0 quand k=1
+        let period = max(2, linePeriod)
+        let k = period - (moveCount % period)          // coups avant la prochaine ligne [1..period]
+        let t = Double(period - k) / Double(period - 1) // 0.0 quand k=period, 1.0 quand k=1
         let urgencyH  = 0.80 + 0.20 * t                // [0.80 .. 1.00]
         let urgencySH = 0.90 + 0.10 * t                // [0.90 .. 1.00]
 
@@ -498,7 +502,7 @@ enum BlomixMoveAnalyzer {
         let brixPotential = max(-550, brixRaw)
 
         // ── 8. Stabilité ─────────────────────────────────────────────────────────
-        let stability = 4 * (10 - (moveCount % 10))   // [4 .. 40]
+        let stability = 4 * k                         // [4 .. 4*period]
 
         return risk + clearing + brixPotential + stability + structure + accessibility + preChainScore
     }
@@ -530,7 +534,8 @@ enum BlomixMoveAnalyzer {
         piece1: BlockType,
         piece2: BlockType,
         moveCount: Int,
-        pendingLine: [BlockType]?
+        pendingLine: [BlockType]?,
+        linePeriod: Int = 10
     ) -> BlomixLookAheadResult {
 
         // Les blocs Magix ont des effets non simulables : on retourne un résultat vide (pas de colonne optimale).
@@ -545,7 +550,7 @@ enum BlomixMoveAnalyzer {
             guard piece0 != .empty else { continue }
             guard let (g1, mc1) = simulateDropAny(
                 grid: grid, block: piece0, column: col0,
-                moveCount: moveCount, pendingLine: pendingLine
+                moveCount: moveCount, pendingLine: pendingLine, linePeriod: linePeriod
             ) else { continue }
 
             // Bonus pour les blocs effacés par la chaîne du coup 0 (non capturés par evaluate(g3)).
@@ -559,7 +564,7 @@ enum BlomixMoveAnalyzer {
                 guard piece1 != .empty else { continue }
                 guard let (g2, mc2) = simulateDropAny(
                     grid: g1, block: piece1, column: col1,
-                    moveCount: mc1, pendingLine: pendingLine
+                    moveCount: mc1, pendingLine: pendingLine, linePeriod: linePeriod
                 ) else { continue }
 
                 let bonus1 = immediateClearing(before: g1, after: g2)
@@ -568,11 +573,11 @@ enum BlomixMoveAnalyzer {
                     guard piece2 != .empty else { continue }
                     guard let (g3, mc3) = simulateDropAny(
                         grid: g2, block: piece2, column: col2,
-                        moveCount: mc2, pendingLine: pendingLine
+                        moveCount: mc2, pendingLine: pendingLine, linePeriod: linePeriod
                     ) else { continue }
 
                     let bonus2 = immediateClearing(before: g2, after: g3)
-                    let s = evaluate(grid: g3, moveCount: mc3) + bonus0 + bonus1 + bonus2
+                    let s = evaluate(grid: g3, moveCount: mc3, linePeriod: linePeriod) + bonus0 + bonus1 + bonus2
                     if s > best1 { best1 = s }
                 }
             }
@@ -580,14 +585,14 @@ enum BlomixMoveAnalyzer {
             // Fallback si toutes les branches de niveau 2+ sont invalides :
             // on évalue directement la grille après niveau 1.
             if best1 == Int.min {
-                best1 = evaluate(grid: g1, moveCount: mc1) + bonus0
+                best1 = evaluate(grid: g1, moveCount: mc1, linePeriod: linePeriod) + bonus0
             }
 
             scorePerCol[col0] = best1
             if best1 > globalBest { globalBest = best1 }
         }
 
-        let optimal = globalBest == Int.min ? evaluate(grid: grid, moveCount: moveCount) : globalBest
+        let optimal = globalBest == Int.min ? evaluate(grid: grid, moveCount: moveCount, linePeriod: linePeriod) : globalBest
         return BlomixLookAheadResult(optimalScore: optimal, scorePerColumn: scorePerCol)
     }
 }

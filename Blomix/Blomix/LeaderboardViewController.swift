@@ -12,13 +12,15 @@ import UIKit
 @MainActor
 final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     /// Onglet affiché à l'ouverture (disques de rang sur l'accueil, etc.).
-    /// Même ordre que les pastilles accueil : Arcade, Moyenne, Zen, Duel, Défi.
+    /// Même grille 4+3 que les pastilles accueil.
     enum InitialTab {
         case mainScore
         case averageScore
         case zenScore
+        case fiveScore
         case elo
         case dailyWins
+        case fiveDailyWins
     }
 
     var initialTab: InitialTab = .mainScore
@@ -53,51 +55,70 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
-    /// Ordre d’affichage des onglets = pastilles accueil (Arcade → Moyenne → Zen → Duel → Défi).
+    /// Grille 4+3 = pastilles accueil (Arc. Moy. Zen Five / Duel Défi F.Défi).
     private enum LeaderboardKind: CaseIterable, Sendable {
         case mainScore
         case averageScore
         case zenScore
+        case fiveScore
         case elo
         case dailyWins
+        case fiveDailyWins
 
         var title: String {
             switch self {
-            case .mainScore:    return BlomixL10n.leaderboardMainTab
-            case .elo:          return BlomixL10n.leaderboardEloTab
-            case .averageScore: return BlomixL10n.leaderboardAvgTab
-            case .zenScore:     return BlomixL10n.leaderboardZenTab
-            case .dailyWins:    return BlomixL10n.leaderboardDailyTab
+            case .mainScore:      return BlomixL10n.leaderboardMainTab
+            case .elo:            return BlomixL10n.leaderboardEloTab
+            case .averageScore:   return BlomixL10n.leaderboardAvgTab
+            case .zenScore:       return BlomixL10n.leaderboardZenTab
+            case .fiveScore:      return BlomixL10n.leaderboardFiveTab
+            case .dailyWins:      return BlomixL10n.leaderboardDailyTab
+            case .fiveDailyWins:  return BlomixL10n.leaderboardFiveDailyTab
             }
         }
 
         var subtitle: String {
             switch self {
-            case .mainScore:    return ScoreManager.mainLeaderboardID
-            case .elo:          return "elotype"
-            case .averageScore: return ScoreManager.averageLeaderboardID
-            case .zenScore:     return ScoreManager.zenLeaderboardID
-            case .dailyWins:    return ScoreManager.dailyLeaderboardID
+            case .mainScore:      return ScoreManager.mainLeaderboardID
+            case .elo:            return "elotype"
+            case .averageScore:   return ScoreManager.averageLeaderboardID
+            case .zenScore:       return ScoreManager.zenLeaderboardID
+            case .fiveScore:      return ScoreManager.fiveLeaderboardID
+            case .dailyWins:      return ScoreManager.dailyLeaderboardID
+            case .fiveDailyWins:  return ScoreManager.fiveDailyLeaderboardID
             }
         }
 
         var leaderboardID: String {
             switch self {
-            case .mainScore:    return ScoreManager.mainLeaderboardID
-            case .elo:          return "elotype"
-            case .averageScore: return ScoreManager.averageLeaderboardID
-            case .zenScore:     return ScoreManager.zenLeaderboardID
-            case .dailyWins:    return ScoreManager.dailyLeaderboardID
+            case .mainScore:      return ScoreManager.mainLeaderboardID
+            case .elo:            return "elotype"
+            case .averageScore:   return ScoreManager.averageLeaderboardID
+            case .zenScore:       return ScoreManager.zenLeaderboardID
+            case .fiveScore:      return ScoreManager.fiveLeaderboardID
+            case .dailyWins:      return ScoreManager.dailyLeaderboardID
+            case .fiveDailyWins:  return ScoreManager.fiveDailyLeaderboardID
+            }
+        }
+
+        var dailyKind: BlomixDailyKind? {
+            switch self {
+            case .dailyWins:     return .arcade
+            case .fiveDailyWins: return .five
+            default:             return nil
             }
         }
 
         func secondaryText(for score: Int) -> String {
             switch self {
-            case .mainScore:    return BlomixL10n.leaderboardPoints(score)
-            case .elo:          return BlomixL10n.leaderboardElo(score)
-            case .averageScore: return BlomixL10n.leaderboardAverage(score)
-            case .zenScore:     return BlomixL10n.leaderboardPoints(score)
-            case .dailyWins:    return BlomixL10n.dailyCareerPoints(score)
+            case .mainScore, .zenScore, .fiveScore:
+                return BlomixL10n.leaderboardPoints(score)
+            case .elo:
+                return BlomixL10n.leaderboardElo(score)
+            case .averageScore:
+                return BlomixL10n.leaderboardAverage(score)
+            case .dailyWins, .fiveDailyWins:
+                return BlomixL10n.dailyCareerPoints(score)
             }
         }
     }
@@ -113,11 +134,15 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private let subtitleLabel = UILabel()
     private let closeButton = BlomixUIButton()
     private let tabsStack = UIStackView()
+    private let tabsRow1 = UIStackView()
+    private let tabsRow2 = UIStackView()
     private let mainTabButton = BlomixUIButton()
     private let eloTabButton  = BlomixUIButton()
     private let avgTabButton  = BlomixUIButton()
     private let zenTabButton  = BlomixUIButton()
+    private let fiveTabButton = BlomixUIButton()
     private let dailyTabButton = BlomixUIButton()
+    private let fiveDailyTabButton = BlomixUIButton()
     private let statusLabel = UILabel()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let spinner = BlomixPvPSearchBlocksView()
@@ -170,11 +195,13 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
     private func leaderboardKind(for tab: InitialTab) -> LeaderboardKind {
         switch tab {
-        case .mainScore:    return .mainScore
-        case .averageScore: return .averageScore
-        case .zenScore:     return .zenScore
-        case .elo:          return .elo
-        case .dailyWins:    return .dailyWins
+        case .mainScore:      return .mainScore
+        case .averageScore:   return .averageScore
+        case .zenScore:       return .zenScore
+        case .fiveScore:      return .fiveScore
+        case .elo:            return .elo
+        case .dailyWins:      return .dailyWins
+        case .fiveDailyWins:  return .fiveDailyWins
         }
     }
 
@@ -187,31 +214,45 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(subtitleLabel)
 
-        tabsStack.axis = .horizontal
+        tabsStack.axis = .vertical
         tabsStack.spacing = 6
         tabsStack.distribution = .fillEqually
         tabsStack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tabsStack)
 
+        [tabsRow1, tabsRow2].forEach { row in
+            row.axis = .horizontal
+            row.spacing = 6
+            row.distribution = .fillEqually
+            row.translatesAutoresizingMaskIntoConstraints = false
+            tabsStack.addArrangedSubview(row)
+        }
+
         mainTabButton.setTitle(BlomixL10n.leaderboardMainTab, for: .normal)
-        eloTabButton.setTitle(BlomixL10n.leaderboardEloTab,  for: .normal)
         avgTabButton.setTitle(BlomixL10n.leaderboardAvgTab,  for: .normal)
         zenTabButton.setTitle(BlomixL10n.leaderboardZenTab,  for: .normal)
+        fiveTabButton.setTitle(BlomixL10n.leaderboardFiveTab, for: .normal)
+        eloTabButton.setTitle(BlomixL10n.leaderboardEloTab,  for: .normal)
         dailyTabButton.setTitle(BlomixL10n.leaderboardDailyTab, for: .normal)
-        [mainTabButton, avgTabButton, zenTabButton, eloTabButton, dailyTabButton].forEach {
+        fiveDailyTabButton.setTitle(BlomixL10n.leaderboardFiveDailyTab, for: .normal)
+        [mainTabButton, avgTabButton, zenTabButton, fiveTabButton, eloTabButton, dailyTabButton, fiveDailyTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
             BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4), to: $0)
         }
         mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
         avgTabButton.addTarget(self,  action: #selector(avgTabTapped),  for: .touchUpInside)
         zenTabButton.addTarget(self,  action: #selector(zenTabTapped),  for: .touchUpInside)
+        fiveTabButton.addTarget(self, action: #selector(fiveTabTapped), for: .touchUpInside)
         eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
         dailyTabButton.addTarget(self, action: #selector(dailyTabTapped), for: .touchUpInside)
-        tabsStack.addArrangedSubview(mainTabButton)
-        tabsStack.addArrangedSubview(avgTabButton)
-        tabsStack.addArrangedSubview(zenTabButton)
-        tabsStack.addArrangedSubview(eloTabButton)
-        tabsStack.addArrangedSubview(dailyTabButton)
+        fiveDailyTabButton.addTarget(self, action: #selector(fiveDailyTabTapped), for: .touchUpInside)
+        tabsRow1.addArrangedSubview(mainTabButton)
+        tabsRow1.addArrangedSubview(avgTabButton)
+        tabsRow1.addArrangedSubview(zenTabButton)
+        tabsRow1.addArrangedSubview(fiveTabButton)
+        tabsRow2.addArrangedSubview(eloTabButton)
+        tabsRow2.addArrangedSubview(dailyTabButton)
+        tabsRow2.addArrangedSubview(fiveDailyTabButton)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -362,8 +403,16 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         switchToLeaderboard(.zenScore)
     }
 
+    @objc private func fiveTabTapped() {
+        switchToLeaderboard(.fiveScore)
+    }
+
     @objc private func dailyTabTapped() {
         switchToLeaderboard(.dailyWins)
+    }
+
+    @objc private func fiveDailyTabTapped() {
+        switchToLeaderboard(.fiveDailyWins)
     }
 
     private func switchToLeaderboard(_ kind: LeaderboardKind) {
@@ -380,8 +429,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         applyTabSelectionStyle(button: mainTabButton, selected: selectedLeaderboardKind == .mainScore)
         applyTabSelectionStyle(button: avgTabButton,  selected: selectedLeaderboardKind == .averageScore)
         applyTabSelectionStyle(button: zenTabButton,  selected: selectedLeaderboardKind == .zenScore)
+        applyTabSelectionStyle(button: fiveTabButton, selected: selectedLeaderboardKind == .fiveScore)
         applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
         applyTabSelectionStyle(button: dailyTabButton, selected: selectedLeaderboardKind == .dailyWins)
+        applyTabSelectionStyle(button: fiveDailyTabButton, selected: selectedLeaderboardKind == .fiveDailyWins)
     }
 
     private func applyTabSelectionStyle(button: UIButton, selected: Bool) {
@@ -419,10 +470,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             return
         }
 
-        // Défi : carrière podium depuis CloudKit (2e/3e visibles sans avoir ouvert l’app le lendemain).
-        if selectedKind == .dailyWins {
+        // Défi Arcade / Five : carrière podium CloudKit (2e/3e visibles sans ouvrir l’app le lendemain).
+        if let dailyKind = selectedKind.dailyKind {
             Task { @MainActor [weak self] in
-                await self?.loadDailyCareerLeaderboard()
+                await self?.loadDailyCareerLeaderboard(kind: dailyKind)
             }
             return
         }
@@ -430,14 +481,15 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         loadLeaderboardEntries(for: selectedKind)
     }
 
-    /// Podiums clos agrégés (`DailyScore`) — lecture seule, jamais additionnée au board GC.
-    private func loadDailyCareerLeaderboard() async {
+    /// Podiums clos agrégés (`DailyScore` / `FiveDailyScore`) — lecture seule, jamais additionnée au board GC.
+    private func loadDailyCareerLeaderboard(kind: BlomixDailyKind) async {
+        let expected: LeaderboardKind = kind == .five ? .fiveDailyWins : .dailyWins
         let localID = GKLocalPlayer.local.gamePlayerID
-        switch await BlomixDailyChallenge.shared.fetchCareerStandings() {
+        switch await BlomixDailyChallenge.service(kind).fetchCareerStandings() {
         case .unavailable:
-            loadLeaderboardEntries(for: .dailyWins)
+            loadLeaderboardEntries(for: expected)
         case .loaded(let entries):
-            guard selectedLeaderboardKind == .dailyWins else { return }
+            guard selectedLeaderboardKind == expected else { return }
             let rows: [LeaderboardRow] = entries.map { e in
                 LeaderboardRow(
                     rank: BlomixDailyChallenge.denseCareerRank(of: e.gamePlayerID, in: entries) ?? 0,

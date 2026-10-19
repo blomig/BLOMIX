@@ -1,13 +1,12 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **8.5 / 157** en vente ; **8.6 / 158** local.  
-> **CloudKit** : type Public `DailyScore` déployé en **Production**.  
-> **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`).  
+> **Statut** : **8.5 / 157** en vente ; **8.6 / 158** local. Five / Défi Five **codés**, jalon **8.8** (pas de bump marketing tant que le mode n’est pas validé).  
+> **CloudKit** : type Public `DailyScore` déployé en **Production**. `FiveDailyScore` **local-ready** — à créer Dev→Production avant le jalon.  
+> **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`). Five : `FiveMode` + `dailywins_five` (ASC `DailyWin_five`) — à créer dans ASC.  
 > **Version de référence** : 8.6  
-> **2026-10-10**  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
-Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes des 10). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **victoires** cumulées.
+Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes). **Deux défis indépendants** : Arcade (ligne /10) et Five (ligne /5, sans timer). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **points podium** cumulés **par défi**.
 
 ---
 
@@ -18,7 +17,7 @@ Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lign
 | | Aujourd’hui (scores) | Carrière (points podium) |
 |---|---|---|
 | Contenu | Scores de **ce** jour UTC | Cumul +5/+3/+1 |
-| Entrée | Chip accueil → **hub du jour** | 5ᵉ disque **défi** → onglet GC (comme Arc. / Zen / Duel) |
+| Entrée | Chip accueil **Défi Arcade** ou **Défi Five** → hub du jour de ce kind | Disques **DÉFI** / **F.DÉFI** → onglets carrière |
 
 ### Hub unique (un seul écran « jour »)
 

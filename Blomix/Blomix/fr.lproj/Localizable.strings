@@ -16,6 +16,7 @@
 "start.settings" = "Réglages";
 "start.credits" = "Crédits";
 "start.zen" = "Zen";
+"start.five" = "Five";
 "start.pvp" = "Duel";
 "start.player_unknown" = "Joueur inconnu";
 "start.player_name_format" = "Joueur : %@";
@@ -91,6 +92,7 @@
 "game_over.record_score_format" = "%lld pts";
 "game_over.record_rank_solo_format" = "Tu es désormais classé #%lld en Arcade";
 "game_over.record_rank_zen_format" = "Tu es désormais classé #%lld en Zen";
+"game_over.record_rank_five_format" = "Tu es désormais classé #%lld en Five";
 "game_over.leaderboard" = "Voir le classement";
 "game_over.personal_best" = "Nouveau record personnel !";
 "hud.best_score_title" = "RECORD";
@@ -135,6 +137,8 @@
 "leaderboard.elo_tab" = "Duel";
 "leaderboard.avg_tab" = "Moy.";
 "leaderboard.zen_tab" = "Zen";
+"leaderboard.five_tab" = "Five";
+"leaderboard.five_daily_tab" = "F.Défi";
 "leaderboard.avg_format" = "moy. %lld pts";
 "leaderboard.avg_game_count" = "%lld parties";
 
@@ -263,6 +267,11 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "zen.overlay.stage_text" = "Zen";
 "zen.overlay.line1" = "tranquille";
 
+/* Intro mode Five */
+"five.overlay.level_prefix" = "Mode";
+"five.overlay.stage_text" = "Five";
+"five.overlay.line1" = "ligne tous les 5";
+
 /* Overlay transition de stage (Arcade / Défi) */
 "stage.overlay.stats_format" = "%llds · ×%lld";
 
@@ -270,6 +279,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "MOY.";
 "rank_disc.zen" = "ZEN";
+"rank_disc.five" = "FIVE";
 "rank_disc.duel" = "DUEL";
 
 /* Légendes HUD */
@@ -352,6 +362,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "share.gameover.score_zen_format" = "Je viens de faire %@ en mode Zen sur BLOMIX. Tu penses pouvoir faire mieux ?";
 "share.gameover.record_format" = "Nouveau record sur BLOMIX : %@ ! Tu oses me challenger ?";
 "share.gameover.record_zen_format" = "Nouveau record Zen sur BLOMIX : %@ ! Tu oses me challenger ?";
+"share.gameover.score_five_format" = "Je viens de faire %@ en mode Five sur BLOMIX. Tu penses pouvoir faire mieux ?";
+"share.gameover.record_five_format" = "Nouveau record Five sur BLOMIX : %@ ! Tu oses me challenger ?";
 
 /* PvP robustness */
 "pvp.mode_quick_desc" = "Partie rapide";
@@ -424,24 +436,29 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "guide.section.brix.title" = "Brix";
 "guide.section.brix.body" = "Blocs numérotés. Une chaîne adjacente leur retire 1 (max une fois par vague).\nÀ 0 ils disparaissent : +20 pts.";
 "guide.section.line.title" = "Ligne entrante";
-"guide.section.line.body" = "Tous les 10 blox / Brix posés, une rangée aléatoire monte du bas.\nPoser une bombe n’est pas un coup : le compteur LIGNE n’avance pas.";
+"guide.section.line.body" = "Tous les 10 blox / Brix posés (tous les 5 en Five), une rangée aléatoire monte du bas.\nPoser une bombe n’est pas un coup : le compteur LIGNE n’avance pas.";
 "guide.section.bombs.title" = "Bombes";
-"guide.section.bombs.body" = "Stock : 5 en Arcade/Zen, 3 en Duel.\nZen, Duel et tuto : explosion d’une zone de 3×3.\nArcade : 3×3 au Stage 1, puis une croix qui s’allonge à chaque Stage.";
+"guide.section.bombs.body" = "Stock : 5 en Arcade/Zen/Five, 3 en Duel.\nZen, Five, Duel et tuto : explosion d’une zone de 3×3.\nArcade : 3×3 au Stage 1, puis une croix qui s’allonge à chaque Stage.";
 "guide.section.magix.title" = "Magix";
-"guide.section.magix.intro" = "Des blocs spéciaux avec de gros pouvoirs, très rares, et qui n’apparaissent qu’en mode Arcade ou Zen dans la file de blox / Brix à lancer.";
+"guide.section.magix.intro" = "Des blocs spéciaux avec de gros pouvoirs, très rares, et qui n’apparaissent qu’en Arcade, Zen ou Five dans la file de blox / Brix à lancer.";
 "guide.section.magix.body" = "CHROMAX (?) — chemin coloré aléatoire à l’impact, plus ou moins long.\nBRIXED (9) — devient Brix(9) ; tous les autres Brix sont détruits (+20).\nCROSSX (+) — ligne + colonne repeinte d’une couleur, puis chaînes.\nSLASHX (X) — diagonales repeintes d’une couleur, puis chaînes.\nSCRUMBLX (=) — chaque ligne glisse d’un nombre de cases aléatoires ; −1 sur tous les Brix.\nCOLORX (O) — efface tous les blox d’une couleur aléatoire.\nSAINTX (∞) — vide la grille, laisse un Brix ; +200 × stage.\nTWISTX (§) — échange une couleur de blox contre le Brix minimal.\nBOMBX (B) — tâche de couleur aléatoire, puis ajoute une bombe au stock.";
 "guide.section.score.title" = "Score";
-"guide.section.score.body" = "Chaînes : 5 points pour une chaîne de 5 blox, et jusqu’à 20 points pour une chaîne très longue. +10 pour une chaîne en cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen, hors ×stage).";
+"guide.section.score.body" = "Chaînes : 5 points pour une chaîne de 5 blox, et jusqu’à 20 points pour une chaîne très longue. +10 pour une chaîne en cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen/Five, hors ×stage).";
 "guide.section.duel.title" = "Duel";
 "guide.section.duel.body" = "Le gros chiffre et la barre sont le mètre d’attaque (0…50) : tous les 50 points, ça envoie une ligne à l’autre joueur.\nPlacer une bombe gèle votre timer de tour.";
+"guide.section.five.title" = "Five";
+"guide.section.five.body" = "Sans timer ni stages, comme Zen, mais une ligne tous les 5 blox / Brix posés (pas les bombes).\nMagix oui. Bombes 3×3, stock 5. HUD LIGNE x/5.\n+500 grille vide et SAINTX +200, sans ×stage. Classement FiveMode.";
 
 /* Défi du jour */
-"start.daily" = "Défi du jour";
-"start.daily_ranking" = "Classement du défi";
+"start.daily" = "Défi";
+"start.daily_ranking" = "Classement";
 "start.hero_mode_daily" = "Continuer";
 "rank_disc.daily" = "DÉFI";
+"rank_disc.five_daily" = "F.DÉFI";
 "leaderboard.daily_tab" = "Défi";
 "daily.hub_title" = "Défi du jour";
+"daily.hub_title_arcade" = "Défi Arcade";
+"daily.hub_title_five" = "Défi Five";
 "daily.cta_play" = "Défi !";
 "daily.cta_continue" = "Continuer";
 "daily.cta_tomorrow" = "Revenez demain";

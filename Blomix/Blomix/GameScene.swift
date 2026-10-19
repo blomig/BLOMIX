@@ -503,7 +503,7 @@ private enum BlomixMatchSFX: String, CaseIterable {
     case wrong = "wrong.wav"
     /// Colonne entièrement vidée (bonus +10).
     case emptyColumnClear = "empty_coll.wav"
-    /// Ligne des 10 coups : apparition de l’aperçu en bas de grille (`moveCount % 10 == 9`).
+    /// Ligne périodique : aperçu en bas de grille (`moveCount % period == period-1` ; period 10 Arcade, 5 Five).
     case pendingRandomLineBloopa = "5251__noisecollector__bloopa01.aiff"
     /// Disparition d’un Priks quand son compteur atteint 0.
     case priksVanish = "prix.wav"
@@ -641,7 +641,8 @@ extension BlockType: Codable {
 // MARK: - Sauvegarde de partie solo
 
 struct BlomixSoloGameSave: Codable {
-    static let currentVersion = 7   // v7 : isZenMode ajouté
+    static let currentVersion = 8   // v8 : isFiveMode ; v7 encore lisible
+    static let minReadableVersion = 7
     let version: Int
     let grid: [[BlockType]]
     let currentBlock: BlockType
@@ -662,13 +663,14 @@ struct BlomixSoloGameSave: Codable {
     let moveRecords: [BlomixMoveRecord]
     let hintsRemaining: Int
     let isZenMode: Bool
+    let isFiveMode: Bool
 
     // Initializer explicite (nécessaire car init(from:) supprime le memberwise synthétique).
     init(version: Int, grid: [[BlockType]], currentBlock: BlockType, blockAfterCurrent: BlockType,
          blockTwoAhead: BlockType, selectedColumn: Int, moveCount: Int, nextBottomLine: [BlockType],
          bombCount: Int, isBombMode: Bool, chainClearWaveCount: Int, score: Int, displayedScore: Int,
          chainSeriesLevel: Int, savedAt: Date, currentStageIndex: Int, stageTimerSecondsRemaining: Int,
-         moveRecords: [BlomixMoveRecord], hintsRemaining: Int, isZenMode: Bool) {
+         moveRecords: [BlomixMoveRecord], hintsRemaining: Int, isZenMode: Bool, isFiveMode: Bool) {
         self.version                    = version
         self.grid                       = grid
         self.currentBlock               = currentBlock
@@ -689,9 +691,10 @@ struct BlomixSoloGameSave: Codable {
         self.moveRecords                = moveRecords
         self.hintsRemaining             = hintsRemaining
         self.isZenMode                  = isZenMode
+        self.isFiveMode                 = isFiveMode
     }
 
-    // Décodage rétrocompatible : isZenMode défaut à false pour les sauvegardes antérieures.
+    // Décodage rétrocompatible : isZenMode / isFiveMode défaut à false.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         version                   = try c.decode(Int.self,           forKey: .version)
@@ -714,6 +717,7 @@ struct BlomixSoloGameSave: Codable {
         moveRecords               = try c.decode([BlomixMoveRecord].self, forKey: .moveRecords)
         hintsRemaining            = try c.decode(Int.self,            forKey: .hintsRemaining)
         isZenMode                 = (try? c.decode(Bool.self,         forKey: .isZenMode)) ?? false
+        isFiveMode                = (try? c.decode(Bool.self,         forKey: .isFiveMode)) ?? false
     }
 }
 
@@ -722,23 +726,37 @@ final class BlomixSoloSaveManager: @unchecked Sendable {
     /// Arcade. Avant 7.6 cette clé pouvait aussi porter une Zen (`isZenMode`).
     private let arcadeKey = "blomix_solo_save_v2"
     private let zenKey = "blomix_zen_save_v1"
+    private let fiveKey = "blomix_five_save_v1"
     private var didMigrateLegacyZen = false
     private init() {}
 
     func save(_ s: BlomixSoloGameSave) {
         migrateLegacyZenIfNeeded()
         guard let data = try? JSONEncoder().encode(s) else { return }
-        UserDefaults.standard.set(data, forKey: s.isZenMode ? zenKey : arcadeKey)
+        let key: String
+        if s.isFiveMode {
+            key = fiveKey
+        } else if s.isZenMode {
+            key = zenKey
+        } else {
+            key = arcadeKey
+        }
+        UserDefaults.standard.set(data, forKey: key)
     }
 
     func loadArcade() -> BlomixSoloGameSave? {
         migrateLegacyZenIfNeeded()
-        return loadValid(from: arcadeKey, expectZen: false)
+        return loadValid(from: arcadeKey, expectZen: false, expectFive: false)
     }
 
     func loadZen() -> BlomixSoloGameSave? {
         migrateLegacyZenIfNeeded()
-        return loadValid(from: zenKey, expectZen: true)
+        return loadValid(from: zenKey, expectZen: true, expectFive: false)
+    }
+
+    func loadFive() -> BlomixSoloGameSave? {
+        migrateLegacyZenIfNeeded()
+        return loadValid(from: fiveKey, expectZen: false, expectFive: true)
     }
 
     func clearArcade() {
@@ -751,14 +769,20 @@ final class BlomixSoloSaveManager: @unchecked Sendable {
         UserDefaults.standard.removeObject(forKey: zenKey)
     }
 
-    private func loadValid(from key: String, expectZen: Bool) -> BlomixSoloGameSave? {
+    func clearFive() {
+        migrateLegacyZenIfNeeded()
+        UserDefaults.standard.removeObject(forKey: fiveKey)
+    }
+
+    private func loadValid(from key: String, expectZen: Bool, expectFive: Bool) -> BlomixSoloGameSave? {
         guard let data = UserDefaults.standard.data(forKey: key),
               let s = try? JSONDecoder().decode(BlomixSoloGameSave.self, from: data),
-              s.version == BlomixSoloGameSave.currentVersion else {
+              s.version >= BlomixSoloGameSave.minReadableVersion,
+              s.version <= BlomixSoloGameSave.currentVersion else {
             UserDefaults.standard.removeObject(forKey: key)
             return nil
         }
-        if s.isZenMode != expectZen {
+        if s.isZenMode != expectZen || s.isFiveMode != expectFive {
             UserDefaults.standard.removeObject(forKey: key)
             return nil
         }
@@ -771,8 +795,9 @@ final class BlomixSoloSaveManager: @unchecked Sendable {
         didMigrateLegacyZen = true
         guard let data = UserDefaults.standard.data(forKey: arcadeKey),
               let s = try? JSONDecoder().decode(BlomixSoloGameSave.self, from: data),
-              s.version == BlomixSoloGameSave.currentVersion,
-              s.isZenMode else { return }
+              s.version >= BlomixSoloGameSave.minReadableVersion,
+              s.version <= BlomixSoloGameSave.currentVersion,
+              s.isZenMode, !s.isFiveMode else { return }
         if UserDefaults.standard.data(forKey: zenKey) == nil {
             UserDefaults.standard.set(data, forKey: zenKey)
         }
@@ -882,7 +907,7 @@ final class GameScene: SKScene {
     private static let previewNodeName = "currentBlockPreview"
     private static let fallingSpriteName = "fallingBlockTemp"
     private static let previewPriksDigitName = "previewPriksDigit"
-    /// Bande de **8** cases sous la **preview du joueur** (`moveCount % 10 == 9`).
+    /// Bande de **8** cases sous la **preview du joueur** (visible au coup `period-1`).
     private static let bottomLinePreviewStripName = "bottomLinePreviewStrip"
     private static let bottomLinePreviewJitterActionKey = "bottomLinePreviewJitter"
     private static let randomLineRisingSpritePrefix = "randomLineRisingCol"
@@ -901,7 +926,7 @@ final class GameScene: SKScene {
     private static let compactLandingBounceKey = "compactLandingBounce"
     private static let bestScoreAboveName    = "hudBestScoreAbove"     // RECORD / À BATTRE — chiffre
     private static let bestScoreTitleName    = "hudBestScoreTitle"
-    /// N°1 all-time (Arcade / Zen uniquement), même bandeau que RECORD.
+    /// N°1 all-time (Arcade / Zen / Five), même bandeau que RECORD.
     private static let leaderScoreAboveName  = "hudLeaderScoreAbove"
     private static let leaderScoreTitleName  = "hudLeaderScoreTitle"
     private static let scoreRaceContainerName = "hudScoreRace"
@@ -989,6 +1014,8 @@ final class GameScene: SKScene {
     private static let startScreenRankDiscZenName        = "startScreenRankDiscZen"
     private static let startScreenRankDiscDuelName       = "startScreenRankDiscDuel"
     private static let startScreenRankDiscDailyName      = "startScreenRankDiscDaily"
+    private static let startScreenRankDiscFiveName       = "startScreenRankDiscFive"
+    private static let startScreenRankDiscFiveDailyName  = "startScreenRankDiscFiveDaily"
     /// Suffixe ajouté au nom du disc pour nommer le SKLabelNode du rang (enfant direct de `discsContainer`).
     private static let rankDiscRankLabelSuffix           = "_rank"
     private static let rankDiscRankShadowSuffix          = "_rankShadow"
@@ -1002,6 +1029,12 @@ final class GameScene: SKScene {
     private static let startScreenDailyChipName = "startScreenDailyChip"
     private static let startScreenDailyLabelName = "startScreenDailyLabel"
     private static let startScreenDailySubtitleName = "startScreenDailySubtitle"
+    private static let startScreenFiveDailyChipName = "startScreenFiveDailyChip"
+    private static let startScreenFiveDailyLabelName = "startScreenFiveDailyLabel"
+    private static let startScreenFiveDailySubtitleName = "startScreenFiveDailySubtitle"
+    private static let startScreenFiveChipName = "startScreenFiveChip"
+    private static let startScreenFiveLabelName = "startScreenFiveLabel"
+    private static let startScreenFiveSubtitleName = "startScreenFiveSubtitle"
     private static let gameOverDailyRankLabelName = "gameOverDailyRankLabel"
     private static let startScreenScoresChipName = "startScreenScoresChip"
     private static let startScreenPvPChipName = "startScreenPvPChip"
@@ -1570,7 +1603,7 @@ final class GameScene: SKScene {
     private var hudBestScoreValue: Int = 0
     /// Cible RECORD / À BATTRE (PB ou leader du jour) — pas la run en cours.
     private var hudBestScoreBaseline: Int = 0
-    /// Chiffre N°1 affiché (Arcade / Zen).
+    /// Chiffre N°1 affiché (Arcade / Zen / Five).
     private var hudLeaderScoreValue: Int = 0
     /// Cible N°1 GC — pas la run en cours.
     private var hudLeaderScoreBaseline: Int = 0
@@ -1645,7 +1678,7 @@ final class GameScene: SKScene {
     private weak var pvpPresentedResultViewController: BlomixPvPResultViewController?
     /// Serpentard UIKit superposé au `SKView` pendant l'overlay de connexion PvP (« P vs P »).
     private var pvpConnectingSearchBlocksView: BlomixPvPSearchBlocksView?
-    /// `true` seulement si une partie Arcade / Zen / Défi **en cours** a été sauvegardée en entrant en PvP.
+    /// `true` seulement si une partie Arcade / Zen / Five / Défi **en cours** a été sauvegardée en entrant en PvP.
     /// Évite de relancer une vieille save (ou une grille de prep) après un match lancé depuis l'accueil.
     private var restoreSoloAfterPvP = false
     /// Snapshot mémoire figé à l'entrée PvP (ne doit jamais être écrasé par la grille prep vide).
@@ -1729,7 +1762,22 @@ final class GameScene: SKScene {
 
     private var isTutorialMode:       Bool          = false
     private var isZenMode:            Bool          = false
+    private var isFiveMode:           Bool          = false
     private var isDailyChallengeMode: Bool          = false
+    /// Zen ou Five : pas de timer, pas de stages, bombe 3×3, scoring ×1.
+    private var isUntimedSoloMode: Bool { isZenMode || isFiveMode }
+    private var incomingLinePeriod: Int { isFiveMode ? 5 : 10 }
+    private var incomingLinePreviewRemainder: Int { incomingLinePeriod - 1 }
+    private var activeDailyChallenge: BlomixDailyChallenge {
+        isFiveMode ? .five : .arcade
+    }
+    private var activeDailyKind: BlomixDailyKind { isFiveMode ? .five : .arcade }
+    private func isIncomingLineDue(atMoveCount mc: Int) -> Bool {
+        mc > 0 && mc % incomingLinePeriod == 0
+    }
+    private func isIncomingLinePreviewVisible(atMoveCount mc: Int) -> Bool {
+        mc % incomingLinePeriod == incomingLinePreviewRemainder
+    }
     private var dailyLockedDay:       String?
     private var dailyFileRNG:         BlomixDailyFileRNG?
     private var tutorialStep:         TutorialStep  = .intro
@@ -1881,7 +1929,8 @@ final class GameScene: SKScene {
             }
         }
         BlomixAvailablePlayersManager.shared.setup()
-        BlomixDailyChallenge.shared.setup()
+        BlomixDailyChallenge.arcade.setup()
+        BlomixDailyChallenge.five.setup()
         registerAvailablePresenceObserverIfNeeded()
 
         stopStageTimer()
@@ -1926,8 +1975,9 @@ final class GameScene: SKScene {
     }
 
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
-    private func resetSessionModelForNewMatch(zen: Bool = false) {
-        isZenMode = zen
+    private func resetSessionModelForNewMatch(zen: Bool = false, five: Bool = false) {
+        isZenMode = zen && !five
+        isFiveMode = five && !zen
         bestScoreFetchGeneration += 1
         scoreRaceSnapshot = nil
         scoreRaceDisplayedRank = nil
@@ -2039,7 +2089,8 @@ final class GameScene: SKScene {
             event: event,
             moveCount: moveCount,
             row: cell.row,
-            col: cell.col
+            col: cell.col,
+            fxSalt: activeDailyKind.fxSalt
         )
     }
 
@@ -2488,6 +2539,29 @@ final class GameScene: SKScene {
         BlomixSoloSaveManager.shared.loadZen()
     }
 
+    /// Slot Five disque, indépendant d’Arcade / Zen / Défi.
+    private func pendingFiveSave() -> BlomixSoloGameSave? {
+        BlomixSoloSaveManager.shared.loadFive()
+    }
+
+    /// Titre Défi / Classement + caption Arcade, Five, ou deadline.
+    private func startScreenDailyChipCopy(kind: BlomixDailyKind) -> (title: String, subtitle: String) {
+        let service = BlomixDailyChallenge.service(kind)
+        let modeCaption = kind == .five ? BlomixL10n.fiveButton : BlomixL10n.startButton
+        switch service.hubCTA {
+        case .play:
+            return (BlomixL10n.startDaily, modeCaption)
+        case .resume:
+            if let run = service.loadRun(),
+               let stamp = service.localizedClosureStamp(forDay: run.utcDay) {
+                return (BlomixL10n.startDaily, BlomixL10n.dailyDeadlineShort(stamp))
+            }
+            return (BlomixL10n.startDaily, modeCaption)
+        case .finished:
+            return (BlomixL10n.startDailyRanking, modeCaption)
+        }
+    }
+
     private func startHeroKind() -> StartHeroKind {
         if pendingArcadeSave() != nil {
             return .continueSave
@@ -2515,9 +2589,12 @@ final class GameScene: SKScene {
     /// Fond scène plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
     /// `playIntro` : poinçon wordmark uniquement à froid (splash). Retours GO / ☰ : entrée courte.
     private func presentStartScreen(playIntro: Bool = false) {
-        BlomixDailyChallenge.shared.noteActiveSession(day: nil)
-        BlomixDailyChallenge.shared.expireStaleRunIfNeeded()
-        BlomixDailyChallenge.shared.claimPodiumIfNeeded()
+        for kind in BlomixDailyKind.allCases {
+            let daily = BlomixDailyChallenge.service(kind)
+            daily.noteActiveSession(day: nil)
+            daily.expireStaleRunIfNeeded()
+            daily.claimPodiumIfNeeded()
+        }
         clearAutoDropAim()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
 
@@ -2555,15 +2632,17 @@ final class GameScene: SKScene {
         let rankCanvas = BlomixButtonRelief.cutoutLayout(text: "888", fontSize: rankFontSize, pad: rankPad).canvas
         let catCanvases = [
             BlomixL10n.rankDiscSolo, BlomixL10n.rankDiscAvg,
-            BlomixL10n.rankDiscZen, BlomixL10n.rankDiscDuel,
-            BlomixL10n.rankDiscDaily,
+            BlomixL10n.rankDiscZen, BlomixL10n.rankDiscFive,
+            BlomixL10n.rankDiscDuel, BlomixL10n.rankDiscDaily,
+            BlomixL10n.rankDiscFiveDaily,
         ].map { BlomixButtonRelief.cutoutLayout(text: $0, fontSize: catFontSize, pad: catPad).canvas }
         let maxCatW = catCanvases.map(\.width).max() ?? discDiameter
         let maxCatH = catCanvases.map(\.height).max() ?? 16
         let rawDiscStep = max(discDiameter + 6, rankCanvas.width + 4, maxCatW + 4)
         let maxDiscRowW = size.width - 16
-        let discStep = min(rawDiscStep, (maxDiscRowW - discDiameter) / 4)
+        let discStep = min(rawDiscStep, (maxDiscRowW - discDiameter) / 3)
         let discBottomExtent = rankCanvas.height / 2 - rankPad + rankCatGap - catPad + maxCatH
+        let discRowGap = discDiameter + rankCatGap + maxCatH + 8
 
         let iconSide: CGFloat = 44
         let iconCaptionOffset: CGFloat = 32
@@ -2579,18 +2658,22 @@ final class GameScene: SKScene {
         let iconRowY = size.height - topInset - iconSide / 2
         // ── Bande 2 : nom + rangs ──────────────────────────────────────────────
         let playerNameY = iconRowY - iconCaptionOffset - gapAfterIcons
-        let discCenterY = playerNameY - gapNameToDiscs
-        let ranksBottom = discCenterY - discBottomExtent
+        let discRow1Y = playerNameY - gapNameToDiscs
+        let discRow2Y = discRow1Y - discRowGap
+        let discCenterY = (discRow1Y + discRow2Y) / 2
+        let ranksBottom = discRow2Y - discBottomExtent
 
-        // ── Bande 3 : jeu (bas, pouce) — mêmes constantes qu’avant ─────────────
+        // ── Bande 3 : jeu (bas, pouce) — Arcade | Défi pair | Duel Zen Five ──
         let maxChipOuter = size.width - 48
         let chipFont = BlomixUIDestinationButtonStyle.navigationTitleFontSize
         let pairGap: CGFloat = 12
         let pairChipW = (maxChipOuter - pairGap) / 2
+        let tripleGap: CGFloat = 8
+        let tripleChipW = (maxChipOuter - 2 * tripleGap) / 3
         let modeChipSize = Self.startScreenUnifiedChipSize(
-            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton],
+            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton, BlomixL10n.fiveButton],
             fontSize: chipFont,
-            maxOuterWidth: pairChipW
+            maxOuterWidth: tripleChipW
         )
         let hChip = modeChipSize.height
         let heroH = hChip * 1.22
@@ -2598,13 +2681,14 @@ final class GameScene: SKScene {
         let heroSize = CGSize(width: maxChipOuter, height: heroH)
         let pairH = heroH
         let pairChipSize = CGSize(width: pairChipW, height: pairH)
+        let tripleChipSize = CGSize(width: tripleChipW, height: pairH)
 
         let tipAnchorY = size.height * 0.10
         let pairFromTip: CGFloat = 64
         let heroGap: CGFloat = 10
-        var secondaryRowY = tipAnchorY + pairFromTip + pairH / 2
-        var dailyHeroY = secondaryRowY + pairH / 2 + 16 + heroH / 2
-        var arcadeHeroY = dailyHeroY + heroH / 2 + heroGap + heroH / 2
+        var tripleRowY = tipAnchorY + pairFromTip + pairH / 2
+        var dailyRowY = tripleRowY + pairH / 2 + 16 + pairH / 2
+        var arcadeHeroY = dailyRowY + pairH / 2 + heroGap + heroH / 2
         let minSecondaryY = tipAnchorY + 40 + pairH / 2
 
         // ── Bande 1 : BLOMIX + tagline, de préférence au centre écran ──────────
@@ -2617,14 +2701,14 @@ final class GameScene: SKScene {
         let heroTopMax = ranksBottom - minBandGap - titleBlockH - minBandGap
         if arcadeHeroY + heroH / 2 > heroTopMax {
             let overflow = arcadeHeroY + heroH / 2 - heroTopMax
-            dailyHeroY -= overflow
+            dailyRowY -= overflow
             arcadeHeroY -= overflow
-            secondaryRowY -= overflow
-            if secondaryRowY < minSecondaryY {
-                let lift = minSecondaryY - secondaryRowY
-                secondaryRowY = minSecondaryY
+            tripleRowY -= overflow
+            if tripleRowY < minSecondaryY {
+                let lift = minSecondaryY - tripleRowY
+                tripleRowY = minSecondaryY
                 arcadeHeroY += lift
-                dailyHeroY += lift
+                dailyRowY += lift
             }
         }
 
@@ -2671,16 +2755,20 @@ final class GameScene: SKScene {
         discsContainer.zPosition = 5
         overlay.addChild(discsContainer)
 
-        let discSpecs: [(name: String, category: String, x: CGFloat)] = [
-            (Self.startScreenRankDiscSoloName,  BlomixL10n.rankDiscSolo,  -2.0 * discStep),
-            (Self.startScreenRankDiscAvgName,   BlomixL10n.rankDiscAvg,   -1.0 * discStep),
-            (Self.startScreenRankDiscZenName,   BlomixL10n.rankDiscZen,    0.0 * discStep),
-            (Self.startScreenRankDiscDuelName,  BlomixL10n.rankDiscDuel,   1.0 * discStep),
-            (Self.startScreenRankDiscDailyName, BlomixL10n.rankDiscDaily,  2.0 * discStep),
+        let discRow1OffsetY = discRow1Y - discCenterY
+        let discRow2OffsetY = discRow2Y - discCenterY
+        let discSpecs: [(name: String, category: String, x: CGFloat, y: CGFloat)] = [
+            (Self.startScreenRankDiscSoloName,      BlomixL10n.rankDiscSolo,      -1.5 * discStep, discRow1OffsetY),
+            (Self.startScreenRankDiscAvgName,       BlomixL10n.rankDiscAvg,       -0.5 * discStep, discRow1OffsetY),
+            (Self.startScreenRankDiscZenName,       BlomixL10n.rankDiscZen,        0.5 * discStep, discRow1OffsetY),
+            (Self.startScreenRankDiscFiveName,      BlomixL10n.rankDiscFive,       1.5 * discStep, discRow1OffsetY),
+            (Self.startScreenRankDiscDuelName,      BlomixL10n.rankDiscDuel,      -1.0 * discStep, discRow2OffsetY),
+            (Self.startScreenRankDiscDailyName,     BlomixL10n.rankDiscDaily,      0.0 * discStep, discRow2OffsetY),
+            (Self.startScreenRankDiscFiveDailyName, BlomixL10n.rankDiscFiveDaily,  1.0 * discStep, discRow2OffsetY),
         ]
         for spec in discSpecs {
             let wrapper = SKNode()
-            wrapper.position = CGPoint(x: spec.x, y: 0)
+            wrapper.position = CGPoint(x: spec.x, y: spec.y)
             discsContainer.addChild(wrapper)
 
             let disc = Self.makeRankDiscNode(
@@ -2734,44 +2822,42 @@ final class GameScene: SKScene {
             heroTitle = BlomixL10n.startButton
             heroSubtitle = nil
         }
-        let dailyCTA = BlomixDailyChallenge.shared.hubCTA
-        let dailyTitle: String
-        let dailySubtitle: String?
-        switch dailyCTA {
-        case .play:
-            dailyTitle = BlomixL10n.startDaily
-            dailySubtitle = nil
-        case .resume:
-            dailyTitle = BlomixL10n.startDaily
-            if let run = BlomixDailyChallenge.shared.loadRun(),
-               let stamp = BlomixDailyChallenge.shared.localizedClosureStamp(forDay: run.utcDay) {
-                dailySubtitle = BlomixL10n.dailyDeadlineShort(stamp)
-            } else {
-                dailySubtitle = BlomixL10n.startHeroModeDaily
-            }
-        case .finished:
-            dailyTitle = BlomixL10n.startDailyRanking
-            dailySubtitle = nil
-        }
+        let arcadeDailyCopy = startScreenDailyChipCopy(kind: .arcade)
+        let fiveDailyCopy = startScreenDailyChipCopy(kind: .five)
+        let heroAccent = Self.startScreenHeroAccentColor()
         let dailyChip = makeStartScreenButtonChip(
             chipName: Self.startScreenDailyChipName,
             labelName: Self.startScreenDailyLabelName,
-            text: dailyTitle,
-            chipSize: heroSize,
-            fontSize: heroFont
+            text: arcadeDailyCopy.title,
+            chipSize: pairChipSize,
+            fontSize: chipFont
         )
-        let heroAccent = Self.startScreenHeroAccentColor()
         dailyChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
-        dailyChip.position = CGPoint(x: cx, y: dailyHeroY)
+        dailyChip.position = CGPoint(x: cx - pairChipW / 2 - pairGap / 2, y: dailyRowY)
         dailyChip.zPosition = 2
-        if let dailySubtitle {
-            attachStartScreenChipCaption(
-                to: dailyChip,
-                name: Self.startScreenDailySubtitleName,
-                text: dailySubtitle
-            )
-        }
+        attachStartScreenChipCaption(
+            to: dailyChip,
+            name: Self.startScreenDailySubtitleName,
+            text: arcadeDailyCopy.subtitle
+        )
         overlay.addChild(dailyChip)
+
+        let fiveDailyChip = makeStartScreenButtonChip(
+            chipName: Self.startScreenFiveDailyChipName,
+            labelName: Self.startScreenFiveDailyLabelName,
+            text: fiveDailyCopy.title,
+            chipSize: pairChipSize,
+            fontSize: chipFont
+        )
+        fiveDailyChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
+        fiveDailyChip.position = CGPoint(x: cx + pairChipW / 2 + pairGap / 2, y: dailyRowY)
+        fiveDailyChip.zPosition = 2
+        attachStartScreenChipCaption(
+            to: fiveDailyChip,
+            name: Self.startScreenFiveDailySubtitleName,
+            text: fiveDailyCopy.subtitle
+        )
+        overlay.addChild(fiveDailyChip)
 
         let startChip = makeStartScreenButtonChip(
             chipName: Self.startScreenStartChipName,
@@ -2796,23 +2882,23 @@ final class GameScene: SKScene {
             chipName: Self.startScreenPvPChipName,
             labelName: Self.startScreenPvPLabelName,
             text: BlomixL10n.startPvPButton,
-            chipSize: pairChipSize,
+            chipSize: tripleChipSize,
             fontSize: chipFont
         )
-        pvpChip.position = CGPoint(x: cx - pairChipW / 2 - pairGap / 2, y: secondaryRowY)
+        pvpChip.position = CGPoint(x: cx - tripleChipW - tripleGap, y: tripleRowY)
         pvpChip.zPosition = 2
         overlay.addChild(pvpChip)
-        attachStartScreenPvPPresenceBadge(to: pvpChip, chipSize: pairChipSize)
+        attachStartScreenPvPPresenceBadge(to: pvpChip, chipSize: tripleChipSize)
 
         let zenHasSave = pendingZenSave() != nil
         let zenChip = makeStartScreenButtonChip(
             chipName: Self.startScreenZenChipName,
             labelName: Self.startScreenZenLabelName,
             text: BlomixL10n.zenButton,
-            chipSize: pairChipSize,
+            chipSize: tripleChipSize,
             fontSize: chipFont
         )
-        zenChip.position = CGPoint(x: cx + pairChipW / 2 + pairGap / 2, y: secondaryRowY)
+        zenChip.position = CGPoint(x: cx, y: tripleRowY)
         zenChip.zPosition = 2
         if zenHasSave {
             attachStartScreenChipCaption(
@@ -2822,6 +2908,25 @@ final class GameScene: SKScene {
             )
         }
         overlay.addChild(zenChip)
+
+        let fiveHasSave = pendingFiveSave() != nil
+        let fiveChip = makeStartScreenButtonChip(
+            chipName: Self.startScreenFiveChipName,
+            labelName: Self.startScreenFiveLabelName,
+            text: BlomixL10n.fiveButton,
+            chipSize: tripleChipSize,
+            fontSize: chipFont
+        )
+        fiveChip.position = CGPoint(x: cx + tripleChipW + tripleGap, y: tripleRowY)
+        fiveChip.zPosition = 2
+        if fiveHasSave {
+            attachStartScreenChipCaption(
+                to: fiveChip,
+                name: Self.startScreenFiveSubtitleName,
+                text: BlomixL10n.startContinue
+            )
+        }
+        overlay.addChild(fiveChip)
 
         refreshStartScreenPlayerIdentityIfVisible()
         run(SKAction.wait(forDuration: 0.05)) { [weak self] in
@@ -2902,7 +3007,9 @@ final class GameScene: SKScene {
             iconRow.run(.sequence([.wait(forDuration: t + 0.12), .fadeIn(withDuration: 0.20)]))
             runStartScreenGameChipEntrance(on: pvpChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: zenChip, delay: t + 0.16)
+            runStartScreenGameChipEntrance(on: fiveChip, delay: t + 0.16)
             runStartScreenGameChipEntrance(on: dailyChip, delay: t + 0.28)
+            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: t + 0.28)
             runStartScreenGameChipEntrance(on: startChip, delay: t + 0.28)
             tipContainer.run(.sequence([.wait(forDuration: t + 0.35), .fadeIn(withDuration: 0.5)]))
         } else {
@@ -2917,7 +3024,9 @@ final class GameScene: SKScene {
             iconRow.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.20)]))
             runStartScreenGameChipEntrance(on: pvpChip, delay: 0.06)
             runStartScreenGameChipEntrance(on: zenChip, delay: 0.06)
+            runStartScreenGameChipEntrance(on: fiveChip, delay: 0.06)
             runStartScreenGameChipEntrance(on: dailyChip, delay: 0.10)
+            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: 0.10)
             runStartScreenGameChipEntrance(on: startChip, delay: 0.10)
             tipContainer.run(.sequence([.wait(forDuration: 0.40), .fadeIn(withDuration: 0.5)]))
         }
@@ -3319,6 +3428,21 @@ final class GameScene: SKScene {
         }
     }
 
+    private func performFiveButtonAction() {
+        if let save = pendingFiveSave() {
+            continueFiveFromHome(save)
+        } else {
+            beginFiveModeFromStartScreen()
+        }
+    }
+
+    private func continueFiveFromHome(_ save: BlomixSoloGameSave) {
+        guard isStartScreen else { return }
+        clearDailyChallengeSessionFlags()
+        consumeInMemoryPvPSoloSnapshots()
+        restoreFromSoloSave(save)
+    }
+
     private func continueZenFromHome(_ save: BlomixSoloGameSave) {
         guard isStartScreen else { return }
         clearDailyChallengeSessionFlags()
@@ -3330,31 +3454,34 @@ final class GameScene: SKScene {
         isDailyChallengeMode = false
         dailyLockedDay = nil
         dailyFileRNG = nil
-        BlomixDailyChallenge.shared.noteActiveSession(day: nil)
+        BlomixDailyChallenge.arcade.noteActiveSession(day: nil)
+        BlomixDailyChallenge.five.noteActiveSession(day: nil)
     }
 
-    private func showDailyHub() {
-        let vc = BlomixDailyHubViewController()
-        vc.onPlay = { [weak self] in self?.beginDailyChallengeMatch() }
-        vc.onContinue = { [weak self] in self?.continueDailyChallengeFromHome() }
+    private func showDailyHub(kind: BlomixDailyKind = .arcade) {
+        let vc = BlomixDailyHubViewController(kind: kind)
+        vc.onPlay = { [weak self] in self?.beginDailyChallengeMatch(kind: kind) }
+        vc.onContinue = { [weak self] in self?.continueDailyChallengeFromHome(kind: kind) }
         presentFullScreenModal(vc)
     }
 
-    private func beginDailyChallengeMatch() {
+    private func beginDailyChallengeMatch(kind: BlomixDailyKind = .arcade) {
         guard isStartScreen else { return }
-        BlomixDailyChallenge.shared.expireStaleRunIfNeeded()
-        if BlomixDailyChallenge.shared.loadRun() != nil {
-            continueDailyChallengeFromHome()
+        let daily = BlomixDailyChallenge.service(kind)
+        daily.expireStaleRunIfNeeded()
+        if daily.loadRun() != nil {
+            continueDailyChallengeFromHome(kind: kind)
             return
         }
         consumeInMemoryPvPSoloSnapshots()
         cancelGhostPreview()
-        let locked = BlomixDailyChallenge.shared.seedForNewRun()
+        let locked = daily.seedForNewRun()
         dailyLockedDay = locked.day
         dailyFileRNG = BlomixDailyFileRNG(seed: locked.seed)
         isDailyChallengeMode = true
-        BlomixDailyChallenge.shared.noteActiveSession(day: locked.day)
+        daily.noteActiveSession(day: locked.day)
         isZenMode = false
+        isFiveMode = kind == .five
         isTutorialMode = false
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         isStartScreen = false
@@ -3362,7 +3489,7 @@ final class GameScene: SKScene {
         layoutGameCenterStatusLabel()
         hapticSoft()
 
-        resetSessionModelForNewMatch()
+        resetSessionModelForNewMatch(five: kind == .five)
 
         addTopTitle()
         setupBombHUD()
@@ -3377,18 +3504,22 @@ final class GameScene: SKScene {
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
         if isInStagedSoloMode {
             startStagedSoloSession()
+        } else if isFiveMode {
+            startFiveSession()
         }
     }
 
-    private func continueDailyChallengeFromHome() {
-        BlomixDailyChallenge.shared.expireStaleRunIfNeeded()
-        guard isStartScreen, let run = BlomixDailyChallenge.shared.loadRun() else { return }
+    private func continueDailyChallengeFromHome(kind: BlomixDailyKind = .arcade) {
+        let daily = BlomixDailyChallenge.service(kind)
+        daily.expireStaleRunIfNeeded()
+        guard isStartScreen, let run = daily.loadRun() else { return }
         consumeInMemoryPvPSoloSnapshots()
         isDailyChallengeMode = true
         isZenMode = false
+        isFiveMode = kind == .five
         dailyLockedDay = run.utcDay
         dailyFileRNG = BlomixDailyFileRNG(seed: run.seed, state: run.fileRNGState)
-        BlomixDailyChallenge.shared.noteActiveSession(day: run.utcDay)
+        daily.noteActiveSession(day: run.utcDay)
         restoreFromSoloSave(run.game)
     }
 
@@ -3476,6 +3607,50 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Lance une partie Five (sans timer, ligne tous les 5 coups) depuis l’accueil.
+    private func beginFiveModeFromStartScreen() {
+        guard isStartScreen else { return }
+
+        cancelGhostPreview()
+        clearDailyChallengeSessionFlags()
+        consumeInMemoryPvPSoloSnapshots()
+        childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
+        isStartScreen = false
+        BlomixAvailablePlayersManager.shared.stopHomePresencePolling()
+        layoutGameCenterStatusLabel()
+        hapticSoft()
+
+        resetSessionModelForNewMatch(five: true)
+
+        addTopTitle()
+        setupBombHUD()
+        setupScoreHUD()
+        drawGrid()
+        updatePreviewSprite()
+        rebuildGameOverflowMenu()
+        setGameplayNodesHidden(false)
+
+        soundBank.play(.begin)
+        refreshGameCenterStatusLabelText()
+
+        NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+
+        startFiveSession()
+    }
+
+    private func startFiveSession() {
+        guard isFiveMode else { return }
+        showTransitionOverlay(
+            levelPrefix: BlomixL10n.fiveOverlayLevelPrefix,
+            stageLevelText: BlomixL10n.fiveOverlayStageText,
+            line1: BlomixL10n.fiveOverlayLine1,
+            line2: ""
+        ) { [weak self] in
+            guard self != nil else { return }
+            BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)
+        }
+    }
+
     /// Masque ou affiche grille, preview, HUD et titre (écran d’accueil / retour menu).
     private func setGameplayNodesHidden(_ hidden: Bool) {
         childNode(withName: Self.titleNodeName)?.isHidden = hidden
@@ -3494,7 +3669,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.leaderScoreTitleName)?.isHidden = hidden || !showsLeaderboardTopHUD
         childNode(withName: Self.scoreRaceContainerName)?.isHidden = hidden || !showsScoreRaceHUD
         childNode(withName: Self.hudAttackCaptionName)?.isHidden = hidden || pvpCoordinator == nil
-        childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isZenMode
+        childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isUntimedSoloMode
         // Compteur LIGNE
         childNode(withName: Self.ligneCaptionName)?.isHidden = hidden
         childNode(withName: Self.ligneValueName)?.isHidden = hidden
@@ -3584,6 +3759,14 @@ final class GameScene: SKScene {
 
     private func touchHitsDailyButton(_ scenePoint: CGPoint) -> Bool {
         sceneHitRectForStartScreenChip(named: Self.startScreenDailyChipName).contains(scenePoint)
+    }
+
+    private func touchHitsFiveDailyButton(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForStartScreenChip(named: Self.startScreenFiveDailyChipName).contains(scenePoint)
+    }
+
+    private func touchHitsStartScreenFiveButton(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForStartScreenChip(named: Self.startScreenFiveChipName).contains(scenePoint)
     }
 
     private func touchHitsStartScreenSettingsButton(_ scenePoint: CGPoint) -> Bool {
@@ -3763,7 +3946,7 @@ final class GameScene: SKScene {
     /// Prochain gris à battre — rose `#FF5A9A`, hors peau (lisible Sombre / Clair).
     private static let hudRaceNextGrayColor = SKColor(red: 1, green: 90 / 255, blue: 154 / 255, alpha: 1)
 
-    /// Jauge 0→N°1 : Arcade / Zen / Défi. Pas en tuto ni Duel.
+    /// Jauge 0→N°1 : Arcade / Zen / Five / Défi. Pas en tuto ni Duel.
     private var showsScoreRaceHUD: Bool {
         !hidesGhostScoreHUD && !isStartScreen
     }
@@ -3817,7 +4000,7 @@ final class GameScene: SKScene {
     }
 
     private var dailyChallengeHUDDay: String {
-        dailyLockedDay ?? BlomixDailyChallenge.shared.utcToday
+        dailyLockedDay ?? activeDailyChallenge.utcToday
     }
 
     private func refreshBestScoreHUDTitle() {
@@ -3830,7 +4013,10 @@ final class GameScene: SKScene {
 
     private func initialBestScoreHUDValue() -> Int {
         if isDailyChallengeMode {
-            return BlomixDailyChallenge.shared.leaderScore(forDay: dailyChallengeHUDDay) ?? 0
+            return activeDailyChallenge.leaderScore(forDay: dailyChallengeHUDDay) ?? 0
+        }
+        if isFiveMode {
+            return ScoreManager.shared.getLocalFiveHighScore()
         }
         if isZenMode {
             return ScoreManager.shared.getLocalZenHighScore()
@@ -3839,7 +4025,9 @@ final class GameScene: SKScene {
     }
 
     private func currentLeaderboardIDForHUD() -> String {
-        isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
+        if isFiveMode { return ScoreManager.fiveLeaderboardID }
+        if isZenMode { return ScoreManager.zenLeaderboardID }
+        return ScoreManager.mainLeaderboardID
     }
 
     /// RECORD / À BATTRE / N°1 : vert + chiffre = run si on dépasse la cible.
@@ -3901,8 +4089,8 @@ final class GameScene: SKScene {
         }
         if isDailyChallengeMode {
             let day = dailyChallengeHUDDay
-            let field = BlomixDailyChallenge.shared.cachedDayScoreValues(forDay: day)
-            let top = max(field.max() ?? 0, BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? 0)
+            let field = activeDailyChallenge.cachedDayScoreValues(forDay: day)
+            let top = max(field.max() ?? 0, activeDailyChallenge.leaderScore(forDay: day) ?? 0)
             scoreRaceSnapshot = Self.makeScoreRaceSnapshot(
                 field: field,
                 top: top,
@@ -3912,9 +4100,14 @@ final class GameScene: SKScene {
         }
         let boardID = currentLeaderboardIDForHUD()
         let field = ScoreManager.shared.cachedLeaderboardScores(leaderboardID: boardID)
-        let local = isZenMode
-            ? ScoreManager.shared.getLocalZenHighScore()
-            : ScoreManager.shared.getLocalHighScore()
+        let local: Int
+        if isFiveMode {
+            local = ScoreManager.shared.getLocalFiveHighScore()
+        } else if isZenMode {
+            local = ScoreManager.shared.getLocalZenHighScore()
+        } else {
+            local = ScoreManager.shared.getLocalHighScore()
+        }
         let cachedTop = ScoreManager.shared.cachedLeaderboardTopScore(leaderboardID: boardID)
         let top = max(field.max() ?? 0, cachedTop, local)
         scoreRaceSnapshot = Self.makeScoreRaceSnapshot(field: field, top: top, personal: local)
@@ -4413,9 +4606,14 @@ final class GameScene: SKScene {
             return
         }
 
-        let localBest = isZenMode
-            ? ScoreManager.shared.getLocalZenHighScore()
-            : ScoreManager.shared.getLocalHighScore()
+        let localBest: Int
+        if isFiveMode {
+            localBest = ScoreManager.shared.getLocalFiveHighScore()
+        } else if isZenMode {
+            localBest = ScoreManager.shared.getLocalZenHighScore()
+        } else {
+            localBest = ScoreManager.shared.getLocalHighScore()
+        }
         hudBestScoreBaseline = localBest
         applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
 
@@ -4438,9 +4636,14 @@ final class GameScene: SKScene {
                   self.isStartScreen,
                   !self.isDailyChallengeMode,
                   leaderboardID == self.currentLeaderboardIDForHUD() else { return }
-            let localFallback = self.isZenMode
-                ? ScoreManager.shared.getLocalZenHighScore()
-                : ScoreManager.shared.getLocalHighScore()
+            let localFallback: Int
+            if self.isFiveMode {
+                localFallback = ScoreManager.shared.getLocalFiveHighScore()
+            } else if self.isZenMode {
+                localFallback = ScoreManager.shared.getLocalZenHighScore()
+            } else {
+                localFallback = ScoreManager.shared.getLocalHighScore()
+            }
             let fetched: Int
             switch result {
             case .success(let best):
@@ -4475,7 +4678,7 @@ final class GameScene: SKScene {
     /// Leader CloudKit du jour (cache immédiat, puis refetch). Suit la run si on est en tête.
     private func refreshDailyToBeatHUD() {
         let day = dailyChallengeHUDDay
-        let cached = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? 0
+        let cached = activeDailyChallenge.leaderScore(forDay: day) ?? 0
         hudBestScoreBaseline = cached
         applyGhostScoreAgainstBaseline(column: .personal, baseline: hudBestScoreBaseline)
 
@@ -4483,14 +4686,14 @@ final class GameScene: SKScene {
         let generation = bestScoreFetchGeneration
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let load = await BlomixDailyChallenge.shared.fetchScores(day: day)
+            let load = await self.activeDailyChallenge.fetchScores(day: day)
             guard generation == self.bestScoreFetchGeneration, self.isDailyChallengeMode else { return }
             let leader: Int
             switch load {
             case .loaded(let entries):
                 leader = entries.first?.score ?? 0
             case .unavailable:
-                leader = BlomixDailyChallenge.shared.leaderScore(forDay: day) ?? self.hudBestScoreBaseline
+                leader = self.activeDailyChallenge.leaderScore(forDay: day) ?? self.hudBestScoreBaseline
             }
             self.hudBestScoreBaseline = leader
             self.applyGhostScoreAgainstBaseline(column: .personal, baseline: self.hudBestScoreBaseline)
@@ -4524,7 +4727,7 @@ final class GameScene: SKScene {
         refreshStartScreenRankDiscsIfVisible()
     }
 
-    /// Fetche le rang du joueur sur les 5 pastilles (Arcade, Moyenne, Zen, Duel, Défi).
+    /// Fetche le rang du joueur sur les 7 pastilles (4+3).
     /// Les chiffres restent vides jusqu’à ce que **tous** les fetches aient répondu, puis stagger L→R.
     private func refreshStartScreenRankDiscsIfVisible() {
         guard isStartScreen else { return }
@@ -4532,11 +4735,13 @@ final class GameScene: SKScene {
               let container = overlay.childNode(withName: Self.startScreenRankDiscsContainerName) else { return }
 
         let specs: [(leaderboardID: String, discName: String)] = [
-            (ScoreManager.mainLeaderboardID,    Self.startScreenRankDiscSoloName),
-            (ScoreManager.averageLeaderboardID, Self.startScreenRankDiscAvgName),
-            (ScoreManager.zenLeaderboardID,     Self.startScreenRankDiscZenName),
-            ("elotype",                         Self.startScreenRankDiscDuelName),
-            (ScoreManager.dailyLeaderboardID,   Self.startScreenRankDiscDailyName),
+            (ScoreManager.mainLeaderboardID,         Self.startScreenRankDiscSoloName),
+            (ScoreManager.averageLeaderboardID,      Self.startScreenRankDiscAvgName),
+            (ScoreManager.zenLeaderboardID,          Self.startScreenRankDiscZenName),
+            (ScoreManager.fiveLeaderboardID,         Self.startScreenRankDiscFiveName),
+            ("elotype",                              Self.startScreenRankDiscDuelName),
+            (ScoreManager.dailyLeaderboardID,        Self.startScreenRankDiscDailyName),
+            (ScoreManager.fiveDailyLeaderboardID,    Self.startScreenRankDiscFiveDailyName),
         ]
 
         startScreenRankRevealGeneration += 1
@@ -4549,24 +4754,23 @@ final class GameScene: SKScene {
 
         ScoreManager.shared.prefetchScoreRaceFields()
         Task { @MainActor in
-            _ = await BlomixDailyChallenge.shared.fetchScores(day: BlomixDailyChallenge.shared.displayedHubDay)
+            _ = await BlomixDailyChallenge.arcade.fetchScores(day: BlomixDailyChallenge.arcade.displayedHubDay)
+            _ = await BlomixDailyChallenge.five.fetchScores(day: BlomixDailyChallenge.five.displayedHubDay)
         }
 
         guard GKLocalPlayer.local.isAuthenticated else { return }
 
-        let id0 = specs[0].leaderboardID
-        let id1 = specs[1].leaderboardID
-        let id2 = specs[2].leaderboardID
-        let id3 = specs[3].leaderboardID
-        let id4 = specs[4].leaderboardID
+        let ids = specs.map(\.leaderboardID)
         let discNames = specs.map(\.discName)
         Task { @MainActor [weak self] in
-            async let r0 = GameScene.loadStartScreenDiscRank(leaderboardID: id0)
-            async let r1 = GameScene.loadStartScreenDiscRank(leaderboardID: id1)
-            async let r2 = GameScene.loadStartScreenDiscRank(leaderboardID: id2)
-            async let r3 = GameScene.loadStartScreenDiscRank(leaderboardID: id3)
-            async let r4 = GameScene.loadStartScreenDiscRank(leaderboardID: id4)
-            let ranks = await [r0, r1, r2, r3, r4]
+            async let r0 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[0])
+            async let r1 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[1])
+            async let r2 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[2])
+            async let r3 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[3])
+            async let r4 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[4])
+            async let r5 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[5])
+            async let r6 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[6])
+            let ranks = await [r0, r1, r2, r3, r4, r5, r6]
             guard let self else { return }
             guard generation == self.startScreenRankRevealGeneration, self.isStartScreen else { return }
             guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
@@ -4591,10 +4795,18 @@ final class GameScene: SKScene {
             return await BlomixEloManager.shared.fetchDisplayedLocalDuelRank()
         }
         if leaderboardID == ScoreManager.dailyLeaderboardID {
-            if let rank = await BlomixDailyChallenge.shared.fetchLocalCareerRank() {
+            if let rank = await BlomixDailyChallenge.arcade.fetchLocalCareerRank() {
                 return rank
             }
-            if let cached = BlomixDailyChallenge.shared.cachedLocalCareerRank() {
+            if let cached = BlomixDailyChallenge.arcade.cachedLocalCareerRank() {
+                return cached
+            }
+        }
+        if leaderboardID == ScoreManager.fiveDailyLeaderboardID {
+            if let rank = await BlomixDailyChallenge.five.fetchLocalCareerRank() {
+                return rank
+            }
+            if let cached = BlomixDailyChallenge.five.cachedLocalCareerRank() {
                 return cached
             }
         }
@@ -4869,8 +5081,9 @@ final class GameScene: SKScene {
     /// Bouton « Voir le classement » (Game Over) : présente `LeaderboardViewController` depuis le `rootViewController` UIKit.
     private func leaderboardTabForCurrentMode() -> LeaderboardViewController.InitialTab {
         if pvpCoordinator != nil { return .elo }
+        if isDailyChallengeMode { return isFiveMode ? .fiveDailyWins : .dailyWins }
+        if isFiveMode { return .fiveScore }
         if isZenMode { return .zenScore }
-        if isDailyChallengeMode { return .dailyWins }
         return .mainScore
     }
 
@@ -4974,7 +5187,9 @@ final class GameScene: SKScene {
         }
 
         if isDailyChallengeMode, let day = dailyLockedDay {
-            BlomixDailyChallenge.shared.finishRun(day: day, score: score)
+            activeDailyChallenge.finishRun(day: day, score: score)
+        } else if isFiveMode {
+            BlomixSoloSaveManager.shared.clearFive()
         } else if isZenMode {
             BlomixSoloSaveManager.shared.clearZen()
         } else {
@@ -5406,13 +5621,15 @@ final class GameScene: SKScene {
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard self.pvpCoordinator == nil else { return }
-            let isNewPB = self.isZenMode
-                ? ScoreManager.shared.isNewZenPersonalBest(finalScore)
-                : ScoreManager.shared.isNewPersonalBest(finalScore)
-            if self.isZenMode {
-                // Mode Zen : soumission au leaderboard Zen uniquement, pas de contribution à la moyenne.
+            let isNewPB: Bool
+            if self.isFiveMode {
+                isNewPB = ScoreManager.shared.isNewFivePersonalBest(finalScore)
+                ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.fiveLeaderboardID, completion: nil)
+            } else if self.isZenMode {
+                isNewPB = ScoreManager.shared.isNewZenPersonalBest(finalScore)
                 ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
             } else {
+                isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
                 ScoreManager.shared.submitScore(finalScore, completion: nil)
                 ScoreManager.shared.recordGameScore(finalScore)
             }
@@ -5538,12 +5755,12 @@ final class GameScene: SKScene {
             SKAction.fadeIn(withDuration: 0.22),
         ]))
 
-        let lockedDay = dailyLockedDay ?? BlomixDailyChallenge.shared.utcToday
+        let lockedDay = dailyLockedDay ?? activeDailyChallenge.utcToday
         let playerID = GKLocalPlayer.local.gamePlayerID
         Task { @MainActor [weak self] in
             guard let self else { return }
             var entries: [BlomixDailyScoreEntry] = []
-            switch await BlomixDailyChallenge.shared.fetchScores(day: lockedDay) {
+            switch await self.activeDailyChallenge.fetchScores(day: lockedDay) {
             case .loaded(let rows):
                 entries = rows
             case .unavailable:
@@ -5569,12 +5786,18 @@ final class GameScene: SKScene {
                 .childNode(withName: Self.gameOverDailyRankLabelName) as? SKLabelNode)?.text = text
         }
 
-        // Même pipeline Arcade : highscore `BlomixMainScore_v3` + moyenne, overlay record si PB.
+        // Arcade daily → highscore Arcade + moyenne. Five daily → `FiveMode` seulement.
         Task { @MainActor [weak self] in
             guard let self else { return }
-            let isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
-            ScoreManager.shared.submitScore(finalScore, completion: nil)
-            ScoreManager.shared.recordGameScore(finalScore)
+            let isNewPB: Bool
+            if self.isFiveMode {
+                isNewPB = ScoreManager.shared.isNewFivePersonalBest(finalScore)
+                ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.fiveLeaderboardID, completion: nil)
+            } else {
+                isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
+                ScoreManager.shared.submitScore(finalScore, completion: nil)
+                ScoreManager.shared.recordGameScore(finalScore)
+            }
             if isNewPB {
                 self.gameOverShareIsNewPB = true
                 self.presentPersonalBestOverlay(score: finalScore)
@@ -5584,7 +5807,7 @@ final class GameScene: SKScene {
 
     private static let appStoreReviewPromptActionKey = "appStoreReviewPrompt"
 
-    /// Compte la partie (Arcade / Zen) et, si le seuil est atteint, demande un avis après une pause.
+    /// Compte la partie (Arcade / Zen / Five) et, si le seuil est atteint, demande un avis après une pause.
     /// Tutoriel et Duel exclus. Pas de boîte custom — uniquement `AppStore.requestReview`.
     private func scheduleAppStoreReviewPromptIfNeeded() {
         removeAction(forKey: Self.appStoreReviewPromptActionKey)
@@ -5685,16 +5908,20 @@ final class GameScene: SKScene {
         ok.zPosition = 10
         overlay.addChild(ok)
 
-        let boardID = isZenMode ? ScoreManager.zenLeaderboardID : ScoreManager.mainLeaderboardID
+        let boardID = currentLeaderboardIDForHUD()
         // Rang **du nouveau score**, pas `localEntry.rank` (souvent encore l’ancien, ex. 2ᵉ alors que le PB est 1ᵉʳ).
         ScoreManager.shared.fetchGlobalRankInsertingScore(score, leaderboardID: boardID) { [weak self] rank in
             guard let self, let rank,
                   let overlay = self.childNode(withName: Self.gameOverRecordOverlayName),
                   let label = overlay.childNode(withName: "gameOverRecordRank") as? SKLabelNode
             else { return }
-            label.text = self.isZenMode
-                ? BlomixL10n.gameOverRecordRankZen(rank)
-                : BlomixL10n.gameOverRecordRankSolo(rank)
+            if self.isFiveMode {
+                label.text = BlomixL10n.gameOverRecordRankFive(rank)
+            } else if self.isZenMode {
+                label.text = BlomixL10n.gameOverRecordRankZen(rank)
+            } else {
+                label.text = BlomixL10n.gameOverRecordRankSolo(rank)
+            }
             label.run(.fadeIn(withDuration: 0.22))
         }
     }
@@ -5707,6 +5934,7 @@ final class GameScene: SKScene {
         guard isGameOver else { return }
         removeAction(forKey: Self.appStoreReviewPromptActionKey)
         let keepZen = isZenMode
+        let keepFive = isFiveMode
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
         isGameOver = false
@@ -5715,7 +5943,9 @@ final class GameScene: SKScene {
         stopStageTimer()
         BlomixMusicPlayer.shared.resetToBase()
         isStartScreen = true
-        if keepZen {
+        if keepFive {
+            beginFiveModeFromStartScreen()
+        } else if keepZen {
             beginZenModeFromStartScreen()
         } else {
             beginNewMatchFromStartScreen()
@@ -5729,6 +5959,7 @@ final class GameScene: SKScene {
             grid: gameOverShareGrid,
             score: gameOverFinalScore,
             isZen: isZenMode,
+            isFive: isFiveMode,
             isNewPB: gameOverShareIsNewPB
         )
     }
@@ -5748,6 +5979,7 @@ final class GameScene: SKScene {
             grid: gameOverShareGrid,
             score: gameOverFinalScore,
             isZen: isZenMode,
+            isFive: isFiveMode,
             isNewPB: gameOverShareIsNewPB,
             cardImage: gameOverShareCardImage
         )
@@ -6432,7 +6664,7 @@ final class GameScene: SKScene {
         let msgText: String
         if pvpCoordinator != nil {
             msgText = BlomixL10n.quitConfirmMessagePvp
-        } else if isZenMode {
+        } else if isUntimedSoloMode {
             msgText = BlomixL10n.quitConfirmMessageZen
         } else {
             msgText = BlomixL10n.quitConfirmMessage
@@ -6941,7 +7173,7 @@ final class GameScene: SKScene {
                 shouldRunPostPlacementHooks = false
                 moveCount += 1
                 refreshLigneCounterHUD()
-                let decade = moveCount > 0 && moveCount % 10 == 0
+                let decade = isIncomingLineDue(atMoveCount: moveCount)
                 // Duel : sans bandeau au tap, ce coup n’injecte pas (preview + jitter pour le suivant).
                 let allowInjectThisTurn = (pvpCoordinator == nil) || lineArmedAtDrop
                 if allowInjectThisTurn {
@@ -7014,7 +7246,7 @@ final class GameScene: SKScene {
                 // Jitter sur le bloc courant si c'est le dernier avant la ligne entrante.
                 // updatePreviewSprite() est appelé dans dropBlock AVANT moveCount += 1 ;
                 // on corrige ici, une fois moveCount à jour, pour cibler le bon bloc.
-                if moveCount % 10 == 9 {
+                if isIncomingLinePreviewVisible(atMoveCount: moveCount) {
                     startPreviewJitter()
                 }
                 triggerMoveAnalysis()
@@ -8593,8 +8825,8 @@ final class GameScene: SKScene {
         let p1         = blockAfterCurrent
         let p2         = blockTwoAhead
         let mc         = moveCount
-        // La ligne est visible (et donc connue) uniquement quand moveCount % 10 == 9.
-        let pending: [BlockType]? = (mc % 10 == 9) ? nextBottomLine : nil
+        // La ligne est visible uniquement au coup d’aperçu (9/10 Arcade, 4/5 Five).
+        let pending: [BlockType]? = isIncomingLinePreviewVisible(atMoveCount: mc) ? nextBottomLine : nil
 
         analyzerLookAhead = nil   // invalide l'ancien résultat
         // Capture la position et la file de blocs AVANT le prochain coup du joueur —
@@ -8609,15 +8841,17 @@ final class GameScene: SKScene {
         // calculé pour une génération antérieure (joueur qui joue vite → résultats périmés).
         analyzerGeneration &+= 1
         let gen = analyzerGeneration
+        let period = incomingLinePeriod
 
-        Self.analyzerQueue.async { [weak self] in
+        Self.analyzerQueue.async {
             let result = BlomixMoveAnalyzer.computeOptimal(
                 grid:        gridSnap,
                 piece0:      p0,
                 piece1:      p1,
                 piece2:      p2,
                 moveCount:   mc,
-                pendingLine: pending
+                pendingLine: pending,
+                linePeriod:  period
             )
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.analyzerGeneration == gen else { return }
@@ -8871,7 +9105,7 @@ final class GameScene: SKScene {
         timerCaptionLabel.horizontalAlignmentMode = .right
         timerCaptionLabel.verticalAlignmentMode = .center
         timerCaptionLabel.zPosition = 12
-        timerCaptionLabel.isHidden = isZenMode   // pas de timer en mode Zen
+        timerCaptionLabel.isHidden = isUntimedSoloMode   // pas de timer en Zen / Five
         addChild(timerCaptionLabel)
 
         // Compteur LIGNE (gauche du gros score — symétrique de TEMPS à droite)
@@ -9072,7 +9306,7 @@ final class GameScene: SKScene {
     private func pendingIncomingLinePipCount() -> Int {
         var n = pvpCoordinator?.incomingAttackLineCount ?? 0
         let decadeWaiting = !isInjectingBottomRandomLine
-            && (moveCount % 10 == 9 || pvpNeedsDecadeLineAfterAttackInjection)
+            && (isIncomingLinePreviewVisible(atMoveCount: moveCount) || pvpNeedsDecadeLineAfterAttackInjection)
         if decadeWaiting { n += 1 }
         return min(4, max(0, n))
     }
@@ -9667,7 +9901,7 @@ final class GameScene: SKScene {
         guard !isProcessing || ignoreProcessing else { return }
 
         let incomingAttackPreview = pvpCoordinator?.peekNextIncomingAttackLinePreview()
-        let decadePending = pvpNeedsDecadeLineAfterAttackInjection || moveCount % 10 == 9
+        let decadePending = pvpNeedsDecadeLineAfterAttackInjection || isIncomingLinePreviewVisible(atMoveCount: moveCount)
         if decadePending, (pvpCoordinator?.incomingAttackLineCount ?? 0) == 0 {
             pvpDecadePreviewQueuedAheadOfAttacks = true
         }
@@ -14486,7 +14720,7 @@ final class GameScene: SKScene {
         guard BlomixMoveAnalyzer.evalEnabled else { return }
         guard let lbl = childNode(withName: Self.evalDebugLabelName) as? SKLabelNode else { return }
         guard !isStartScreen, !isGameOver else { lbl.text = "eval: –"; return }
-        let score = BlomixMoveAnalyzer.evaluate(grid: grid, moveCount: moveCount)
+        let score = BlomixMoveAnalyzer.evaluate(grid: grid, moveCount: moveCount, linePeriod: incomingLinePeriod)
         lbl.text = "eval: \(score)"
     }
 
@@ -14497,18 +14731,21 @@ final class GameScene: SKScene {
         guard let caption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode,
               let value   = childNode(withName: Self.ligneValueName)   as? SKLabelNode else { return }
 
-        let displayValue: Int = isInjectingBottomRandomLine ? 10 : moveCount % 10
-        value.text = "\(displayValue)/10"
+        let period = incomingLinePeriod
+        let displayValue: Int = isInjectingBottomRandomLine ? period : moveCount % period
+        value.text = "\(displayValue)/\(period)"
 
         let gray   = SKColor(red: 0xA3/255.0, green: 0xA3/255.0, blue: 0xA3/255.0, alpha: 1)
         let orange = SKColor(red: 244/255.0,  green: 162/255.0,  blue: 97/255.0,   alpha: 1)
         let red    = SKColor(red: 0.90,        green: 0.20,        blue: 0.20,       alpha: 1)
 
+        let grayMax = period <= 5 ? 2 : 5
+        let orangeMax = period <= 5 ? 3 : 8
         switch displayValue {
-        case 0...5:
+        case 0...grayMax:
             value.fontColor = gray
             caption.fontColor = gray
-        case 6...8:
+        case (grayMax + 1)...orangeMax:
             value.fontColor = orange
             caption.fontColor = orange
         default:
@@ -14517,7 +14754,7 @@ final class GameScene: SKScene {
         }
 
         let shakeKey = "ligneShake"
-        if displayValue >= 9 {
+        if displayValue >= incomingLinePreviewRemainder {
             if value.action(forKey: shakeKey) == nil {
                 let dx: CGFloat = 2
                 let dt: TimeInterval = 0.05
@@ -14680,7 +14917,7 @@ final class GameScene: SKScene {
                 if shouldRunPostPlacementHooks {
                     shouldRunPostPlacementHooks = false
                     moveCount += 1
-                    if moveCount % 10 == 0, commitBottomLineForSaveSynchronously() {
+                    if isIncomingLineDue(atMoveCount: moveCount), commitBottomLineForSaveSynchronously() {
                         return
                     }
                 }
@@ -14828,7 +15065,8 @@ final class GameScene: SKScene {
             stageTimerSecondsRemaining: stageTimerSecondsRemaining,
             moveRecords: analyzerGameStats.records,
             hintsRemaining: hintsRemaining,
-            isZenMode: isZenMode
+            isZenMode: isZenMode,
+            isFiveMode: isFiveMode
         )
     }
 
@@ -14841,7 +15079,7 @@ final class GameScene: SKScene {
               !pvpMatchSetupInProgress else { return }
         guard let save = makeSoloGameSaveSnapshot() else { return }
         if isDailyChallengeMode, let day = dailyLockedDay, let rng = dailyFileRNG {
-            BlomixDailyChallenge.shared.saveRun(
+            activeDailyChallenge.saveRun(
                 BlomixDailyRunSave(
                     version: BlomixDailyRunSave.currentVersion,
                     utcDay: day,
@@ -14866,6 +15104,7 @@ final class GameScene: SKScene {
 
         // Restauration de l'état logique (tout le modèle jouable).
         isZenMode = save.isZenMode
+        isFiveMode = save.isFiveMode
         grid = save.grid
         currentBlock = save.currentBlock
         blockAfterCurrent = save.blockAfterCurrent
@@ -14882,7 +15121,7 @@ final class GameScene: SKScene {
         currentStageIndex = save.currentStageIndex
         // Clamper tout de suite : `setupScoreHUD` resync le label existant (sinon flash
         // « 32s » Stage 1 avant le vrai reste, grille encore masquée).
-        if save.isZenMode {
+        if save.isZenMode || save.isFiveMode {
             stageTimerSecondsRemaining = save.stageTimerSecondsRemaining
         } else {
             let maxT = currentStageConfig.timerSeconds
@@ -14924,7 +15163,7 @@ final class GameScene: SKScene {
         updatePreviewSprite()
         refreshUpcomingQueueSlots()
         rebuildGameOverflowMenu()
-        if !isZenMode {
+        if !isUntimedSoloMode {
             ensureStageTimerHUD()
             layoutStageTimerHUD()
             updateStageTimerHUD()
@@ -14942,7 +15181,7 @@ final class GameScene: SKScene {
         refreshBestScoreHUDIfNeeded()
         refreshLigneCounterHUD()
         refreshPendingBottomLinePreview()
-        if !isZenMode {
+        if !isUntimedSoloMode {
             updateStageTimerHUD()
             resumeStageTimerKeepingRemaining()
         }
@@ -14950,7 +15189,7 @@ final class GameScene: SKScene {
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
         // Reprendre la musique du mode sauvegardé.
-        if isZenMode {
+        if isUntimedSoloMode {
             BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)
         } else if isInStagedSoloMode {
             BlomixMusicPlayer.shared.switchToFile(Self.soloStages[currentStageIndex].musicFilename)
@@ -15326,7 +15565,7 @@ final class GameScene: SKScene {
     /// Pause chrome (☰ / modales) : le reste de secondes est conservé.
     private var isStageTimerPausedForChrome = false
 
-    private var isInStagedSoloMode: Bool { pvpCoordinator == nil && !isTutorialMode && !isZenMode }
+    private var isInStagedSoloMode: Bool { pvpCoordinator == nil && !isTutorialMode && !isZenMode && !isFiveMode }
 
     private var currentStageConfig: SoloStageConfig {
         Self.soloStages[min(currentStageIndex, Self.soloStages.count - 1)]
@@ -16708,7 +16947,11 @@ final class GameScene: SKScene {
             }
 
             if touchHitsDailyButton(location) {
-                pendingButtonAction = { [weak self] in self?.showDailyHub() }
+                pendingButtonAction = { [weak self] in self?.showDailyHub(kind: .arcade) }
+                return
+            }
+            if touchHitsFiveDailyButton(location) {
+                pendingButtonAction = { [weak self] in self?.showDailyHub(kind: .five) }
                 return
             }
             if touchHitsStartButton(location) {
@@ -16755,8 +16998,20 @@ final class GameScene: SKScene {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .dailyWins) }
                 return
             }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscFiveName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .fiveScore) }
+                return
+            }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscFiveDailyName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .fiveDailyWins) }
+                return
+            }
             if touchHitsStartScreenZenButton(location) {
                 pendingButtonAction = { [weak self] in self?.performZenButtonAction() }
+                return
+            }
+            if touchHitsStartScreenFiveButton(location) {
+                pendingButtonAction = { [weak self] in self?.performFiveButtonAction() }
                 return
             }
             if touchHitsStartScreenPvPButton(location) {
@@ -16789,7 +17044,7 @@ final class GameScene: SKScene {
             if touchHitsGameOverLeaderboardButton(location) {
                 pendingButtonAction = { [weak self] in
                     if self?.isDailyChallengeMode == true {
-                        self?.showDailyHub()
+                        self?.showDailyHub(kind: self?.activeDailyKind ?? .arcade)
                     } else {
                         self?.showLeaderboard(initialTab: self?.leaderboardTabForCurrentMode() ?? .mainScore)
                     }
@@ -17363,7 +17618,7 @@ final class GameScene: SKScene {
         pvpEnteredFromHome = stash.fromHome
     }
 
-    /// Capture Arcade / Zen / Défi **en cours** avant la grille de prép. Jamais depuis l'accueil, jamais après prep.
+    /// Capture Arcade / Zen / Five / Défi **en cours** avant la grille de prép. Jamais depuis l'accueil, jamais après prep.
     private func blomixPvP_captureSoloSaveIfLeavingForMatch() {
         if pvpMatchSetupInProgress { return }
 
@@ -17399,12 +17654,13 @@ final class GameScene: SKScene {
                 game: save
             )
             pvpSuspendedDailyRun = run
-            BlomixDailyChallenge.shared.saveRun(run)
+            activeDailyChallenge.saveRun(run)
             BlomixPvPLog.event("daily_save_suspended_for_pvp", [
                 "score": "\(save.score)",
                 "moves": "\(save.moveCount)",
                 "day": day,
-                "stage": "\(save.currentStageIndex)"
+                "stage": "\(save.currentStageIndex)",
+                "five": "\(save.isFiveMode)"
             ])
             return
         }
@@ -17415,6 +17671,7 @@ final class GameScene: SKScene {
             "moves": "\(save.moveCount)",
             "bombs": "\(save.bombCount)",
             "zen": "\(save.isZenMode)",
+            "five": "\(save.isFiveMode)",
             "stage": "\(save.currentStageIndex)"
         ])
     }
@@ -17433,11 +17690,13 @@ final class GameScene: SKScene {
                 isDailyChallengeMode = true
                 dailyLockedDay = daily.utcDay
                 dailyFileRNG = BlomixDailyFileRNG(seed: daily.seed, state: daily.fileRNGState)
-                BlomixDailyChallenge.shared.noteActiveSession(day: daily.utcDay)
+                let kind: BlomixDailyKind = daily.game.isFiveMode ? .five : .arcade
+                BlomixDailyChallenge.service(kind).noteActiveSession(day: daily.utcDay)
             } else {
                 clearDailyChallengeSessionFlags()
             }
             isZenMode = save.isZenMode
+            isFiveMode = save.isFiveMode
             restoreFromSoloSave(save)
         } else {
             presentStartScreen()
@@ -17460,6 +17719,7 @@ final class GameScene: SKScene {
         isGameOver = false
         isProcessing = true // bloque les poses tant que le handshake n'est pas fini
         isZenMode = false
+        isFiveMode = false
         isTutorialMode = false
 
         if childNode(withName: Self.titleNodeName) == nil { addTopTitle() }

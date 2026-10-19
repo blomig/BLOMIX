@@ -31,11 +31,13 @@ enum BlomixShareComposer {
     }
 
     /// Message game over (run courante ; variante record si `isNewPB`).
-    static func gameOverMessage(score: Int, isZen: Bool, isNewPB: Bool) -> String {
+    static func gameOverMessage(score: Int, isZen: Bool, isFive: Bool = false, isNewPB: Bool) -> String {
         let s = formattedScore(score)
         if isNewPB {
+            if isFive { return BlomixL10n.shareGameOverRecordFive(s) }
             return isZen ? BlomixL10n.shareGameOverRecordZen(s) : BlomixL10n.shareGameOverRecord(s)
         }
+        if isFive { return BlomixL10n.shareGameOverScoreFive(s) }
         return isZen ? BlomixL10n.shareGameOverScoreZen(s) : BlomixL10n.shareGameOverScore(s)
     }
 
@@ -58,6 +60,7 @@ enum BlomixShareComposer {
         grid: [[BlockType]],
         score: Int,
         isZen: Bool,
+        isFive: Bool = false,
         isNewPB: Bool,
         cardImage: UIImage?
     ) -> [Any] {
@@ -66,10 +69,11 @@ enum BlomixShareComposer {
             grid: grid,
             score: score,
             isZen: isZen,
+            isFive: isFive,
             isNewPB: isNewPB
         )
         items.append(image)
-        items.append(gameOverMessage(score: score, isZen: isZen, isNewPB: isNewPB))
+        items.append(gameOverMessage(score: score, isZen: isZen, isFive: isFive, isNewPB: isNewPB))
         items.append(appStoreURL)
         return items
     }
@@ -81,6 +85,7 @@ enum BlomixShareComposer {
         grid: [[BlockType]],
         score: Int,
         isZen: Bool,
+        isFive: Bool = false,
         isNewPB: Bool,
         side: CGFloat = 1080
     ) -> UIImage {
@@ -122,10 +127,10 @@ enum BlomixShareComposer {
                 withAttributes: titleAttrs
             )
 
-            // Badge ZEN (seulement si Zen)
-            if isZen {
+            // Badge ZEN / FIVE
+            if isZen || isFive {
                 let badgeFont = titleUIFont(size: side * 0.028)
-                let badge = "ZEN" as NSString
+                let badge = (isFive ? "FIVE" : "ZEN") as NSString
                 let badgeAttrs: [NSAttributedString.Key: Any] = [
                     .font: badgeFont,
                     .foregroundColor: secondary,

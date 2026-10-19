@@ -10,7 +10,7 @@ import SpriteKit
 import UIKit
 
 enum BlomixGuideIllustrationKind: Int, CaseIterable {
-    case blox, brix, line, bombs, magix, score, duel
+    case blox, brix, line, bombs, magix, score, duel, five
 }
 
 /// Zone ~1/3 de carte : dessin jeu, sans texte localisé.
@@ -58,6 +58,7 @@ final class BlomixGuideIllustrationView: UIView {
         case .line:  drawLine(in: rect)
         case .score: drawScore(in: rect)
         case .duel:  drawDuel(in: rect)
+        case .five:  drawLine(in: rect)
         case .bombs, .magix:
             break
         }

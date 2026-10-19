@@ -31,7 +31,7 @@
 
 Blomix est un jeu de puzzle combinatoire 8×8. Le joueur place des blox colorés pour former des chaînes de 5+ blocs de même couleur (8-connexité). Des Brix résistants, des blocs Magix aux effets variés, des bombes et une ligne entrante tous les 10 coups créent une montée en pression progressive.
 
-Le mode solo principal (**stagé**) impose un timer par coup et un multiplicateur de score croissant. Un mode **Zen** sans contrainte temporelle et un mode **PvP** Game Center complètent l'offre.
+Le mode solo principal (**stagé**) impose un timer par coup et un multiplicateur de score croissant. Un mode **Zen** sans contrainte temporelle, un mode **Five** (sans timer, ligne tous les 5) et un mode **PvP** Game Center complètent l'offre.
 
 ---
 
@@ -78,7 +78,7 @@ Ce n’est **pas** « 7/8 couleur + 1/8 Brix, plus 3 % Magix par-dessus ».
 
 En PvP : RNG partagé via `BlomixPvPMatchCoordinator` (canaux GK / Local / `.bot`). Duel vs bots : `BlomixPvPBotEngine` (file `blomix.pvpBot`), Elo bot `BlomixPvPBotEloStore` (`BotEloEvent`). [BOT_DUEL.md](BOT_DUEL.md).  
 En tutoriel : séquence scriptée (`tutorialBlockQueue`).  
-En **Défi du jour** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v1"+YYYY-MM-DD)` FNV-1a 64) ; effets Magix via `BlomixDailyEffectRNG` (hash d’événement, ne consomme pas la File). Auto-drop **non seedé**.
+En **Défi Arcade** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v1"+YYYY-MM-DD)` FNV-1a 64). En **Défi Five** : même pipeline, sel `blomix-five-v1` / fx `blomix-five-fx-v1`. Effets Magix via `BlomixDailyEffectRNG` (hash d’événement, ne consomme pas la File). Auto-drop **non seedé**.
 
 **Restrictions lignes entrantes** (`nextBottomLineRowForSession`) : tirage identique à la file, **puis** tout `.magix` est remplacé par une couleur ; en tutoriel, les `.priks` aussi. En Duel, le RNG partagé **ne tire jamais** de Magix (`BlomixPvPSeededBlockRNG` : 1/8 Brix sinon couleur).
 
@@ -147,7 +147,7 @@ Définis dans `MagixKind` et `MagixRules` (`GameScene.swift`). Catalogue joueur 
 | `.colorx` | COLORX | Roulette → efface une couleur (score chaîne) |
 | `.cleanx` | SAINTX | Vide la grille → Brix(N) ; +200 pts **via `addScore`** (donc × stage en Arcade) |
 | `.twistx` | TWISTX | Échange **automatique** (pas de tap joueur) : une couleur présente ↔ tous les Brix (valeur = min Brix, défaut 3) |
-| `.bombx` | BOMBX | Tâche 3 rangs sur cases occupées → chaînes → **+1 bombe** au stock (`grantBombxStockBonus`). Arcade / Zen uniquement |
+| `.bombx` | BOMBX | Tâche 3 rangs sur cases occupées → chaînes → **+1 bombe** au stock (`grantBombxStockBonus`). Arcade / Zen / Five uniquement |
 
 Fractions de spawn (`MagixRules.spawnProbabilityByKind`) :
 
@@ -168,11 +168,11 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 
 ## 8. Bombe
 
-| Paramètre | Arcade / Zen | Duel |
+| Paramètre | Arcade / Zen / Five | Duel |
 |---|---|---|
 | Stock initial | 5 | 3 |
 | Gain en partie | **BOMBX** : +1 (garanti) | Pas de Magix |
-| Zone | Arcade : 3×3 + croix selon stage ; Zen : 3×3 | Toujours 3×3 |
+| Zone | Arcade : 3×3 + croix selon stage ; Zen / Five : 3×3 | Toujours 3×3 |
 
 `bombCrossArmLength` = `currentStageIndex` en solo stagé (0 au L1 … 5 à l’Ultime) ; 0 hors Arcade. Texture HUD `nuke` dès que `arm > 0`.
 
@@ -210,7 +210,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 | Bombe utilisée | 10 |
 | Colonne vidée | 10 par colonne |
 | SAINTX | 200 (via `addScore` → × stage en Arcade) |
-| Grille 100 % vide (Arcade / Zen) | **500** (`fullyClearedBoardBonusPoints`, × stage en Arcade via `addScore`) — en plus des +10 / colonne |
+| Grille 100 % vide (Arcade / Zen / Five) | **500** (`fullyClearedBoardBonusPoints`, × stage en Arcade via `addScore`) — en plus des +10 / colonne |
 
 **Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`.
 
@@ -219,8 +219,10 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 **Leaderboards Game Center** :
 - Solo : score principal + moyenne
 - Zen : `ZenMode`
+- Five : `FiveMode` (pas de moyenne Arcade)
 - PvP : Elo (`elotype`)
-- Défi : points podium cumulés — onglet in-app = somme CloudKit des jours clos ; GC `dailywins_arc` = submit du joueur local (le score de la run va **aussi** sur Arcade + moyenne)
+- Défi Arcade : points podium cumulés — onglet in-app = somme CloudKit des jours clos ; GC `dailywins_arc` = submit du joueur local (le score de la run va **aussi** sur Arcade + moyenne)
+- Défi Five : idem, GC `dailywins_five` ; le score de la run va **seulement** sur `FiveMode`
 
 ---
 
@@ -228,7 +230,9 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 
 ### Solo stagé
 
-`isInStagedSoloMode = pvpCoordinator == nil && !isTutorialMode && !isZenMode`
+`isInStagedSoloMode = pvpCoordinator == nil && !isTutorialMode && !isZenMode && !isFiveMode`  
+`isUntimedSoloMode = isZenMode || isFiveMode`  
+`incomingLinePeriod` = **5** si Five, **10** sinon.
 
 6 stages (`soloStages`) : timer décroissant, multiplicateur croissant.  
 Timer relancé **à fond** après chaque coup stable et après overlay de stage. Timeout → `autoDropColumnForTimeout()` : visée encore maintenue (colonne jouable) → sinon ghost figé à ≤ 2 s → sinon `autoDropPreferredColumn()` (hasard parmi `grid[0][col] == .empty`, sinon toute colonne jouable).
@@ -239,20 +243,26 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 `isZenMode = true` : pas de timer, pas de stages, leaderboard Zen séparé.
 
+### Mode Five
+
+`isFiveMode = true` : pas de timer, pas de stages, ligne tous les **5**, leaderboard `FiveMode`. Slot **`blomix_five_save_v1`**. Magix oui, bombe 3×3, stock 5, auto-drop non. Scoring ×1. **Pas** un habillage de Zen (`isZenMode` reste faux).
+
 ### Défi du jour
 
-`isDailyChallengeMode` : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai). Slot **`blomix_daily_save_v1`**. Les trois slots **coexistent** (Arcade `blomix_solo_save_v2`, Zen `blomix_zen_save_v1`, Défi). Hero = Arcade seulement ; chip Zen = Zen seulement ; chip Défi = hub. **Pas** d’abandon croisé, **pas** de « Nouvelle partie » ni dialog d’accueil. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Reprise post-Duel : cette grille. Hub UIKit `BlomixDailyHubViewController` (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui ; boîte podium d’hier au-dessus du CTA). Au GO : le score est soumis **comme une partie Arcade** (`BlomixMainScore_v3` + moyenne) **et** en CloudKit Public `DailyScore` du jour **verrouillé** si `now < clôture` ou si la grille était encore ouverte. Points carrière podium : Game Center `dailywins_arc`, crédités **après** clôture (minuit UTC + 2 h). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` + `BlomixDailyKind` (`.arcade` | `.five`). Hub paramétré `BlomixDailyHubViewController(kind:)`. Graines **indépendantes**. Défi Arcade : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai), slot **`blomix_daily_save_v1`**, CK `DailyScore`, GC `dailywins_arc` ; le score de la run va **aussi** sur Arcade + moyenne. Défi Five : `isFiveMode`, slot **`blomix_five_daily_save_v1`**, CK `FiveDailyScore` (local-ready jusqu’au schéma prod), GC `dailywins_five` ; le score de la run va **seulement** sur `FiveMode`. Les cinq slots **coexistent**. Accueil : hero Arcade ; paire Défi Arcade | Défi Five ; Duel | Zen | Five. **Pas** d’abandon croisé. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Hub UIKit (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
-`BlomixSoloGameSave` (version **7**) — deux clés iPhone + le Défi :
-- Arcade : `blomix_solo_save_v2` (`isZenMode == false`)
+`BlomixSoloGameSave` (version **8**, `minReadableVersion` **7**) — slots iPhone :
+- Arcade : `blomix_solo_save_v2` (`isZenMode == false`, `isFiveMode == false`)
 - Zen : `blomix_zen_save_v1` (`isZenMode == true`) ; migration 7.5 : une Zen encore dans `v2` est déplacée
-- Défi : `blomix_daily_save_v1` (enveloppe + graine)
+- Five : `blomix_five_save_v1` (`isFiveMode == true`)
+- Défi Arcade : `blomix_daily_save_v1` (enveloppe + graine)
+- Défi Five : `blomix_five_daily_save_v1`
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
-- Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`
-- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero **Arcade** + caption Continuer si slot Arcade, chip **Zen** + caption Continuer si slot Zen, sinon Arcade / Découvrir / Zen
+- Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`, `isFiveMode`
+- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero **Arcade** + caption Continuer si slot Arcade, chips Zen / Five + Continuer si save, puces Défi selon l’état du jour
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
@@ -311,7 +321,7 @@ L’overlay UIKit paginé (`GameTutorialOverlayView` / `hasSeenGameTutorial`) n�
 - Lookahead 3 niveaux (P0, P1, P2) : 512 simulations max
 - `evalEnabled = true`, `realtimeFeedbackEnabled = false`
 - Stats fin de partie : **justesse** % , pire coup (`worstMistakeSnapshot`) — plus de hint en cours de partie (v6.1). Magix / bombes non simulés → le % ne les compte pas.
-- **Référence BLOMIX** (`BlomixDailyGhost.swift`) : run fantôme de la seed Défi (lookahead 3 `computeOptimal` avec ligne des 10 connue, Magix visés, bombes souples ciblant les Brix des colonnes hautes, 0 timer). Score Arcade affiché en gris sous la date du hub. Pause CPU dès qu’une partie commence. `engineVersion` **5**.
+- **Référence BLOMIX** (`BlomixDailyGhost.swift`) : run fantôme de la seed du défi (lookahead 3 `computeOptimal` avec ligne `linePeriod` connue, Magix visés, bombes souples ciblant les Brix des colonnes hautes, 0 timer). Deux contrôleurs (Arcade / Five). Score affiché en gris sous la date du hub. Pause CPU dès qu’une partie commence. `engineVersion` **5**.
 
 Voir [EVAL.md](EVAL.md).
 
@@ -351,10 +361,10 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
-- **Arcade** hero pleine largeur sous BLOMIX, **Défi du jour** hero en dessous ; Duel + Zen en paire. Titre Changa = **nom du mode** ; s’il y a une save, caption Nunito 9 pt **Continuer** (Arcade, Zen, Défi — même phrase). Entrée chips (y compris Défi) **après** le poinçon BLOMIX (`runStartScreenGameChipEntrance`). Duel : pastille `person.fill` verte (respiration) à droite du libellé, dans la capsule, si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
-- 5 rangs accueil (trou gouttière comme BLOMIX) : chiffre sans `#` ×2 + libellé (Arc. / Moy. / Zen / Duel / Défi) — le 5ᵉ = rang carrière CloudKit (même liste que l’onglet Défi), pas le board GC ni la liste du jour. Chiffres **cachés** jusqu’à ce que les 5 fetches aient répondu, puis stagger L→R (0,07 s). Recalcul Défi 60 jours coalescé (cache 20 s) : accélère le fetch, n’affiche plus le rang tout seul. Écran SCORE : **mêmes 5 onglets, même ordre**.
+- **Arcade** hero pleine largeur sous BLOMIX ; rangée **Défi Arcade | Défi Five** ; rangée **Duel | Zen | Five** (tiers, même hauteur totale qu’avant). Titre chip Défi = **Défi** (traduit) + caption Arcade ou Five ; reprise = Défi + deadline ; après GO = Classement + caption. Caption Continuer sur Arcade / Zen / Five si save. Duel : pastille `person.fill` verte si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+- 7 rangs accueil en **4+3** (trou gouttière comme BLOMIX) : `ARC. MOY. ZEN FIVE` / `DUEL DÉFI F.DÉFI`. Chiffres **cachés** jusqu’à ce que les **7** fetches aient répondu, puis stagger. F.DÉFI = rang carrière CloudKit Five (`dailywins_five` / `FiveDailyScore`). Écran SCORE : **mêmes 7 onglets, même grille 4+3**.
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
-- Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi / Duel+Zen → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
+- Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi Arcade+Five / Duel+Zen+Five → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
 - Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.
 - Réglages palettes : swatches 16 pt de la peau **sélectionnée** en gouttière (couleur fixe + ombre interne).
@@ -373,7 +383,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | Entrée | Contenu |
 |---|---|
 | Accueil | Icône avion en papier (`paperplane.fill`) → texte challenge + URL App Store `id6762053543` |
-| Game over Solo/Zen | 3ᵉ bouton sous Classement → **carte 1:1** (grille finale, skin + thème chrome, score, bandeau record si PB) + texte + URL |
+| Game over Solo/Zen/Five | 3ᵉ bouton sous Classement → **carte 1:1** (grille finale, skin + thème chrome, score, badge ZEN/FIVE, bandeau record si PB) + texte + URL |
 | PvP | Hors scope v1 |
 
 - Score accueil : best Solo, sinon Zen, sinon message sans score ; mention « Zen » seulement si Zen
@@ -401,7 +411,7 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
 - Plus de sous-titre sous BLOMIX en partie (tagline d’accueil inchangée)
 - Ghosts RECORD / N°1 figés par rapport à la grille. Gros score + LIGNE + TEMPS remontés (air sous les chiffres RECORD ÷ 2). Jauge : 30 % plus proche de BLOMIX. Grille / badge / bombes / file inchangés.
 - Ghosts **au-dessus** du gros score :
-  - Arcade / Zen : **RECORD** perso à gauche, **N°1** all-time à droite. Vert live (`#33D959`) + chiffre = run si `score > baseline`. N°1 battu : jaune `#ffb200` jusqu’à la fin.
+  - Arcade / Zen / Five : **RECORD** perso à gauche, **N°1** all-time à droite. Vert live (`#33D959`) + chiffre = run si `score > baseline`. N°1 battu : jaune `#ffb200` jusqu’à la fin.
   - **Défi du jour** : **À BATTRE** centré = leader CloudKit du jour ; suit la run en jaune si en tête
   - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
 - **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Autres scores encore devant = ticks verticaux 1×4 pt (Sombre blanc 48 %, Clair blanc 36 %) ; déjà dépassés masqués. Prochain devant le curseur = rose `#FF5A9A` (rayon 2,4). Sillage = gouttière 3 pt, même matière (shader peau) que le wordmark BLOMIX, de 0 au curseur ; ligne grise restante 1 pt. Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : le chiffre gonfle et défile ±1 jusqu’à la nouvelle place, plus paillettes rose / chrome. Pas en tuto / Duel.
@@ -463,16 +473,16 @@ Blomix/Blomix/
 ├── BlomixPvPLocalSession.swift   # PvP Local (MultipeerConnectivity)
 ├── BlomixPvPUI.swift             # Lobby, résultats, dialogues in-app, adversaires récents
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
-├── ScoreManager.swift            # GC Solo/Zen/moyenne ; sync max(local,pending) + n°1 HUD + reconcile local>GC
+├── ScoreManager.swift            # GC Solo/Zen/Five/moyenne ; sync max(local,pending) + n°1 HUD + reconcile local>GC
 ├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
 ├── BlomixRulesGuideViewController.swift  # Guide règles + Magix (6.4)
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
 ├── BlomixPublicCloudGate.swift   # Robinet Public DB (503 / Retry-After) H2H + lobby
 ├── BlomixAvailablePlayersManager.swift  # Joueurs dispo + défis `chfrom_*`
-├── BlomixDailyRNG.swift              # File seedée + effets Magix hashés (Défi du jour)
-├── BlomixDailyChallenge.swift        # Save daily, CloudKit `DailyScore`, podium GC
-├── BlomixDailyHubViewController.swift # Hub du jour (liste + CTA)
-├── BlomixDailyGhost.swift            # Fantôme seedé — Référence BLOMIX (hub)
+├── BlomixDailyRNG.swift              # File seedée + effets Magix hashés (Défi Arcade / Five)
+├── BlomixDailyChallenge.swift        # `BlomixDailyKind` Arcade/Five, CK `DailyScore` / `FiveDailyScore`, podium GC
+├── BlomixDailyHubViewController.swift # Hub du jour paramétré (`kind:`)
+├── BlomixDailyGhost.swift            # Fantôme seedé — Référence BLOMIX (ligne /10 ou /5)
 ├── GameViewController.swift      # Root VC, tutoriel, share sheet UIKit
 ├── LeaderboardViewController.swift  # Classements Elo H2H + défis ; crédits plain-text legacy
 ├── BlomixProceduralSFX.swift     # Sons procéduraux (Magix, etc.)

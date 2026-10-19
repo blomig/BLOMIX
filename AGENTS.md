@@ -17,7 +17,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 | Langues | FR, EN, DE, ES, IT, PT (Brésil) |
 | Studio / propriétaire | Projet propriétaire (pas open-source) |
 
-**Genre de jeu** : grille 8×8, gravité **inversée** (compactage vers le haut), chaînes ≥ 5 en **8-connexité**, Brix résistants, Magix, bombes, lignes entrantes tous les 10 coups. Modes : solo stagé, Zen, Défi du jour, PvP 1v1, tutoriel.
+**Genre de jeu** : grille 8×8, gravité **inversée** (compactage vers le haut), chaînes ≥ 5 en **8-connexité**, Brix résistants, Magix, bombes, lignes entrantes tous les 10 coups (tous les 5 en Five). Modes : solo stagé, Zen, Five, Défi Arcade / Défi Five, PvP 1v1, tutoriel.
 
 Ce n’est **pas** un prototype : privilégier les changements ciblés, la non-régression et la cohérence avec la doc existante.
 
@@ -118,7 +118,10 @@ La logique gameplay est concentrée dans :
 | `BlomixProceduralSFX.swift` | SFX Magix procéduraux |
 | `BlomixMusicPlayer.swift` | Musique par stage |
 | `GameViewController.swift` | Root UIKit, invitations, tutoriel |
-| `LeaderboardViewController.swift` | Classements UIKit |
+| `LeaderboardViewController.swift` | Classements UIKit (7 onglets 4+3) |
+| `BlomixDailyChallenge.swift` | Défi Arcade / Five (CK, save, podium) |
+| `BlomixDailyHubViewController.swift` | Hub paramétré (`kind:`) |
+| `BlomixDailyGhost.swift` | Fantôme seedé (ligne /10 ou /5) |
 
 ### Thème vs skins
 
@@ -128,7 +131,7 @@ La logique gameplay est concentrée dans :
 
 ### Sauvegarde solo
 
-- Format `BlomixSoloGameSave` version **7**. Arcade : `blomix_solo_save_v2`. Zen : `blomix_zen_save_v1`. Défi : `blomix_daily_save_v1`. Les trois **coexistent**.
+- Format `BlomixSoloGameSave` version **8** (`minReadableVersion` **7**). Arcade : `blomix_solo_save_v2`. Zen : `blomix_zen_save_v1`. Five : `blomix_five_save_v1`. Défi Arcade : `blomix_daily_save_v1`. Défi Five : `blomix_five_daily_save_v1`. Les cinq **coexistent**.
 - Avant d’écrire : respecter le flush des états transitoires (voir `PROJECT_CONTEXT` / historique v4.9).
 - Ne pas casser la reprise de partie sans tests manuels explicites.
 

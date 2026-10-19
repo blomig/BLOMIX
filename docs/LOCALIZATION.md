@@ -189,7 +189,7 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | PvP | Lobby, invitations, résultats, Elo |
 | Partage | Bouton, a11y, messages accueil/GO, badge record (`share.*`) |
 | Tutoriel | Étapes guidées |
-| Classements | Leaderboard, Zen |
+| Classements | Leaderboard Arcade / moyenne / Zen / Five / Duel / Défi / F.Défi |
 
 Parcourir `BlomixL10n.swift` avant d'ajouter une clé pour éviter les doublons.
 
@@ -206,6 +206,9 @@ Utiliser les noms du [GLOSSARY.md](GLOSSARY.md) :
 | Bloc Magix | Magix block |
 | Ligne entrante | Incoming line |
 | Mode Zen | Zen mode |
+| Mode Five | Five (non traduit, 6 langues) |
+| Défi | Challenge / Challenge / Desafío / Sfida / Desafio |
+| Défi Five (pastille) | F.DÉFI / F.DAY / F.TAG / F.RETO / F.SFIDA / F.DIA |
 | PvP | PvP |
 
 Noms Magix (**CHROMAX**, **BRIXED**, etc.) : **ne pas traduire** — identiques dans toutes les langues.

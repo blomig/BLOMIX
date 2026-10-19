@@ -38,9 +38,10 @@ enum BlomixL10n {
     static var startButton: String { tr("start.button", comment: "Start game on welcome screen") }
     static var startContinue: String { tr("start.continue", comment: "Home — caption under Arcade / Zen when a save exists") }
     static var startDiscover: String { tr("start.discover", comment: "Home hero — first launch tutorial") }
-    static var startDaily: String { tr("start.daily", comment: "Home hero — Daily Challenge") }
-    static var startDailyRanking: String { tr("start.daily_ranking", comment: "Home hero after finishing today's challenge") }
+    static var startDaily: String { tr("start.daily", comment: "Home chip title — Daily Challenge (Défi)") }
+    static var startDailyRanking: String { tr("start.daily_ranking", comment: "Home chip title after finishing today's challenge") }
     static var startHeroModeDaily: String { tr("start.hero_mode_daily", comment: "Tiny subtitle under Daily chip when a run is in progress") }
+    static var fiveButton: String { tr("start.five", comment: "Five mode button — untranslated brand name") }
     static var homeIconSettings: String { tr("home.icon.settings", comment: "8pt caption under home settings icon") }
     static var homeIconTutorial: String { tr("home.icon.tutorial", comment: "8pt caption under home tutorial icon") }
     static var homeIconTheme: String { tr("home.icon.theme", comment: "8pt caption under home theme toggle") }
@@ -81,6 +82,9 @@ enum BlomixL10n {
     static func gameOverRecordRankZen(_ rank: Int) -> String {
         String(format: tr("game_over.record_rank_zen_format", comment: "New zen rank; %lld = rank"), rank)
     }
+    static func gameOverRecordRankFive(_ rank: Int) -> String {
+        String(format: tr("game_over.record_rank_five_format", comment: "New Five rank; %lld = rank"), rank)
+    }
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
     static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under placement-quality % on game over (justesse / placement)") }
@@ -96,7 +100,7 @@ enum BlomixL10n {
     static var gameOverIncomingLineLabel: String { tr("game_over.incoming_line_label", comment: "Worst-move overlay pending line caption") }
     static var hudBestScoreTitle: String { tr("hud.best_score_title", comment: "HUD best score caption") }
     static var hudDailyToBeatTitle: String { tr("hud.daily_to_beat_title", comment: "HUD caption — today's daily leader to beat") }
-    static var hudLeaderScoreTitle: String { tr("hud.leader_score_title", comment: "HUD caption — all-time leaderboard #1 (Arcade / Zen)") }
+    static var hudLeaderScoreTitle: String { tr("hud.leader_score_title", comment: "HUD caption — all-time leaderboard #1 (Arcade / Zen / Five)") }
     static var hudBonusTitle: String { tr("hud.bonus_title", comment: "HUD score multiplier caption (solo)") }
     static func hudBestScore(_ score: Int) -> String {
         String(format: tr("hud.best_score_format", comment: "HUD best score; %lld = score"), score)
@@ -216,6 +220,8 @@ enum BlomixL10n {
     static var leaderboardAvgTab:  String { tr("leaderboard.avg_tab",  comment: "Average score leaderboard tab") }
     static var leaderboardZenTab:  String { tr("leaderboard.zen_tab",  comment: "Zen mode leaderboard tab") }
     static var leaderboardDailyTab: String { tr("leaderboard.daily_tab", comment: "Daily challenge career points tab") }
+    static var leaderboardFiveTab: String { tr("leaderboard.five_tab", comment: "Five mode leaderboard tab") }
+    static var leaderboardFiveDailyTab: String { tr("leaderboard.five_daily_tab", comment: "Five daily career points tab") }
     static func leaderboardAverage(_ score: Int) -> String {
         String(format: tr("leaderboard.avg_format", comment: "Row secondary for avg leaderboard; %lld = avg score"), score)
     }
@@ -508,11 +514,17 @@ enum BlomixL10n {
     static func shareGameOverScoreZen(_ score: String) -> String {
         String(format: tr("share.gameover.score_zen_format", comment: "Game over Zen share; %@ = run score"), score)
     }
+    static func shareGameOverScoreFive(_ score: String) -> String {
+        String(format: tr("share.gameover.score_five_format", comment: "Game over Five share; %@ = run score"), score)
+    }
     static func shareGameOverRecord(_ score: String) -> String {
         String(format: tr("share.gameover.record_format", comment: "Game over new personal best share; %@ = score"), score)
     }
     static func shareGameOverRecordZen(_ score: String) -> String {
         String(format: tr("share.gameover.record_zen_format", comment: "Game over new Zen PB share; %@ = score"), score)
+    }
+    static func shareGameOverRecordFive(_ score: String) -> String {
+        String(format: tr("share.gameover.record_five_format", comment: "Game over new Five PB share; %@ = score"), score)
     }
 
     static var rankDiscSolo: String { tr("rank_disc.solo", comment: "Start screen rank disc — Arcade leaderboard") }
@@ -520,10 +532,20 @@ enum BlomixL10n {
     static var rankDiscZen: String { tr("rank_disc.zen", comment: "Start screen rank disc — zen mode") }
     static var rankDiscDuel: String { tr("rank_disc.duel", comment: "Start screen rank disc — Duel / Elo") }
     static var rankDiscDaily: String { tr("rank_disc.daily", comment: "Start screen rank disc — daily career points") }
+    static var rankDiscFive: String { tr("rank_disc.five", comment: "Start screen rank disc — Five mode") }
+    static var rankDiscFiveDaily: String { tr("rank_disc.five_daily", comment: "Start screen rank disc — Five daily career") }
 
     // MARK: - Défi du jour
 
-    static var dailyHubTitle: String { tr("daily.hub_title", comment: "Daily challenge hub title") }
+    static var dailyHubTitle: String { tr("daily.hub_title", comment: "Daily challenge hub title (legacy / Arcade)") }
+    static var dailyHubTitleArcade: String { tr("daily.hub_title_arcade", comment: "Arcade daily hub title") }
+    static var dailyHubTitleFive: String { tr("daily.hub_title_five", comment: "Five daily hub title") }
+    static func dailyHubTitle(for kind: BlomixDailyKind) -> String {
+        switch kind {
+        case .arcade: return dailyHubTitleArcade
+        case .five: return dailyHubTitleFive
+        }
+    }
     static var dailyCTAPlay: String { tr("daily.cta_play", comment: "Hub CTA — start today's run") }
     static var dailyCTAContinue: String { tr("daily.cta_continue", comment: "Hub CTA — resume today's run") }
     static var dailyCTATomorrow: String { tr("daily.cta_tomorrow", comment: "Hub CTA after finishing — greyed") }
@@ -613,6 +635,9 @@ enum BlomixL10n {
     static var zenOverlayLevelPrefix: String { tr("zen.overlay.level_prefix", comment: "Zen intro overlay small header") }
     static var zenOverlayStageText: String { tr("zen.overlay.stage_text", comment: "Zen intro overlay large text") }
     static var zenOverlayLine1: String { tr("zen.overlay.line1", comment: "Zen intro overlay tagline") }
+    static var fiveOverlayLevelPrefix: String { tr("five.overlay.level_prefix", comment: "Five intro overlay small header") }
+    static var fiveOverlayStageText: String { tr("five.overlay.stage_text", comment: "Five intro overlay large text") }
+    static var fiveOverlayLine1: String { tr("five.overlay.line1", comment: "Five intro overlay tagline") }
     static var transitionTutorialTitle:    String { tr("transition.tutorial.title",    comment: "Tutorial intro transition line 1") }
     static var transitionTutorialSubtitle: String { tr("transition.tutorial.subtitle", comment: "Tutorial intro transition line 2") }
     static var transitionTutorialEndTitle:    String { tr("transition.tutorial_end.title",    comment: "Tutorial end transition line 1") }
@@ -730,6 +755,10 @@ enum BlomixL10n {
             BlomixCreditsSection(
                 title: tr("guide.section.duel.title", comment: "Guide section title"),
                 lines: bodyLines(tr("guide.section.duel.body", comment: "Guide section body"))
+            ),
+            BlomixCreditsSection(
+                title: tr("guide.section.five.title", comment: "Guide section title — Five mode"),
+                lines: bodyLines(tr("guide.section.five.body", comment: "Guide section body — Five mode"))
             ),
         ]
     }

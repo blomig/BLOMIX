@@ -3,7 +3,7 @@
 //  Blomix
 //
 //  Deux flux déterministes pour le Défi du jour :
-//  - File : LCG seedé (même suite Blox / Brix / Magix kind + lignes des 10).
+//  - File : LCG seedé (même suite Blox / Brix / Magix kind + lignes /10 Arcade, /5 Five).
 //  - Effets Magix : LCG dérivé d’un hash d’événement (ne consomme pas la File).
 //
 
@@ -50,8 +50,8 @@ struct BlomixDailyFileRNG: Equatable, Sendable {
 struct BlomixDailyEffectRNG {
     private var state: UInt64
 
-    init(daySeed: UInt64, event: String, moveCount: Int, row: Int, col: Int) {
-        var hash = BlomixDailySeed.fnv64("blomix-daily-fx-v1")
+    init(daySeed: UInt64, event: String, moveCount: Int, row: Int, col: Int, fxSalt: String = "blomix-daily-fx-v1") {
+        var hash = BlomixDailySeed.fnv64(fxSalt)
         hash = BlomixDailySeed.fnvMix(hash, daySeed)
         hash = BlomixDailySeed.fnvMix(hash, BlomixDailySeed.fnv64(event))
         hash = BlomixDailySeed.fnvMix(hash, UInt64(bitPattern: Int64(moveCount)))
@@ -89,10 +89,12 @@ struct BlomixDailyEffectRNG {
     }
 }
 
-/// Calendrier UTC + graine documentée `hash("blomix-daily-v1" + YYYY-MM-DD)` (FNV-1a 64).
+/// Calendrier UTC + graine documentée `hash(salt + YYYY-MM-DD)` (FNV-1a 64).
 enum BlomixDailySeed {
     static let formatVersion = "v1"
-    private static let salt = "blomix-daily-v1"
+    static let arcadeSalt = "blomix-daily-v1"
+    static let fiveSalt = "blomix-five-v1"
+    private static let salt = arcadeSalt
     /// Après minuit UTC, les saves du jour précédent restent classables pendant `G`.
     static let graceAfterUtcMidnight: TimeInterval = 2 * 3600
     #if DEBUG
@@ -152,8 +154,8 @@ enum BlomixDailySeed {
         return nowDate >= closure
     }
 
-    /// FNV-1a 64 de `"blomix-daily-v1" + YYYY-MM-DD`. Jamais 0.
-    static func seed(forDay day: String) -> UInt64 {
+    /// FNV-1a 64 de `salt + YYYY-MM-DD`. Jamais 0. Arcade et Five ont des sels distincts.
+    static func seed(forDay day: String, salt: String = arcadeSalt) -> UInt64 {
         let hash = fnv64(salt + day)
         return hash == 0 ? 1 : hash
     }

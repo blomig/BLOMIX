@@ -2,11 +2,12 @@
 
 > **Statut** : conception. **Pas de code.** À figer après tests Five + boards GC live.  
 > **Version de référence** : 8.6  
-> Vocabulaire : [GLOSSARY.md](GLOSSARY.md). Modes : [RULES.md](RULES.md). Magix : [MAGIX.md](MAGIX.md).
+> Vocabulaire : [GLOSSARY.md](GLOSSARY.md). Modes : [RULES.md](RULES.md). Magix : [MAGIX.md](MAGIX.md).  
+> Nom d’écran : **à décider** (*Pièce des trophées* / *Cabinet* / *Réalisations*).
 
-Un **cabinet personnel** : pastilles sur un mur, grisées ou allumées. On tape pour lire ce que ça veut dire, combien de fois, depuis quand. Ça n’est **pas** un classement, **pas** un 4ᵉ mode, **pas** des Achievements Game Center (v1).
+Un **cabinet personnel** : pastilles sur un mur. Grisées tant que jamais faites ; allumées dès la 1ʳᵉ fois, avec un **rang qui monte** (Blox → Brix → Magix) et une **barre gouttière** sous le nom. Pas un classement, pas un 4ᵉ mode, pas des Achievements Game Center (v1).
 
-But : donner une raison de **toucher à tout** le jeu (Arcade, Zen, Five, les deux Défis, Duel, Magix, bombes, partage) sans transformer BLOMIX en liste de quêtes.
+But : donner une raison de **toucher à tout** le jeu, puis d’y **revenir** — la pièce se relit, elle ne se coche pas.
 
 ---
 
@@ -14,303 +15,325 @@ But : donner une raison de **toucher à tout** le jeu (Arcade, Zen, Five, les de
 
 ### Entrée
 
-Rangée d’icônes accueil (aujourd’hui 5) : ajouter **une 6ᵉ**, SF Symbol `trophy.fill`, même chrome que Réglages / Tutoriel / Thème / Partager / Crédits.
+Rangée d’icônes accueil (aujourd’hui 5) : **6ᵉ** icône, SF Symbol `trophy.fill`, même chrome.
 
 | | Reco |
 |---|---|
-| Place | Entre **Partager** et **Crédits** (le cabinet est une vitrine, pas un réglage) |
-| Caption | **Pièce** (court, comme « Thème ») — titre de l’écran = **Pièce des trophées** |
-| Badge | Point ou chiffre **nouveau** sur l’icône tant qu’il reste des trophées débloqués non ouverts |
+| Place | Entre **Partager** et **Crédits** |
+| Caption | court (ex. **Pièce**) — titre d’écran = nom choisi |
+| Badge | point si rang monté / pastille nouvelle non ouverte |
 
-Si 6 icônes serrent trop le 40 mm : reculer `iconStep` (56 → ~50), pas une 2ᵉ rangée.
+Si 6 icônes serrent le 40 mm : `iconStep` 56 → ~50, pas une 2ᵉ rangée.
 
 ### L’écran (modal UIKit, famille Crédits / Score)
 
-Fond scène + blox ambiants. Titre gouttière **Pièce des trophées**. Fermer en haut.
+Fond scène + blox ambiants. Titre gouttière. Fermer en haut.
 
-1. **Bandeau** : `23 / 64` + dernière pastille débloquée (nom + il y a …).
-2. **Murs par catégorie** (titres cutout, comme les cartes Crédits).
-3. **Grille de pastilles** 4 par rangée — même famille que les disques de rang accueil (diamètre ~52, trou gouttière, caption sous le disque).
+1. **Bandeau** : pastilles allumées `28 / 41` · rangs `Blox 12 · Brix 11 · Magix 5` · dernière montée (nom + palier).
+2. **Murs** par catégorie (titres cutout).
+3. **Grille** 4 pastilles / rangée (famille disques de rang, ~52 pt).
 
-Pas de SpriteKit pour cet écran : c’est de la lecture, pas de la pose.
+Pas de SpriteKit ici : lecture, pas pose.
 
-### Pastille
+### Une pastille, trois vies
 
-| État | Visuel |
-|---|---|
-| **Verrouillée** (connue) | Disque chrome désaturé, α ~0,35, glyphe en silhouette. Caption lisible. |
-| **Verrouillée cachée** | Disque vide, caption **???**. Le tap dit seulement « Réalisation secrète ». |
-| **Débloquée** | Disque **peau** (comme un rang accueil). Glyphe clair. Halo Magix seulement si rareté **mythe**. |
-| **Nouveau** | Souffle 1–2 cycles (même recette que les disques de rang), puis calme. |
+Pas bronze / argent / or Apple. **Le rang = un objet BLOMIX.** La pastille **change de nature** quand tu insistes.
 
-Trois raretés, **langage BLOMIX** (pas bronze / argent / or Apple) :
+Exemple — *Super combo* (cascade ≥ 2 vagues) :
 
-| Rareté | Objet | Usage |
-|---|---|---|
-| **Blox** | Carré peau | Premier pas, volumes |
-| **Brix** | Carré + chiffre | Seuils, séries, stages |
-| **Magix** | Disque + couronne | Collection, exploits, secret |
+| Compte | Rang | Pastille | Barre sous le nom |
+|---|---|---|---|
+| 0 | — | Grise, glyphe silhouette | Vide, ou absente |
+| 1 | **Blox** | Carré peau, **1** | Gouttière peau **1 / 10** |
+| 7 | Blox | Carré, **7** | **7 / 10** |
+| 10 | **Brix** | Carré Brix + chiffre, **10** | Nouvelle échelle **10 / 100** (remplie à 10 %) |
+| 47 | Brix | **47** | **47 / 100** |
+| 100 | **Magix** | Disque + couronne, **100** | Pleine. Le compteur continue (347…) ; plus de palier |
+
+Le **1** apparaît au premier déblocage. Ensuite le chiffre **est le compteur**, pas un niveau 1/2/3.
+
+**Barre** = même recette que la jauge 0→N°1 (gouttière, fill peau, 3 pt). Sous le **nom** (caption mur + titre de fiche), pas autour du disque.
+
+- Rang Blox : dénominateur = seuil **Brix** (souvent 10).
+- Rang Brix : dénominateur = seuil **Magix** (souvent 100) — nouvelle barre, on « repart » visuellement.
+- Rang Magix : barre pleine, halo d’orbite **seulement à l’ouverture de la fiche** (pas 41 orbites sur le mur).
+
+Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », pas de barre.
+
+Nouveau palier : souffle 2 cycles (disques accueil), puis calme.
 
 ### Fiche (tap)
 
 Panneau bas, chrome capsule :
 
-- Titre (Changa) + rareté
-- Phrase **joueur** (ce qu’il a fait), pas le nom de fonction
-- **×N** fois atteinte (même si N = 1)
-- Première fois : date locale courte
-- Si palier : barre `12 / 50` (gouttière peau, comme la jauge 0→N°1)
-- Fermer : tap hors panneau ou bouton
+- Titre Changa + pastille (forme du rang actuel)
+- Phrase joueur (ce que c’est)
+- **×N** en gouttière
+- Barre **n / prochain** (ou pleine si Magix) + libellé *vers Brix* / *vers Magix*
+- Première fois · premier Brix · premier Magix (dates courtes)
+- Fermer : hors panneau
 
-Verrouillée connue : on **lit la condition**, compteur à 0, pas de date.  
-Cachée : pas de spoiler.
+Grise connue : condition lisible, 0 / 1, pas de date.
 
 ---
 
-## 2. Règles du catalogue
+## 2. Paliers (le système)
 
-1. **Une pastille = une idée.** Pas « chaîne 5, 6, 7, 8, 9, 10 » en six disques — trois paliers max (5 / 8 / 10+).
-2. **Chaque mode a au moins une porte d’entrée** (l’avoir joué) **et** une fierté (l’avoir *bien* joué).
-3. **Les Magix ont chacun une pastille** : c’est le catalogue le plus riche et le plus ignoré.
-4. **Compteur toujours.** Même « premier Duel » passera à ×2, ×3. La pièce vieillit avec le joueur.
-5. **Peu de secrets** (8–10). Le reste est lisible grisé : ça *oriente*. Les secrets *récompensent* le folklore (5 bombes au GO, etc.).
-6. **Pas de trophée qui force la triche** (score exact impossible, timer à 0 volontaire, forfait Duel).
-7. **Pas d’Achievements App Store Connect en v1.** L’ASC est déjà occupée par `FiveMode` / `dailywins_five`. La pièce est **locale**. Un miroir GC pourra n’exporter que les Magix plus tard.
-8. **Pas CloudKit, pas Watch.** Cabinet sur *cet* iPhone. (Plus tard : iCloud KV si on veut le meuble sur un second appareil.)
-9. **Peu de rétroactif.** On crédite seulement ce qui est déjà sûr sans rejouer : highscores locaux Arcade / Zen / Five, points podium défi déjà en UserDefaults, tuto vu. Le reste commence au prochain événement. Le Défi Five d’aujourd’hui (avant CK) **ne** débloque **pas** « premier Défi Five » tant qu’on n’a pas un nouveau GO.
+Chaque pastille a **un événement** (ce qu’on compte ou le meilleur) et **deux seuils** après le premier.
+
+### Courbes
+
+| Courbe | Blox | Brix | Magix | Pour |
+|---|---|---|---|---|
+| **Volume** | 1 | **10** | **100** | Combos, chaînes, parties, Magix courants, bombes, partages |
+| **Rare** | 1 | **3** | **10** | SAINTX, BOT1, CONNECT, grille vide, rang 1 du jour, secrets |
+| **Qualité** | palier 1 | palier 2 | palier 3 | *Meilleur* : taille de chaîne 5 / 8 / 10+ ; stage 2 / 4 / Ultime ; score 1k / 5k / 10k |
+| **Unique** | 1 | — | — | Tuto fini, thème Clair : allumé = fait. Pas de barre (déjà Magix visuellement ? **non** : Blox suffit, on n’invente pas 10 tutos) |
+
+Défaut = **Volume 1 / 10 / 100**, comme *Super combo*.  
+La « barre de 50 » du brief : on **ne** met **pas** un 4ᵉ métal. L’échelle Brix→Magix **est** la longue (100). Si un trophée est trop grind (victoire BOT1 ×100), il passe en **Rare 1 / 3 / 10**.
+
+Les paliers **empilent** : le 100ᵉ combo a déjà donné Blox et Brix.
+
+### Deux lectures, une pastille
+
+- **Compte** (la plupart) : chaque événement +1, rang selon le total.
+- **Qualité** (peu) : on mémorise le *max* (plus grande chaîne, plus haut stage, meilleur score). La barre va vers le *prochain seuil de max*, le chiffre sur le disque = ce max (8, pas « ×8 chaînes de 8 »).
+
+On ne dédouble plus « chaîne 5 », « chaîne 8 », « chaîne 10 » en trois pastilles : **une** pastille *Chaîne*, rang Blox dès 5, Brix à 8, Magix à 10+. Le **volume** de chaînes est une **autre** pastille (*Cent / mille*).
+
+### Règles catalogue
+
+1. Une pastille = une idée qui **vieillit** (sauf Unique).
+2. Chaque mode : une porte (l’avoir joué, volume) + au moins une fierté.
+3. Les 9 Magix : une pastille chacun, courbe Volume (COLORX/CHROMAX) ou Rare (SAINTX/BOMBX 1/500).
+4. Peu de secrets (9). Lisibles une fois ouverts, **même courbe** (Pacifiste 1 / 3 / 10 GO à 5 bombes).
+5. Pas de trophée qui force la triche (forfait Duel, score exact).
+6. Pas d’Achievements ASC v1. Local, cet iPhone.
+7. Pas CloudKit, pas Watch.
+8. Peu de rétroactif : hiscores, podium déjà crédité, tuto vu. Le reste au prochain événement.
 
 ---
 
 ## 3. Catégories (murs)
 
-Ordre dans la pièce = ordre d’exploration d’un joueur curieux, pas l’ordre technique.
-
-| Mur | Glyphe de section | Pourquoi il est là |
+| Mur | Glyphe | Rôle |
 |---|---|---|
-| **Seuil** | Porte | Toucher chaque mode une fois |
-| **Chaînes** | 5 carrés | Le cœur puzzle |
-| **Magix** | Disque | Explorer les 9 kinds |
-| **Arcade** | Timer | Stages, nuke, records |
-| **Five** | 5 | Le nouveau mode, sans le diluer dans Zen |
-| **Défi** | Jour | Les deux graines, podium, ghost |
+| **Seuil** | Porte | Chaque mode, en volume |
+| **Chaînes** | 5 | Cœur puzzle + combo + CONNECT |
+| **Magix** | Disque | Les 9 + collection |
+| **Arcade** | Timer | Stage, nuke, score |
+| **Five** | 5 | Sans le diluer dans Zen |
+| **Défi** | Jour | Deux graines, podium, ghost |
 | **Duel** | ⚔️ | Humain, local, bots |
-| **Folie** | Bombe | Secrets, style, partage |
+| **Folie** | Bombe | Style, partage, secrets |
 
-Hors v1 : skins « toutes les palettes » (liste instable), avis App Store (guideline), Watch.
+Hors v1 : toutes les skins, avis App Store, Watch.
 
 ---
 
-## 4. Catalogue v1 (64 + 9 secrets)
+## 4. Catalogue v1
 
-IDs stables (`snake_case`) — ce sont les clés de save, pas des libellés joueur. Noms ci-dessous = **étiquette de design FR**.
+IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).  
+**C** = courbe (V volume, R rare, Q qualité, U unique).
 
-× = compteur. Les paliers **empilent** (faire 10+ compte aussi pour 8 et pour 5).
+~**41** pastilles visibles + **9** secrets = **50** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
 
-### Seuil (8) — rareté Blox
+### Seuil (8)
 
-| ID | Titre | Condition | Compte |
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `play_arcade` | Arcade | Une partie Arcade terminée (GO) | × parties |
-| `play_zen` | Zen | Idem Zen | × |
-| `play_five` | Five | Idem Five **libre** (pas le Défi) | × |
-| `play_daily_arc` | Défi Arcade | GO classé d’un Défi Arcade | × jours |
-| `play_daily_five` | Défi Five | GO classé d’un Défi Five | × jours |
-| `play_duel` | Duel | Un match Duel **terminé** (victoire ou défaite, humain / local / bot) | × |
-| `play_tutorial` | Tu sais tout | Tutoriel **mené au bout** (pas « Passer ») | ×1 suffit, compte les replays |
-| `play_both_dailies` | Double journée | GO Défi Arcade **et** Défi Five le **même** jour UTC | × jours |
+| `play_arcade` | Arcade | GO Arcade | V |
+| `play_zen` | Zen | GO Zen | V |
+| `play_five` | Five | GO Five **libre** | V |
+| `play_daily_arc` | Défi Arcade | GO classé Défi Arcade | V |
+| `play_daily_five` | Défi Five | GO classé Défi Five | V |
+| `play_duel` | Duel | Match terminé (G ou P, tous adversaires) | V |
+| `play_tutorial` | Tu sais tout | Tuto **au bout** (pas Passer) | U |
+| `play_both_dailies` | Double journée | Les deux Défis le même jour UTC | R |
 
-### Chaînes (9) — Blox / Brix
+### Chaînes (6)
 
-| ID | Titre | Condition | Rareté |
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `chain_5` | Cinq | Une chaîne ≥ 5 | Blox |
-| `chain_8` | Huit | Une chaîne ≥ 8 | Brix |
-| `chain_10` | Dix | Une chaîne ≥ 10 | Magix |
-| `combo_2` | Cascade | Deux vagues dans la même résolution | Blox |
-| `combo_5` | Série | Cinq vagues d’affilée (`chainSeriesLevel`) | Brix |
-| `connect` | CONNECT | Bonus pont gauche–droite | Brix |
-| `board_empty` | Vide | Bonus grille 100 % vide (+500) | Magix |
-| `chains_100` | Cent | 100 chaînes en carrière (toutes tailles ≥ 5) | Brix |
-| `chains_1000` | Mille | 1000 chaînes | Magix |
+| `chain_size` | Chaîne | Plus grande chaîne (5 → 8 → 10+) | Q |
+| `chain_count` | Encore | Nombre de chaînes ≥ 5 | V (Magix à **1000**, Brix à 100 — exception : trop fréquent en 1/10/100) |
+| `combo` | Super combo | Résolution à **≥ 2** vagues | **V 1 / 10 / 100** — *l’exemple* |
+| `combo_deep` | Série | Une résolution à **≥ 5** vagues | R |
+| `connect` | CONNECT | Pont gauche–droite | R |
+| `board_empty` | Vide | Bonus +500 grille vide | R |
 
-Hors Duel pour `board_empty` (le bonus n’existe pas). CONNECT et chaînes **comptent** en Duel.
+`board_empty` hors Duel. CONNECT et chaînes **comptent** en Duel.  
+`chain_count` : Blox 1, Brix **100**, Magix **1000** (pas 10/100, trop vite).
 
-### Magix (12) — une pastille par kind + collection
+### Magix (11)
 
-Poser le Magix **et** voir son effet (atterrissage). Duel : aucun (pas de Magix).
+Effet vu à l’atterrissage. Pas en Duel.
 
-| ID | Titre | Kind |
+| ID | Titre | C |
 |---|---|---|
-| `magix_chromax` | CHROMAX | `.chromax` |
-| `magix_brixed` | BRIXED | `.brixed` |
-| `magix_crossx` | CROSSX | `.crosx` |
-| `magix_slashx` | SLASHX | `.slashx` |
-| `magix_scrumblx` | SCRUMBLX | `.scrumblx` |
-| `magix_colorx` | COLORX | `.colorx` |
-| `magix_saintx` | SAINTX | `.cleanx` |
-| `magix_twistx` | TWISTX | `.twistx` |
-| `magix_bombx` | BOMBX | `.bombx` |
-| `magix_all_nine` | Cabinet Magix | Les 9 kinds au moins une fois chacun | Magix |
-| `magix_saintx_ultime` | Infini ×6 | SAINTX posé en Arcade **Ultime** | Magix |
-| `magix_bombx_stock` | Stock | BOMBX alors que le stock bombes était déjà à 5 | Brix |
+| `magix_chromax` | CHROMAX | V |
+| `magix_brixed` | BRIXED | R |
+| `magix_crossx` | CROSSX | V |
+| `magix_slashx` | SLASHX | V |
+| `magix_scrumblx` | SCRUMBLX | V |
+| `magix_colorx` | COLORX | V |
+| `magix_saintx` | SAINTX | R |
+| `magix_twistx` | TWISTX | V |
+| `magix_bombx` | BOMBX | R |
+| `magix_all_nine` | Cabinet Magix | U — les 9 au moins ×1. Barre 0–9 kinds distincts (qualité déguisée) |
+| `magix_saintx_ultime` | Infini ×6 | R — SAINTX en Ultime |
 
-Glyphe de pastille = **symbole Magix** déjà en jeu (`?` `9` `+` `X` `=` `O` `∞` `§` `B`).
+Glyphe = symbole Magix (`?` `9` `+` `X` `=` `O` `∞` `§` `B`). Rang Magix de la pastille = couronne **en plus** du glyphe.
 
-### Arcade (8)
+### Arcade (5)
 
-| ID | Titre | Condition | Rareté |
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `arcade_stage_2` | ×2 | Atteindre le stage 2 | Blox |
-| `arcade_stage_4` | ×4 | Stage 4 | Brix |
-| `arcade_ultime` | Ultime | Stage Ultime (×6, 1 s) | Magix |
-| `arcade_nuke` | Nuke | Poser une bombe à partir du stage 2 (zone croix) | Brix |
-| `arcade_score_1k` | Mille points | Score de run Arcade ≥ 1 000 | Blox |
-| `arcade_score_5k` | Cinq mille | ≥ 5 000 | Brix |
-| `arcade_score_10k` | Dix mille | ≥ 10 000 | Magix |
-| `arcade_pb` | Record | Battre son RECORD Arcade (overlay PB) | Brix |
+| `arcade_stage` | Stage | Plus haut stage (2 → 4 → Ultime) | Q |
+| `arcade_nuke` | Nuke | Bombe posée stage ≥ 2 | V |
+| `arcade_score` | Score | Meilleur score de run (1k → 5k → 10k) | Q |
+| `arcade_pb` | Record | Fois où l’overlay RECORD Arcade s’est ouvert | R |
+| `arcade_ultime_count` | Une seconde | GO (ou run) ayant **atteint** Ultime | R |
 
-### Five (6)
+### Five (5)
 
-Libre **ou** Défi Five, sauf mention.
+Libre ou Défi Five, sauf `play_five`.
 
-| ID | Titre | Condition | Rareté |
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `five_lines_20` | Marée | 20 lignes Five injectées dans une run (100 poses) | Brix |
-| `five_score_2k` | Five 2k | Score de run ≥ 2 000 | Brix |
-| `five_pb` | Record Five | Battre son RECORD `FiveMode` | Brix |
-| `five_no_bomb` | Mains nues | GO Five **sans avoir posé** une bombe (stock peut être < 5 si BOMBX / oubli… non : stock final quelconque, **zéro explosion**) | Brix |
-| `five_preview` | Coup 4 | Avoir vu l’aperçu LIGNE 4/5 (presque automatique — plutôt : **survivre** 10 aperçus dans une run) | Blox |
-| `five_empty` | Five vide | Grille vide en Five | Magix |
+| `five_lines` | Marée | Lignes Five injectées **dans une run** (max run : 5 → 20 → 50) | Q |
+| `five_score` | Score Five | Meilleur score (500 → 2k → 5k) | Q |
+| `five_pb` | Record Five | Overlay RECORD `FiveMode` | R |
+| `five_no_bomb` | Mains nues | GO **sans une seule explosion** | R |
+| `five_empty` | Five vide | Grille vide en Five | R |
 
-`five_preview` est trop gratuit tel quel → le tenir à **10 aperçus dans la même run** (50 poses, encore accessible).
+### Défi (5)
 
-### Défi (6)
-
-| ID | Titre | Condition | Rareté |
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `daily_ghost_beat` | Référence | Score du jour **> Référence BLOMIX** (hub) | Magix |
-| `daily_rank_1` | Jour 1 | Rang live 1 au GO (Arcade ou Five) | Magix |
-| `daily_podium` | Podium | +5 / +3 / +1 crédité à la clôture (déjà calculé client) | Brix |
-| `daily_streak_7` | Semaine | 7 jours UTC d’affilée avec **au moins un** des deux Défis fini | Magix |
-| `daily_arc_10` | Dix Arcades | 10 Défis Arcade classés | Brix |
-| `daily_five_10` | Dix Five | 10 Défis Five classés | Brix |
+| `daily_ghost_beat` | Référence | Score > Référence BLOMIX | R |
+| `daily_rank_1` | Jour 1 | Rang live 1 au GO (n’importe quel défi) | R |
+| `daily_podium` | Podium | +5 / +3 / +1 crédité | V — Brix = 10 podiums, Magix = 50 |
+| `daily_streak` | Semaine | Meilleure série de jours UTC avec ≥ 1 défi fini (3 → 7 → 30) | Q |
+| `daily_days` | Habitude | Jours distincts avec ≥ 1 défi classé | V |
 
-### Duel (8)
+Plus de pastilles séparées « 10 Arcade / 10 Five » : c’est `play_daily_*` en Volume.
 
-| ID | Titre | Condition | Rareté |
+### Duel (7)
+
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `duel_win` | Victoire | Gagner un Duel | Blox |
-| `duel_win_human` | Face à face | Victoire vs humain (GK ou Local), pas bot | Brix |
-| `duel_win_local` | Table | Victoire en Local (Multipeer) | Brix |
-| `duel_babybot` | BABYBOT | Victoire vs BABYBOT | Blox |
-| `duel_bot1` | BOT1 | Victoire vs BOT1 | Magix |
-| `duel_no_attack` | Pacifique | Victoire avec score de run **< 50** (aucune ligne d’attaque envoyée) | Magix |
-| `duel_streak_3` | Série | 3 victoires d’affilée (tous adversaires) | Brix |
-| `duel_10` | Dix duels | 10 matchs terminés | Blox |
+| `duel_win` | Victoire | Gagner (tous adversaires) | V |
+| `duel_win_human` | Face à face | Victoire vs humain (GK ou Local) | R |
+| `duel_win_local` | Table | Victoire Local | R |
+| `duel_babybot` | BABYBOT | Victoire vs BABYBOT | V |
+| `duel_bot1` | BOT1 | Victoire vs BOT1 | R |
+| `duel_no_attack` | Pacifique | Victoire score de run < 50 | R |
+| `duel_streak` | Série | Meilleure série de victoires (3 → 5 → 10) | Q |
+
+`play_duel` compte les matchs ; `duel_win` les victoires. Pas de 4ᵉ pastille « 10 duels ».
 
 ### Folie (7 visibles + 9 secrets)
 
 **Visibles**
 
-| ID | Titre | Condition | Rareté |
+| ID | Titre | Événement | C |
 |---|---|---|---|
-| `share_home` | Avion | Partage depuis l’accueil (sheet présentée, pas forcément « posté ») | Blox |
-| `share_go` | Carte | Partage depuis un GO (carte grille) | Blox |
-| `theme_light` | Clair | Passer le chrome en Clair | Blox |
-| `bomb_first` | Bombe | Première explosion | Blox |
-| `continue_save` | Continuer | Reprendre une save (hero Arcade / chip Zen / Five / hub Défi) | Blox |
-| `worst_move` | Pire coup | Ouvrir l’overlay « voir le pire coup » | Blox |
-| `justesse_80` | Justesse | GO Arcade/Zen/Five avec optimalité ≥ 80 % (≥ 20 coups comptés) | Brix |
+| `share_home` | Avion | Share sheet accueil | V |
+| `share_go` | Carte | Share sheet GO | V |
+| `theme_light` | Clair | Chrome Clair au moins une fois | U |
+| `bomb` | Bombe | Explosions | V |
+| `continue_save` | Continuer | Reprises save | V |
+| `worst_move` | Pire coup | Ouverture overlay pire coup | V |
+| `justesse` | Justesse | Meilleur % GO (≥ 20 coups) : 80 → 90 → 100 | Q |
 
-**Secrets** (caption ??? tant que verrouillé)
+**Secrets** (??? jusqu’au 1er, puis **Rare 1 / 3 / 10**)
 
-| ID | Titre une fois ouvert | Condition | Rareté |
-|---|---|---|---|
-| `secret_five_bombs` | Pacifiste | **GO avec 5 bombes encore en stock** (Arcade / Zen / Five). *L’exemple fondateur.* | Magix |
-| `secret_zero_bombs` | Poudrière | GO avec **0** bombe et **au moins une** explosion dans la run | Brix |
-| `secret_timeout` | Trop tard | Arcade : un auto-drop **sans visée maintenue** (colonne au hasard) | Blox |
-| `secret_bomb_cancel` | Fausse alerte | Armer la bombe puis **annuler** (icône à nouveau) | Blox |
-| `secret_duel_bomb_freeze` | Temps mort | En Duel, geler le timer en mode bombe **≥ 8 s** puis poser | Brix |
-| `secret_line_go` | Trop plein | Game over **par la ligne** (injection / attaque), pas par pose | Brix |
-| `secret_saintx_tiny` | Presque rien | SAINTX alors que la grille a **≤ 8** cases occupées | Magix |
-| `secret_brixed_zero` | 9 solitaire | BRIXED alors qu’il n’y a **aucun** autre Brix | Brix |
-| `secret_share_pb` | Vitrine | Partager un GO **avec bandeau record** | Brix |
-
-Total v1 : **8+9+12+8+6+6+8+7 = 64** visibles, **9** secrets → **73** pastilles.
-
----
-
-## 5. Graphisme (allure)
-
-Pas des coupes 3D, pas de métal PlayStation. Le meuble **est** BLOMIX : puits, peau, Magix.
-
-- **Mur** : même `sceneBackground` que Crédits ; blox ambiants plus lents, α un peu plus bas (cabinet).
-- **Pastille** = `makeRankDiscNode` (ou équivalent UIKit) : cercle peau, chiffre/glyphe en **cutout** blanc, caption Nunito 9 pt sous le disque (comme ARC. / FIVE).
-- **Verrou** : même disque, `BlomixAppearance.tertiaryText`, pas de peau.
-- **Mythe débloquée** : couronne + 8–10 grains d’orbite **au tap de la fiche** (pas en permanence sur le mur — trop de CPU). Recette `spawnSpecialOrbitLingerSparks`.
-- **Nouveau** : souffle des disques accueil, 2 cycles.
-- **Bandeau compteur** : cutout `23/64`, pas une barre d’XP de RPG.
-- **Fiche** : titre Changa, corps Nunito, ×N en gouttière (comme +5 du hub Défi).
-
-Écran **portrait** uniquement. 4 colonnes tiennent le 40 mm si caption courte (un mot, Magix non traduit).
-
----
-
-## 6. Technique (quand on coderait — pas maintenant)
-
-Hook **un** point par famille d’événements, pas 73 `if` dans `resolveChains` :
-
-| Hook | Où (existant) | Alimente |
+| ID | Titre ouvert | Événement |
 |---|---|---|
-| `onChainResolved` | fin de vague `resolveChains` | chaînes, combo, CONNECT, vide |
-| `onMagixLanded` | `applyMagixEffect` | 9 kinds + collection + SAINTX Ultime |
-| `onBombExploded` / `onBombCancelled` | explosion / annulation | nuke, folie, secrets |
-| `onStageEntered` | overlay stage Arcade | ×2 / ×4 / Ultime |
-| `onGameOver` | `triggerGameOver` + overlay PB | modes, scores, 5 bombes, justesse, ligne GO |
-| `onDailyFinished` | `finishRun` | défis, double journée, rang |
-| `onPodiumCredited` | crédit +5/+3/+1 | podium |
-| `onPvPSettled` | résultat Duel (humain / local / bot) | mur Duel |
-| `onSharePresented` | share sheet accueil / GO | avion, carte, vitrine |
-| `onChromeToggled` | toggle Clair | thème |
-| `onSaveResumed` | Continuer | continue_save |
-| `onTutorialFinished` | dernière étape tuto | play_tutorial |
+| `secret_five_bombs` | Pacifiste | GO **avec 5 bombes en stock** (Arcade / Zen / Five) |
+| `secret_zero_bombs` | Poudrière | GO à **0** bombe, ≥ 1 explosion dans la run |
+| `secret_timeout` | Trop tard | Auto-drop Arcade **sans visée** |
+| `secret_bomb_cancel` | Fausse alerte | Armer puis annuler la bombe |
+| `secret_duel_bomb_freeze` | Temps mort | Duel : mode bombe ≥ 8 s puis poser |
+| `secret_line_go` | Trop plein | GO **par la ligne**, pas par pose |
+| `secret_saintx_tiny` | Presque rien | SAINTX sur ≤ 8 cases occupées |
+| `secret_brixed_zero` | 9 solitaire | BRIXED sans autre Brix |
+| `secret_share_pb` | Vitrine | Share GO **avec** bandeau record |
 
-Store : un JSON UserDefaults `blomix_trophies_v1` `{ id: { count, firstAt, lastAt, seen } }`. Compteur **monotone**. Pas de reset (sauf debug).
+**50** pastilles. Un Magix sur *Super combo* = 100 cascades ; un Magix sur *Pacifiste* = 10 GO à 5 bombes.
 
-UI : `BlomixTrophyRoomViewController` + `BlomixL10n` (6 langues, Magix non traduits). Guide : une carte dans le tutoriel **écrit** (livre), pas le tuto interactif.
+---
 
-Hors scope v1 : Game Center Achievements, CloudKit, Watch, skins, reset joueur, notifications « tu as débloqué » **en cours de partie** (ça casse le flow). Toast **au retour accueil** si déblocage pendant la run : une ligne sous les icônes, tap → pièce, focus la pastille.
+## 5. Graphisme
+
+Pas de coupes 3D. Le rang **est** la forme.
+
+| Rang | Forme | Chiffre | Barre |
+|---|---|---|---|
+| Gris | Disque chrome α 0,35 | — | 0 |
+| **Blox** | Carré peau (blox) | compteur / max qualité | / seuil Brix |
+| **Brix** | Carré Brix, digit style HUD | idem | / seuil Magix (nouvelle échelle) |
+| **Magix** | Disque + couronne noire | idem | pleine ; orbite à la fiche |
+
+- Caption Nunito sous la forme, barre **3 pt** sous la caption (largeur = pastille).
+- Mur : blox ambiants plus lents.
+- Bandeau : cutout, pas d’XP de RPG.
+- Fiche : titre Changa, corps Nunito, ×N gouttière comme +5 du hub.
+
+Portrait. 4 colonnes, caption d’un mot (Magix non traduits).
+
+---
+
+## 6. Technique (plus tard, pas maintenant)
+
+Un hook par famille d’événements. Le store ne connaît que `id → count | best`, le **rang se calcule** (seuils dans le catalogue).
+
+```
+rang = Magix si valeur ≥ sMagix
+     else Brix si valeur ≥ sBrix
+     else Blox si valeur ≥ 1 (ou ≥ sBlox qualité)
+     else gris
+```
+
+Store JSON `blomix_trophies_v1` : `{ id: { value, firstAt, brixAt, magixAt, seen } }`. Monotone. Pas de reset joueur.
+
+Toast **au retour accueil** si palier monté pendant la run (pas de popup en partie). Tap → pièce, focus la pastille.
 
 ---
 
 ## 7. Ce qu’on ne fait pas
 
-- Quêtes du jour qui reset (on a déjà les Défis).
-- XP / niveaux / battle pass.
-- Trophées « joue 7 jours de suite n’importe quoi » (le streak **Défi** suffit).
+- Battle pass, XP global, quêtes du jour (déjà les Défis).
+- 4ᵉ métal (platine). Trois formes BLOMIX, stop.
+- Barre autour du disque (illisibile en 4 colonnes).
+- Popup Magix **en cours de pose**.
 - Révéler les secrets dans le guide.
-- Forcer un Duel humain pour « finir » la pièce (BOT1 est le plafond solo).
-- Compter le tutoriel « Passer » comme `play_tutorial`.
+- Forcer un Duel humain pour « finir » (BOT1 = plafond solo).
+- Tuto « Passer » ≠ `play_tutorial`.
 
 ---
 
-## 8. Décisions à figer avec toi
+## 8. Décisions à figer
 
-1. **Nom d’écran** : *Pièce des trophées* (reco) vs *Réalisations* vs *Cabinet*.
-2. **6ᵉ icône accueil** vs entrée depuis Crédits (plus discret, moins exploré).
-3. **73 pastilles v1** : trop / trop peu ? On peut shipper Seuil + Magix + Folie d’abord (~30).
-4. **Rétroactif** : d’accord pour le peu (hiscores, podium déjà crédité, tuto) ?
-5. **Toast accueil** après une run, ou seulement le badge sur l’icône ?
-6. **Secrets** : 9, c’est le bon folklore, ou on en cache davantage (GO 5 bombes seulement) ?
+1. **Nom** : *Pièce des trophées* / *Cabinet* / *Réalisations* / autre.
+2. **6ᵉ icône** accueil vs Crédits.
+3. Courbe Volume **1 / 10 / 100** (reco, ton *Super combo*) vs **1 / 10 / 50** (Or plus tôt).
+4. `chain_count` à 100 / 1000 : OK comme exception ?
+5. Toast accueil vs badge icône seulement.
+6. 9 secrets, assez ?
+7. Rétroactif minimal (hiscores, podium, tuto) : OK ?
 
 ---
 
 ## 9. Ordre de code (plus tard)
 
-1. Store + hooks GO / modes (Seuil) — on *voit* la pièce.
-2. Mur Magix + Chaînes (hooks déjà au bon endroit).
-3. Arcade / Five / Défi / Duel.
-4. Folie + secrets.
-5. l10n 6 langues, guide, GLOSSARY, CHANGELOG, whats-new au jalon.
+1. Store + rang calculé + écran mur / fiche / barre — une pastille témoin (*Super combo*).
+2. Seuil (modes).
+3. Chaînes + Magix.
+4. Arcade / Five / Défi / Duel.
+5. Folie + secrets.
+6. l10n 6 langues, guide, GLOSSARY, CHANGELOG, whats-new au jalon.
 
-Aucun de ces points avant : Five testé, `FiveMode` / `dailywins_five` live, pièce **validée** sur cette spec.
+Rien de tout ça avant : Five testé, boards GC live, **cette** spec validée (surtout §2 paliers + nom).

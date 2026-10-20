@@ -47,6 +47,7 @@ enum BlomixL10n {
     static var homeIconTheme: String { tr("home.icon.theme", comment: "8pt caption under home theme toggle") }
     static var homeIconShare: String { tr("home.icon.share", comment: "8pt caption under home share icon") }
     static var homeIconCredits: String { tr("home.icon.credits", comment: "8pt caption under home credits icon") }
+    static var homeIconSalon: String { tr("home.icon.salon", comment: "8pt caption under home trophy salon icon") }
     static var settings: String { tr("start.settings", comment: "Settings link on welcome") }
     static var credits: String { tr("start.credits", comment: "Credits link on welcome") }
     static var zenButton: String { tr("start.zen", comment: "Zen mode button on welcome screen") }
@@ -780,6 +781,40 @@ enum BlomixL10n {
     static var whatsNewDaily: String { tr("whatsnew.daily", comment: "7.1 — Daily Challenge: same Arcade game for everyone") }
     static var whatsNewDuelPresence: String { tr("whatsnew.duel_presence", comment: "7.1 — green person badge on Duel when peers are listed") }
     static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
+
+    // MARK: - Salon des trophées
+
+    static var trophySalonTitle: String { tr("trophy.salon.title", comment: "Trophy lounge screen title") }
+    static func trophySalonBanner(lit: Int, total: Int, i: Int, ii: Int, iii: Int) -> String {
+        String(
+            format: tr("trophy.salon.banner_format", comment: "Lit count and ranks I/II/III"),
+            lit, total, i, ii, iii
+        )
+    }
+    static func trophySalonLast(name: String, rank: String) -> String {
+        String(
+            format: tr("trophy.salon.last_format", comment: "Last rank up; %@ name, %@ roman rank"),
+            name, rank
+        )
+    }
+    static func trophyWallTitle(_ wall: BlomixTrophyWall) -> String {
+        tr("trophy.wall.\(wall.rawValue)", comment: "Trophy wall heading")
+    }
+    static func trophyTitle(_ id: String) -> String {
+        tr("trophy.title.\(id)", comment: "Trophy pastille title")
+    }
+    static func trophyBody(_ id: String) -> String {
+        tr("trophy.body.\(id)", comment: "Trophy fiche sentence")
+    }
+    static var trophySecretCaption: String { tr("trophy.secret.caption", comment: "Locked secret caption") }
+    static var trophySecretTitle: String { tr("trophy.secret.title", comment: "Locked secret fiche title") }
+    static var trophySecretHint: String { tr("trophy.secret.hint", comment: "Locked secret fiche body") }
+    static func trophyToastFormat(name: String, rank: String) -> String {
+        String(
+            format: tr("trophy.toast_format", comment: "Home toast; %@ name, %@ roman rank"),
+            name, rank
+        )
+    }
 
     // MARK: - Generic
     static var ok: String { tr("generic.ok", comment: "Generic OK button") }

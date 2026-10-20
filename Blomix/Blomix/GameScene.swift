@@ -1055,6 +1055,8 @@ final class GameScene: SKScene {
     private static let startScreenIconRowName = "startScreenIconRow"
     private static let startScreenHeroSubtitleName = "startScreenHeroSubtitle"
     private static let startScreenShareChipName = "startScreenShareChip"
+    private static let startScreenTrophyLinkName = "startScreenTrophyLink"
+    private static let startScreenTrophyToastName = "startScreenTrophyToast"
     private static let startScreenShareLabelName = "startScreenShareLabel"
     private static let gameOverShareLabelName = "gameOverShareLabel"
     private static let studioSplashOverlayName = "studioSplashOverlay"
@@ -1564,6 +1566,10 @@ final class GameScene: SKScene {
     private var bombCount: Int = 1
     /// Mode placement bombe (preview bombe ; `B` ou tap sur l’icône pour basculer).
     private var isBombMode: Bool = false
+    /// Explosions de bombe dans la run (trophées Five / secrets).
+    private var runBombExplosions: Int = 0
+    /// GO déclenché par la ligne entrante (secret trop plein).
+    private var gameOverFromIncomingLine: Bool = false
 
     // MARK: BOMBX — feedback dots → HUD bombe
     /// Cases peintes par le dernier BOMBX (pour lier clear / fallback dots).
@@ -1996,6 +2002,8 @@ final class GameScene: SKScene {
         nextBottomLine = nextBottomLineRowForSession()
         bombCount = pvpCoordinator == nil ? 5 : 3
         isBombMode = false
+        runBombExplosions = 0
+        gameOverFromIncomingLine = false
         clearBombxFeedbackState()
         chainClearWaveCount = 0
         score = 0
@@ -2798,10 +2806,21 @@ final class GameScene: SKScene {
         attachStartScreenIconCaption(to: appearanceToggle, text: BlomixL10n.homeIconTheme)
         let shareIcon = makeStartScreenChromeIcon(name: Self.startScreenShareChipName, systemName: "paperplane.fill")
         attachStartScreenIconCaption(to: shareIcon, text: BlomixL10n.homeIconShare)
+        let trophyIcon = makeStartScreenChromeIcon(name: Self.startScreenTrophyLinkName, systemName: "trophy.fill")
+        attachStartScreenIconCaption(to: trophyIcon, text: BlomixL10n.homeIconSalon)
+        if BlomixTrophyStore.shared.hasUnseen {
+            let badge = SKShapeNode(circleOfRadius: 4.5)
+            badge.fillColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange")
+                .map { SKColor(cgColor: $0.cgColor) } ?? .orange
+            badge.strokeColor = .clear
+            badge.position = CGPoint(x: 14, y: 14)
+            badge.zPosition = 8
+            trophyIcon.addChild(badge)
+        }
         let creditsIcon = makeStartScreenChromeIcon(name: Self.startScreenCreditsLinkName, systemName: "info.circle.fill")
         attachStartScreenIconCaption(to: creditsIcon, text: BlomixL10n.homeIconCredits)
-        let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, creditsIcon]
-        let iconStep: CGFloat = 56
+        let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, trophyIcon, creditsIcon]
+        let iconStep: CGFloat = 50
         let iconRowWidth = CGFloat(iconItems.count - 1) * iconStep
         for (i, icon) in iconItems.enumerated() {
             icon.position = CGPoint(x: -iconRowWidth / 2 + CGFloat(i) * iconStep, y: 0)
@@ -3041,6 +3060,7 @@ final class GameScene: SKScene {
 
         BlomixAvailablePlayersManager.shared.startHomePresencePolling()
         refreshStartScreenPvPPresenceBadge()
+        presentTrophyToastIfNeeded(in: overlay)
     }
 
     /// Après le splash + poinçon + entrée chrome accueil. Ok = session ; Ne plus montrer = définitif.
@@ -3415,6 +3435,7 @@ final class GameScene: SKScene {
 
     private func continueSavedGameFromHome() {
         guard isStartScreen, let save = pendingArcadeSave() else { return }
+        BlomixTrophyHooks.noteContinueSave()
         clearDailyChallengeSessionFlags()
         consumeInMemoryPvPSoloSnapshots()
         restoreFromSoloSave(save)
@@ -3438,6 +3459,7 @@ final class GameScene: SKScene {
 
     private func continueFiveFromHome(_ save: BlomixSoloGameSave) {
         guard isStartScreen else { return }
+        BlomixTrophyHooks.noteContinueSave()
         clearDailyChallengeSessionFlags()
         consumeInMemoryPvPSoloSnapshots()
         restoreFromSoloSave(save)
@@ -3445,6 +3467,7 @@ final class GameScene: SKScene {
 
     private func continueZenFromHome(_ save: BlomixSoloGameSave) {
         guard isStartScreen else { return }
+        BlomixTrophyHooks.noteContinueSave()
         clearDailyChallengeSessionFlags()
         consumeInMemoryPvPSoloSnapshots()
         restoreFromSoloSave(save)
@@ -3789,8 +3812,15 @@ final class GameScene: SKScene {
         touchHitsStartScreenUtilityLink(named: Self.startScreenShareChipName, scenePoint: scenePoint)
     }
 
+    private func touchHitsStartScreenTrophyLink(_ scenePoint: CGPoint) -> Bool {
+        touchHitsStartScreenUtilityLink(named: Self.startScreenTrophyLinkName, scenePoint: scenePoint)
+    }
+
     private func toggleAppearanceFromStartScreen() {
         BlomixAppearance.toggle()
+        if BlomixAppearance.isLight {
+            BlomixTrophyHooks.noteThemeLight()
+        }
         // Recréer le ☰ (puits + capsule) au prochain layout.
         childNode(withName: Self.bottomMenuContainerName)?.removeFromParent()
         refreshFullscreenBackgroundColor()
@@ -5124,6 +5154,37 @@ final class GameScene: SKScene {
         presentFullScreenModal(BlomixCreditsViewController())
     }
 
+    /// Salon des trophées (modal famille Crédits).
+    private func showTrophySalon(focusID: String? = nil) {
+        presentFullScreenModal(BlomixTrophySalonViewController(focusID: focusID))
+    }
+
+    private func presentTrophyToastIfNeeded(in overlay: SKNode) {
+        overlay.childNode(withName: Self.startScreenTrophyToastName)?.removeFromParent()
+        let pending = BlomixTrophyStore.shared.consumePendingPromotions()
+        guard let promo = pending.last,
+              let def = BlomixTrophyCatalog.def(id: promo.id) else { return }
+        let name = BlomixTrophySalonViewController.displayTitle(def)
+        let text = BlomixL10n.trophyToastFormat(name: name, rank: promo.rank.roman)
+        let chip = makeStartScreenButtonChip(
+            chipName: Self.startScreenTrophyToastName,
+            labelName: Self.startScreenTrophyToastName + "_lbl",
+            text: text,
+            chipSize: CGSize(width: min(size.width - 48, 280), height: 36),
+            fontSize: 13
+        )
+        chip.position = CGPoint(x: size.width / 2, y: size.height - (view?.safeAreaInsets.top ?? 47) - 92)
+        chip.zPosition = 20
+        chip.alpha = 0
+        overlay.addChild(chip)
+        chip.run(.sequence([
+            .fadeIn(withDuration: 0.22),
+            .wait(forDuration: 3.6),
+            .fadeOut(withDuration: 0.28),
+            .removeFromParent(),
+        ]))
+    }
+
     /// Prochain bloc « preview » : **1 chance sur 8** d’un `.priks(5)`, sinon couleur aléatoire.
     static func randomNextPlayableBlock() -> BlockType {
         let r = Double.random(in: 0..<1)
@@ -5207,6 +5268,9 @@ final class GameScene: SKScene {
         gameOverShareCardImage = nil
 
         playMatchSound(.end)
+        if !isTutorialMode {
+            noteTrophiesAtGameOver(finalScore: finalScore)
+        }
 
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
         if let preview = childNode(withName: Self.previewNodeName) {
@@ -5226,6 +5290,58 @@ final class GameScene: SKScene {
 
         playGameOverFocusAnimation(at: focusPoint) {
             showOverlay()
+        }
+    }
+
+    private func noteTrophiesAtGameOver(finalScore: Int) {
+        let store = BlomixTrophyStore.shared
+        if isDailyChallengeMode {
+            if isFiveMode {
+                _ = store.increment("play_daily_five")
+                _ = store.recordBest("five_score", finalScore)
+                _ = store.recordBest("five_lines", moveCount / max(incomingLinePeriod, 1))
+                if runBombExplosions == 0 { _ = store.increment("five_no_bomb") }
+            } else {
+                _ = store.increment("play_daily_arc")
+                _ = store.recordBest("arcade_score", finalScore)
+                _ = store.recordBest("arcade_stage", currentStageIndex + 1)
+                if currentStageIndex >= Self.soloStages.count - 1 {
+                    _ = store.increment("arcade_ultime_count")
+                }
+            }
+            let day = dailyLockedDay ?? BlomixDailySeed.utcDayString()
+            store.noteDailyDay(day)
+            let other: BlomixDailyKind = isFiveMode ? .arcade : .five
+            if UserDefaults.standard.string(forKey: other.finishedDayKey) == day {
+                _ = store.increment("play_both_dailies")
+            }
+        } else if isFiveMode {
+            _ = store.increment("play_five")
+            _ = store.recordBest("five_score", finalScore)
+            _ = store.recordBest("five_lines", moveCount / max(incomingLinePeriod, 1))
+            if runBombExplosions == 0 { _ = store.increment("five_no_bomb") }
+        } else if isZenMode {
+            _ = store.increment("play_zen")
+        } else {
+            _ = store.increment("play_arcade")
+            _ = store.recordBest("arcade_score", finalScore)
+            _ = store.recordBest("arcade_stage", currentStageIndex + 1)
+            if currentStageIndex >= Self.soloStages.count - 1 {
+                _ = store.increment("arcade_ultime_count")
+            }
+        }
+        if bombCount >= 5 {
+            _ = store.increment("secret_five_bombs")
+        }
+        if bombCount == 0, runBombExplosions >= 1 {
+            _ = store.increment("secret_zero_bombs")
+        }
+        if gameOverFromIncomingLine {
+            _ = store.increment("secret_line_go")
+        }
+        let stats = analyzerGameStats
+        if stats.totalMoves >= 20 {
+            _ = store.recordBest("justesse", stats.optimalityPercent)
         }
     }
 
@@ -5840,6 +5956,11 @@ final class GameScene: SKScene {
 
     /// Overlay record perso (famille résultat PvP). OK → game over 6.1 dessous.
     private func presentPersonalBestOverlay(score: Int) {
+        if isFiveMode {
+            _ = BlomixTrophyStore.shared.increment("five_pb")
+        } else if !isZenMode {
+            _ = BlomixTrophyStore.shared.increment("arcade_pb")
+        }
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
         let overlay = SKNode()
         overlay.name = Self.gameOverRecordOverlayName
@@ -5966,6 +6087,7 @@ final class GameScene: SKScene {
 
     /// Share sheet depuis l'accueil (texte + URL App Store).
     private func presentShareFromHome() {
+        BlomixTrophyHooks.noteShareHome()
         presentBlomixShareSheet(
             activityItems: BlomixShareComposer.homeActivityItems(),
             chipName: Self.startScreenShareChipName,
@@ -5975,6 +6097,7 @@ final class GameScene: SKScene {
 
     /// Share sheet depuis le game over (carte + texte + URL).
     private func presentShareFromGameOver() {
+        BlomixTrophyHooks.noteShareGameOver(isNewPB: gameOverShareIsNewPB)
         let items = BlomixShareComposer.gameOverActivityItems(
             grid: gameOverShareGrid,
             score: gameOverFinalScore,
@@ -6018,6 +6141,7 @@ final class GameScene: SKScene {
     /// Un tap n'importe ou ferme l'overlay.
     private func showWorstMistakeOverlay() {
         guard let snap = worstMistakeSnapshot else { return }
+        BlomixTrophyHooks.noteWorstMove()
 
         childNode(withName: Self.worstMistakeOverlayName)?.removeFromParent()
 
@@ -7313,6 +7437,15 @@ final class GameScene: SKScene {
         // Couleur = celle de la plus grande composante (lue avant que la grille soit effacée).
         // Position = centroïde de toutes les composantes de la vague.
         let comboShown = chainSeriesLevel >= 1
+        if !isTutorialMode {
+            let sizes = components.map(\.count)
+            let connects = components.filter { Self.componentSpansLateralEdges($0) }.count
+            BlomixTrophyHooks.noteChainWave(
+                sizes: sizes,
+                seriesLevel: chainSeriesLevel,
+                connectCount: connects
+            )
+        }
         if comboShown {
             let allCells = Set(components.flatMap { $0 })
             let center   = sceneCentroid(for: allCells)
@@ -7854,6 +7987,9 @@ final class GameScene: SKScene {
                     chainMultiplier: 0,
                     floatAt: self.gridAreaCenter
                 )
+                if !self.isTutorialMode, self.pvpCoordinator == nil {
+                    BlomixTrophyHooks.noteBoardEmpty(isFive: self.isFiveMode)
+                }
             },
         ]))
     }
@@ -10010,6 +10146,7 @@ final class GameScene: SKScene {
         let blockedColumns = (0..<GridLayout.columnCount).filter { highestEmptyRow(inColumn: $0) == nil }
         if let blockedColumn = blockedColumns.randomElement() {
             let losePoint = scenePointCellCenter(row: GridLayout.bottomRowIndex, column: blockedColumn)
+            gameOverFromIncomingLine = true
             triggerGameOver(focusPoint: losePoint)
             return .gameOver
         }
@@ -10017,6 +10154,7 @@ final class GameScene: SKScene {
         var placements: [(column: Int, row: Int)] = []
         for col in 0..<GridLayout.columnCount {
             guard let row = highestEmptyRow(inColumn: col) else {
+                gameOverFromIncomingLine = true
                 triggerGameOver()
                 return .gameOver
             }
@@ -10806,6 +10944,26 @@ final class GameScene: SKScene {
     /// Dispatche vers la bonne routine selon la variante du bloc Magix qui vient d'atterrir.
     private func applyMagixEffect(kind: MagixKind, at cell: GridAddress) {
         magixCausedDisappearLinger = true
+        if !isTutorialMode, pvpCoordinator == nil {
+            var occupied = 0
+            var otherBrix = 0
+            for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+                for c in 0..<GridLayout.columnCount {
+                    let bt = grid[r][c]
+                    if bt != .empty { occupied += 1 }
+                    if case .priks = bt, !(r == cell.row && c == cell.col) {
+                        otherBrix += 1
+                    }
+                }
+            }
+            let ultime = isInStagedSoloMode && currentStageIndex >= Self.soloStages.count - 1
+            BlomixTrophyHooks.noteMagix(
+                kind,
+                isUltime: ultime,
+                occupiedCells: occupied,
+                otherBrixCount: otherBrix
+            )
+        }
         // Popup "CHROMAX" / "BRIXED" / "CROSSX" centré sur la case d'atterrissage.
         spawnMagixNamePopup(name: MagixRules.label(for: kind),
                             at: scenePointCellCenter(row: cell.row, column: cell.col))
@@ -12551,6 +12709,9 @@ final class GameScene: SKScene {
             isBombMode = false
             bombCount += 1
             updateBombHUD()
+            if !isTutorialMode {
+                BlomixTrophyHooks.noteBombCancel()
+            }
         } else {
             guard bombCount > 0 else { return }
             // Activation : la bombe sort du stock immédiatement
@@ -13086,6 +13247,10 @@ final class GameScene: SKScene {
                 self.applyBombExplosion3x3(centerRow: row, centerCol: col)
                 self.isBombMode = false
                 self.updateBombHUD()
+                self.runBombExplosions += 1
+                if !self.isTutorialMode {
+                    BlomixTrophyHooks.noteBomb(isNuke: self.isInStagedSoloMode && self.currentStageIndex >= 1)
+                }
                 if self.isTutorialMode { self.tutorialBombDropped() }
 
                 self.drawGrid()
@@ -15756,6 +15921,9 @@ final class GameScene: SKScene {
                 hapticSoft()
                 dropBlock(usingColumn: col)
             } else {
+                if !isTutorialMode {
+                    _ = BlomixTrophyStore.shared.increment("secret_timeout")
+                }
                 triggerGameOver()
             }
         }
@@ -16362,6 +16530,7 @@ final class GameScene: SKScene {
         case .bombCelebration:
             run(SKAction.wait(forDuration: 3.0)) { [weak self] in
                 guard let self, self.tutorialStep == .bombCelebration else { return }
+                BlomixTrophyHooks.noteTutorialFinished()
                 self.exitTutorial()
             }
         case .bombIntro:
@@ -16972,6 +17141,17 @@ final class GameScene: SKScene {
             }
             if touchHitsStartScreenShareButton(location) {
                 pendingButtonAction = { [weak self] in self?.presentShareFromHome() }
+                return
+            }
+            if touchHitsStartScreenTrophyLink(location) {
+                pendingButtonAction = { [weak self] in self?.showTrophySalon() }
+                return
+            }
+            if let overlay = childNode(withName: Self.startScreenOverlayName),
+               let toast = overlay.childNode(withName: Self.startScreenTrophyToastName),
+               toast.calculateAccumulatedFrame().insetBy(dx: -8, dy: -8).contains(location) {
+                toast.removeFromParent()
+                pendingButtonAction = { [weak self] in self?.showTrophySalon() }
                 return
             }
             if touchHitsStartScreenCreditsLink(location) {
@@ -18296,6 +18476,27 @@ final class GameScene: SKScene {
     }
 
     private func blomixPvP_showPvPResult(didWin: Bool) {
+        if let coordinator = pvpCoordinator {
+            BlomixTrophyStore.shared.noteDuelFinished(didWin: didWin)
+            if didWin {
+                if coordinator.isLocalMatch {
+                    _ = BlomixTrophyStore.shared.increment("duel_win_local")
+                    _ = BlomixTrophyStore.shared.increment("duel_win_human")
+                } else if coordinator.isBotMatch {
+                    if coordinator.botKind == .babybot {
+                        _ = BlomixTrophyStore.shared.increment("duel_babybot")
+                    }
+                    if coordinator.botKind == .supreme {
+                        _ = BlomixTrophyStore.shared.increment("duel_bot1")
+                    }
+                } else {
+                    _ = BlomixTrophyStore.shared.increment("duel_win_human")
+                }
+                if score < 50 {
+                    _ = BlomixTrophyStore.shared.increment("duel_no_attack")
+                }
+            }
+        }
         guard let rootVC = modalRootViewController() else {
             return
         }

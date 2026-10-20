@@ -28,6 +28,7 @@
 | **Chaîne** | — | Groupe 8-connexe de ≥ 5 blox de même couleur |
 | **CONNECT** | `LateralConnectBonus` | Chaîne qui touche les deux bords latéraux ; +100 + popup CONNECT + trait chrome sur le plus court pont |
 | **Cascade** | — | Résolutions en chaîne après gravité (plusieurs vagues) |
+| **Salon des trophées** | `BlomixTrophySalonViewController` | Cabinet personnel de pastilles-cibles (local, pas Game Center) |
 | **Gravité inversée** | — | Les blocs remontent vers le haut ; les vides restent en bas |
 
 ### Couleurs des blox

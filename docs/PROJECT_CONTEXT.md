@@ -358,6 +358,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | **Tutoriel** | `book.fill` → partie guidée (tuto interactif grille, pas l’overlay paginé UIKit) |
 | **Thème** | soleil / lune |
 | **Partager** | `paperplane.fill` |
+| **Salon** | `trophy.fill` → `BlomixTrophySalonViewController` (1ʳᵉ version test) |
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
@@ -475,6 +476,9 @@ Blomix/Blomix/
 ├── BlomixEloManager.swift        # Elo PvP + cache identité GC + pending offline
 ├── ScoreManager.swift            # GC Solo/Zen/Five/moyenne ; sync max(local,pending) + n°1 HUD + reconcile local>GC
 ├── BlomixCreditsViewController.swift  # Crédits en cartes (tagline, version, sections)
+├── BlomixTrophyStore.swift            # Catalogue + JSON local `blomix_trophies_v1`
+├── BlomixTrophyCibleView.swift        # Pastille-cible (tours, peau, paillettes)
+├── BlomixTrophySalonViewController.swift  # Salon des trophées (modal famille Crédits)
 ├── BlomixRulesGuideViewController.swift  # Guide règles + Magix (6.4)
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
 ├── BlomixPublicCloudGate.swift   # Robinet Public DB (503 / Retry-After) H2H + lobby

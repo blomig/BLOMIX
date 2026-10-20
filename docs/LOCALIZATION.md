@@ -181,7 +181,8 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | MARK | Contenu |
 |---|---|
 | Commun | Fermer, annuler, alertes quitter |
-| Accueil & jeu | Boutons start, liens utilitaires (Réglages · Tutoriel · Crédits), game over, HUD |
+| Accueil & jeu | Boutons start, liens utilitaires (Réglages · Tutoriel · Salon · Crédits), game over, HUD |
+| Salon des trophées | `trophy.*` + `home.icon.salon` (FR/EN/DE/ES/IT/PT) |
 | Game Center | Statut connexion GC |
 | Skins | Noms des palettes couleur |
 | Règles / crédits | Titres modals, bouton avis App Store (`credits.review_*`) |

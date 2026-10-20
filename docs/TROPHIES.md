@@ -1,12 +1,12 @@
 # BLOMIX — Pièce des trophées (piste)
 
-> **Statut** : conception. **Pas de code.** À figer après tests Five + boards GC live.  
+> **Statut** : 1ʳᵉ version testable (store + Salon + cible + hooks). Rangs encore I / II / III. À figer après tests Five + boards GC live.  
 > **Version de référence** : 8.6  
 > Vocabulaire : [GLOSSARY.md](GLOSSARY.md). Modes : [RULES.md](RULES.md). Magix : [MAGIX.md](MAGIX.md).  
-> Nom d’écran : **à décider** (*Pièce des trophées* / *Cabinet* / *Réalisations*).  
+> Nom d’écran : **Salon des trophées** (caption accueil : **Salon**).  
 > Noms des **rangs** 1 / 10 / 100 : **à décider** (§2). *Blox / Brix / Magix* comme grades = **écarté** (signe contradictoire avec le plateau).
 
-Un **cabinet personnel** : pastilles sur un mur. Grisées tant que jamais faites ; allumées dès la 1ʳᵉ fois, avec un **rang qui monte** (trois grades, noms ouverts) et une **barre gouttière** sous le nom. Pas un classement, pas un 4ᵉ mode, pas des Achievements Game Center (v1).
+Un **cabinet personnel** : pastilles-cibles sur un mur. Grises tant que jamais faites ; allumées dès la 1ʳᵉ fois, avec un **rang qui monte** (trois grades, noms ouverts). Le chiffre au centre **est le compte** (0 au départ, et ça continue après 100). Deux **tours** se remplissent l’un après l’autre ; tout plein → paillettes Magix. Pas un classement, pas un 4ᵉ mode, pas des Achievements Game Center (v1).
 
 But : donner une raison de **toucher à tout** le jeu, puis d’y **revenir** — la pièce se relit, elle ne se coche pas.
 
@@ -34,34 +34,39 @@ Fond scène + blox ambiants. Titre gouttière. Fermer en haut.
 
 1. **Bandeau** : pastilles allumées `28 / 41` · rangs `I 12 · II 11 · III 5` (libellés = noms figés au §2) · dernière montée (nom + palier).
 2. **Murs** par catégorie (titres cutout).
-3. **Grille** 4 pastilles / rangée (famille disques de rang, ~52 pt).
+3. **Grille** 4 cibles / rangée (~52 pt). Même objet partout ; légendes 1/10/100 **fiche seulement** (§6).
 
 Pas de SpriteKit ici : lecture, pas pose.
 
-### Une pastille, trois vies
+### Une pastille : compteur + deux tours
 
-Pas bronze / argent / or Apple. **Une pastille, trois peaux** — le dessin dit le grade, **sans** reprendre les noms du plateau (voir §2).
+Pas bronze / argent / or Apple. **Une cible.** Noms de grades ouverts (§2). Dessin : §6.
 
-Exemple — *Super combo* (cascade ≥ 2 vagues) :
+Le **numéro au centre** = le nombre de fois (ou le meilleur, courbe Qualité). Il vaut **0** au départ et **continue** après le plafond (347 CHROMAX, etc.). Ce n’est pas un niveau 1/2/3.
 
-| Compte | Rang | Pastille (forme, à figer avec le nom) | Barre sous le nom |
+**Deux tours** (courbe Volume 1 / 10 / 100 — CHROMAX, *Super combo*, etc.) :
+
+1. **n = 0** — anneaux vides, centre **0**, pas d’arc.
+2. **n ≥ 1** — le disque intérieur (peau) s’allume. Le **premier tour** (anneau **10**) commence à se remplir : remplissage = **n / 10**.
+3. **n ≥ 10** — premier tour plein. Le **deuxième tour** (anneau **100**) commence à compter : remplissage = **n / 100** (à 10 l’arc extérieur est déjà à 10 %).
+4. **n ≥ 100** — les deux tours sont pleins. Plus rien à remplir. Des **particules type Magix** sortent du **disque intérieur et du disque extérieur**, comme d’un bloc Magix. Le compteur au centre continue.
+
+Le 2ᵉ tour ne part pas de zéro : c’est le même compte, lu sur l’anneau suivant. Tant que n < 10, l’anneau 100 reste vide.
+
+Exemple — *Super combo* (cascade ≥ 2 vagues), courbe Volume :
+
+| Compte | Rang | Centre | Tours |
 |---|---|---|---|
-| 0 | — | Grise, glyphe silhouette | Vide, ou absente |
-| 1 | **I** | Forme 1, chiffre **1** | Gouttière peau **1 / 10** |
-| 7 | I | **7** | **7 / 10** |
-| 10 | **II** | Forme 2, **10** | Nouvelle échelle **10 / 100** (remplie à 10 %) |
-| 47 | II | **47** | **47 / 100** |
-| 100 | **III** | Forme 3, **100** | Pleine. Le compteur continue (347…) ; plus de palier |
+| 0 | — | **0** | Rien. Anneaux vides |
+| 1 | **I** | **1** | Disque intérieur allumé. 1er tour : 1/10 |
+| 7 | I | **7** | 1er tour : 7/10. Anneau 100 vide |
+| 10 | **II** | **10** | 1er tour plein. 2ᵉ tour : 10/100 |
+| 47 | II | **47** | 2ᵉ tour : 47/100 |
+| 100 | **III** | **100** | Tout plein. Paillettes Magix **depuis** les deux disques. Compteur continue (347…) |
 
-Le **1** apparaît au premier déblocage. Ensuite le chiffre **est le compteur**, pas un niveau 1/2/3.
+Même lecture sur les autres courbes : le 1er tour va de s1 à s2, le 2ᵉ de s2 à s3 (Rare 1 / 3 / 10, Qualité 5 / 8 / 10+, etc.). Unique : pas de tours, 0 ou 1.
 
-**Barre** = même recette que la jauge 0→N°1 (gouttière, fill peau, 3 pt). Sous le **nom** (caption mur + titre de fiche), pas autour du disque.
-
-- Rang I : dénominateur = seuil **II** (souvent 10).
-- Rang II : dénominateur = seuil **III** (souvent 100) — nouvelle barre, on « repart » visuellement.
-- Rang III : barre pleine, sparkle **seulement à l’ouverture de la fiche** (pas 41 orbites sur le mur).
-
-Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », pas de barre.
+Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », anneaux sans fill, **pas** de 0 au centre.
 
 Nouveau palier : souffle 2 cycles (disques accueil), puis calme.
 
@@ -69,20 +74,20 @@ Nouveau palier : souffle 2 cycles (disques accueil), puis calme.
 
 Panneau bas, chrome capsule :
 
-- Titre Changa + pastille (forme du rang actuel)
+- Titre Changa + **même cible**, plus grande, anneaux **légendés** 1 / 10 / 100 (ou 1 / 3 / 10, etc.)
 - Phrase joueur (ce que c’est)
-- **×N** en gouttière
-- Barre **n / prochain** (ou pleine si III) + libellé *vers II* / *vers III* (noms joueur du §2)
+- **×N** (le centre le dit déjà ; optionnel en gouttière)
+- Pas de barre sous le nom : l’arc **est** la jauge
 - Première fois · premier II · premier III (dates courtes)
 - Fermer : hors panneau
 
-Grise connue : condition lisible, 0 / 1, pas de date.
+Grise connue (n = 0) : condition lisible, anneaux + légendes, fill vide, centre **0**.
 
 ---
 
 ## 2. Langage des rangs (à figer)
 
-Les seuils **1 → 10 → 100** restent. Ce qui est ouvert : **comment on les *appelle* et on les *dessine***, pour que ça dise « trophée » sans piquer le vocabulaire du plateau.
+Les seuils **1 → 10 → 100** restent (deux tours, §1). Ce qui est ouvert : **comment on les *appelle***, pour que ça dise « trophée » sans piquer le vocabulaire du plateau. Le dessin (cible, tours, paillettes) est au §6.
 
 ### Pourquoi pas Blox / Brix / Magix
 
@@ -198,7 +203,9 @@ Le **nom** et le **dessin** se séparent :
 - Noms **B** (*Inscrit / Médaille / Trophée*) + formes **A** (poinçon → relief → couronne).
 - Ou noms **A** + trait **CONNECT** (chrome) seulement au rang III.
 
-Reco pour amender : **B pour les mots** (ça dit trophée), **A pour les formes** (ça dit BLOMIX). Écarter Blox/Brix/Magix. Piste D en joker si tu veux que le plateau *parle*.
+Reco **mots** : piste B (*Inscrit / Médaille / Trophée*) ou A (*Poinçon / Relief / Couronne*). Écarter Blox/Brix/Magix. Piste D en joker si tu veux que le plateau *parle*.
+
+**Formes A (plaque / relief / couronne) : remplacées** par la cible à anneaux (§6). Les noms de grades restent à figer ; le dessin, non.
 
 ---
 
@@ -213,7 +220,7 @@ Chaque pastille a **un événement** (ce qu’on compte ou le meilleur) et **deu
 | **Volume** | 1 | **10** | **100** | Combos, chaînes, parties, Magix (kinds) courants, bombes, partages |
 | **Rare** | 1 | **3** | **10** | SAINTX, BOT1, CONNECT, grille vide, rang 1 du jour, secrets |
 | **Qualité** | palier 1 | palier 2 | palier 3 | *Meilleur* : taille de chaîne 5 / 8 / 10+ ; stage 2 / 4 / Ultime ; score 1k / 5k / 10k |
-| **Unique** | 1 | — | — | Tuto fini, thème Clair : allumé = fait. Pas de barre. Rang I suffit (on n’invente pas 10 tutos) |
+| **Unique** | 1 | — | — | Tuto fini, thème Clair : allumé = fait. Un anneau (ou cible plate). Rang I suffit |
 
 Défaut = **Volume 1 / 10 / 100**, comme *Super combo*.  
 Pas de 4ᵉ métal. L’échelle II→III **est** la longue (100). Si un trophée est trop grind (victoire BOT1 ×100), courbe **Rare 1 / 3 / 10**.
@@ -222,8 +229,10 @@ Les paliers **empilent** : le 100ᵉ combo a déjà donné I et II.
 
 ### Deux lectures, une pastille
 
-- **Compte** (la plupart) : chaque événement +1, rang selon le total.
-- **Qualité** (peu) : on mémorise le *max* (plus grande chaîne, plus haut stage, meilleur score). La barre va vers le *prochain seuil de max*, le chiffre sur le disque = ce max (8, pas « ×8 chaînes de 8 »).
+- **Compte** (la plupart) : chaque événement +1. Centre = total. Tours = n / palier actif (§1).
+- **Qualité** (peu) : on mémorise le *max* (plus grande chaîne, plus haut stage, meilleur score). Centre = ce max (8, pas « ×8 chaînes de 8 »). Même deux tours, sur les seuils de max.
+
+Anneaux **relégendés** selon la courbe (Volume 1/10/100, Rare 1/3/10, Qualité 5/8/10+). Légendes **fiche seulement**. **À tester** avec la pureté du mur (§6).
 
 On ne dédouble plus « chaîne 5 », « chaîne 8 », « chaîne 10 » en trois pastilles : **une** pastille *Chaîne*, rang I dès 5, II à 8, III à 10+. Le **volume** de chaînes est une **autre** pastille (*Cent / mille*).
 
@@ -309,7 +318,7 @@ Effet vu à l’atterrissage. Pas en Duel.
 | `magix_all_nine` | Cabinet Magix | U — les 9 au moins ×1. Barre 0–9 kinds distincts (qualité déguisée) |
 | `magix_saintx_ultime` | Infini ×6 | R — SAINTX en Ultime |
 
-Glyphe = symbole Magix (`?` `9` `+` `X` `=` `O` `∞` `§` `B`). Rang III de la pastille = couronne **en plus** du glyphe (médaille, pas « ce Magix est Magix »).
+Glyphe Magix : **pas** sur le fill (la peau est unique). Option fiche : symbole en plus du nom. Rang III = paillettes **issues des deux disques** (comme un bloc Magix), pas une couronne Magix collée sur le fill.
 
 ### Arcade (5)
 
@@ -393,21 +402,62 @@ Plus de pastilles séparées « 10 Arcade / 10 Five » : c’est `play_daily_*` 
 
 ## 6. Graphisme
 
-Pas de coupes 3D. Le rang **est** la forme — **provisoire** jusqu’au choix §2 (ci-dessous = piste A, craft).
+Inspiration : `image_inspi/trophees-chromax-piste-graphique.jpg` (trois plans CHROMAX : anneaux, disque peau, arc, chiffre au centre). **La logique** est §1 (compteur + deux tours) — le mock 02 met l’arc sur le 100 trop tôt (compte 3 = 1er tour, anneau 10). **Décisions Lomig** ci-dessous. Pas de coupes 3D. Pas de plaque / relief / couronne (§2 piste A, dessin écarté).
 
-| Rang | Forme (piste A) | Chiffre | Barre |
-|---|---|---|---|
-| Gris | Disque chrome α 0,35 | — | 0 |
-| **I** | Plaque / poinçon, fill peau | compteur / max qualité | / seuil II |
-| **II** | Capsule **relief** (bouton BLOMIX) | idem | / seuil III (nouvelle échelle) |
-| **III** | Disque + **couronne de médaille** (anneau plein, pas halo Magix) | idem | pleine ; orbite à la fiche |
+**Une cible** = trois anneaux concentriques (1 · 10 · 100 ou la courbe) + disque intérieur peau + arc du tour actif + chiffre. Le rang se *lit* à l’occupation, pas à un changement d’espèce.
 
-- Caption Nunito sous la forme, barre **3 pt** sous la caption (largeur = pastille).
-- Mur : blox ambiants plus lents.
-- Bandeau : cutout, pas d’XP de RPG.
-- Fiche : titre Changa, corps Nunito, ×N gouttière comme +5 du hub.
+### Couleur
 
-Portrait. 4 colonnes, caption d’un mot (Magix non traduits).
+- Disque : **dégradé aux couleurs de la peau** du joueur, même recette que les **gouttières** (puits / jauge 0→N°1).
+- Rien de spécifique **par mur** ni **par Magix**. CHROMAX orange-vert-bleu sur la planche = démo ; en jeu c’est la peau, y compris sur la pastille CHROMAX.
+- Arc : **mouvant**, comme les gouttières (shader / dégradé qui glisse), pas un bleu plat.
+
+### Mur vs fiche
+
+| | Mur (pureté) | Fiche (tap) |
+|---|---|---|
+| Cible | Anneaux + disque + arc + chiffre | **Même objet**, plus grand |
+| Légendes **1 / 10 / 100** (ou 1 / 3 / 10, etc.) | **Non** | **Oui** |
+| Caption | Nunito sous la cible (un mot, Magix non traduits) | Titre Changa + phrase |
+| Paillettes rang III | Issues du disque **intérieur** et du disque **extérieur** | Idem, plus lisibles |
+
+### Occupations (Volume 1 / 10 / 100)
+
+Le remplissage d’un tour = **n / palier**, pas une jauge 0→100 renormalisée sur le segment.
+
+| n | Rang | Disque | Tours / arc | Paillettes |
+|---|---|---|---|---|
+| **0** | — | Vide. Anneaux gardés. Centre **0** | Aucun | — |
+| **1 … 9** | **I** | Intérieur peau allumé (anneau 1) | **1er tour** : arc sur l’anneau **10**, n/10. Anneau 100 vide | — |
+| **10 … 99** | **II** | Jusqu’à l’anneau 10 | 1er tour **plein**. **2ᵉ tour** : arc sur l’anneau **100**, n/100 | — |
+| **100+** | **III** | Plein (intérieur **et** extérieur) | Les deux tours pleins. Plus d’arc à avancer | **Comme un bloc Magix** : particules (`spawnSpecialOrbitLingerSparks` ou équivalent) **sortent** du disque intérieur **et** du disque extérieur. Compteur continue |
+
+Relégende : remplacer 10 / 100 par s2 / s3 (Rare 1/3/10, Qualité 5/8/10+, podium 1/10/50, `chain_count` 1/100/1000). Unique : un allumage, pas de tours.
+
+### Relégende (courbes) — **à tester**
+
+Les trois anneaux portent les **seuils de la courbe**, pas toujours 1/10/100 :
+
+| Courbe | Anneaux (fiche) |
+|---|---|
+| Volume | 1 · 10 · 100 |
+| Rare | 1 · 3 · 10 |
+| Qualité | palier 1 · 2 · 3 (ex. 5 · 8 · 10+) |
+| Unique | un anneau, ou cible plate allumée |
+
+**À tester avec la pureté du mur** : sans légendes, une cible Rare (1/3/10) et une Volume (1/10/100) se ressemblent. Si c’est illisible, options à challenger : léger écart d’épaisseur d’anneaux, ou légendes mur au tap-hold — **pas** de teinte par mur.
+
+### Chrome
+
+- Fond scène + blox ambiants plus lents. Cible sur chrome Sombre / Clair.
+- Anneaux : `tertiaryText` (état 0) → plus marqués une fois allumés.
+- Chiffre central : compteur (ou max qualité), contraste sur le dégradé.
+- Bandeau salle : cutout, pas d’XP de RPG.
+- Portrait, 4 colonnes.
+
+### Secrets
+
+Même cible. Caption **???** tant que 0. Après le 1er : nom + fill peau, comme les autres.
 
 ---
 
@@ -422,7 +472,7 @@ rang = III si valeur ≥ s3
      else gris
 ```
 
-Store JSON `blomix_trophies_v1` : `{ id: { value, firstAt, brixAt, magixAt, seen } }`. Monotone. Pas de reset joueur.
+Store JSON `blomix_trophies_v1` : `{ id: { value, firstAt, iiAt, iiiAt, seen } }`. Monotone. Pas de reset joueur. (`iiAt` / `iiiAt` = dates des paliers ; pas Brix/Magix.)
 
 Toast **au retour accueil** si palier monté pendant la run (pas de popup en partie). Tap → pièce, focus la pastille.
 
@@ -431,9 +481,11 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 ## 8. Ce qu’on ne fait pas
 
 - Battle pass, XP global, quêtes du jour (déjà les Défis).
-- 4ᵉ métal (platine). Trois formes BLOMIX, stop.
-- Barre autour du disque (illisibile en 4 colonnes).
+- 4ᵉ métal (platine). Deux tours, stop.
+- Légendes 1/10/100 **sur le mur** (fiche seulement).
+- Teinte par mur ou par Magix (la peau suffit).
 - Popup Magix **en cours de pose**.
+- Arc du 2ᵉ tour **avant** n ≥ s2 (le mock 02 à 3 sur l’anneau 100 est faux).
 - Révéler les secrets dans le guide.
 - Forcer un Duel humain pour « finir » (BOT1 = plafond solo).
 - Tuto « Passer » ≠ `play_tutorial`.
@@ -442,8 +494,8 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 
 ## 9. Décisions à figer
 
-1. **Nom de la salle** : *Pièce des trophées* / *Cabinet* / *Réalisations* / autre.
-2. **Langage des rangs** (§2) : A Poinçon/Relief/Couronne · B Inscrit/Médaille/Trophée · mix B mots + A formes (reco) · D CONNECT · autre.
+1. **Nom de la salle** : **Salon des trophées** (figé pour la 1ʳᵉ version). Caption icône : **Salon**.
+2. **Noms des rangs** (§2) : A Poinçon/Relief/Couronne · B Inscrit/Médaille/Trophée · D CONNECT · autre. *(Le dessin n’est plus A : c’est la cible §6.)*
 3. **6ᵉ icône** accueil vs Crédits.
 4. Courbe Volume **1 / 10 / 100** vs **1 / 10 / 50**.
 5. `chain_count` à 100 / 1000 : OK comme exception ?
@@ -451,15 +503,19 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 7. 9 secrets, assez ?
 8. Rétroactif minimal (hiscores, podium, tuto) : OK ?
 
+**Dessin (figé, sauf tests)** : cible peau ; centre = compte (0 au départ, continue) ; 1er tour dès n ≥ 1, 2ᵉ tour dès n ≥ s2 ; paillettes Magix **depuis les deux disques** au rang III, comme un bloc Magix. Légendes fiche seulement. **À tester** : relégende Rare/Qualité sans légendes mur (une cible 1/3/10 vs 1/10/100 se ressemble).
+
 ---
 
 ## 10. Ordre de code (plus tard)
 
-1. Store + rang calculé + écran mur / fiche / barre — une pastille témoin (*Super combo*).
+1. Store + rang calculé + écran mur / fiche / **cible** — une pastille témoin (*Super combo* ou CHROMAX).
 2. Seuil (modes).
 3. Chaînes + Magix.
 4. Arcade / Five / Défi / Duel.
 5. Folie + secrets.
 6. l10n 6 langues, guide, GLOSSARY, CHANGELOG, whats-new au jalon.
 
-Rien de tout ça avant : Five testé, boards GC live, **cette** spec validée (surtout §2 paliers + nom).
+**1ʳᵉ version (test)** : store local + cible + Salon modal + 6ᵉ icône + hooks principaux. DEBUG : appui long sur une pastille = +1. Pas de bump marketing. Rangs encore I / II / III.
+
+Rien de plus « produit » avant : Five testé, boards GC live, **cette** spec validée (surtout §2 mots des rangs).

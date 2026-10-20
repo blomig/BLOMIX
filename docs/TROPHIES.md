@@ -3,11 +3,14 @@
 > **Statut** : conception. **Pas de code.** À figer après tests Five + boards GC live.  
 > **Version de référence** : 8.6  
 > Vocabulaire : [GLOSSARY.md](GLOSSARY.md). Modes : [RULES.md](RULES.md). Magix : [MAGIX.md](MAGIX.md).  
-> Nom d’écran : **à décider** (*Pièce des trophées* / *Cabinet* / *Réalisations*).
+> Nom d’écran : **à décider** (*Pièce des trophées* / *Cabinet* / *Réalisations*).  
+> Noms des **rangs** 1 / 10 / 100 : **à décider** (§2). *Blox / Brix / Magix* comme grades = **écarté** (signe contradictoire avec le plateau).
 
-Un **cabinet personnel** : pastilles sur un mur. Grisées tant que jamais faites ; allumées dès la 1ʳᵉ fois, avec un **rang qui monte** (Blox → Brix → Magix) et une **barre gouttière** sous le nom. Pas un classement, pas un 4ᵉ mode, pas des Achievements Game Center (v1).
+Un **cabinet personnel** : pastilles sur un mur. Grisées tant que jamais faites ; allumées dès la 1ʳᵉ fois, avec un **rang qui monte** (trois grades, noms ouverts) et une **barre gouttière** sous le nom. Pas un classement, pas un 4ᵉ mode, pas des Achievements Game Center (v1).
 
 But : donner une raison de **toucher à tout** le jeu, puis d’y **revenir** — la pièce se relit, elle ne se coche pas.
+
+Dans le reste du doc, les grades s’appellent **I / II / III** (mécanique 1 → 10 → 100). Les mots joueur sont au §2.
 
 ---
 
@@ -29,7 +32,7 @@ Si 6 icônes serrent le 40 mm : `iconStep` 56 → ~50, pas une 2ᵉ rangée.
 
 Fond scène + blox ambiants. Titre gouttière. Fermer en haut.
 
-1. **Bandeau** : pastilles allumées `28 / 41` · rangs `Blox 12 · Brix 11 · Magix 5` · dernière montée (nom + palier).
+1. **Bandeau** : pastilles allumées `28 / 41` · rangs `I 12 · II 11 · III 5` (libellés = noms figés au §2) · dernière montée (nom + palier).
 2. **Murs** par catégorie (titres cutout).
 3. **Grille** 4 pastilles / rangée (famille disques de rang, ~52 pt).
 
@@ -37,26 +40,26 @@ Pas de SpriteKit ici : lecture, pas pose.
 
 ### Une pastille, trois vies
 
-Pas bronze / argent / or Apple. **Le rang = un objet BLOMIX.** La pastille **change de nature** quand tu insistes.
+Pas bronze / argent / or Apple. **Une pastille, trois peaux** — le dessin dit le grade, **sans** reprendre les noms du plateau (voir §2).
 
 Exemple — *Super combo* (cascade ≥ 2 vagues) :
 
-| Compte | Rang | Pastille | Barre sous le nom |
+| Compte | Rang | Pastille (forme, à figer avec le nom) | Barre sous le nom |
 |---|---|---|---|
 | 0 | — | Grise, glyphe silhouette | Vide, ou absente |
-| 1 | **Blox** | Carré peau, **1** | Gouttière peau **1 / 10** |
-| 7 | Blox | Carré, **7** | **7 / 10** |
-| 10 | **Brix** | Carré Brix + chiffre, **10** | Nouvelle échelle **10 / 100** (remplie à 10 %) |
-| 47 | Brix | **47** | **47 / 100** |
-| 100 | **Magix** | Disque + couronne, **100** | Pleine. Le compteur continue (347…) ; plus de palier |
+| 1 | **I** | Forme 1, chiffre **1** | Gouttière peau **1 / 10** |
+| 7 | I | **7** | **7 / 10** |
+| 10 | **II** | Forme 2, **10** | Nouvelle échelle **10 / 100** (remplie à 10 %) |
+| 47 | II | **47** | **47 / 100** |
+| 100 | **III** | Forme 3, **100** | Pleine. Le compteur continue (347…) ; plus de palier |
 
 Le **1** apparaît au premier déblocage. Ensuite le chiffre **est le compteur**, pas un niveau 1/2/3.
 
 **Barre** = même recette que la jauge 0→N°1 (gouttière, fill peau, 3 pt). Sous le **nom** (caption mur + titre de fiche), pas autour du disque.
 
-- Rang Blox : dénominateur = seuil **Brix** (souvent 10).
-- Rang Brix : dénominateur = seuil **Magix** (souvent 100) — nouvelle barre, on « repart » visuellement.
-- Rang Magix : barre pleine, halo d’orbite **seulement à l’ouverture de la fiche** (pas 41 orbites sur le mur).
+- Rang I : dénominateur = seuil **II** (souvent 10).
+- Rang II : dénominateur = seuil **III** (souvent 100) — nouvelle barre, on « repart » visuellement.
+- Rang III : barre pleine, sparkle **seulement à l’ouverture de la fiche** (pas 41 orbites sur le mur).
 
 Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », pas de barre.
 
@@ -69,38 +72,160 @@ Panneau bas, chrome capsule :
 - Titre Changa + pastille (forme du rang actuel)
 - Phrase joueur (ce que c’est)
 - **×N** en gouttière
-- Barre **n / prochain** (ou pleine si Magix) + libellé *vers Brix* / *vers Magix*
-- Première fois · premier Brix · premier Magix (dates courtes)
+- Barre **n / prochain** (ou pleine si III) + libellé *vers II* / *vers III* (noms joueur du §2)
+- Première fois · premier II · premier III (dates courtes)
 - Fermer : hors panneau
 
 Grise connue : condition lisible, 0 / 1, pas de date.
 
 ---
 
-## 2. Paliers (le système)
+## 2. Langage des rangs (à figer)
+
+Les seuils **1 → 10 → 100** restent. Ce qui est ouvert : **comment on les *appelle* et on les *dessine***, pour que ça dise « trophée » sans piquer le vocabulaire du plateau.
+
+### Pourquoi pas Blox / Brix / Magix
+
+Sur le plateau :
+
+| Mot | Signe |
+|---|---|
+| **Blox** | Neutre — la matière du jeu |
+| **Brix** | **Négatif** — obstacle, compteur, ça gêne |
+| **Magix** | **Très positif** — rare, cadeau, disque |
+
+S’en servir comme grades d’un *même* trophée inverse le Brix (le 10ᵉ super combo deviendrait « plus dur / plus moche ») et use Magix (le 100ᵉ combo n’est pas un bloc Magix). Confusion garantie à la lecture de la pièce : « j’ai un Brix sur Combo » vs un Brix(5) dans la grille.
+
+On peut encore **emprunter des formes** (carré, relief, disque) si les **noms** sont autre chose.
+
+Contraintes pour un bon langage :
+
+1. Trois mots **ordonnés** (on entend que III > II > I).
+2. Une **touche trophée** — au moins le grade III doit sonner « vitrine / médaille / honneur », pas « encore un blox ».
+3. **Cohérent chrome BLOMIX** : poinçon, gouttière, relief, peau, orbite, CONNECT — pas bronze Apple, pas étoile RPG.
+4. Aucun mot déjà chargé **contre** le joueur (Brix, nuke, ligne, game over).
+5. Courts : ils tiennent sous une pastille et dans un bandeau.
+
+---
+
+### Piste A — *Poinçon / Relief / Couronne*  ★ reco craft
+
+| I (1) | II (10) | III (100) |
+|---|---|---|
+| **Poinçon** | **Relief** | **Couronne** |
+
+BLOMIX *frappe* déjà : intro du wordmark (poinçon L→R), boutons en **relief** / puits, Magix et bombe en **disque à couronne** — mais ici la couronne est celle d’une **médaille**, pas d’un Magix.
+
+- **Poinçon** = première marque, tu es inscrit dans le métal.
+- **Relief** = le chrome du jeu (on *touche* le trophée comme un bouton).
+- **Couronne** = l’objet « médaille de vitrine ». Sparkle à la fiche.
+
+Touche trophée : on **frappe** une médaille. Très atelier BLOMIX.  
+Risque : « poinçon » un peu technique ; « couronne » reste cousin du Magix — à tenir par le **nom** + un anneau plus *médaille* (plein, pas halo Magix).
+
+Formes : I = plaque percée d’un point ; II = capsule relief ; III = disque + anneau plein.
+
+---
+
+### Piste B — *Inscrit / Médaille / Trophée*  ★ reco lisible
+
+| I | II | III |
+|---|---|---|
+| **Inscrit** | **Médaille** | **Trophée** |
+
+Le mot **Trophée** n’apparaît qu’au plafond. I = tu es dans le cabinet. II = ça se porte. III = *ça*, c’est un trophée.
+
+Touche trophée : maximale, honnête.  
+Cohérence : les **pastilles** du mur restent le contenant (comme les disques de rang accueil) ; le grade est ce qu’elles *deviennent*.  
+Risque : collision **Trophée** (grade) vs **Pièce des trophées** (salle) — tenable si le titre d’écran est *Cabinet* / *Pièce*. Interdit la coupe 3D : III = médaille à couronne cutout, pas une coupe.
+
+Formes : I = pastille peau (disque accueil) ; II = plus de relief, liseré ; III = couronne + cutout.
+
+---
+
+### Piste C — *Plaque / Gouttière / Orbite*
+
+| I | II | III |
+|---|---|---|
+| **Plaque** | **Gouttière** | **Orbite** |
+
+Le plus **chrome** : plaque de métal → le trou BLOMIX → les grains d’orbite (sillage Magix/bombe, déjà « précieux »).
+
+Touche trophée : l’orbite *est* le glitter de récompense, sans dire Magix.  
+Risque : gouttière est un mot d’atelier (joueurs Crédits/doc) ; orbite = juice Magix. Un peu abstrait pour un enfant / un premier run.
+
+---
+
+### Piste D — *Liaison / Chaîne / CONNECT*
+
+| I | II | III |
+|---|---|---|
+| **Liaison** | **Chaîne** | **CONNECT** |
+
+Le jeu qui parle. I = deux cases se touchent. II = une vraie chaîne (≥ 5). III = le mot **CONNECT** (trait chrome bord à bord sur la pastille).
+
+Touche trophée : CONNECT est déjà le moment *noble* du plateau. En faire le grade ultime est très BLOMIX.  
+Risque **fort** : collision avec le trophée *CONNECT* (pont réel). « Chaîne » est le verbe de scoring. À réserver si on assume que le mur *cite* le jeu — ou garder CONNECT **seulement en dessin** (trait) et prendre les noms de A ou B.
+
+---
+
+### Piste E — *Éclat / Halo / Couronne*
+
+| I | II | III |
+|---|---|---|
+| **Éclat** | **Halo** | **Couronne** |
+
+Lumière de vitrine. Doux, « récompense ». Halo existe déjà sur les Magix.  
+Risque : encore le voisinage Magix ; moins de matière chrome (moins « frappé » que A).
+
+---
+
+### Piste F — *Cachet / Sceau / Couronne*
+
+| I | II | III |
+|---|---|---|
+| **Cachet** | **Sceau** | **Couronne** |
+
+Cabinet, officiel, un peu héraldique. Le meuble *estampille*.  
+Risque : trop « institution » pour BLOMIX (qui est puits + peau, pas blason).
+
+---
+
+### Ce qu’on peut mixer
+
+Le **nom** et le **dessin** se séparent :
+
+- Noms **B** (*Inscrit / Médaille / Trophée*) + formes **A** (poinçon → relief → couronne).
+- Ou noms **A** + trait **CONNECT** (chrome) seulement au rang III.
+
+Reco pour amender : **B pour les mots** (ça dit trophée), **A pour les formes** (ça dit BLOMIX). Écarter Blox/Brix/Magix. Piste D en joker si tu veux que le plateau *parle*.
+
+---
+
+## 3. Paliers (le système)
 
 Chaque pastille a **un événement** (ce qu’on compte ou le meilleur) et **deux seuils** après le premier.
 
 ### Courbes
 
-| Courbe | Blox | Brix | Magix | Pour |
+| Courbe | I | II | III | Pour |
 |---|---|---|---|---|
-| **Volume** | 1 | **10** | **100** | Combos, chaînes, parties, Magix courants, bombes, partages |
+| **Volume** | 1 | **10** | **100** | Combos, chaînes, parties, Magix (kinds) courants, bombes, partages |
 | **Rare** | 1 | **3** | **10** | SAINTX, BOT1, CONNECT, grille vide, rang 1 du jour, secrets |
 | **Qualité** | palier 1 | palier 2 | palier 3 | *Meilleur* : taille de chaîne 5 / 8 / 10+ ; stage 2 / 4 / Ultime ; score 1k / 5k / 10k |
-| **Unique** | 1 | — | — | Tuto fini, thème Clair : allumé = fait. Pas de barre (déjà Magix visuellement ? **non** : Blox suffit, on n’invente pas 10 tutos) |
+| **Unique** | 1 | — | — | Tuto fini, thème Clair : allumé = fait. Pas de barre. Rang I suffit (on n’invente pas 10 tutos) |
 
 Défaut = **Volume 1 / 10 / 100**, comme *Super combo*.  
-La « barre de 50 » du brief : on **ne** met **pas** un 4ᵉ métal. L’échelle Brix→Magix **est** la longue (100). Si un trophée est trop grind (victoire BOT1 ×100), il passe en **Rare 1 / 3 / 10**.
+Pas de 4ᵉ métal. L’échelle II→III **est** la longue (100). Si un trophée est trop grind (victoire BOT1 ×100), courbe **Rare 1 / 3 / 10**.
 
-Les paliers **empilent** : le 100ᵉ combo a déjà donné Blox et Brix.
+Les paliers **empilent** : le 100ᵉ combo a déjà donné I et II.
 
 ### Deux lectures, une pastille
 
 - **Compte** (la plupart) : chaque événement +1, rang selon le total.
 - **Qualité** (peu) : on mémorise le *max* (plus grande chaîne, plus haut stage, meilleur score). La barre va vers le *prochain seuil de max*, le chiffre sur le disque = ce max (8, pas « ×8 chaînes de 8 »).
 
-On ne dédouble plus « chaîne 5 », « chaîne 8 », « chaîne 10 » en trois pastilles : **une** pastille *Chaîne*, rang Blox dès 5, Brix à 8, Magix à 10+. Le **volume** de chaînes est une **autre** pastille (*Cent / mille*).
+On ne dédouble plus « chaîne 5 », « chaîne 8 », « chaîne 10 » en trois pastilles : **une** pastille *Chaîne*, rang I dès 5, II à 8, III à 10+. Le **volume** de chaînes est une **autre** pastille (*Cent / mille*).
 
 ### Règles catalogue
 
@@ -115,7 +240,7 @@ On ne dédouble plus « chaîne 5 », « chaîne 8 », « chaîne 10 » en trois
 
 ---
 
-## 3. Catégories (murs)
+## 4. Catégories (murs)
 
 | Mur | Glyphe | Rôle |
 |---|---|---|
@@ -132,7 +257,7 @@ Hors v1 : toutes les skins, avis App Store, Watch.
 
 ---
 
-## 4. Catalogue v1
+## 5. Catalogue v1
 
 IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).  
 **C** = courbe (V volume, R rare, Q qualité, U unique).
@@ -157,14 +282,14 @@ IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).
 | ID | Titre | Événement | C |
 |---|---|---|---|
 | `chain_size` | Chaîne | Plus grande chaîne (5 → 8 → 10+) | Q |
-| `chain_count` | Encore | Nombre de chaînes ≥ 5 | V (Magix à **1000**, Brix à 100 — exception : trop fréquent en 1/10/100) |
+| `chain_count` | Encore | Nombre de chaînes ≥ 5 | V (III à **1000**, II à 100 — exception : trop fréquent en 1/10/100) |
 | `combo` | Super combo | Résolution à **≥ 2** vagues | **V 1 / 10 / 100** — *l’exemple* |
 | `combo_deep` | Série | Une résolution à **≥ 5** vagues | R |
 | `connect` | CONNECT | Pont gauche–droite | R |
 | `board_empty` | Vide | Bonus +500 grille vide | R |
 
 `board_empty` hors Duel. CONNECT et chaînes **comptent** en Duel.  
-`chain_count` : Blox 1, Brix **100**, Magix **1000** (pas 10/100, trop vite).
+`chain_count` : I = 1, II = **100**, III = **1000** (pas 10/100, trop vite).
 
 ### Magix (11)
 
@@ -184,7 +309,7 @@ Effet vu à l’atterrissage. Pas en Duel.
 | `magix_all_nine` | Cabinet Magix | U — les 9 au moins ×1. Barre 0–9 kinds distincts (qualité déguisée) |
 | `magix_saintx_ultime` | Infini ×6 | R — SAINTX en Ultime |
 
-Glyphe = symbole Magix (`?` `9` `+` `X` `=` `O` `∞` `§` `B`). Rang Magix de la pastille = couronne **en plus** du glyphe.
+Glyphe = symbole Magix (`?` `9` `+` `X` `=` `O` `∞` `§` `B`). Rang III de la pastille = couronne **en plus** du glyphe (médaille, pas « ce Magix est Magix »).
 
 ### Arcade (5)
 
@@ -214,7 +339,7 @@ Libre ou Défi Five, sauf `play_five`.
 |---|---|---|---|
 | `daily_ghost_beat` | Référence | Score > Référence BLOMIX | R |
 | `daily_rank_1` | Jour 1 | Rang live 1 au GO (n’importe quel défi) | R |
-| `daily_podium` | Podium | +5 / +3 / +1 crédité | V — Brix = 10 podiums, Magix = 50 |
+| `daily_podium` | Podium | +5 / +3 / +1 crédité | V — II = 10 podiums, III = 50 |
 | `daily_streak` | Semaine | Meilleure série de jours UTC avec ≥ 1 défi fini (3 → 7 → 30) | Q |
 | `daily_days` | Habitude | Jours distincts avec ≥ 1 défi classé | V |
 
@@ -262,20 +387,20 @@ Plus de pastilles séparées « 10 Arcade / 10 Five » : c’est `play_daily_*` 
 | `secret_brixed_zero` | 9 solitaire | BRIXED sans autre Brix |
 | `secret_share_pb` | Vitrine | Share GO **avec** bandeau record |
 
-**50** pastilles. Un Magix sur *Super combo* = 100 cascades ; un Magix sur *Pacifiste* = 10 GO à 5 bombes.
+**50** pastilles. Un rang III sur *Super combo* = 100 cascades ; un rang III sur *Pacifiste* = 10 GO à 5 bombes.
 
 ---
 
-## 5. Graphisme
+## 6. Graphisme
 
-Pas de coupes 3D. Le rang **est** la forme.
+Pas de coupes 3D. Le rang **est** la forme — **provisoire** jusqu’au choix §2 (ci-dessous = piste A, craft).
 
-| Rang | Forme | Chiffre | Barre |
+| Rang | Forme (piste A) | Chiffre | Barre |
 |---|---|---|---|
 | Gris | Disque chrome α 0,35 | — | 0 |
-| **Blox** | Carré peau (blox) | compteur / max qualité | / seuil Brix |
-| **Brix** | Carré Brix, digit style HUD | idem | / seuil Magix (nouvelle échelle) |
-| **Magix** | Disque + couronne noire | idem | pleine ; orbite à la fiche |
+| **I** | Plaque / poinçon, fill peau | compteur / max qualité | / seuil II |
+| **II** | Capsule **relief** (bouton BLOMIX) | idem | / seuil III (nouvelle échelle) |
+| **III** | Disque + **couronne de médaille** (anneau plein, pas halo Magix) | idem | pleine ; orbite à la fiche |
 
 - Caption Nunito sous la forme, barre **3 pt** sous la caption (largeur = pastille).
 - Mur : blox ambiants plus lents.
@@ -286,14 +411,14 @@ Portrait. 4 colonnes, caption d’un mot (Magix non traduits).
 
 ---
 
-## 6. Technique (plus tard, pas maintenant)
+## 7. Technique (plus tard, pas maintenant)
 
 Un hook par famille d’événements. Le store ne connaît que `id → count | best`, le **rang se calcule** (seuils dans le catalogue).
 
 ```
-rang = Magix si valeur ≥ sMagix
-     else Brix si valeur ≥ sBrix
-     else Blox si valeur ≥ 1 (ou ≥ sBlox qualité)
+rang = III si valeur ≥ s3
+     else II si valeur ≥ s2
+     else I si valeur ≥ 1 (ou ≥ s1 qualité)
      else gris
 ```
 
@@ -303,7 +428,7 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 
 ---
 
-## 7. Ce qu’on ne fait pas
+## 8. Ce qu’on ne fait pas
 
 - Battle pass, XP global, quêtes du jour (déjà les Défis).
 - 4ᵉ métal (platine). Trois formes BLOMIX, stop.
@@ -315,19 +440,20 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 
 ---
 
-## 8. Décisions à figer
+## 9. Décisions à figer
 
-1. **Nom** : *Pièce des trophées* / *Cabinet* / *Réalisations* / autre.
-2. **6ᵉ icône** accueil vs Crédits.
-3. Courbe Volume **1 / 10 / 100** (reco, ton *Super combo*) vs **1 / 10 / 50** (Or plus tôt).
-4. `chain_count` à 100 / 1000 : OK comme exception ?
-5. Toast accueil vs badge icône seulement.
-6. 9 secrets, assez ?
-7. Rétroactif minimal (hiscores, podium, tuto) : OK ?
+1. **Nom de la salle** : *Pièce des trophées* / *Cabinet* / *Réalisations* / autre.
+2. **Langage des rangs** (§2) : A Poinçon/Relief/Couronne · B Inscrit/Médaille/Trophée · mix B mots + A formes (reco) · D CONNECT · autre.
+3. **6ᵉ icône** accueil vs Crédits.
+4. Courbe Volume **1 / 10 / 100** vs **1 / 10 / 50**.
+5. `chain_count` à 100 / 1000 : OK comme exception ?
+6. Toast accueil vs badge icône seulement.
+7. 9 secrets, assez ?
+8. Rétroactif minimal (hiscores, podium, tuto) : OK ?
 
 ---
 
-## 9. Ordre de code (plus tard)
+## 10. Ordre de code (plus tard)
 
 1. Store + rang calculé + écran mur / fiche / barre — une pastille témoin (*Super combo*).
 2. Seuil (modes).

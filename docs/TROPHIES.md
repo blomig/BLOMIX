@@ -65,6 +65,8 @@ Exemple — *Super combo* (cascade ≥ 2 vagues), courbe Volume :
 | 100 | **III** | **100** | Tout plein. Paillettes Magix **depuis** les deux disques. Compteur continue (347…) |
 
 Même lecture sur les autres courbes : le 1er tour va de s1 à s2, le 2ᵉ de s2 à s3 (Rare 1 / 3 / 10, Qualité 5 / 8 / 10+, etc.). Unique : pas de tours, 0 ou 1.
+NBLOMIG / ok avec toute la logique, simplement ce n'est pas 0/1/10/100, mais 0/Nombre1/Nombre2/Nombre3 (on préciser pour chaque trophées à quoi correspondent les nombre1, nombre2, nombre3 ainsi que les labels / noms pour I, II, et III. 
+NBLOMIG / ça serait bien, après avoir rempli le trophée qu'il 1° continue à compter - c'est déjà le cas - et qu'il affiche dessous 3 petites étoiles (vides au début, et remplies gouttières après l'atteinte du III pour la première étoile, puis si le joueur refait le nombre d'évèneemnts/ achevement correspondant au III la deuxiième étoile s'allume, puis pour un nombre encore équivalent la 3ème étoile. 
 
 Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », anneaux sans fill, **pas** de 0 au centre.
 
@@ -82,7 +84,7 @@ Panneau bas, chrome capsule :
 - Fermer : hors panneau
 
 Grise connue (n = 0) : condition lisible, anneaux + légendes, fill vide, centre **0**.
-
+NBLOMIG / très bien pour commencer simplemnt les chiffres 1/10/100 ne s'affichent pas en entier ou pas bien. Ce n'est pas très clair le nombre d'évènementn que l'on doit faire, or dans la fiche, ça doit être limpide.
 ---
 
 ## 2. Langage des rangs (à figer)

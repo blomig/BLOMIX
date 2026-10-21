@@ -7,21 +7,20 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [8.8] — non publié
+## [8.8] — non publié (cible **18 nov. 2026**, glissière 2 déc.)
 
-Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Pièce des trophées : piste [TROPHIES.md](TROPHIES.md), pas de code. Watch inchangé **8.0 / 146**.
+Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Salon des trophées : 1ʳᵉ version testable ([TROPHIES.md](TROPHIES.md)). Watch inchangé **8.0 / 146**. Calendrier + actions humaines : [RELEASE_8.8.md](RELEASE_8.8.md).
 
 ### Ajouté
 
 - **Mode Five** : solo sans timer ni stages, Magix oui, bombes 3×3 (stock 5), ligne tous les **5** coups (HUD LIGNE x/5). Slot `blomix_five_save_v1`, save v8 (`isFiveMode`, `minReadableVersion` 7). Classement `FiveMode`. +500 / SAINTX +200 plats. Auto-drop non.
-- **Défi Five** : miroir du Défi Arcade, graines `blomix-five-v1` / `blomix-five-fx-v1`, slot `blomix_five_daily_save_v1`, CK `FiveDailyScore` (Production), carrière `dailywins_five`. Le score de la run va sur `FiveMode` seulement (pas Arcade, pas moyenne).
+- **Défi Five** : miroir du Défi Arcade, graines `blomix-five-v1` / `blomix-five-fx-v1`, slot `blomix_five_daily_save_v1`, CK `FiveDailyScore` (Production), carrière `dailywin_five`. Le score de la run va sur `FiveMode` seulement (pas Arcade, pas moyenne).
 - Accueil 3 rangées : Arcade hero ; Défi Arcade | Défi Five ; Duel | Zen | Five. Pastilles **4+3**. SCORE 7 onglets.
+- **Salon des trophées** : store local, pastilles-cibles, modal, 6ᵉ icône. Toast de palier en overlay scène (même Y qu’accueil, grille inchangée) ; apparence plus tard. Trois étoiles gouttière sous la cible à 1× / 2× / 3× le seuil III.
 
-### À créer (humain, avant jalon)
+### Portes humaines (avant jalon)
 
-- ASC : leaderboards `FiveMode` et `DailyWin_five` (`dailywins_five`).
-- CloudKit : type Public `FiveDailyScore` **déployé en Production**.
-- ASC : `FiveMode` + `DailyWin_five` (`dailywins_five`) créés, en attente de vérification.
+Voir la checklist [RELEASE_8.8.md](RELEASE_8.8.md) : 8.6 en vente, nomination featuring (avant 26 oct.), boards `FiveMode` + `dailywin_five`, CK `FiveDailyScore` Production, TestFlight public, copie trophées au 4 nov.
 
 ---
 

@@ -19,6 +19,7 @@
 | [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md) | Défi Arcade / Défi Five — graine UTC, hub, CloudKit, points podium |
 | [TROPHIES.md](TROPHIES.md) | Salon des trophées — spec + 1ʳᵉ version testable |
 | [TROPHY_COPY.md](TROPHY_COPY.md) | Copie trophées (brouillon) : murs, 4 noms, seuils, phrases — pas lu par le jeu |
+| [RELEASE_8.8.md](RELEASE_8.8.md) | Jalon 8.8 : calendrier (vente **18 nov. 2026**), actions humaines, nomination featuring |
 | [BOT_DUEL.md](BOT_DUEL.md) | Duel vs bots (BABYBOT … BOT1) |
 | [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md) | Juice Spec : animations, particules, sons, timings |
 | [GLOSSARY.md](GLOSSARY.md) | Terminologie canonique (code ↔ joueur ↔ UI) |
@@ -69,6 +70,7 @@
 | Sound / VFX designer | `VFX_AND_ANIMATIONS.md` → `JUICE_PISTES.md` → `GLOSSARY.md` |
 | Traducteur | `LOCALIZATION.md` → `GLOSSARY.md` |
 | Mainteneur / release | `CHANGELOG.md` → `store/whats-new/` → `DEVELOPMENT.md` § Déploiement (Fastlane) |
+| Jalon 8.8 (Five + salon, 18 nov. 2026) | `RELEASE_8.8.md` → `TROPHY_COPY.md` → `TROPHIES.md` |
 | Apple Watch (Zen light, 7.4) | `WATCH_ZEN.md` |
 
 ---

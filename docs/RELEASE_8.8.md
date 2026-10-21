@@ -1,0 +1,243 @@
+# BLOMIX 8.8 — calendrier et actions
+
+> **Figé le 21 oct. 2026.**  
+> Mise en vente visée : **mercredi 18 novembre 2026**.  
+> Glissière (si review / badges / copie) : **mercredi 2 décembre 2026**.  
+> Watch inchangé : **8.0 / 146**. Ne pas bumper avec l’iPhone.
+
+Ce fichier est le **tableau de bord humain** du jalon. Cocher les cases. Éditer sur GitHub si une date bouge. Spec produit : [TROPHIES.md](TROPHIES.md), [TROPHY_COPY.md](TROPHY_COPY.md), [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md), [CHANGELOG.md](CHANGELOG.md). Déploiement : [DEVELOPMENT.md](DEVELOPMENT.md) § Fastlane.
+
+**8.8 = nouveau mode Five + Défi Five + Salon des trophées.** Pas un 8.6-bis (juice). Une seule nomination featuring pour l’année.
+
+---
+
+## Dates figées
+
+| | Date | Rôle |
+|---|---|---|
+| Aujourd’hui | mer. 21 oct. | Fichier créé. Local encore **8.6 / 158**. |
+| Nomination ASC | **avant dim. 26 oct.** | Featuring Nominations, type **App Enhancements**. |
+| Copie trophées assez bonne | **mer. 4 nov.** | Ou décision : sortir avec les libellés d’aujourd’hui. |
+| Tampon 8.8 + TestFlight 8.8 | **4–11 nov.** | Bump `MARKETING_VERSION` **seulement là**. |
+| Envoi review | **mar. 11 – jeu. 13 nov.** | `fastlane release` puis `submit` (`automatic_release: true`). |
+| **Mise en vente** | **mer. 18 nov.** | Cible. |
+| Glissière | mer. 2 déc. | Si Apple râle (CK / GC) ou copie pas prête. **Éditer** la nomination, ne pas en créer une 2ᵉ. |
+
+Fourchette à coller dans la nomination : **2026-11-18 → 2026-12-02**.
+
+---
+
+## Cette semaine (toi) — ordre
+
+Ne rien attendre du peaufinage badges. Les éditeurs veulent un TestFlight **jouable**, pas les 63 noms définitifs.
+
+1. [ ] **8.6 en vente ?** App Store Connect → version 8.6 = **Ready for Sale**. Tant qu’une fiche 8.6 est en review / Pending, on **ne peut pas** créer 8.8 (Fastlane refuserait, incident 6.9).
+2. [ ] **Nomination featuring** (avant dim. 26 oct.) — § Nomination ci-dessous, texte à coller.
+3. [ ] **Game Center** — vérifier (pas forcément recréer) :
+   - `FiveMode` (carrière Five)
+   - `DailyWin_five` — vendor ID **`dailywin_five`** (singulier), **pas** `dailywins_five`
+   - ni l’un ni l’autre **archivé**
+4. [ ] **CloudKit** — Dashboard → conteneur `iCloud.blomig.BLOMIX` → Public **Production** : type `FiveDailyScore` déployé (le champ jour s’appelle **`Day`**, pas `day`).
+5. [ ] **TestFlight public** d’un build où on **joue Five** et on **ouvre le Salon** (même encore tamponné 8.6). Coller le lien dans la nomination (Supplemental Materials).
+6. [ ] **`TROPHY_COPY.md`** — 20–30 min par soir. Deadline copie : **4 nov.** Voir § Copie.
+
+---
+
+## Calendrier
+
+Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10n, Fastlane, Nouveautés. **Ensemble** = playtest.
+
+### Semaine 0 — 21–26 oct. (ne rien attendre)
+
+| | Action | Qui |
+|---|---|---|
+| [ ] | 8.6 Ready for Sale | toi |
+| [ ] | Nomination App Enhancements, plage 18 nov. – 2 déc. | toi |
+| [ ] | Boards GC Five + CK `FiveDailyScore` Production | toi |
+| [ ] | Lien TestFlight public (Five + salon jouables) | toi |
+| [ ] | Démarrer `TROPHY_COPY.md` | toi |
+| | Peaufinage badges (cible, étoiles, fiche, toast) — **sans bump 8.8** | agent |
+
+### Semaine 1 — 27 oct. – 2 nov.
+
+| | Action | Qui |
+|---|---|---|
+| [ ] | Playtest Five, Défi Five, salon, saves, Duel/Zen/Arcade **intacts** | ensemble |
+| [ ] | Freeze **dessin** salon (plus de « encore une gouttière ») | ensemble |
+| [ ] | Copie : murs + phrases + un nom par palier, **ou** décision B (libellés actuels en 8.8) | toi |
+| | Continuer badges / toasts selon retours | agent |
+
+### Semaine 2 — 3–9 nov.
+
+| | Action | Qui |
+|---|---|---|
+| [ ] | **4 nov.** : *« implémente TROPHY_COPY »* **ou** « on sort avec les noms d’aujourd’hui » | toi → agent |
+| [ ] | 6 langues (FR+EN min., DE/ES/IT/PT si exposé) | agent |
+| [ ] | Captures brutes dans `store/asc-assets/inbox/` : **accueil 3 rangées**, **Five en jeu**, **salon** (portrait, iPhone) | toi |
+| | Recadrage 6.5" / 6.9" → `out/` | agent |
+| [ ] | `store/whats-new/` 6 langues (Five + salon, pas CONNECT) + CHANGELOG | agent |
+| [ ] | Bump **8.8 / 159** (Watch **8.0 / 146**) + `fastlane beta` | agent, **après** freeze |
+
+### Semaine 3 — 10–16 nov.
+
+| | Action | Qui |
+|---|---|---|
+| [ ] | Upload **manuel** captures ASC (Fastlane `skip_screenshots`) — slots 6.5" et 6.9", FR puis EN | toi |
+| [ ] | Preview : **garder** la vidéo actuelle sauf plan Five 15–30 s prêt | toi |
+| [ ] | Vérifier Nouveautés 6 locales après `fastlane metadata` / `release` | toi |
+| [ ] | **11–13 nov.** `fastlane release` puis `submit` | ensemble |
+| [ ] | Si la date de vente bouge : **éditer** la nomination (date seulement) | toi |
+
+### Semaine 4 — 17–18 nov.
+
+| | Action | Qui |
+|---|---|---|
+| [ ] | **18 nov.** 8.8 en vente (`automatic_release`) | Apple |
+| [ ] | Contrôle fiche : Nouveautés, captures Five/salon, boards GC, CK | toi |
+| [ ] | Silence éditorial = normal. Mail « promotional artwork » = répondre vite (Admin / App Manager / Marketing) | toi |
+
+---
+
+## Nomination featuring (coller tel quel)
+
+**Où :** App Store Connect → BLOMIX → barre latérale **Featuring** → **Nominations** → **+** → Create Nomination.
+
+**Rôle requis :** Account Holder, Admin, App Manager ou Marketing.
+
+| Champ | Valeur |
+|---|---|
+| Nom interne | `BLOMIX 8.8 — Five + Trophy Room` |
+| Type | **App Enhancements** (pas App Launch, pas New Content) |
+| Date | onglet **Range** : **2026-11-18** → **2026-12-02** |
+| Platforms | iPhone |
+| Countries | laisser les pays où l’app est en vente (FR, US, DE, ES, IT, BR, etc.) |
+| Localizations | FR, EN, DE, ES, IT, PT |
+| In-App Event | aucun (sauf si tu en crées un « lancement Five » — optionnel, pas bloquant) |
+| Supplemental | 1) lien TestFlight public  2) éventuellement preview  3) cette page GitHub |
+
+Une fois soumise : on **peut** changer la date ; on **ne peut plus** changer le type ni l’app liée.
+
+### Description (≤ 1000 car., anglais — les éditeurs lisent ça)
+
+```
+BLOMIX 8.8 is a significant update: a new original mode (Five) plus a personal trophy room.
+
+Five is a new untimed solo mode, distinct from Zen: incoming line every 5 moves (not 10), Magix count as a placement, bombs do not. Dedicated high score (Game Center FiveMode) and a separate daily (independent seed, CloudKit, dailywin_five). Home becomes Arcade; daily Arcade | daily Five; Duel | Zen | Five.
+
+The Trophy Room is a cabinet of 63 targets on 8 walls covering every mode. Each trophy keeps counting, fills two rings to rank III, then lights 3 stars. Local progress, not Game Center Achievements.
+
+iPhone puzzle, 6 languages (FR EN DE ES IT PT), Game Center, no ads, no IAP wall. Please play Five and open the trophy room from the TestFlight link.
+```
+
+### Helpful Details
+
+```
+Indie/solo studio (France). BLOMIX is a free 8×8 puzzle with inverted gravity, Brix, Magix, and no ads / no IAP wall. 8.2–8.6 were juice and rules patches; 8.8 is our one major 2026 moment (new mode + long-term collection).
+
+Please play Five for about 10 minutes (line every 5, Magix as a move) and open the Trophy Room from home (6th icon, trophy). Daily Five uses a different seed from Arcade daily.
+
+This is our only featuring nomination for the year. Priority: Games tab collection / list around the 18 Nov window. iPhone portrait only.
+
+Localization: in-app and product page in FR EN DE ES IT PT-BR.
+```
+
+### Après envoi
+
+- Pas de mail « non ». Le défaut est le silence.
+- Un mail qui demande des **visuels promo** = le dossier a bougé. Specs : [App Store promotional artwork](https://help.apple.com/asc/appspromoart/).
+- Notification ASC « featured on Today » = oui. Assets sociaux depuis l’app App Store Connect.
+- Si 8.8 glisse : Nominations → la ligne soumise → changer la plage, resoumettre. **Pas** de 2ᵉ nomination 8.8.
+
+Aide Apple : [Nominate your app](https://developer.apple.com/help/app-store-connect/manage-featuring-nominations/nominate-your-app-for-featuring/) · [Getting Featured](https://developer.apple.com/app-store/getting-featured/).
+
+---
+
+## Portes ASC / CloudKit (avant TestFlight externe)
+
+Sans ça, Five marche en local et casse en TF / magasin.
+
+### Game Center
+
+ASC → BLOMIX → Game Center.
+
+| Nom affiché | Vendor ID (celui du code) | Rôle |
+|---|---|---|
+| (carrière Five) | `FiveMode` | highscore mode Five |
+| `DailyWin_five` | **`dailywin_five`** | carrière Défi Five (points podium) |
+
+Arcade reste `dailywins_arc`. Ne pas « corriger » le Five en `dailywins_five`.
+
+Quand la fiche **8.8** existera : rattacher ces boards à la version (comme les boards Arcade / Zen).
+
+### CloudKit
+
+Dashboard → `iCloud.blomig.BLOMIX` → **Production** (pas Development) :
+
+- Type `FiveDailyScore` déployé.
+- Champ jour : **`Day`** (majuscule, déjà le cas si créé à la main).
+- Record name attendu : `five_{YYYY-MM-DD}_{gamePlayerID}`.
+
+Arcade `DailyScore` / champ `day` : ne pas y toucher.
+
+---
+
+## Copie trophées — décision au 4 nov.
+
+Fichier : [TROPHY_COPY.md](TROPHY_COPY.md) (déjà sur GitHub, pas lu par le jeu). Les `id` sont gelés. Les 63 `nom_0…3` sont encore des `…`.
+
+Au **4 novembre**, une des trois :
+
+| | Quoi | Conséquence |
+|---|---|---|
+| **A (reco)** | Murs remplis + phrase + au moins un nom par palier | Agent implémente (`BlomixL10n` + 6 `.lproj`) dans le lot 8.8 |
+| **B** | « On sort avec les libellés d’aujourd’hui » (Five, Arcade, I/II/III) | 8.8 part ; copie riche = plus tard |
+| **C** | Copie pas prête, tu la veux dans 8.8 | On glisse au **2 déc.** et on édite la nomination |
+
+Les **mots à la place de I/II/III** peuvent rester I/II/III en 8.8. Pas bloquant pour Apple.
+
+Quand c’est assez bon : message **« implémente TROPHY_COPY »**. Pas avant.
+
+---
+
+## Captures App Store (semaine 2–3)
+
+Fastlane **ne pousse pas** les screenshots. Procédure : [store/asc-assets/README.md](../store/asc-assets/README.md).
+
+La fiche actuelle (chaînes / Magix / modes / gratuit) **ne montre pas Five ni le salon**. Pour une nomination, il faut au minimum :
+
+1. Accueil **3 rangées** (Arcade / Défis / Duel+Zen+Five)
+2. Five **en jeu** (HUD LIGNE x/5 visible)
+3. Salon des trophées (mur de cibles)
+
+Déposer les PNG bruts dans `store/asc-assets/inbox/` (gitignoré). L’agent recadre 6.5" (1284×2778) et 6.9" (1320×2868). Upload **manuel** ASC, locales FR puis EN.
+
+App Preview : **ne pas** remplacer tant qu’on n’a pas un plan Five 15–30 s.
+
+---
+
+## Ce que l’agent ne fait pas tout seul
+
+- Push GitHub **sauf** demande (« commit et push », « mets-le sur GitHub »).
+- Bump `MARKETING_VERSION` **avant** la semaine du 4 nov.
+- Implémenter `TROPHY_COPY` sans le feu vert.
+- Créer boards GC / déployer le schéma CK Production.
+- Soumettre la nomination (ton login ASC).
+- `fastlane submit` sans ton OK.
+
+---
+
+## Rappel Fastlane (semaine 3)
+
+```bash
+export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+bundle exec fastlane validate
+bundle exec fastlane beta      # TestFlight 8.8
+bundle exec fastlane release   # IPA + Nouveautés — pas la review
+bundle exec fastlane submit    # review, automatic_release: true
+```
+
+`release` / `submit` **refusent** s’il reste une fiche éditable dont le numéro ≠ 8.8. D’où le check 8.6 Ready for Sale **cette semaine**.
+
+---
+
+*Mettre à jour ce fichier si la glissière 2 déc. est utilisée, ou si 8.6 n’est pas en vente à temps.*

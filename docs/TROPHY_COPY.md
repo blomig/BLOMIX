@@ -2,7 +2,8 @@
 
 > **Ce fichier n’est pas lu par le jeu.** C’est le bac à sable pour les mots et les chiffres.  
 > Quand c’est prêt : *« implémente TROPHY_COPY »* — l’agent recopie vers le catalogue Swift + `BlomixL10n` / `.lproj`.  
-> Spec mécanique / dessin : [TROPHIES.md](TROPHIES.md). Ne pas y mélanger la copie.
+> Spec mécanique / dessin : [TROPHIES.md](TROPHIES.md). Ne pas y mélanger la copie.  
+> Jalon 8.8 : copie assez bonne (ou décision de reporter) au **4 nov. 2026** — [RELEASE_8.8.md](RELEASE_8.8.md).
 
 **Pourquoi pas un JSON ?** Un JSON irait pour un import automatique. Ici on peaufine des **noms**, des **phrases** et des **notes** en français, souvent sur GitHub : le Markdown se lit, se commente, s’édite. Les `id` restent stables ; le reste est à toi.
 

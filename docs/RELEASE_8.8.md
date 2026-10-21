@@ -1,6 +1,6 @@
 # BLOMIX 8.8 — calendrier et actions
 
-> **Figé le 21 oct. 2026.**  
+> **Figé le 21 oct. 2026.** (état **22 oct.** : 8.6 en vente, GC Five + CK Production **déjà actifs**.)  
 > Mise en vente visée : **mercredi 18 novembre 2026**.  
 > Glissière (si review / badges / copie) : **mercredi 2 décembre 2026**.  
 > Watch inchangé : **8.0 / 146**. Ne pas bumper avec l’iPhone.
@@ -27,19 +27,27 @@ Fourchette à coller dans la nomination : **2026-11-18 → 2026-12-02**.
 
 ---
 
+## Deux builds (ne pas confondre)
+
+La nomination **n’est pas** l’upload magasin. Il y a **deux** binaires, à deux dates.
+
+| | Quand | Tampon | Pour qui | Copie trophées |
+|---|---|---|---|---|
+| **A. TestFlight éditeurs** | Idéalement **avec** la nomination (avant dim. 26 oct.), sinon **dans la foulée** (on **édite** la nomination pour coller le lien) | Encore **8.6** (ou beta), peu importe | Éditeurs Apple : **jouer** Five ~10 min + ouvrir le Salon | **Non** — I/II/III suffisent |
+| **B. Build magasin 8.8** (« le propre ») | **4–11 nov.** TestFlight 8.8 → **11–13 nov.** review | **8.8 / 159** | App Review + joueurs le 18 nov. | **Oui si option A** : copie figée **avant** cet upload (deadline **4 nov.**). Option B = libellés actuels. |
+
+- **Nomination dimanche 26** : le formulaire + la date. Un lien TestFlight **aide** mais **n’est pas obligatoire** le jour J. On peut l’ajouter après (Supplemental Materials restent éditables).
+- **Ne pas** bumper 8.8 pour la nomination. Un 8.8 tamponné trop tôt bloque la fiche (et on n’a pas encore Nouveautés / captures / copie).
+- **Ne pas** attendre le 4 nov. pour donner un TF aux éditeurs : ils jouent le jeu, pas les noms des pastilles.
+
 ## Cette semaine (toi) — ordre
 
-Ne rien attendre du peaufinage badges. Les éditeurs veulent un TestFlight **jouable**, pas les 63 noms définitifs.
-
-1. [ ] **8.6 en vente ?** App Store Connect → version 8.6 = **Ready for Sale**. Tant qu’une fiche 8.6 est en review / Pending, on **ne peut pas** créer 8.8 (Fastlane refuserait, incident 6.9).
-2. [ ] **Nomination featuring** (avant dim. 26 oct.) — § Nomination ci-dessous, texte à coller.
-3. [ ] **Game Center** — vérifier (pas forcément recréer) :
-   - `FiveMode` (carrière Five)
-   - `DailyWin_five` — vendor ID **`dailywin_five`** (singulier), **pas** `dailywins_five`
-   - ni l’un ni l’autre **archivé**
-4. [ ] **CloudKit** — Dashboard → conteneur `iCloud.blomig.BLOMIX` → Public **Production** : type `FiveDailyScore` déployé (le champ jour s’appelle **`Day`**, pas `day`).
-5. [ ] **TestFlight public** d’un build où on **joue Five** et on **ouvre le Salon** (même encore tamponné 8.6). Coller le lien dans la nomination (Supplemental Materials).
-6. [ ] **`TROPHY_COPY.md`** — 20–30 min par soir. Deadline copie : **4 nov.** Voir § Copie.
+1. [x] **8.6 en vente** (22 oct.). Fiche 8.8 créable plus tard, pas maintenant.
+2. [ ] **Nomination featuring** (avant dim. 26 oct.) — § Nomination, texte à coller.
+3. [x] **Game Center** : `FiveMode` + `dailywin_five` déjà actifs (22 oct.).
+4. [x] **CloudKit** : `FiveDailyScore` Production déjà actif (22 oct.).
+5. [ ] **TestFlight public** (build **A**, pas le propre 8.8) : Five + Salon jouables. Lien dans la nomination, ou collé juste après.
+6. [ ] **`TROPHY_COPY.md`** — 20–30 min par soir. **Pas** avant la nomination. Deadline : **mer. 4 nov.**, **avant** l’upload du build magasin B. Voir § Copie.
 
 ---
 
@@ -51,11 +59,11 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 
 | | Action | Qui |
 |---|---|---|
-| [ ] | 8.6 Ready for Sale | toi |
+| [x] | 8.6 Ready for Sale (22 oct.) | toi |
 | [ ] | Nomination App Enhancements, plage 18 nov. – 2 déc. | toi |
-| [ ] | Boards GC Five + CK `FiveDailyScore` Production | toi |
-| [ ] | Lien TestFlight public (Five + salon jouables) | toi |
-| [ ] | Démarrer `TROPHY_COPY.md` | toi |
+| [x] | Boards GC Five + CK `FiveDailyScore` Production (22 oct.) | toi |
+| [ ] | Lien TestFlight public **A** (Five + salon, encore tampon 8.6) | toi |
+| [ ] | Démarrer `TROPHY_COPY.md` (pas bloquant pour la nomination) | toi |
 | | Peaufinage badges (cible, étoiles, fiche, toast) — **sans bump 8.8** | agent |
 
 ### Semaine 1 — 27 oct. – 2 nov.
@@ -113,7 +121,7 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 | Countries | laisser les pays où l’app est en vente (FR, US, DE, ES, IT, BR, etc.) |
 | Localizations | FR, EN, DE, ES, IT, PT |
 | In-App Event | aucun (sauf si tu en crées un « lancement Five » — optionnel, pas bloquant) |
-| Supplemental | 1) lien TestFlight public  2) éventuellement preview  3) cette page GitHub |
+| Supplemental | 1) lien TestFlight public **A** (si déjà là ; sinon on l’édite après)  2) éventuellement preview  3) cette page GitHub |
 
 Une fois soumise : on **peut** changer la date ; on **ne peut plus** changer le type ni l’app liée.
 
@@ -184,6 +192,12 @@ Arcade `DailyScore` / champ `day` : ne pas y toucher.
 ## Copie trophées — décision au 4 nov.
 
 Fichier : [TROPHY_COPY.md](TROPHY_COPY.md) (déjà sur GitHub, pas lu par le jeu). Les `id` sont gelés. Les 63 `nom_0…3` sont encore des `…`.
+
+**Pas besoin** pour la nomination ni pour le TestFlight éditeurs (build A).
+
+**Besoin** avant le build magasin (B), si les noms doivent être **dans** 8.8 : freeze copie **mer. 4 nov.** → *« implémente TROPHY_COPY »* → puis captures (le salon affiche les noms) → puis `fastlane beta` 8.8.
+
+Si la copie arrive **après** l’upload 8.8, elle n’est plus dans cette version (sauf 8.8.1 / 8.9).
 
 Au **4 novembre**, une des trois :
 

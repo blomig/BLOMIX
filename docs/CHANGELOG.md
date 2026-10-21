@@ -20,7 +20,7 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 
 ### Portes humaines (avant jalon)
 
-Voir la checklist [RELEASE_8.8.md](RELEASE_8.8.md) : 8.6 en vente, nomination featuring (avant 26 oct.), boards `FiveMode` + `dailywin_five`, CK `FiveDailyScore` Production, TestFlight public, copie trophées au 4 nov.
+Voir [RELEASE_8.8.md](RELEASE_8.8.md). **22 oct.** : 8.6 en vente ; boards `FiveMode` + `dailywin_five` et CK `FiveDailyScore` Production déjà actifs. Reste : nomination featuring (avant 26 oct.), TestFlight éditeurs, copie trophées au 4 nov.
 
 ---
 

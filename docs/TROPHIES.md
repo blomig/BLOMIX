@@ -10,7 +10,7 @@ Un **cabinet personnel** : pastilles-cibles sur un mur. Grises tant que jamais f
 
 But : donner une raison de **toucher à tout** le jeu, puis d’y **revenir** — la pièce se relit, elle ne se coche pas.
 
-Dans le reste du doc, les grades s’appellent **I / II / III** (mécanique 1 → 10 → 100). Les mots joueur sont au §2.
+Dans le reste du doc, les grades s’appellent **I / II / III** (mécanique 1 → 10 → 100). Les **mots joueur** (murs, 4 noms par pastille, seuils, phrases) se travaillent dans **[TROPHY_COPY.md](TROPHY_COPY.md)** — pas ici. Quand le fichier est prêt : *implémente TROPHY_COPY*.
 
 ---
 
@@ -30,7 +30,7 @@ Si 6 icônes serrent le 40 mm : `iconStep` 56 → ~50, pas une 2ᵉ rangée.
 
 ### L’écran (modal UIKit, famille Crédits / Score)
 
-Fond scène + blox ambiants. Titre gouttière. Fermer en haut.
+Fond scène + blox ambiants. Titre gouttière **fixe** en haut à gauche, à gauche de **Fermer** (même chrome que Score / Défi). Le titre ne défile pas.
 
 1. **Bandeau** : pastilles allumées `28 / 41` · rangs `I 12 · II 11 · III 5` (libellés = noms figés au §2) · dernière montée (nom + palier).
 2. **Murs** par catégorie (titres cutout).
@@ -68,9 +68,23 @@ Même lecture sur les autres courbes : le 1er tour va de s1 à s2, le 2ᵉ de s2
 NBLOMIG / ok avec toute la logique, simplement ce n'est pas 0/1/10/100, mais 0/Nombre1/Nombre2/Nombre3 (on préciser pour chaque trophées à quoi correspondent les nombre1, nombre2, nombre3 ainsi que les labels / noms pour I, II, et III. 
 NBLOMIG / ça serait bien, après avoir rempli le trophée qu'il 1° continue à compter - c'est déjà le cas - et qu'il affiche dessous 3 petites étoiles (vides au début, et remplies gouttières après l'atteinte du III pour la première étoile, puis si le joueur refait le nombre d'évèneemnts/ achevement correspondant au III la deuxiième étoile s'allume, puis pour un nombre encore équivalent la 3ème étoile. 
 
+Les chiffres **1 / 10 / 100** sont l’exemple Volume. Chaque pastille a ses **Nombre1 / Nombre2 / Nombre3** (catalogue §5). Les **noms** de I / II / III seront propres à l’accomplissement (§2, plus tard).
+
+**Étoiles post-III** (sous la cible, mur **et** fiche) : 3 petites étoiles. Vides tant que n < s3 (intérieur vide, tour gris). Remplies = **une seule zone gouttière** (intérieur + tour, peau) :
+
+| Étoile | Seuil |
+|---|---|
+| 1 | n ≥ **s3** (premier III) |
+| 2 | n ≥ **2 × s3** |
+| 3 | n ≥ **3 × s3** |
+
+Le compteur au centre continue. Ce n’est **pas** un 4ᵉ rang : les tours s’arrêtent à III, les étoiles comptent les *tours de III* suivants. Unique : pas d’étoiles. Secret verrouillé : rangée masquée.
+
+Exemple Volume (s3 = 100) : 100 → ★☆☆ · 200 → ★★☆ · 300 → ★★★. Rare (s3 = 10) : 10 / 20 / 30.
+
 Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », anneaux sans fill, **pas** de 0 au centre.
 
-Nouveau palier : souffle 2 cycles (disques accueil), puis calme.
+Nouveau palier : **toast overlay** au moment du palier (même Y qu’à l’accueil, chip actuel, apparence plus tard). Pas de changement de layout grille. Souffle 2 cycles (disques accueil) : **pas encore**.
 
 ### Fiche (tap)
 
@@ -406,7 +420,7 @@ Plus de pastilles séparées « 10 Arcade / 10 Five » : c’est `play_daily_*` 
 
 Inspiration : `image_inspi/trophees-chromax-piste-graphique.jpg` (trois plans CHROMAX : anneaux, disque peau, arc, chiffre au centre). **La logique** est §1 (compteur + deux tours) — le mock 02 met l’arc sur le 100 trop tôt (compte 3 = 1er tour, anneau 10). **Décisions Lomig** ci-dessous. Pas de coupes 3D. Pas de plaque / relief / couronne (§2 piste A, dessin écarté).
 
-**Une cible** = trois anneaux concentriques (1 · 10 · 100 ou la courbe) + disque intérieur peau + arc du tour actif + chiffre. Le rang se *lit* à l’occupation, pas à un changement d’espèce.
+**Une cible** = trois anneaux concentriques (1 · 10 · 100 ou la courbe) + disque intérieur peau + arc du tour actif + chiffre. Le rang se *lit* à l’occupation, pas à un changement d’espèce. Le **chiffre** s’inscrit dans le disque déjà rempli (I = petit cercle, II = jusqu’à 10, III = toute la cible) — plus de place, plus lisible ; les légendes d’anneaux recouverts se masquent.
 
 ### Couleur
 
@@ -419,9 +433,10 @@ Inspiration : `image_inspi/trophees-chromax-piste-graphique.jpg` (trois plans CH
 | | Mur (pureté) | Fiche (tap) |
 |---|---|---|
 | Cible | Anneaux + disque + arc + chiffre | **Même objet**, plus grand |
-| Légendes **1 / 10 / 100** (ou 1 / 3 / 10, etc.) | **Non** | **Oui** |
+| Légendes **1 / 10 / 100** (ou 1 / 3 / 10, etc.) | **Non** | **À droite** de la cible, Changa : 1 au centre, s2 au haut du 2ᵉ cercle, s3 au haut du dernier. Gris (tertiary Sombre/Clair) si vide ; gouttière qui monte depuis le bas selon le remplissage de l’anneau |
 | Caption | Nunito sous la cible (un mot, Magix non traduits) | Titre Changa + phrase |
 | Paillettes rang III | Issues du disque **intérieur** et du disque **extérieur** | Idem, plus lisibles |
+| 3 étoiles post-III | Sous la cible, 11 pt (cible / caption inchangées) | Sous la cible, 36 pt (même ratio que la cible 168/52) |
 
 ### Occupations (Volume 1 / 10 / 100)
 
@@ -432,7 +447,7 @@ Le remplissage d’un tour = **n / palier**, pas une jauge 0→100 renormalisée
 | **0** | — | Vide. Anneaux gardés. Centre **0** | Aucun | — |
 | **1 … 9** | **I** | Intérieur peau allumé (anneau 1) | **1er tour** : arc sur l’anneau **10**, n/10. Anneau 100 vide | — |
 | **10 … 99** | **II** | Jusqu’à l’anneau 10 | 1er tour **plein**. **2ᵉ tour** : arc sur l’anneau **100**, n/100 | — |
-| **100+** | **III** | Plein (intérieur **et** extérieur) | Les deux tours pleins. Plus d’arc à avancer | **Comme un bloc Magix** : particules (`spawnSpecialOrbitLingerSparks` ou équivalent) **sortent** du disque intérieur **et** du disque extérieur. Compteur continue |
+| **100+** | **III** | Plein (intérieur **et** extérieur) | Les deux tours pleins. Plus d’arc à avancer | **Comme un bloc Magix** : particules (`spawnSpecialOrbitLingerSparks` ou équivalent) **sortent** du disque intérieur **et** du disque extérieur. Compteur continue. Étoiles : 1 à 100, 2 à 200, 3 à 300 |
 
 Relégende : remplacer 10 / 100 par s2 / s3 (Rare 1/3/10, Qualité 5/8/10+, podium 1/10/50, `chain_count` 1/100/1000). Unique : un allumage, pas de tours.
 
@@ -476,14 +491,14 @@ rang = III si valeur ≥ s3
 
 Store JSON `blomix_trophies_v1` : `{ id: { value, firstAt, iiAt, iiiAt, seen } }`. Monotone. Pas de reset joueur. (`iiAt` / `iiiAt` = dates des paliers ; pas Brix/Magix.)
 
-Toast **au retour accueil** si palier monté pendant la run (pas de popup en partie). Tap → pièce, focus la pastille.
+Toast **au palier** (overlay scène, z 220) : même position Y que l’ancien chip accueil (`safeTop + 92` sous le haut). Fade 0,22 / 3,6 / 0,28. Tap → Salon (sans focus fiche). Pas de popup bloquante, pas de toast au retour accueil si déjà montré. File : le dernier palier remplace le chip en cours. Retrofit hiscores : pas de toast. Apparence du chip : **plus tard**.
 
 ---
 
 ## 8. Ce qu’on ne fait pas
 
 - Battle pass, XP global, quêtes du jour (déjà les Défis).
-- 4ᵉ métal (platine). Deux tours, stop.
+- 4ᵉ métal (platine). Deux tours, stop. Les étoiles post-III ne sont pas un rang.
 - Légendes 1/10/100 **sur le mur** (fiche seulement).
 - Teinte par mur ou par Magix (la peau suffit).
 - Popup Magix **en cours de pose**.
@@ -501,11 +516,11 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 3. **6ᵉ icône** accueil vs Crédits.
 4. Courbe Volume **1 / 10 / 100** vs **1 / 10 / 50**.
 5. `chain_count` à 100 / 1000 : OK comme exception ?
-6. Toast accueil vs badge icône seulement.
+6. Toast **au palier** (overlay) : figé pour la 1ʳᵉ version. Apparence plus tard. Badge icône en plus.
 7. 9 secrets, assez ?
 8. Rétroactif minimal (hiscores, podium, tuto) : OK ?
 
-**Dessin (figé, sauf tests)** : cible peau ; centre = compte (0 au départ, continue) ; 1er tour dès n ≥ 1, 2ᵉ tour dès n ≥ s2 ; paillettes Magix **depuis les deux disques** au rang III, comme un bloc Magix. Légendes fiche seulement. **À tester** : relégende Rare/Qualité sans légendes mur (une cible 1/3/10 vs 1/10/100 se ressemble).
+**Dessin (figé, sauf tests)** : cible peau ; centre = compte (0 au départ, continue) ; 1er tour dès n ≥ 1, 2ᵉ tour dès n ≥ s2 ; paillettes Magix **depuis les deux disques** au rang III, comme un bloc Magix. Trois étoiles gouttière sous la cible à 1× / 2× / 3× s3. Légendes fiche **à droite** (Changa, gouttière par le bas). **À tester** : relégende Rare/Qualité sans légendes mur (une cible 1/3/10 vs 1/10/100 se ressemble).
 
 ---
 
@@ -518,6 +533,6 @@ Toast **au retour accueil** si palier monté pendant la run (pas de popup en par
 5. Folie + secrets.
 6. l10n 6 langues, guide, GLOSSARY, CHANGELOG, whats-new au jalon.
 
-**1ʳᵉ version (test)** : store local + cible + Salon modal + 6ᵉ icône + hooks principaux. DEBUG : appui long sur une pastille = +1. Pas de bump marketing. Rangs encore I / II / III.
+**1ʳᵉ version (test)** : store local + cible + Salon modal + 6ᵉ icône + hooks principaux + toast au palier (overlay) + étoiles post-III. DEBUG : appui long sur une pastille = +1 (CHROMAX : 100 / 200 / 300 pour les 3 étoiles). Pas de bump marketing. Rangs encore I / II / III.
 
 Rien de plus « produit » avant : Five testé, boards GC live, **cette** spec validée (surtout §2 mots des rangs).

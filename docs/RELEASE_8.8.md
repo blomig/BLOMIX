@@ -1,9 +1,10 @@
 # BLOMIX 8.8 — calendrier et actions
 
-> **Figé le 21 oct. 2026.** (état **22 oct.** : 8.6 en vente, GC Five + CK Production **déjà actifs**.)  
+> **Figé le 21 oct. 2026.** (état **21 oct. soir** : 8.6 en vente ; GC Five + CK Production **actifs** ; TestFlight éditeurs **8.8 / 159** en ligne.)  
 > Mise en vente visée : **mercredi 18 novembre 2026**.  
 > Glissière (si review / badges / copie) : **mercredi 2 décembre 2026**.  
-> Watch inchangé : **8.0 / 146**. Ne pas bumper avec l’iPhone.
+> Watch inchangé : **8.0 / 146**. Ne pas bumper avec l’iPhone.  
+> **Pas de fiche 8.7** : le train 8.6 est fermé (Apple refuse un nouveau TF 8.6). Le TF éditeurs est déjà tamponné **8.8**. Ne **pas** `fastlane submit` avant le 11 nov.
 
 Ce fichier est le **tableau de bord humain** du jalon. Cocher les cases. Éditer sur GitHub si une date bouge. Spec produit : [TROPHIES.md](TROPHIES.md), [TROPHY_COPY.md](TROPHY_COPY.md), [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md), [CHANGELOG.md](CHANGELOG.md). Déploiement : [DEVELOPMENT.md](DEVELOPMENT.md) § Fastlane.
 
@@ -15,7 +16,7 @@ Ce fichier est le **tableau de bord humain** du jalon. Cocher les cases. Éditer
 
 | | Date | Rôle |
 |---|---|---|
-| Aujourd’hui | mer. 21 oct. | Fichier créé. Local encore **8.6 / 158**. |
+| Aujourd’hui | mer. 21 oct. | Fichier créé. **8.6 / 158** en vente. TF éditeurs **8.8 / 159**. |
 | Nomination ASC | **avant dim. 26 oct.** | Featuring Nominations, type **App Enhancements**. |
 | Copie trophées assez bonne | **mer. 4 nov.** | Ou décision : sortir avec les libellés d’aujourd’hui. |
 | Tampon 8.8 + TestFlight 8.8 | **4–11 nov.** | Bump `MARKETING_VERSION` **seulement là**. |
@@ -33,20 +34,20 @@ La nomination **n’est pas** l’upload magasin. Il y a **deux** binaires, à d
 
 | | Quand | Tampon | Pour qui | Copie trophées |
 |---|---|---|---|---|
-| **A. TestFlight éditeurs** | Idéalement **avec** la nomination (avant dim. 26 oct.), sinon **dans la foulée** (on **édite** la nomination pour coller le lien) | Encore **8.6** (ou beta), peu importe | Éditeurs Apple : **jouer** Five ~10 min + ouvrir le Salon | **Non** — I/II/III suffisent |
-| **B. Build magasin 8.8** (« le propre ») | **4–11 nov.** TestFlight 8.8 → **11–13 nov.** review | **8.8 / 159** | App Review + joueurs le 18 nov. | **Oui si option A** : copie figée **avant** cet upload (deadline **4 nov.**). Option B = libellés actuels. |
+| **A. TestFlight éditeurs** | **Fait 21 oct.** — `fastlane beta` | **8.8 / 159** (Apple a fermé le train 8.6) | Éditeurs : **jouer** Five ~10 min + ouvrir le Salon | **Non** — I/II/III suffisent |
+| **B. Build magasin 8.8** (« le propre ») | **4–11 nov.** nouveau TF (160+) si copie/badges ont bougé → **11–13 nov.** review | **8.8 / 160+** (même train, pas 8.9) | App Review + joueurs le 18 nov. | **Oui si option A** : copie figée **avant** cet upload (deadline **4 nov.**). Option B = libellés actuels. |
 
-- **Nomination dimanche 26** : le formulaire + la date. Un lien TestFlight **aide** mais **n’est pas obligatoire** le jour J. On peut l’ajouter après (Supplemental Materials restent éditables).
-- **Ne pas** bumper 8.8 pour la nomination. Un 8.8 tamponné trop tôt bloque la fiche (et on n’a pas encore Nouveautés / captures / copie).
-- **Ne pas** attendre le 4 nov. pour donner un TF aux éditeurs : ils jouent le jeu, pas les noms des pastilles.
+- **Nomination dimanche 26** : formulaire + date + lien TF ci-dessus. **Ne pas** `fastlane submit` / « Envoyer à la review » : 8.8 n’est pas le build magasin.
+- Premier TF **externe** 8.8 : Apple peut coller une **Beta App Review** (heures / 1–2 j.). Si le lien dit « build not available », attendre l’e-mail TestFlight, ne pas recréer de groupe.
+- On reste sur le train **8.8** jusqu’au 18 nov. (builds 160+ si besoin). Pas de 8.7, pas de 8.9.
 
 ## Cette semaine (toi) — ordre
 
-1. [x] **8.6 en vente** (22 oct.). Fiche 8.8 créable plus tard, pas maintenant.
+1. [x] **8.6 en vente** (21 oct.). Magasin 8.8 = review **11–13 nov.**, pas maintenant.
 2. [ ] **Nomination featuring** (avant dim. 26 oct.) — § Nomination, texte à coller.
 3. [x] **Game Center** : `FiveMode` + `dailywin_five` déjà actifs (22 oct.).
 4. [x] **CloudKit** : `FiveDailyScore` Production déjà actif (22 oct.).
-5. [ ] **TestFlight public** (build **A**, pas le propre 8.8) : Five + Salon jouables. Lien dans la nomination, ou collé juste après.
+5. [x] **TestFlight public A** (21 oct.) : **8.8 (159)**, groupe externe `Featuring`. Lien : https://testflight.apple.com/join/4zA8hFqB — à coller dans Supplemental Materials. **Pas** de `submit` magasin.
 6. [ ] **`TROPHY_COPY.md`** — 20–30 min par soir. **Pas** avant la nomination. Deadline : **mer. 4 nov.**, **avant** l’upload du build magasin B. Voir § Copie.
 
 ---
@@ -62,9 +63,9 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 | [x] | 8.6 Ready for Sale (22 oct.) | toi |
 | [ ] | Nomination App Enhancements, plage 18 nov. – 2 déc. | toi |
 | [x] | Boards GC Five + CK `FiveDailyScore` Production (22 oct.) | toi |
-| [ ] | Lien TestFlight public **A** (Five + salon, encore tampon 8.6) | toi |
+| [x] | TestFlight public **A** 8.8/159 — https://testflight.apple.com/join/4zA8hFqB (21 oct.) | agent |
 | [ ] | Démarrer `TROPHY_COPY.md` (pas bloquant pour la nomination) | toi |
-| | Peaufinage badges (cible, étoiles, fiche, toast) — **sans bump 8.8** | agent |
+| | Peaufinage badges (cible, étoiles, fiche, toast) — **sans submit magasin** | agent |
 
 ### Semaine 1 — 27 oct. – 2 nov.
 
@@ -121,7 +122,7 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 | Countries | laisser les pays où l’app est en vente (FR, US, DE, ES, IT, BR, etc.) |
 | Localizations | FR, EN, DE, ES, IT, PT |
 | In-App Event | aucun (sauf si tu en crées un « lancement Five » — optionnel, pas bloquant) |
-| Supplemental | 1) lien TestFlight public **A** (si déjà là ; sinon on l’édite après)  2) éventuellement preview  3) cette page GitHub |
+| Supplemental | 1) **https://testflight.apple.com/join/4zA8hFqB** (8.8 / 159)  2) éventuellement preview  3) cette page GitHub |
 
 Une fois soumise : on **peut** changer la date ; on **ne peut plus** changer le type ni l’app liée.
 

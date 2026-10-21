@@ -1015,7 +1015,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/Blomix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 158;
+				CURRENT_PROJECT_VERSION = 159;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -1025,7 +1025,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.6;
+				MARKETING_VERSION = 8.8;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1046,7 +1046,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Blomix/BlomixRelease.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 158;
+				CURRENT_PROJECT_VERSION = 159;
 				DEVELOPMENT_TEAM = 337CZP5VR7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Blomix/Info.plist;
@@ -1056,7 +1056,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.6;
+				MARKETING_VERSION = 8.8;
 				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

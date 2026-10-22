@@ -10,7 +10,7 @@ Un **cabinet personnel** : pastilles-cibles sur un mur. Grises tant que jamais f
 
 But : donner une raison de **toucher à tout** le jeu, puis d’y **revenir** — la pièce se relit, elle ne se coche pas.
 
-Dans le reste du doc, les grades s’appellent **I / II / III** (mécanique 1 → 10 → 100). Les **mots joueur** (murs, 4 noms par pastille, seuils, phrases) se travaillent dans **[TROPHY_COPY.md](TROPHY_COPY.md)** — pas ici. Quand le fichier est prêt : *implémente TROPHY_COPY*.
+Dans le reste du doc, les grades s’appellent **I / II / III** (mécanique 1 → 10 → 100). Les **mots joueur** (murs, un nom sous la cible + un nom maître à 3 étoiles, seuils, phrases) se travaillent dans **[TROPHY_COPY.md](TROPHY_COPY.md)** — pas ici. Quand le fichier est prêt : *implémente TROPHY_COPY*.
 
 ---
 
@@ -68,7 +68,7 @@ Même lecture sur les autres courbes : le 1er tour va de s1 à s2, le 2ᵉ de s2
 NBLOMIG / ok avec toute la logique, simplement ce n'est pas 0/1/10/100, mais 0/Nombre1/Nombre2/Nombre3 (on préciser pour chaque trophées à quoi correspondent les nombre1, nombre2, nombre3 ainsi que les labels / noms pour I, II, et III. 
 NBLOMIG / ça serait bien, après avoir rempli le trophée qu'il 1° continue à compter - c'est déjà le cas - et qu'il affiche dessous 3 petites étoiles (vides au début, et remplies gouttières après l'atteinte du III pour la première étoile, puis si le joueur refait le nombre d'évèneemnts/ achevement correspondant au III la deuxiième étoile s'allume, puis pour un nombre encore équivalent la 3ème étoile. 
 
-Les chiffres **1 / 10 / 100** sont l’exemple Volume. Chaque pastille a ses **Nombre1 / Nombre2 / Nombre3** (catalogue §5). Les **noms** de I / II / III seront propres à l’accomplissement (§2, plus tard).
+Les chiffres **1 / 10 / 100** sont l’exemple Volume. Chaque pastille a ses **Nombre1 / Nombre2 / Nombre3** (catalogue §5). **Un nom** sous la cible pour I / II / III ; il **change** seulement à 3 étoiles (`maître`). Copie : [TROPHY_COPY.md](TROPHY_COPY.md).
 
 **Étoiles post-III** (sous la cible, mur **et** fiche) : 3 petites étoiles. Vides tant que n < s3 (intérieur vide, tour gris). Remplies = **une seule zone gouttière** (intérieur + tour, peau) :
 

@@ -56,7 +56,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Arcade
 - nom : …
-- maître : …
+- maître : Arcadien
 - phrase : Termine une partie Arcade.
 - notes :
 
@@ -65,7 +65,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Zen
 - nom : …
-- maître : …
+- maître : Bouddha
 - phrase : Termine une partie Zen.
 - notes :
 
@@ -74,7 +74,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Five
 - nom : …
-- maître : …
+- maître : High Five
 - phrase : Termine une partie Five libre.
 - notes :
 
@@ -83,7 +83,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Défi Arcade
 - nom : …
-- maître : …
+- maître : Maître Défi
 - phrase : Classe un Défi Arcade.
 - notes :
 
@@ -92,7 +92,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Défi Five
 - nom : …
-- maître : …
+- maître : Maître Défi 5
 - phrase : Classe un Défi Five.
 - notes :
 
@@ -101,7 +101,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Duel
 - nom : …
-- maître : …
+- maître : Pistolero
 - phrase : Termine un Duel, gagné ou perdu.
 - notes :
 
@@ -115,11 +115,11 @@ Un nom par mur. Cutout au-dessus de la grille.
 - notes :
 
 #### `play_both_dailies`
-- courbe : rare
-- seuils : 0 · **1** · **3** · **10**
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Double journée
 - nom : …
-- maître : …
+- maître : Fou du Défi
 - phrase : Les deux Défis le même jour.
 - notes :
 
@@ -132,7 +132,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **5** · **8** · **10**
 - aujourd’hui : Chaîne
 - nom : …
-- maître : …
+- maître : Forgeron
 - phrase : Plus grande chaîne : 5, puis 8, puis 10+.
 - notes : centre = le max, pas un compte.
 
@@ -141,7 +141,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **100** · **1000**
 - aujourd’hui : Encore
 - nom : …
-- maître : …
+- maître : Obsédé
 - phrase : Chaînes de 5 ou plus.
 - notes :
 
@@ -150,7 +150,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Super combo
 - nom : …
-- maître : …
+- maître : Combo Master
 - phrase : Une résolution à au moins 2 vagues.
 - notes :
 
@@ -159,16 +159,16 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Série
 - nom : …
-- maître : …
+- maître : Dieu du Combo
 - phrase : Une résolution à au moins 5 vagues.
 - notes :
 
 #### `connect`
-- courbe : rare
-- seuils : 0 · **1** · **3** · **10**
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : CONNECT
 - nom : …
-- maître : …
+- maître : Grand écart
 - phrase : Un pont gauche–droite.
 - notes : glyphe CONNECT, comme un Magix (non traduit ?).
 
@@ -177,7 +177,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Vide
 - nom : …
-- maître : …
+- maître : Videur
 - phrase : Vide la grille (+500).
 - notes :
 
@@ -192,7 +192,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : CHROMAX
 - nom : …
-- maître : …
+- maître : Serpent
 - phrase : Pose un CHROMAX.
 - notes :
 
@@ -201,7 +201,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : BRIXED
 - nom : …
-- maître : …
+- maître : Démolisseur
 - phrase : Pose un BRIXED.
 - notes :
 
@@ -210,7 +210,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : CROSSX
 - nom : …
-- maître : …
+- maître : Croisé
 - phrase : Pose un CROSSX.
 - notes :
 
@@ -219,7 +219,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : SLASHX
 - nom : …
-- maître : …
+- maître : Fou
 - phrase : Pose un SLASHX.
 - notes :
 
@@ -228,7 +228,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : SCRUMBLX
 - nom : …
-- maître : …
+- maître : Rubik
 - phrase : Pose un SCRUMBLX.
 - notes :
 
@@ -237,7 +237,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : COLORX
 - nom : …
-- maître : …
+- maître : Monet
 - phrase : Pose un COLORX.
 - notes :
 
@@ -246,7 +246,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : SAINTX
 - nom : …
-- maître : …
+- maître : Pape
 - phrase : Pose un SAINTX.
 - notes :
 
@@ -255,7 +255,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : TWISTX
 - nom : …
-- maître : …
+- maître : Chambouleur
 - phrase : Pose un TWISTX.
 - notes :
 
@@ -264,7 +264,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : BOMBX
 - nom : …
-- maître : …
+- maître : Bombardier
 - phrase : Pose un BOMBX.
 - notes :
 
@@ -273,7 +273,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **5** · **9**
 - aujourd’hui : Cabinet Magix
 - nom : …
-- maître : …
+- maître : Magicien
 - phrase : Les 9 Magix au moins une fois.
 - notes : centre = combien de kinds distincts.
 
@@ -282,7 +282,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Infini ×6
 - nom : …
-- maître : …
+- maître : Finisseur
 - phrase : SAINTX en Stage Ultime.
 - notes :
 
@@ -295,7 +295,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **2** · **4** · **6**
 - aujourd’hui : Stage
 - nom : …
-- maître : …
+- maître : Yoda
 - phrase : Atteins le Stage 2, 4, puis Ultime.
 - notes : 6 = Ultime (index 5).
 
@@ -304,17 +304,17 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Nuke
 - nom : …
-- maître : …
+- maître : Artificier
 - phrase : Pose une bombe à partir du Stage 2.
 - notes :
 
 #### `arcade_score`
 - courbe : quality
-- seuils : 0 · **1000** · **5000** · **10000**
+- seuils : 0 · **1000** · **5000** · **20000**
 - aujourd’hui : Score
 - nom : …
-- maître : …
-- phrase : Meilleur score Arcade : 1k, 5k, 10k.
+- maître : Vers les sommets
+- phrase : Meilleur score Arcade : 1k, 5k, 20k.
 - notes :
 
 #### `arcade_pb`
@@ -322,16 +322,16 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Record
 - nom : …
-- maître : …
+- maître : De mieux en mieux
 - phrase : Ouvre l’overlay RECORD Arcade.
 - notes :
 
 #### `arcade_ultime_count`
-- courbe : rare
-- seuils : 0 · **1** · **3** · **10**
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Une seconde
 - nom : …
-- maître : …
+- maître : Vif comme l'éclair
 - phrase : Atteins le Stage Ultime.
 - notes :
 
@@ -344,7 +344,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **5** · **20** · **50**
 - aujourd’hui : Marée
 - nom : …
-- maître : …
+- maître : Poséidon
 - phrase : Lignes Five dans une run : 5, 20, 50.
 - notes :
 
@@ -353,7 +353,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **500** · **2000** · **5000**
 - aujourd’hui : Score Five
 - nom : …
-- maître : …
+- maître : Robuste
 - phrase : Meilleur score Five : 500, 2k, 5k.
 - notes :
 
@@ -362,7 +362,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Record Five
 - nom : …
-- maître : …
+- maître : Acharné
 - phrase : Ouvre l’overlay RECORD Five.
 - notes :
 
@@ -371,7 +371,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Mains nues
 - nom : …
-- maître : …
+- maître : Bruce Lee
 - phrase : Termine un Five sans explosion.
 - notes :
 
@@ -380,7 +380,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Five vide
 - nom : …
-- maître : …
+- maître : Souffle divin
 - phrase : Vide la grille en Five.
 - notes :
 
@@ -393,16 +393,16 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Référence
 - nom : …
-- maître : …
+- maître : Mieux que la machine
 - phrase : Dépasse la Référence BLOMIX.
 - notes :
 
 #### `daily_rank_1`
 - courbe : rare
 - seuils : 0 · **1** · **3** · **10**
-- aujourd’hui : Jour 1
+- aujourd’hui : Prem's
 - nom : …
-- maître : …
+- maître : Compétiteur
 - phrase : Rang 1 au GO d’un Défi.
 - notes :
 
@@ -411,7 +411,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **50**
 - aujourd’hui : Podium
 - nom : …
-- maître : …
+- maître : Concurrent Sérieux
 - phrase : Podiums Défi crédités.
 - notes :
 
@@ -420,7 +420,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **3** · **7** · **30**
 - aujourd’hui : Semaine
 - nom : …
-- maître : …
+- maître : Régulier
 - phrase : Jours d’affilée avec un Défi fini.
 - notes :
 
@@ -429,7 +429,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Habitude
 - nom : …
-- maître : …
+- maître : Routinier
 - phrase : Jours distincts avec un Défi classé.
 - notes :
 
@@ -442,7 +442,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Victoire
 - nom : …
-- maître : …
+- maître : Bang
 - phrase : Gagne un Duel.
 - notes :
 
@@ -451,7 +451,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Face à face
 - nom : …
-- maître : …
+- maître : Sociable
 - phrase : Gagne contre un humain.
 - notes :
 
@@ -460,7 +460,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Table
 - nom : …
-- maître : …
+- maître : Campagnard
 - phrase : Gagne un Duel en local.
 - notes :
 
@@ -469,7 +469,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : BABYBOT
 - nom : …
-- maître : …
+- maître : Technophobe
 - phrase : Gagne contre BABYBOT.
 - notes : nom propre bot.
 
@@ -478,7 +478,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : BOT1
 - nom : …
-- maître : …
+- maître : Terminator
 - phrase : Gagne contre BOT1.
 - notes : nom propre bot.
 
@@ -487,7 +487,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Pacifique
 - nom : …
-- maître : …
+- maître : Malin
 - phrase : Gagne un Duel avec un score < 50.
 - notes :
 
@@ -496,29 +496,50 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **3** · **5** · **10**
 - aujourd’hui : Série
 - nom : …
-- maître : …
+- maître : Destructeur
 - phrase : Série de victoires Duel : 3, 5, 10.
 - notes :
 
 ---
 
+
+### Zen
+
+#### `xxxxx`
+- courbe : quality
+- seuils : 0 · **200** · **2000** · **10000**
+- aujourd’hui : Score
+- nom : …
+- maître : Sérénité suprême
+- phrase : Meilleur Score Zen : 200, 2k, 10k.
+- notes :
+
+#### `xxxxx`
+- courbe : rare
+- seuils : 0 · **1** · **3** · **10**
+- aujourd’hui : Record
+- nom : …
+- maître : Costaud
+- phrase : Ouvre l'overlay RECORD en Zen
+- notes :
+
 ### Folie
 
 #### `share_home`
-- courbe : volume
-- seuils : 0 · **1** · **10** · **100**
-- aujourd’hui : Avion
+- courbe : rare
+- seuils : 0 · **1** · **3** · **10**
+- aujourd’hui : Partage
 - nom : …
-- maître : …
+- maître : Promoteur
 - phrase : Partage depuis l’accueil.
 - notes :
 
 #### `share_go`
-- courbe : volume
-- seuils : 0 · **1** · **10** · **100**
+- courbe : rare
+- seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Carte
 - nom : …
-- maître : …
+- maître : Diffuseur
 - phrase : Partage une carte de game over.
 - notes :
 
@@ -527,16 +548,16 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1**
 - aujourd’hui : Clair
 - nom : …
-- maître : —
+- maître : Testeur
 - phrase : Passe le chrome en Clair.
 - notes :
 
 #### `bomb`
 - courbe : volume
-- seuils : 0 · **1** · **10** · **100**
+- seuils : 0 · **1** · **100** · **1000**
 - aujourd’hui : Bombe
 - nom : …
-- maître : …
+- maître : Bombardier
 - phrase : Fais exploser une bombe.
 - notes :
 
@@ -545,7 +566,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Continuer
 - nom : …
-- maître : …
+- maître : Persévérant
 - phrase : Reprend une partie sauvegardée.
 - notes :
 
@@ -554,7 +575,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Pire coup
 - nom : …
-- maître : …
+- maître : Sage
 - phrase : Ouvre l’overlay du pire coup.
 - notes :
 
@@ -563,10 +584,36 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - seuils : 0 · **80** · **90** · **100**
 - aujourd’hui : Justesse
 - nom : …
-- maître : …
+- maître : Affuté
 - phrase : Justesse de fin de partie : 80, 90, 100 %.
 - notes : centre = le %.
 
+#### `xxxxxx`
+- courbe : quality
+- seuils : 0 · **6** · **8** · **10**
+- aujourd’hui : Armurerie
+- nom : …
+- maître : Master of War
+- phrase : Magasin de bombes
+- notes : centre nombre max de bombes atteint
+
+#### `xxxxxx`
+- courbe : rare
+- seuils : 0 · **1** · **5** · **50**
+- aujourd’hui : Combo Magix
+- nom : …
+- maître : Chanceux
+- phrase : Jouer deux magix à la suite
+- notes :
+
+#### `xxxxxx`
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : sans couleur
+- nom : …
+- maître : Coloriste
+- phrase : Se débarrasser d'une couleur sans COLORX
+- notes : 
 ---
 
 ### Secrets (mur Folie, caption `???` tant que 0)
@@ -578,16 +625,16 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Pacifiste
 - nom : …
-- maître : …
+- maître : Gandhi
 - phrase : Termine avec 5 bombes en stock.
 - notes :
 
 #### `secret_zero_bombs`
-- courbe : rare
-- seuils : 0 · **1** · **3** · **10**
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Poudrière
 - nom : …
-- maître : …
+- maître : Optimiseur
 - phrase : Termine à 0 bombe après au moins une explosion.
 - notes :
 
@@ -596,7 +643,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Trop tard
 - nom : …
-- maître : …
+- maître : Panique
 - phrase : Auto-drop Arcade sans visée.
 - notes :
 
@@ -605,7 +652,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Fausse alerte
 - nom : …
-- maître : …
+- maître : Hésitant
 - phrase : Arme puis annule la bombe.
 - notes :
 
@@ -614,16 +661,16 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Temps mort
 - nom : …
-- maître : …
+- maître : Filou
 - phrase : En Duel, reste en mode bombe 8 s puis pose.
 - notes :
 
 #### `secret_line_go`
-- courbe : rare
-- seuils : 0 · **1** · **3** · **10**
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Trop plein
 - nom : …
-- maître : …
+- maître : Basique
 - phrase : Game over par la ligne, pas par une pose.
 - notes :
 
@@ -632,7 +679,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Presque rien
 - nom : …
-- maître : …
+- maître : Gaspilleur
 - phrase : SAINTX sur 8 cases occupées ou moins.
 - notes :
 
@@ -641,7 +688,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : 9 solitaire
 - nom : …
-- maître : …
+- maître : Rageant
 - phrase : BRIXED sans autre Brix sur la grille.
 - notes :
 
@@ -650,6 +697,42 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Vitrine
 - nom : …
-- maître : …
+- maître : Frimeur
 - phrase : Partage un GO avec bandeau record.
+- notes :
+
+#### `xxxxxx`
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : Haut et bas
+- nom : …
+- maître : Risque tout
+- phrase : Avoir une colonne vide et une colonne pleine
+- notes :
+
+#### `xxxxxx`
+- courbe : rare
+- seuils : 0 · **1** · **3** · **10**
+- aujourd’hui : sans chaîne
+- nom : …
+- maître : Nullard
+- phrase : Perdre sans avoir fait de chaîne
+- notes :
+
+#### `xxxxxx`
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : ligne enchaînée
+- nom : …
+- maître : Prévoyant
+- phrase : La ligne créé une chaîne
+- notes :
+
+#### `xxxxxx`
+- courbe : rare
+- seuils : 0 · **1** · **3** · **10**
+- aujourd’hui : ligne déchaînée
+- nom : …
+- maître : Gagnant du loto
+- phrase : La ligne créé un combo
 - notes :

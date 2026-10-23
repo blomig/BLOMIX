@@ -5,7 +5,7 @@
 > Spec mécanique / dessin : [TROPHIES.md](TROPHIES.md). Ne pas y mélanger la copie.  
 > Jalon 8.8 : copie assez bonne (ou décision de reporter) au **4 nov. 2026** — [RELEASE_8.8.md](RELEASE_8.8.md).
 
-**Pourquoi pas un JSON ?** Un JSON irait pour un import automatique. Ici on peaufine des **noms**, des **phrases** et des **notes** en français, souvent sur GitHub : le Markdown se lit, se commente, s’édite. Les `id` restent stables ; le reste est à toi.
+**Pourquoi pas un JSON ?** Un JSON irait pour un import automatique. Ici on peaufine des **noms**, des **phrases** et des **notes** en français. On édite **ce fichier en local** (pas GitHub web). Les `id` restent stables ; le reste est à toi.
 
 ---
 
@@ -43,6 +43,7 @@ Un nom par mur. Cutout au-dessus de la grille.
 | `five` | Five | |
 | `defi` | Défi | |
 | `duel` | Duel | |
+| `zen` | Zen | |
 | `folie` | Folie | |
 
 ---
@@ -505,7 +506,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 
 ### Zen
 
-#### `xxxxx`
+#### `zen_score`
 - courbe : quality
 - seuils : 0 · **200** · **2000** · **10000**
 - aujourd’hui : Score
@@ -514,7 +515,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - phrase : Meilleur Score Zen : 200, 2k, 10k.
 - notes :
 
-#### `xxxxx`
+#### `zen_pb`
 - courbe : rare
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : Record
@@ -588,7 +589,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - phrase : Justesse de fin de partie : 80, 90, 100 %.
 - notes : centre = le %.
 
-#### `xxxxxx`
+#### `bomb_stock`
 - courbe : quality
 - seuils : 0 · **6** · **8** · **10**
 - aujourd’hui : Armurerie
@@ -597,7 +598,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - phrase : Magasin de bombes
 - notes : centre nombre max de bombes atteint
 
-#### `xxxxxx`
+#### `magix_combo`
 - courbe : rare
 - seuils : 0 · **1** · **5** · **50**
 - aujourd’hui : Combo Magix
@@ -606,7 +607,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - phrase : Jouer deux magix à la suite
 - notes :
 
-#### `xxxxxx`
+#### `color_clear`
 - courbe : volume
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : sans couleur
@@ -701,7 +702,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - phrase : Partage un GO avec bandeau record.
 - notes :
 
-#### `xxxxxx`
+#### `secret_high_low`
 - courbe : volume
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : Haut et bas
@@ -710,7 +711,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - phrase : Avoir une colonne vide et une colonne pleine
 - notes :
 
-#### `xxxxxx`
+#### `secret_no_chain`
 - courbe : rare
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : sans chaîne
@@ -719,7 +720,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - phrase : Perdre sans avoir fait de chaîne
 - notes :
 
-#### `xxxxxx`
+#### `secret_line_chain`
 - courbe : volume
 - seuils : 0 · **1** · **10** · **100**
 - aujourd’hui : ligne enchaînée
@@ -728,7 +729,7 @@ Une fois ouverts : `nom` sous la cible, `maître` à 3 étoiles, + phrase. Tant 
 - phrase : La ligne créé une chaîne
 - notes :
 
-#### `xxxxxx`
+#### `secret_line_combo`
 - courbe : rare
 - seuils : 0 · **1** · **3** · **10**
 - aujourd’hui : ligne déchaînée

@@ -417,7 +417,7 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
   - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
 - **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Autres scores encore devant = ticks verticaux 1×4 pt (Sombre blanc 48 %, Clair blanc 36 %) ; déjà dépassés masqués. Prochain devant le curseur = rose `#FF5A9A` (rayon 2,4). Sillage = gouttière 3 pt, même matière (shader peau) que le wordmark BLOMIX, de 0 au curseur ; ligne grise restante 1 pt. Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : le chiffre gonfle et défile ±1 jusqu’à la nouvelle place, plus paillettes rose / chrome. Pas en tuto / Duel.
 - Compteur LIGNE x/10 (gauche)
-- Duel : barre continue 0…50 à **droite** du gros score (clipée, même horloge / couleur que le chiffre) ; le chiffre HUD est `score % 50`
+- Duel : barre continue 0…50 à **droite** du gros score (puits fixe, gouttière peau clipée depuis le bas, même shader que BLOMIX) ; le chiffre HUD est `score % 50` (flash couleur des `+N` sur le chiffre seulement)
 - Timer stage ou PvP (droite)
 - Arcade / Défi : overlay `L1`…`L★` + `Ns · ×M` (slam) ; badge LX (bas gauche) grow ×2 / swap / settle calés sur le slam
 - File P1/P2, icône bombe + compteur

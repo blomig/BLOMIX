@@ -953,6 +953,7 @@ final class GameScene: SKScene {
     private static let attackPileTrackName = "hudAttackPileTrack"
     private static let attackPileCropName = "hudAttackPileCrop"
     private static let attackPileFillName = "hudAttackPileFill"
+    private static let attackPileMaskName = "hudAttackPileMask"
     private static let attackPileWidthActionKey = "attackPileWidth"
     private static let attackPileSegmentCount = 5
     private static let attackPilePeakWidthScale: CGFloat = 1.20
@@ -4884,6 +4885,12 @@ final class GameScene: SKScene {
                     .childNode(withName: Self.scoreRaceWakeFillName) as? SKSpriteNode {
                     BlomixSkinGradient.applyShader(to: fill, timeOffset: 0.08)
                 }
+                if let pileFill = self.childNode(withName: Self.attackPileContainerName)?
+                    .childNode(withName: Self.attackPileBodyName)?
+                    .childNode(withName: Self.attackPileCropName)?
+                    .childNode(withName: Self.attackPileFillName) as? SKSpriteNode {
+                    BlomixSkinGradient.applyShader(to: pileFill, timeOffset: 0.08)
+                }
             }
         }
     }
@@ -8211,7 +8218,7 @@ final class GameScene: SKScene {
             )
         }
 
-        // ── Flash couleur de chaîne → repos primaryText (chiffre + pile) ─────────
+        // ── Flash couleur de chaîne → repos primaryText (chiffre HUD) ────────────
         if let scoreColor {
             applyScoreAndPileAccent(scoreColor)
             label.removeAction(forKey: "scoreColorFlash")
@@ -9471,22 +9478,11 @@ final class GameScene: SKScene {
         applyLignePipChrome(litCount: pendingIncomingLinePipCount())
     }
 
-    /// Texture 1×1 : un sprite coloré sans texture + `yScale` fuit hors du puits (bande infinie).
-    private static let attackPileFillTexture: SKTexture = {
-        let format = UIGraphicsImageRendererFormat()
-        format.opaque = true
-        format.scale = 1
-        let img = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1), format: format).image { _ in
-            UIColor.white.setFill()
-            UIBezierPath(rect: CGRect(x: 0, y: 0, width: 1, height: 1)).fill()
-        }
-        return SKTexture(image: img)
-    }()
-
     private func ensureAttackPileIfNeeded() {
         guard pvpCoordinator != nil else { return }
         if let existing = childNode(withName: Self.attackPileContainerName) {
-            if existing.childNode(withName: Self.attackPileBodyName) != nil { return }
+            let fill = existing.childNode(withName: "//\(Self.attackPileFillName)") as? SKSpriteNode
+            if fill?.shader != nil { return }
             existing.removeFromParent()
         }
         let container = SKNode()
@@ -9503,25 +9499,28 @@ final class GameScene: SKScene {
         track.glowWidth = 0
         body.addChild(track)
 
+        // Fill = matière BLOMIX (shader peau, taille fixe). Le masque monte depuis le bas.
         let crop = SKCropNode()
         crop.name = Self.attackPileCropName
         crop.zPosition = 1
-        let mask = SKSpriteNode(color: .white, size: CGSize(width: 8, height: 8))
-        mask.name = "hudAttackPileMask"
+        let mask = SKSpriteNode(color: .white, size: CGSize(width: 8, height: 1))
+        mask.name = Self.attackPileMaskName
+        mask.anchorPoint = CGPoint(x: 0.5, y: 0)
         crop.maskNode = mask
-        let fill = SKSpriteNode(texture: Self.attackPileFillTexture, size: CGSize(width: 4, height: 1))
+        let fill = SKSpriteNode(
+            texture: BlomixSkinGradient.shaderBaseTexture,
+            size: CGSize(width: 8, height: 8)
+        )
         fill.name = Self.attackPileFillName
-        fill.anchorPoint = CGPoint(x: 0.5, y: 0)
-        fill.color = BlomixAppearance.primaryTextSK
-        fill.colorBlendFactor = 1
-        fill.yScale = 1
+        fill.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        BlomixSkinGradient.applyShader(to: fill, timeOffset: 0.08)
         crop.addChild(fill)
         body.addChild(crop)
 
         addChild(container)
     }
 
-    /// À droite du gros score. Une barre continue 0…50, clipée (pas de `yScale`).
+    /// À droite du gros score. Puits fixe ; gouttière peau clipée (hauteur = mètre/50).
     private func layoutAttackPile() {
         guard pvpCoordinator != nil else {
             childNode(withName: Self.attackPileContainerName)?.isHidden = true
@@ -9565,16 +9564,15 @@ final class GameScene: SKScene {
         }
         if let crop = body.childNode(withName: Self.attackPileCropName) as? SKCropNode {
             crop.position = .zero
-            if let mask = crop.maskNode as? SKSpriteNode {
-                mask.size = CGSize(width: innerW, height: innerH)
-                mask.position = .zero
-            }
             if let fill = crop.childNode(withName: Self.attackPileFillName) as? SKSpriteNode {
-                fill.anchorPoint = CGPoint(x: 0.5, y: 0)
-                fill.position = CGPoint(x: 0, y: -innerH / 2)
-                fill.yScale = 1
+                fill.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+                fill.position = .zero
                 fill.xScale = 1
-                fill.size.width = innerW
+                fill.yScale = 1
+                fill.size = CGSize(width: innerW, height: innerH)
+                if fill.shader == nil {
+                    BlomixSkinGradient.applyShader(to: fill, timeOffset: 0.08)
+                }
             }
         }
         container.isHidden = isStartScreen
@@ -9584,30 +9582,24 @@ final class GameScene: SKScene {
     }
 
     private func applyAttackPileMeter(_ meter: CGFloat) {
-        guard let fill = childNode(withName: Self.attackPileContainerName)?
+        guard let crop = childNode(withName: Self.attackPileContainerName)?
             .childNode(withName: Self.attackPileBodyName)?
-            .childNode(withName: Self.attackPileCropName)?
-            .childNode(withName: Self.attackPileFillName) as? SKSpriteNode else { return }
+            .childNode(withName: Self.attackPileCropName) as? SKCropNode,
+              let fill = crop.childNode(withName: Self.attackPileFillName) as? SKSpriteNode,
+              let mask = crop.maskNode as? SKSpriteNode else { return }
         let innerH = max(1, attackPileInnerSize.height)
         let innerW = max(1, attackPileInnerSize.width)
         let frac = min(1, max(0, meter / 50))
-        fill.yScale = 1
-        fill.xScale = 1
-        fill.size = CGSize(width: innerW, height: max(0.5, frac * innerH))
-        fill.isHidden = frac <= 0.002
-        fill.position = CGPoint(x: 0, y: -innerH / 2)
-    }
-
-    private func applyAttackPileFillColor(_ color: SKColor) {
-        (childNode(withName: Self.attackPileContainerName)?
-            .childNode(withName: Self.attackPileBodyName)?
-            .childNode(withName: Self.attackPileCropName)?
-            .childNode(withName: Self.attackPileFillName) as? SKSpriteNode)?.color = color
+        fill.size = CGSize(width: innerW, height: innerH)
+        fill.position = .zero
+        mask.anchorPoint = CGPoint(x: 0.5, y: 0)
+        mask.position = CGPoint(x: 0, y: -innerH / 2)
+        mask.size = CGSize(width: innerW, height: max(0.5, frac * innerH))
+        crop.isHidden = frac <= 0.002
     }
 
     private func applyScoreAndPileAccent(_ color: SKColor) {
         (childNode(withName: Self.scoreHudLabelName) as? SKLabelNode)?.fontColor = color
-        applyAttackPileFillColor(color)
         applyScoreRaceCursorAccent(color)
     }
 

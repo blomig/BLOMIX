@@ -794,9 +794,9 @@ Indicateur **HUD uniquement** (Duel). À **droite du gros score** (écart 8 pt, 
 | | |
 |---|---|
 | **Déclencheur** | Arrivée des `+N` (`applyDisplayedScoreIncrement`) — **même horloge** que le chiffre |
-| **Visuel** | **Une barre continue** 0…50, clipée (`SKCropNode`) ; hauteur = `mètre/50` (`yScale` toujours 1, plus de fuite) |
+| **Visuel** | Puits **hauteur fixe** ; gouttière peau (`BlomixSkinGradient`, même matière que BLOMIX) clipée depuis le bas (`SKCropNode` masque, pas `yScale` du fill) |
 | **Largeur** | ≈ un digit du gros score (`"0"` en Changa 52) ; pulse `xScale` **1,20** pendant le fill ; tick à chaque palier de 10 |
-| **Couleur fill** | `primaryTextSK` (blanc Sombre / gris Clair) ; flash couleur des `+N` puis fade **0,30 s** |
+| **Couleur fill** | Shader peau (pas chrome Sombre/Clair). Flash couleur des `+N` : **chiffre seulement** |
 | **Envoi** | Roll chiffre+barre → **50** en **0,22 s**, puis reste (ex. +80 → 50 puis 30) |
 | **Réf. code** | `applyDuelHudMeter` / `applyAttackPileMeter` |
 

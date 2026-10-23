@@ -18,6 +18,10 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 - Accueil 3 rangées : Arcade hero ; Défi Arcade | Défi Five ; Duel | Zen | Five. Pastilles **4+3**. SCORE 7 onglets.
 - **Salon des trophées** : store local, pastilles-cibles, modal, 6ᵉ icône. Toast de palier en overlay scène (même Y qu’accueil, grille inchangée) ; apparence plus tard. Trois étoiles gouttière sous la cible à 1× / 2× / 3× le seuil III.
 
+### Modifié
+
+- **Duel — barre d’attaque** : le puits reste à hauteur fixe ; le remplissage 0…50 est une gouttière peau (même shader que BLOMIX), plus le blanc/noir chrome.
+
 ### Portes humaines (avant jalon)
 
 Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF éditeurs **8.8 / 159** (lien public dans RELEASE_8.8). Reste : nomination featuring (avant 26 oct.), copie trophées au 4 nov. Ne pas `submit` magasin avant le 11 nov.

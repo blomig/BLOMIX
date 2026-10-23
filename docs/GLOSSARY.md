@@ -134,7 +134,7 @@
 |---|---|
 | **P0 / P1 / P2** | Positions dans la file de blocs à venir |
 | **LIGNE x/10** | Compteur avant prochaine ligne entrante |
-| **Pile Duel** | Barre continue 0…50 à **droite** du gros score (`score % 50`) |
+| **Pile Duel** | Barre 0…50 à **droite** du gros score (`score % 50`) : puits fixe, gouttière peau |
 | **GC** | Game Center |
 | **GK** | GameKit (framework Apple) |
 

@@ -227,6 +227,27 @@ final class BlomixSKButtonNode: SKNode {
         BlomixSkinGradient.refreshWellNode(self, timeOffset: wellTimeOffset)
     }
 
+    private var wellFillSprite: SKSpriteNode? {
+        wellNode?.childNode(withName: "blomixWellFill") as? SKSpriteNode
+    }
+
+    /// Fade chrome + puits ensemble. Le fill shader n’hérite pas l’alpha du chip.
+    func runChromeFadeSequence(fadeIn: TimeInterval, hold: TimeInterval, fadeOut: TimeInterval) {
+        alpha = 0
+        wellFillSprite?.alpha = 0
+        let appear = SKAction.fadeIn(withDuration: fadeIn)
+        let vanish = SKAction.fadeOut(withDuration: fadeOut)
+        let holdWait = SKAction.wait(forDuration: hold)
+        run(SKAction.sequence([appear, holdWait, vanish, SKAction.removeFromParent()]))
+        if let fill = wellFillSprite {
+            fill.run(SKAction.sequence([
+                appear.copy() as! SKAction,
+                holdWait.copy() as! SKAction,
+                vanish.copy() as! SKAction,
+            ]))
+        }
+    }
+
     /// Retire le shader GPU des puits invisibles (dropdown ☰ fermé).
     func setWellShaderEnabled(_ enabled: Bool) {
         guard let fill = wellNode?.childNode(withName: "blomixWellFill") as? SKSpriteNode else { return }

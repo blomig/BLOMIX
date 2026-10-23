@@ -513,7 +513,7 @@ rang = III si valeur ≥ s3
 
 Store JSON `blomix_trophies_v1` : `{ id: { value, firstAt, iiAt, iiiAt, seen } }`. Monotone. Pas de reset joueur. (`iiAt` / `iiiAt` = dates des paliers ; pas Brix/Magix.)
 
-Toast **au palier** (overlay scène, z 220) : même position Y que l’ancien chip accueil (`safeTop + 92` sous le haut). Fade 0,22 / 3,6 / 0,28. Tap → Salon (sans focus fiche). Pas de popup bloquante, pas de toast au retour accueil si déjà montré. File : le dernier palier remplace le chip en cours. Retrofit hiscores : pas de toast. Apparence du chip : **plus tard**.
+Toast **au palier** (overlay scène, z 220) : même position Y que l’ancien chip accueil (`safeTop + 92` sous le haut). Fade 0,22 / 3,6 / 0,28 — capsule **et** gouttière shader ensemble (`v_color_mix.a` + fade du fill). Tap → Salon (sans focus fiche). Pas de popup bloquante, pas de toast au retour accueil si déjà montré. File : le dernier palier remplace le chip en cours. Retrofit hiscores : pas de toast. Apparence du chip : **plus tard**.
 
 ---
 

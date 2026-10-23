@@ -5283,14 +5283,8 @@ final class GameScene: SKScene {
         )
         chip.position = CGPoint(x: size.width / 2, y: size.height - (view?.safeAreaInsets.top ?? 47) - 92)
         chip.zPosition = 220
-        chip.alpha = 0
         addChild(chip)
-        chip.run(.sequence([
-            .fadeIn(withDuration: 0.22),
-            .wait(forDuration: 3.6),
-            .fadeOut(withDuration: 0.28),
-            .removeFromParent(),
-        ]))
+        chip.runChromeFadeSequence(fadeIn: 0.22, hold: 3.6, fadeOut: 0.28)
     }
 
     /// Prochain bloc « preview » : **1 chance sur 8** d’un `.priks(5)`, sinon couleur aléatoire.

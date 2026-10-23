@@ -102,7 +102,8 @@ enum BlomixSkinGradient {
             float wy=cos(uv.y*2.2-t*0.35)*0.5+0.5;
             vec3 ab=mix(c1,c2,wx);
             vec3 col=mix(ab,c3,wy*0.38);
-            gl_FragColor=vec4(col,1.0);
+            // Alpha du sprite (`fadeIn`/`fadeOut` du parent n’atteint pas un SKShader opaque).
+            gl_FragColor=vec4(col, v_color_mix.a);
         }
         """
         let shader = SKShader(source: src)

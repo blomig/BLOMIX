@@ -2,7 +2,7 @@
 
 > **Statut** : **8.5 / 157** en vente ; **8.6 / 158** local. Five / Défi Five **codés**, jalon **8.8** (pas de bump marketing tant que le mode n’est pas validé).  
 > **CloudKit** : type Public `DailyScore` déployé en **Production**. `FiveDailyScore` **déployé en Production** (schéma ; records = GO Défi Five).  
-> **Game Center** : `dailywins_arc` (nom ASC `DailyWin_arc`). Five : `FiveMode` + `dailywins_five` (ASC `DailyWin_five`) — **créés, en attente de vérification Apple**.  
+> **Game Center** : `dailywins_arc` (nom ASC `DailyWins_arc`). Five : `FiveMode` + **`dailywin_five`** (nom ASC `DailyWin_five`) — présents, non archivés. L’ID Five est **sans s** (`dailywin_five`, pas `dailywins_five`).  
 > **Version de référence** : 8.6  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -17,7 +17,7 @@ Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lign
 | | Aujourd’hui (scores) | Carrière (points podium) |
 |---|---|---|
 | Contenu | Scores de **ce** jour UTC | Cumul +5/+3/+1 |
-| Entrée | Chip accueil **Défi Arcade** ou **Défi Five** → hub du jour de ce kind | Disques **DÉFI** / **F.DÉFI** → onglets carrière |
+| Entrée | Chip accueil **Défi Arcade** ou **Défi Five** → hub du jour de ce kind | Disques **DÉFI** / **5 DÉFI** → onglets carrière |
 
 ### Hub unique (un seul écran « jour »)
 
@@ -244,7 +244,18 @@ Fichiers :
 | `displayName` | String | — |
 | `gamePlayerID` | String | — |
 
-`recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`).  
+`recordName` = `daily_{YYYY-MM-DD}_{gamePlayerID}`. Déployer le schéma **Development → Production** (comme `AvailablePlayer`).
+
+Type `FiveDailyScore` (même champs, **sauf** le jour) :
+
+| Champ | Type | Index |
+|---|---|---|
+| `Day` | String | Queryable (D majuscule — Dashboard ; le code Five lit `Day`, Arcade reste `day`) |
+| `score` | Int(64) | Sortable |
+| `displayName` | String | — |
+| `gamePlayerID` | String | — |
+
+`recordName` = `five_{YYYY-MM-DD}_{gamePlayerID}`.  
 Entitlement `com.apple.developer.icloud-container-environment` = **Production** : un ⌘R Xcode voit la **même** Public DB que le magasin (sans ça, même config Release reste en Development — toi seul au classement). Une partie défi lancée depuis Xcode **écrit** donc en prod.
 
 **Prochaines étapes magasin** : 7.3 / 138 en vente. 7.4 / 139 (Watch). Détail : [DEVELOPMENT.md](DEVELOPMENT.md) § Déploiement.

@@ -276,9 +276,10 @@ On ne dédouble plus « chaîne 5 », « chaîne 8 », « chaîne 10 » en trois
 | **Five** | 5 | Sans le diluer dans Zen |
 | **Défi** | Jour | Deux graines, podium, ghost |
 | **Duel** | ⚔️ | Humain, local, bots |
+| **Zen** | — | Score + record Zen |
 | **Folie** | Bombe | Style, partage, secrets |
 
-Hors v1 : toutes les skins, avis App Store, Watch.
+Hors v1 : toutes les skins, Watch.
 
 ---
 
@@ -287,9 +288,9 @@ Hors v1 : toutes les skins, avis App Store, Watch.
 IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).  
 **C** = courbe (V volume, R rare, Q qualité, U unique).
 
-~**41** pastilles visibles + **9** secrets = **50** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
+~**48** pastilles visibles + **13** secrets = **61** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
 
-### Seuil (8)
+### Seuil (10)
 
 | ID | Titre | Événement | C |
 |---|---|---|---|
@@ -300,9 +301,11 @@ IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).
 | `play_daily_five` | Défi Five | GO classé Défi Five | V |
 | `play_duel` | Duel | Match terminé (G ou P, tous adversaires) | V |
 | `play_tutorial` | Tu sais tout | Tuto **au bout** (pas Passer) | U |
-| `play_both_dailies` | Double journée | Les deux Défis le même jour UTC | R |
+| `play_both_dailies` | Double journée | Les deux Défis le même jour UTC | V |
+| `board_recover` | Reprise en main | Même run : colonne 8/8, puis tout occupé dans rows 0–2 | V |
+| `pure_streak` | Puriste | Plus long streak de coups sans bombe ni Magix (1 → 10 → 100) | Q |
 
-### Chaînes (6)
+### Chaînes (8)
 
 | ID | Titre | Événement | C |
 |---|---|---|---|
@@ -310,13 +313,15 @@ IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).
 | `chain_count` | Encore | Nombre de chaînes ≥ 5 | V (III à **1000**, II à 100 — exception : trop fréquent en 1/10/100) |
 | `combo` | Super combo | Résolution à **≥ 2** vagues | **V 1 / 10 / 100** — *l’exemple* |
 | `combo_deep` | Série | Une résolution à **≥ 5** vagues | R |
-| `connect` | CONNECT | Pont gauche–droite | R |
+| `connect` | CONNECT | Pont gauche–droite | V |
 | `board_empty` | Vide | Bonus +500 grille vide | R |
+| `brix_line` | Maçon | 8 Brix en rangée ou colonne (1 → 5 → 10) | V |
+| `bomb_brix` | Casseur | Max de Brix dans la zone d’explosion d’une pose (3 → 9 → 13 ; nuke pour 13) | Q |
 
 `board_empty` hors Duel. CONNECT et chaînes **comptent** en Duel.  
 `chain_count` : I = 1, II = **100**, III = **1000** (pas 10/100, trop vite).
 
-### Magix (11)
+### Magix (13)
 
 Effet vu à l’atterrissage. Pas en Duel.
 
@@ -333,6 +338,8 @@ Effet vu à l’atterrissage. Pas en Duel.
 | `magix_bombx` | BOMBX | R |
 | `magix_all_nine` | Cabinet Magix | U — les 9 au moins ×1. Barre 0–9 kinds distincts (qualité déguisée) |
 | `magix_saintx_ultime` | Infini ×6 | R — SAINTX en Ultime |
+| `magix_last_minute` | Dernière minute | V — Magix avec moins de 10 cases libres |
+| `magix_last_cell` | Ultime | V 1 / 5 / 50 — Magix sur la dernière case libre |
 
 Glyphe Magix : **pas** sur le fill (la peau est unique). Option fiche : symbole en plus du nom. Rang III = paillettes **issues des deux disques** (comme un bloc Magix), pas une couronne Magix collée sur le fill.
 
@@ -342,9 +349,9 @@ Glyphe Magix : **pas** sur le fill (la peau est unique). Option fiche : symbole 
 |---|---|---|---|
 | `arcade_stage` | Stage | Plus haut stage (2 → 4 → Ultime) | Q |
 | `arcade_nuke` | Nuke | Bombe posée stage ≥ 2 | V |
-| `arcade_score` | Score | Meilleur score de run (1k → 5k → 10k) | Q |
+| `arcade_score` | Score | Meilleur score de run (1k → 5k → **20k**) | Q |
 | `arcade_pb` | Record | Fois où l’overlay RECORD Arcade s’est ouvert | R |
-| `arcade_ultime_count` | Une seconde | GO (ou run) ayant **atteint** Ultime | R |
+| `arcade_ultime_count` | Une seconde | GO (ou run) ayant **atteint** Ultime | V |
 
 ### Five (5)
 
@@ -363,7 +370,7 @@ Libre ou Défi Five, sauf `play_five`.
 | ID | Titre | Événement | C |
 |---|---|---|---|
 | `daily_ghost_beat` | Référence | Score > Référence BLOMIX | R |
-| `daily_rank_1` | Jour 1 | Rang live 1 au GO (n’importe quel défi) | R |
+| `daily_rank_1` | Prem's | Rang live 1 au GO (n’importe quel défi) | R |
 | `daily_podium` | Podium | +5 / +3 / +1 crédité | V — II = 10 podiums, III = 50 |
 | `daily_streak` | Semaine | Meilleure série de jours UTC avec ≥ 1 défi fini (3 → 7 → 30) | Q |
 | `daily_days` | Habitude | Jours distincts avec ≥ 1 défi classé | V |
@@ -384,19 +391,30 @@ Plus de pastilles séparées « 10 Arcade / 10 Five » : c’est `play_daily_*` 
 
 `play_duel` compte les matchs ; `duel_win` les victoires. Pas de 4ᵉ pastille « 10 duels ».
 
-### Folie (7 visibles + 9 secrets)
+### Zen (2)
+
+| ID | Titre | Événement | C |
+|---|---|---|---|
+| `zen_score` | Score | Meilleur score Zen (200 → 2k → 10k) | Q |
+| `zen_pb` | Record | Overlay RECORD Zen | R |
+
+### Folie (11 visibles + 13 secrets)
 
 **Visibles**
 
 | ID | Titre | Événement | C |
 |---|---|---|---|
-| `share_home` | Avion | Share sheet accueil | V |
-| `share_go` | Carte | Share sheet GO | V |
+| `share_home` | Partage | Share sheet accueil | R |
+| `share_go` | Carte | Share sheet GO | R |
 | `theme_light` | Clair | Chrome Clair au moins une fois | U |
-| `bomb` | Bombe | Explosions | V |
+| `app_store_review` | Partage | Ouvrir le lien d’avis App Store (fiche ou Crédits) | U |
+| `bomb` | Bombe | Explosions (II **100**, III **1000**) | V |
 | `continue_save` | Continuer | Reprises save | V |
 | `worst_move` | Pire coup | Ouverture overlay pire coup | V |
 | `justesse` | Justesse | Meilleur % GO (≥ 20 coups) : 80 → 90 → 100 | Q |
+| `bomb_stock` | Armurerie | Max de bombes en stock (6 → 8 → 10) | Q |
+| `magix_combo` | Combo Magix | Deux Magix d’affilée (1 → 5 → 50) | V |
+| `color_clear` | sans couleur | Une couleur disparaît sans COLORX | V |
 
 **Secrets** (??? jusqu’au 1er, puis **Rare 1 / 3 / 10**)
 
@@ -411,8 +429,12 @@ Plus de pastilles séparées « 10 Arcade / 10 Five » : c’est `play_daily_*` 
 | `secret_saintx_tiny` | Presque rien | SAINTX sur ≤ 8 cases occupées |
 | `secret_brixed_zero` | 9 solitaire | BRIXED sans autre Brix |
 | `secret_share_pb` | Vitrine | Share GO **avec** bandeau record |
+| `secret_high_low` | Haut et bas | Colonne vide **et** colonne pleine |
+| `secret_no_chain` | sans chaîne | GO sans aucune chaîne |
+| `secret_line_chain` | ligne enchaînée | La ligne crée une chaîne |
+| `secret_line_combo` | ligne déchaînée | La ligne crée un combo |
 
-**50** pastilles. Un rang III sur *Super combo* = 100 cascades ; un rang III sur *Pacifiste* = 10 GO à 5 bombes.
+Un rang III sur *Super combo* = 100 cascades ; un rang III sur *Pacifiste* = 10 GO à 5 bombes.
 
 ---
 

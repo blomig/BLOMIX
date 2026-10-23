@@ -15,7 +15,7 @@ extension Notification.Name {
 // MARK: - Murs / courbes / rangs
 
 enum BlomixTrophyWall: String, CaseIterable, Sendable {
-    case seuil, chaines, magix, arcade, five, defi, duel, folie
+    case seuil, chaines, magix, arcade, five, defi, duel, zen, folie
 }
 
 enum BlomixTrophyCurve: Equatable, Sendable {
@@ -112,6 +112,14 @@ struct BlomixTrophyTourFill: Equatable, Sendable {
 }
 
 enum BlomixTrophyMath {
+    /// Étoiles sous la cible (0…3). 1 à s3, 2 à 2×s3, 3 à 3×s3. Unique : 0.
+    static func starCount(value: Int, curve: BlomixTrophyCurve) -> Int {
+        guard curve.hasTours else { return 0 }
+        let s3 = max(curve.s3, 1)
+        guard value >= s3 else { return 0 }
+        return min(3, value / s3)
+    }
+
     static func rank(value: Int, curve: BlomixTrophyCurve) -> BlomixTrophyRank {
         switch curve {
         case .unique:
@@ -176,14 +184,18 @@ enum BlomixTrophyCatalog {
         add("play_daily_five", .seuil, .volumeDefault)
         add("play_duel", .seuil, .volumeDefault)
         add("play_tutorial", .seuil, .unique)
-        add("play_both_dailies", .seuil, .rare)
+        add("play_both_dailies", .seuil, .volumeDefault)
+        add("board_recover", .seuil, .volumeDefault)
+        add("pure_streak", .seuil, .quality(s1: 1, s2: 10, s3: 100))
 
         add("chain_size", .chaines, .quality(s1: 5, s2: 8, s3: 10))
         add("chain_count", .chaines, .volume(s2: 100, s3: 1000))
         add("combo", .chaines, .volumeDefault)
         add("combo_deep", .chaines, .rare)
-        add("connect", .chaines, .rare)
+        add("connect", .chaines, .volumeDefault)
         add("board_empty", .chaines, .rare)
+        add("brix_line", .chaines, .volume(s2: 5, s3: 10))
+        add("bomb_brix", .chaines, .quality(s1: 3, s2: 9, s3: 13))
 
         add("magix_chromax", .magix, .volumeDefault, magix: "CHROMAX")
         add("magix_brixed", .magix, .rare, magix: "BRIXED")
@@ -196,12 +208,14 @@ enum BlomixTrophyCatalog {
         add("magix_bombx", .magix, .rare, magix: "BOMBX")
         add("magix_all_nine", .magix, .quality(s1: 1, s2: 5, s3: 9))
         add("magix_saintx_ultime", .magix, .rare)
+        add("magix_last_minute", .magix, .volumeDefault)
+        add("magix_last_cell", .magix, .volume(s2: 5, s3: 50))
 
         add("arcade_stage", .arcade, .quality(s1: 2, s2: 4, s3: 6))
         add("arcade_nuke", .arcade, .volumeDefault)
-        add("arcade_score", .arcade, .quality(s1: 1_000, s2: 5_000, s3: 10_000))
+        add("arcade_score", .arcade, .quality(s1: 1_000, s2: 5_000, s3: 20_000))
         add("arcade_pb", .arcade, .rare)
-        add("arcade_ultime_count", .arcade, .rare)
+        add("arcade_ultime_count", .arcade, .volumeDefault)
 
         add("five_lines", .five, .quality(s1: 5, s2: 20, s3: 50))
         add("five_score", .five, .quality(s1: 500, s2: 2_000, s3: 5_000))
@@ -223,23 +237,34 @@ enum BlomixTrophyCatalog {
         add("duel_no_attack", .duel, .rare)
         add("duel_streak", .duel, .quality(s1: 3, s2: 5, s3: 10))
 
-        add("share_home", .folie, .volumeDefault)
-        add("share_go", .folie, .volumeDefault)
+        add("zen_score", .zen, .quality(s1: 200, s2: 2_000, s3: 10_000))
+        add("zen_pb", .zen, .rare)
+
+        add("share_home", .folie, .rare)
+        add("share_go", .folie, .rare)
         add("theme_light", .folie, .unique)
-        add("bomb", .folie, .volumeDefault)
+        add("app_store_review", .folie, .unique)
+        add("bomb", .folie, .volume(s2: 100, s3: 1_000))
         add("continue_save", .folie, .volumeDefault)
         add("worst_move", .folie, .volumeDefault)
         add("justesse", .folie, .quality(s1: 80, s2: 90, s3: 100))
+        add("bomb_stock", .folie, .quality(s1: 6, s2: 8, s3: 10))
+        add("magix_combo", .folie, .volume(s2: 5, s3: 50))
+        add("color_clear", .folie, .volumeDefault)
 
         add("secret_five_bombs", .folie, .rare, secret: true)
-        add("secret_zero_bombs", .folie, .rare, secret: true)
+        add("secret_zero_bombs", .folie, .volumeDefault, secret: true)
         add("secret_timeout", .folie, .rare, secret: true)
         add("secret_bomb_cancel", .folie, .rare, secret: true)
         add("secret_duel_bomb_freeze", .folie, .rare, secret: true)
-        add("secret_line_go", .folie, .rare, secret: true)
+        add("secret_line_go", .folie, .volumeDefault, secret: true)
         add("secret_saintx_tiny", .folie, .rare, secret: true)
         add("secret_brixed_zero", .folie, .rare, secret: true)
         add("secret_share_pb", .folie, .rare, secret: true)
+        add("secret_high_low", .folie, .volumeDefault, secret: true)
+        add("secret_no_chain", .folie, .rare, secret: true)
+        add("secret_line_chain", .folie, .volumeDefault, secret: true)
+        add("secret_line_combo", .folie, .rare, secret: true)
 
         return rows
     }()
@@ -289,11 +314,14 @@ final class BlomixTrophyStore {
 
     private var payload: Payload
     private var loaded = false
+    /// Retrofit hiscores : allume les pastilles sans file de toasts (ce n’est pas un palier « maintenant »).
+    private var suppressPromotionToasts = false
 
     private init() {
         payload = Payload()
         load()
         retrofitIfNeeded()
+        backfillZenScoreIfNeeded()
     }
 
     // MARK: Lecture
@@ -347,6 +375,7 @@ final class BlomixTrophyStore {
     }
 
     func consumePendingPromotions() -> [BlomixTrophyPromotion] {
+        guard !payload.pending.isEmpty else { return [] }
         let list = payload.pending
         payload.pending.removeAll()
         save()
@@ -399,10 +428,31 @@ final class BlomixTrophyStore {
     }
 
     func noteDailyDay(_ day: String) {
-        if payload.lastDailyDay != day {
-            payload.lastDailyDay = day
-            _ = increment("daily_days")
+        if payload.lastDailyDay == day { return }
+        let streakKey = "blomix_trophy_daily_streak"
+        var streak = UserDefaults.standard.integer(forKey: streakKey)
+        if let last = payload.lastDailyDay, Self.utcDay(last, isImmediatelyBefore: day) {
+            streak += 1
+        } else {
+            streak = 1
         }
+        UserDefaults.standard.set(streak, forKey: streakKey)
+        payload.lastDailyDay = day
+        _ = increment("daily_days")
+        _ = recordBest("daily_streak", streak)
+        save()
+    }
+
+    private static func utcDay(_ earlier: String, isImmediatelyBefore later: String) -> Bool {
+        let fmt = DateFormatter()
+        fmt.calendar = Calendar(identifier: .gregorian)
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.timeZone = TimeZone(secondsFromGMT: 0)
+        fmt.dateFormat = "yyyy-MM-dd"
+        guard let a = fmt.date(from: earlier), let b = fmt.date(from: later) else { return false }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        return cal.dateComponents([.day], from: a, to: b).day == 1
     }
 
     func noteDuelFinished(didWin: Bool) {
@@ -434,8 +484,10 @@ final class BlomixTrophyStore {
         if newRank > oldRank {
             new.seen = false
             let promo = BlomixTrophyPromotion(id: id, rank: newRank)
-            payload.pending.append(promo)
             payload.lastPromotion = promo
+            if !suppressPromotionToasts {
+                payload.pending.append(promo)
+            }
         }
         payload.items[id] = new
         save()
@@ -473,6 +525,7 @@ final class BlomixTrophyStore {
     private func retrofitIfNeeded() {
         guard !payload.didRetrofit else { return }
         payload.didRetrofit = true
+        suppressPromotionToasts = true
         let arcade = ScoreManager.shared.getLocalHighScore()
         if arcade > 0 {
             _ = recordBest("arcade_score", arcade)
@@ -493,9 +546,26 @@ final class BlomixTrophyStore {
                 _ = increment("play_five")
             }
         }
+        let zenScore = UserDefaults.standard.integer(forKey: "BlomixLocalZenHighScore")
+        if zenScore > 0 {
+            _ = recordBest("zen_score", zenScore)
+        }
         if BlomixAppearance.isLight {
             _ = recordUnique("theme_light")
         }
+        payload.pending.removeAll()
+        suppressPromotionToasts = false
+        save()
+    }
+
+    private func backfillZenScoreIfNeeded() {
+        guard progress(for: "zen_score").value == 0 else { return }
+        let zen = UserDefaults.standard.integer(forKey: "BlomixLocalZenHighScore")
+        guard zen > 0 else { return }
+        suppressPromotionToasts = true
+        _ = recordBest("zen_score", zen)
+        payload.pending.removeAll()
+        suppressPromotionToasts = false
         save()
     }
 }
@@ -504,10 +574,19 @@ final class BlomixTrophyStore {
 
 enum BlomixTrophyHooks {
     @MainActor
-    static func noteMagix(_ kind: MagixKind, isUltime: Bool, occupiedCells: Int, otherBrixCount: Int) {
+    static func noteMagix(
+        _ kind: MagixKind,
+        isUltime: Bool,
+        occupiedCells: Int,
+        otherBrixCount: Int,
+        consecutiveMagix: Bool = false
+    ) {
         let id = BlomixTrophyCatalog.magixKindIDs.first { $0.0 == kind }?.1
         if let id {
             _ = BlomixTrophyStore.shared.increment(id)
+        }
+        if consecutiveMagix {
+            _ = BlomixTrophyStore.shared.increment("magix_combo")
         }
         if kind == .cleanx, isUltime {
             _ = BlomixTrophyStore.shared.increment("magix_saintx_ultime")
@@ -517,6 +596,14 @@ enum BlomixTrophyHooks {
         }
         if kind == .brixed, otherBrixCount == 0 {
             _ = BlomixTrophyStore.shared.increment("secret_brixed_zero")
+        }
+        // Magix déjà inscrit : une vide de moins qu’au choix de la pose.
+        let emptyAtPose = max(0, 64 - occupiedCells) + 1
+        if emptyAtPose < 10 {
+            _ = BlomixTrophyStore.shared.increment("magix_last_minute")
+        }
+        if emptyAtPose == 1 {
+            _ = BlomixTrophyStore.shared.increment("magix_last_cell")
         }
         BlomixTrophyStore.shared.refreshDerivedMagixCollection()
     }
@@ -548,10 +635,13 @@ enum BlomixTrophyHooks {
     }
 
     @MainActor
-    static func noteBomb(isNuke: Bool) {
+    static func noteBomb(isNuke: Bool, brixBroken: Int = 0) {
         _ = BlomixTrophyStore.shared.increment("bomb")
         if isNuke {
             _ = BlomixTrophyStore.shared.increment("arcade_nuke")
+        }
+        if brixBroken > 0 {
+            _ = BlomixTrophyStore.shared.recordBest("bomb_brix", brixBroken)
         }
     }
 
@@ -591,5 +681,76 @@ enum BlomixTrophyHooks {
     @MainActor
     static func noteBombCancel() {
         _ = BlomixTrophyStore.shared.increment("secret_bomb_cancel")
+    }
+
+    @MainActor
+    static func noteDuelBombFreeze() {
+        _ = BlomixTrophyStore.shared.increment("secret_duel_bomb_freeze")
+    }
+
+    @MainActor
+    static func noteBombStock(_ count: Int) {
+        _ = BlomixTrophyStore.shared.recordBest("bomb_stock", count)
+    }
+
+    @MainActor
+    static func noteColorClear(count: Int) {
+        guard count > 0 else { return }
+        _ = BlomixTrophyStore.shared.increment("color_clear", by: count)
+    }
+
+    @MainActor
+    static func noteColumnHighLow() {
+        _ = BlomixTrophyStore.shared.increment("secret_high_low")
+    }
+
+    @MainActor
+    static func noteBoardRecover() {
+        _ = BlomixTrophyStore.shared.increment("board_recover")
+    }
+
+    @MainActor
+    static func noteBrixLine() {
+        _ = BlomixTrophyStore.shared.increment("brix_line")
+    }
+
+    @MainActor
+    static func notePureStreak(_ count: Int) {
+        _ = BlomixTrophyStore.shared.recordBest("pure_streak", count)
+    }
+
+    @MainActor
+    static func noteAppStoreReview() {
+        _ = BlomixTrophyStore.shared.recordUnique("app_store_review")
+    }
+
+    @MainActor
+    static func noteIncomingLineChain() {
+        _ = BlomixTrophyStore.shared.increment("secret_line_chain")
+    }
+
+    @MainActor
+    static func noteIncomingLineCombo() {
+        _ = BlomixTrophyStore.shared.increment("secret_line_combo")
+    }
+
+    @MainActor
+    static func noteNoChainGameOver() {
+        _ = BlomixTrophyStore.shared.increment("secret_no_chain")
+    }
+
+    @MainActor
+    static func noteDailyGhostBeat() {
+        _ = BlomixTrophyStore.shared.increment("daily_ghost_beat")
+    }
+
+    @MainActor
+    static func noteDailyRank1() {
+        _ = BlomixTrophyStore.shared.increment("daily_rank_1")
+    }
+
+    @MainActor
+    static func noteDailyPodium() {
+        _ = BlomixTrophyStore.shared.increment("daily_podium")
     }
 }

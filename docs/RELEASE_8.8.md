@@ -44,11 +44,12 @@ La nomination **n’est pas** l’upload magasin. Il y a **deux** binaires, à d
 ## Cette semaine (toi) — ordre
 
 1. [x] **8.6 en vente** (21 oct.). Magasin 8.8 = review **11–13 nov.**, pas maintenant.
-2. [ ] **Nomination featuring** (avant dim. 26 oct.) — § Nomination, texte à coller.
+2. [x] **Nomination featuring** (**22 oct.**, import CSV) — `BLOMIX 8.8 — Five + Trophy Room`, type **App Enhancements**, plage 18 nov. – 2 déc. Id `ff8e6688-d23f-4222-a4ff-579274bd264e`. Sous Envoyées. Ne **pas** en créer une 2ᵉ.
 3. [x] **Game Center** : `FiveMode` + `dailywin_five` déjà actifs (22 oct.).
 4. [x] **CloudKit** : `FiveDailyScore` Production déjà actif (22 oct.).
 5. [x] **TestFlight public A** (21 oct.) : **8.8 (159)**, groupe externe `Featuring`. Lien : https://testflight.apple.com/join/4zA8hFqB — à coller dans Supplemental Materials. **Pas** de `submit` magasin.
 6. [ ] **`TROPHY_COPY.md`** — 20–30 min par soir. **Pas** avant la nomination. Deadline : **mer. 4 nov.**, **avant** l’upload du build magasin B. Voir § Copie.
+7. [x] **CloudKit Production `PlayerSurvey`** — type + indexes déployés ; Query OK (23 oct.). Voir § CloudKit.
 
 ---
 
@@ -61,7 +62,7 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 | | Action | Qui |
 |---|---|---|
 | [x] | 8.6 Ready for Sale (22 oct.) | toi |
-| [ ] | Nomination App Enhancements, plage 18 nov. – 2 déc. | toi |
+| [x] | Nomination App Enhancements, plage 18 nov. – 2 déc. (CSV, 22 oct.) | toi |
 | [x] | Boards GC Five + CK `FiveDailyScore` Production (22 oct.) | toi |
 | [x] | TestFlight public **A** 8.8/159 — https://testflight.apple.com/join/4zA8hFqB (21 oct.) | agent |
 | [ ] | Démarrer `TROPHY_COPY.md` (pas bloquant pour la nomination) | toi |
@@ -86,6 +87,7 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 | | Recadrage 6.5" / 6.9" → `out/` | agent |
 | [ ] | `store/whats-new/` 6 langues (Five + salon, pas CONNECT) + CHANGELOG | agent |
 | [ ] | Bump **8.8 / 159** (Watch **8.0 / 146**) + `fastlane beta` | agent, **après** freeze |
+| [x] | CloudKit Production : type `PlayerSurvey` + indexes, Query OK (23 oct.) | toi |
 
 ### Semaine 3 — 10–16 nov.
 
@@ -109,7 +111,7 @@ Légende : **toi** = App Store Connect / copie / captures. **Agent** = code, l10
 
 ## Nomination featuring (coller tel quel)
 
-**Où :** App Store Connect → BLOMIX → barre latérale **Featuring** → **Nominations** → **+** → Create Nomination.
+**Où :** App Store Connect → BLOMIX → barre latérale **Candidatures** → **+** → **Importer des candidatures** (pas Créer : le compte affiche une fausse limite de 50 brouillons). Fichier prêt : [`store/nominations/BLOMIX-8.8-App-Enhancements.csv`](../store/nominations/BLOMIX-8.8-App-Enhancements.csv). L’import **envoie** la candidature (pas de brouillon).
 
 **Rôle requis :** Account Holder, Admin, App Manager ou Marketing.
 
@@ -188,11 +190,45 @@ Dashboard → `iCloud.blomig.BLOMIX` → **Production** (pas Development) :
 
 Arcade `DailyScore` / champ `day` : ne pas y toucher.
 
+- Type **`PlayerSurvey`** (sondage 8.8) — **déployé Production** (23 oct.). Query Dashboard OK. Indexes : `recordName` Queryable (obligatoire pour lister), `campaign` Queryable, `gamePlayerID` Queryable, `recommend` Queryable + Sortable.
+
+Même geste que `FiveDailyScore` / `BotEloEvent`. L’app tape la Public **Production** (entitlement), donc un type seulement en Development est invisible.
+
+#### Étapes Dashboard
+
+1. [CloudKit Console](https://icloud.developer.apple.com/dashboard) → team BLOMIX → conteneur **`iCloud.blomig.BLOMIX`**.
+2. Environnement **Development**. Schema → **Record Types** → **+**.
+3. Nom exact : **`PlayerSurvey`** (casse comprise, un mot). Créer.
+4. Ajouter **uniquement** ces champs (casse exacte — pas de `DisplayName`, pas de `RecommendWhy` en PascalCase) :
+
+| Champ | Type Dashboard | Index | Contenu |
+|---|---|---|---|
+| `campaign` | `String` | **Queryable** | `"8.8"` |
+| `modes` | `String` | — | csv `arcade,zen,daily,duel,five` |
+| `improve` | `String` | — | Q2, ≤ 200 car., peut être vide |
+| `recommend` | `Int(64)` | **Queryable** + **Sortable** | 0…10 |
+| `recommendWhy` | `String` | — | Q3 texte, ≤ 200 car., peut être vide |
+| `locale` | `String` | — | `fr` / `en` / … |
+| `appVersion` | `String` | — | ex. `8.8` |
+| `gamePlayerID` | `String` | **Queryable** | Game Center, ou `anon_…` |
+
+5. **Security / Permissions** : **laisser le défaut Public** (World read · Authenticated create · Creator write). Ne pas cocher Authenticated write sur les records des autres.
+6. **Deploy Schema Changes…** → **Production**. Vérifier que `PlayerSurvey` est listé en prod avec les **mêmes** indexes.
+7. **Aucun record à créer à la main.** Les réponses naissent à la soumission du sondage. Type vide = OK.
+
+`recordName` (pas un champ) : `survey88_{gamePlayerID}`. Un joueur = un record, réécrit s’il resoumet (le client marque `done` donc en pratique une fois).
+
+**Ne pas toucher** : `DailyScore`, `FiveDailyScore`, `AvailablePlayer`, `BotEloEvent`, `PvPH2HEvent`.
+
+Contrôle : Schema **Production** → `PlayerSurvey` listé. Après un playtest : Data → Public → Query `PlayerSurvey` (filtre `campaign` == `8.8`).
+
+Si tu ne déploies **pas** en prod : le joueur voit le merci, mais l’upload échoue (pending local, retry à chaque accueil). Console : `[Survey] upload : …`.
+
 ---
 
 ## Copie trophées — décision au 4 nov.
 
-Fichier : [TROPHY_COPY.md](TROPHY_COPY.md) (déjà sur GitHub, pas lu par le jeu). Les `id` sont gelés. Les 63 `nom_0…3` sont encore des `…`.
+Fichier : [TROPHY_COPY.md](TROPHY_COPY.md) (pas lu par le jeu). Copie **en local**, plus d’édition GitHub web. Les `id` sont gelés. Un **nom** sous la cible (I / II / III) + un **maître** à 3 étoiles. Encore des `…`.
 
 **Pas besoin** pour la nomination ni pour le TestFlight éditeurs (build A).
 

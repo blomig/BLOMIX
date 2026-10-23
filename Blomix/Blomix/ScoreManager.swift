@@ -37,7 +37,7 @@ final class ScoreManager {
     nonisolated static let dailyLeaderboardID   = BlomixDailyKind.arcade.leaderboardID
     /// Leaderboard dédié au mode Five.
     nonisolated static let fiveLeaderboardID    = "FiveMode"
-    /// Cumul des points podium du Défi Five (`DailyWin_five` / `dailywins_five`).
+    /// Cumul des points podium du Défi Five (`DailyWin_five` / `dailywin_five`).
     nonisolated static let fiveDailyLeaderboardID = BlomixDailyKind.five.leaderboardID
 
     private init() {

@@ -11,6 +11,7 @@ import UIKit
 final class BlomixTrophySalonViewController: UIViewController {
 
     private let closeButton = BlomixUIButton()
+    private let titleView = BlomixCutoutTitleView(text: BlomixL10n.trophySalonTitle, fontSize: 26, pad: 6)
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
     private let bannerLabel = UILabel()
@@ -20,6 +21,7 @@ final class BlomixTrophySalonViewController: UIViewController {
 
     private var dimView: UIView?
     private var ficheView: UIView?
+    private var ficheID: String?
 
     init(focusID: String? = nil) {
         self.focusID = focusID
@@ -61,6 +63,9 @@ final class BlomixTrophySalonViewController: UIViewController {
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         view.addSubview(closeButton)
 
+        titleView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleView)
+
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.alwaysBounceVertical = true
         scrollView.showsVerticalScrollIndicator = true
@@ -77,7 +82,11 @@ final class BlomixTrophySalonViewController: UIViewController {
             closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
             closeButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
 
-            scrollView.topAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 8),
+            titleView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            titleView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleView.trailingAnchor.constraint(lessThanOrEqualTo: closeButton.leadingAnchor, constant: -12),
+
+            scrollView.topAnchor.constraint(equalTo: titleView.bottomAnchor, constant: 12),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -93,9 +102,6 @@ final class BlomixTrophySalonViewController: UIViewController {
     private func rebuildContent() {
         contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         cellByID.removeAll()
-
-        let title = BlomixCutoutTitleView(text: BlomixL10n.trophySalonTitle, fontSize: 26, pad: 6)
-        contentStack.addArrangedSubview(title)
 
         bannerLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
         bannerLabel.textColor = BlomixAppearance.secondaryText
@@ -244,12 +250,9 @@ final class BlomixTrophySalonViewController: UIViewController {
         view.addSubview(card)
         ficheView = card
 
-        let cible = BlomixTrophyCibleView()
-        cible.value = progress.value
-        cible.curve = def.curve
-        cible.showsLegends = !lockedSecret
-        cible.isSecretLocked = lockedSecret
-        cible.translatesAutoresizingMaskIntoConstraints = false
+        let badge = BlomixTrophyFicheCibleRow()
+        badge.configure(value: progress.value, curve: def.curve, secretLocked: lockedSecret)
+        badge.translatesAutoresizingMaskIntoConstraints = false
 
         let title = UILabel()
         title.font = BlomixTypography.displayFont(size: 22)
@@ -272,12 +275,25 @@ final class BlomixTrophySalonViewController: UIViewController {
         dates.numberOfLines = 2
         dates.text = lockedSecret ? " " : Self.datesLine(progress)
 
-        let stack = UIStackView(arrangedSubviews: [cible, title, body, dates])
+        var ficheRows: [UIView] = [badge, title, body]
+        if def.id == "app_store_review", !lockedSecret {
+            let link = UIButton(type: .system)
+            link.setTitle(BlomixL10n.creditsReviewButton, for: .normal)
+            link.setTitleColor(BlomixAppearance.linkText, for: .normal)
+            link.setTitleColor(BlomixAppearance.linkText.withAlphaComponent(0.55), for: .highlighted)
+            link.titleLabel?.font = BlomixTypography.uiFont(size: 15, weight: .semibold)
+            link.addTarget(self, action: #selector(reviewLinkTapped), for: .touchUpInside)
+            ficheRows.append(link)
+        }
+        ficheRows.append(dates)
+
+        let stack = UIStackView(arrangedSubviews: ficheRows)
         stack.axis = .vertical
         stack.alignment = .center
         stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(stack)
+        ficheID = id
 
         NSLayoutConstraint.activate([
             card.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
@@ -289,11 +305,11 @@ final class BlomixTrophySalonViewController: UIViewController {
             stack.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
             stack.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -20),
 
-            cible.widthAnchor.constraint(equalToConstant: 168),
-            cible.heightAnchor.constraint(equalToConstant: 168),
             title.widthAnchor.constraint(equalTo: stack.widthAnchor),
             body.widthAnchor.constraint(equalTo: stack.widthAnchor),
             dates.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            badge.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            badge.heightAnchor.constraint(equalToConstant: badge.intrinsicContentSize.height),
         ])
     }
 
@@ -302,7 +318,15 @@ final class BlomixTrophySalonViewController: UIViewController {
         ficheView?.removeFromSuperview()
         dimView = nil
         ficheView = nil
+        ficheID = nil
         refreshBanner()
+    }
+
+    @objc private func reviewLinkTapped() {
+        BlomixReviewPrompt.openWriteReview()
+        if let ficheID {
+            openFiche(id: ficheID, scroll: false)
+        }
     }
 
     @objc private func closeTapped() {
@@ -322,6 +346,15 @@ final class BlomixTrophySalonViewController: UIViewController {
     }
 
     static func displayTitle(_ def: BlomixTrophyDef) -> String {
+        let p = BlomixTrophyStore.shared.progress(for: def.id)
+        let stars = BlomixTrophyMath.starCount(value: p.value, curve: def.curve)
+        let uniqueOn = !def.curve.hasTours && p.value >= 1
+        if stars >= 3 || uniqueOn {
+            let master = BlomixL10n.trophyMaster(def.id)
+            if !master.isEmpty, master != "—", !master.hasPrefix("trophy.master.") {
+                return master
+            }
+        }
         if let magix = def.magixTitle { return magix }
         return BlomixL10n.trophyTitle(def.id)
     }
@@ -347,12 +380,17 @@ private final class TrophyCell: UIView {
     var onDebugBump: (() -> Void)?
 
     private let cible = BlomixTrophyCibleView()
+    private let stars = BlomixTrophyStarsView()
     private let caption = UILabel()
 
     init(def: BlomixTrophyDef) {
         self.def = def
         super.init(frame: .zero)
+        clipsToBounds = false
         cible.translatesAutoresizingMaskIntoConstraints = false
+        stars.pointSize = BlomixTrophyStarsMetrics.wallPointSize
+        stars.clipsToBounds = false
+        stars.translatesAutoresizingMaskIntoConstraints = false
         caption.font = BlomixTypography.uiFont(size: 10, weight: .regular)
         caption.textColor = BlomixAppearance.tertiaryText
         caption.textAlignment = .center
@@ -361,13 +399,21 @@ private final class TrophyCell: UIView {
         caption.minimumScaleFactor = 0.7
         caption.translatesAutoresizingMaskIntoConstraints = false
         addSubview(cible)
+        addSubview(stars)
         addSubview(caption)
+        // Caption ancrée à la cible (écart historique 3+9+3) : les étoiles
+        // peuvent grossir dans la gouttière sans déplacer trophée ni sous-titre.
+        let captionGap: CGFloat = 3 + BlomixTrophyStarsMetrics.wallReservedHeight + 3
         NSLayoutConstraint.activate([
             cible.topAnchor.constraint(equalTo: topAnchor, constant: 2),
             cible.centerXAnchor.constraint(equalTo: centerXAnchor),
             cible.widthAnchor.constraint(equalToConstant: 52),
             cible.heightAnchor.constraint(equalToConstant: 52),
-            caption.topAnchor.constraint(equalTo: cible.bottomAnchor, constant: 4),
+            stars.centerXAnchor.constraint(equalTo: centerXAnchor),
+            stars.centerYAnchor.constraint(equalTo: cible.bottomAnchor, constant: captionGap / 2),
+            stars.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor),
+            stars.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
+            caption.topAnchor.constraint(equalTo: cible.bottomAnchor, constant: captionGap),
             caption.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
             caption.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
             caption.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
@@ -388,8 +434,9 @@ private final class TrophyCell: UIView {
         let locked = def.isSecret && p.value <= 0
         cible.value = p.value
         cible.curve = def.curve
-        cible.showsLegends = false
+        // Légendes d’anneaux : fiche seulement (à droite de la cible).
         cible.isSecretLocked = locked
+        stars.configure(value: p.value, curve: def.curve, secretLocked: locked)
         caption.text = locked ? BlomixL10n.trophySecretCaption : BlomixTrophySalonViewController.displayTitle(def)
         caption.textColor = p.value > 0
             ? BlomixAppearance.secondaryText

@@ -1062,6 +1062,7 @@ final class GameScene: SKScene {
     private static let gameOverShareLabelName = "gameOverShareLabel"
     private static let studioSplashOverlayName = "studioSplashOverlay"
     private static let whatsNewPresentActionKey = "presentWhatsNewDialog"
+    private static let surveyPresentActionKey = "presentPlayerSurvey"
     private static let hudPvPTurnTimerName = "hudPvPCountdown"
     private static let hudPvPOpponentName = "hudPvPOpponentName"
     private static let pvpConnectingOverlayName = "pvpConnectingOverlay"
@@ -1735,6 +1736,32 @@ final class GameScene: SKScene {
     // Visée bombe : appui maintenu sur la grille → overlay blast avant placement.
     private var bombAimTouchIsLive: Bool = false
     private var bombAimTargetCell: GridAddress? = nil
+    /// Duel : le timer de tour est gelé en visée bombe, mais la visée elle-même plafonne à 10 s.
+    private var duelBombAimActive = false
+    private var duelBombAimStartedAt: Date?
+    private var duelBombAimSecondsLeft = 0
+    private var pvpDisplayedTurnSeconds = 10
+    private static let duelBombAimMaxSeconds = 10
+    private static let duelBombAimTimerKey = "duelBombAimTimer"
+    /// Dernière pose joueur = Magix (pour `magix_combo`).
+    private var lastPoseWasMagix = false
+    /// Au moins une chaîne ≥ 5 dans la run (`secret_no_chain`).
+    private var runMadeChain = false
+    /// Résolution déclenchée par une ligne entrante (`secret_line_chain` / `secret_line_combo`).
+    private var incomingLineResolutionActive = false
+    private var incomingLineChainCounted = false
+    private var incomingLineComboCounted = false
+    /// COLORX : ne pas compter `color_clear` sur cette résolution.
+    private var skipColorClearThisResolution = false
+    private var hadHighLowColumns = false
+    /// Une colonne 8/8 vue dans cette run (`board_recover`).
+    private var hadFullColumnThisRun = false
+    /// Layout « tout en haut (rows 0–2) » déjà compté (front montant).
+    private var hadBoardRecoverLayout = false
+    /// 8 Brix en ligne ou colonne déjà compté (front montant).
+    private var hadBrixLineLayout = false
+    /// Coups d’affilée sans bombe ni Magix (`pure_streak`).
+    private var runPureStreak = 0
 
     // Bouton SpriteKit actuellement appuyé (animation press/release).
     private weak var lastPressedSKButton: BlomixSKButtonNode?
@@ -1835,6 +1862,8 @@ final class GameScene: SKScene {
     nonisolated(unsafe) private var availablePresenceObserver: NSObjectProtocol?
     /// Relance le poll présence au retour foreground si l’accueil est visible.
     nonisolated(unsafe) private var homePresenceForegroundObserver: NSObjectProtocol?
+    /// Toast trophée au palier (overlay scène, pas seulement accueil).
+    nonisolated(unsafe) private var trophyChangeObserver: NSObjectProtocol?
 
     deinit {
         if let observer = gameCenterAuthObserver {
@@ -1862,6 +1891,9 @@ final class GameScene: SKScene {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = homePresenceForegroundObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = trophyChangeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -1962,6 +1994,7 @@ final class GameScene: SKScene {
         registerSkinChangeObserverIfNeeded()
         registerAppearanceChangeObserverIfNeeded()
         registerFontChangeObserverIfNeeded()
+        registerTrophyChangeObserverIfNeeded()
 
         if let inputView = view as? BlomixSKView {
             inputView.inputScene = self
@@ -2003,6 +2036,18 @@ final class GameScene: SKScene {
         nextBottomLine = nextBottomLineRowForSession()
         bombCount = pvpCoordinator == nil ? 5 : 3
         isBombMode = false
+        stopDuelBombAimTimer()
+        lastPoseWasMagix = false
+        runMadeChain = false
+        incomingLineResolutionActive = false
+        incomingLineChainCounted = false
+        incomingLineComboCounted = false
+        skipColorClearThisResolution = false
+        hadHighLowColumns = false
+        hadFullColumnThisRun = false
+        hadBoardRecoverLayout = false
+        hadBrixLineLayout = false
+        runPureStreak = 0
         runBombExplosions = 0
         gameOverFromIncomingLine = false
         clearBombxFeedbackState()
@@ -3055,13 +3100,16 @@ final class GameScene: SKScene {
         if pendingTutorialStart {
             pendingTutorialStart = false
             run(SKAction.wait(forDuration: 0.3)) { [weak self] in self?.startTutorialGameWithIntro() }
-        } else if playIntro {
-            scheduleWhatsNewDialogAfterIntro()
+        } else {
+            if playIntro {
+                scheduleWhatsNewDialogAfterIntro()
+            }
+            schedulePlayerSurveyIfNeeded(afterIntro: playIntro)
         }
 
         BlomixAvailablePlayersManager.shared.startHomePresencePolling()
         refreshStartScreenPvPPresenceBadge()
-        presentTrophyToastIfNeeded(in: overlay)
+        presentTrophyToastIfNeeded()
     }
 
     /// Après le splash + poinçon + entrée chrome accueil. Ok = session ; Ne plus montrer = définitif.
@@ -3088,6 +3136,39 @@ final class GameScene: SKScene {
         }
         guard let host else { return }
         BlomixWhatsNew.present(in: host)
+    }
+
+    /// Accueil seulement, après chrome. Pas pendant splash / Nouveautés / autre modal.
+    private func schedulePlayerSurveyIfNeeded(afterIntro: Bool) {
+        removeAction(forKey: Self.surveyPresentActionKey)
+        guard isStartScreen else { return }
+        guard childNode(withName: Self.studioSplashOverlayName) == nil else { return }
+        guard !BlomixWhatsNew.shouldPresent else { return }
+        guard BlomixPlayerSurvey.shouldPresent else { return }
+        let delay: TimeInterval = afterIntro
+            ? BlomixCutoutWordmarkNode.punchIntroChromeDelay + 1.0
+            : 0.55
+        run(SKAction.sequence([
+            SKAction.wait(forDuration: delay),
+            SKAction.run { [weak self] in
+                DispatchQueue.main.async {
+                    self?.presentPlayerSurveyIfNeeded()
+                }
+            },
+        ]), withKey: Self.surveyPresentActionKey)
+    }
+
+    private func presentPlayerSurveyIfNeeded() {
+        guard isStartScreen else { return }
+        guard childNode(withName: Self.studioSplashOverlayName) == nil else { return }
+        guard !BlomixWhatsNew.shouldPresent else { return }
+        guard modalRootViewController()?.presentedViewController == nil else { return }
+        guard BlomixPlayerSurvey.shouldPresent else { return }
+        guard modalRootViewController() != nil else { return }
+        BlomixPlayerSurvey.isShowing = true
+        let vc = BlomixPlayerSurveyViewController()
+        vc.isModalInPresentation = true
+        presentFullScreenModal(vc)
     }
 
     private func startStartScreenAmbientBlocksAnimation(in overlay: SKNode) {
@@ -3815,6 +3896,11 @@ final class GameScene: SKScene {
 
     private func touchHitsStartScreenTrophyLink(_ scenePoint: CGPoint) -> Bool {
         touchHitsStartScreenUtilityLink(named: Self.startScreenTrophyLinkName, scenePoint: scenePoint)
+    }
+
+    private func touchHitsTrophyToast(_ scenePoint: CGPoint) -> Bool {
+        guard let toast = childNode(withName: Self.startScreenTrophyToastName) else { return false }
+        return toast.calculateAccumulatedFrame().insetBy(dx: -8, dy: -8).contains(scenePoint)
     }
 
     private func toggleAppearanceFromStartScreen() {
@@ -4848,6 +4934,19 @@ final class GameScene: SKScene {
         }
     }
 
+    private func registerTrophyChangeObserverIfNeeded() {
+        guard trophyChangeObserver == nil else { return }
+        trophyChangeObserver = NotificationCenter.default.addObserver(
+            forName: .blomixTrophiesDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.presentTrophyToastIfNeeded()
+            }
+        }
+    }
+
     private func registerGameCenterAuthObserverIfNeeded() {
         guard gameCenterAuthObserver == nil else { return }
         gameCenterAuthObserver = NotificationCenter.default.addObserver(
@@ -5166,11 +5265,13 @@ final class GameScene: SKScene {
         presentFullScreenModal(BlomixTrophySalonViewController(focusID: focusID))
     }
 
-    private func presentTrophyToastIfNeeded(in overlay: SKNode) {
-        overlay.childNode(withName: Self.startScreenTrophyToastName)?.removeFromParent()
+    /// Chip trophée au palier : même Y qu’à l’accueil, overlay scène (grille inchangée).
+    private func presentTrophyToastIfNeeded() {
+        guard childNode(withName: Self.studioSplashOverlayName) == nil else { return }
         let pending = BlomixTrophyStore.shared.consumePendingPromotions()
         guard let promo = pending.last,
               let def = BlomixTrophyCatalog.def(id: promo.id) else { return }
+        childNode(withName: Self.startScreenTrophyToastName)?.removeFromParent()
         let name = BlomixTrophySalonViewController.displayTitle(def)
         let text = BlomixL10n.trophyToastFormat(name: name, rank: promo.rank.roman)
         let chip = makeStartScreenButtonChip(
@@ -5181,9 +5282,9 @@ final class GameScene: SKScene {
             fontSize: 13
         )
         chip.position = CGPoint(x: size.width / 2, y: size.height - (view?.safeAreaInsets.top ?? 47) - 92)
-        chip.zPosition = 20
+        chip.zPosition = 220
         chip.alpha = 0
-        overlay.addChild(chip)
+        addChild(chip)
         chip.run(.sequence([
             .fadeIn(withDuration: 0.22),
             .wait(forDuration: 3.6),
@@ -5277,6 +5378,7 @@ final class GameScene: SKScene {
         playMatchSound(.end)
         if !isTutorialMode {
             noteTrophiesAtGameOver(finalScore: finalScore)
+            BlomixPlayerSurvey.recordCompletedGame()
         }
 
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
@@ -5329,6 +5431,8 @@ final class GameScene: SKScene {
             if runBombExplosions == 0 { _ = store.increment("five_no_bomb") }
         } else if isZenMode {
             _ = store.increment("play_zen")
+            let zenBest = max(finalScore, UserDefaults.standard.integer(forKey: "BlomixLocalZenHighScore"))
+            _ = store.recordBest("zen_score", zenBest)
         } else {
             _ = store.increment("play_arcade")
             _ = store.recordBest("arcade_score", finalScore)
@@ -5349,6 +5453,17 @@ final class GameScene: SKScene {
         let stats = analyzerGameStats
         if stats.totalMoves >= 20 {
             _ = store.recordBest("justesse", stats.optimalityPercent)
+        }
+        if !runMadeChain {
+            BlomixTrophyHooks.noteNoChainGameOver()
+        }
+        if isDailyChallengeMode {
+            let kind: BlomixDailyKind = isFiveMode ? .five : .arcade
+            let day = dailyLockedDay ?? BlomixDailySeed.utcDayString()
+            if let ghost = BlomixDailyGhostController.controller(for: kind).scoreToBeat(day: day),
+               finalScore > ghost {
+                BlomixTrophyHooks.noteDailyGhostBeat()
+            }
         }
     }
 
@@ -5900,6 +6015,9 @@ final class GameScene: SKScene {
             let text: String
             if let rank = BlomixDailyChallenge.denseRank(of: playerID, in: entries) {
                 text = rank == 1 ? BlomixL10n.dailyGameOverRankFirst : BlomixL10n.dailyGameOverRank(rank)
+                if rank == 1 {
+                    BlomixTrophyHooks.noteDailyRank1()
+                }
             } else if entries.isEmpty {
                 text = BlomixL10n.dailyGameOverRankUnavailable
             } else {
@@ -5965,7 +6083,9 @@ final class GameScene: SKScene {
     private func presentPersonalBestOverlay(score: Int) {
         if isFiveMode {
             _ = BlomixTrophyStore.shared.increment("five_pb")
-        } else if !isZenMode {
+        } else if isZenMode {
+            _ = BlomixTrophyStore.shared.increment("zen_pb")
+        } else {
             _ = BlomixTrophyStore.shared.increment("arcade_pb")
         }
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
@@ -7296,6 +7416,9 @@ final class GameScene: SKScene {
         // Aucune chaîne : fin de vague / de partie — reset du combo (`priks.html` : `else { chainSeriesLevel = 0 }` dans la boucle).
         guard !winningCells.isEmpty else {
             chainSeriesLevel = 0
+            incomingLineResolutionActive = false
+            skipColorClearThisResolution = false
+            noteColumnExtremesIfNeeded()
             // Fin de l’effet Magix : les lignes décennie / attaques qui suivent ne sont plus « causées par le Magix ».
             magixCausedDisappearLinger = false
             // BOMBX : si aucune case peinte n’a été effacée (0 clear sur la tâche), dots depuis la zone peinte.
@@ -7447,11 +7570,27 @@ final class GameScene: SKScene {
         if !isTutorialMode {
             let sizes = components.map(\.count)
             let connects = components.filter { Self.componentSpansLateralEdges($0) }.count
+            let maxSize = sizes.max() ?? 0
+            if maxSize >= 5 { runMadeChain = true }
             BlomixTrophyHooks.noteChainWave(
                 sizes: sizes,
                 seriesLevel: chainSeriesLevel,
                 connectCount: connects
             )
+            if incomingLineResolutionActive {
+                if maxSize >= 5, !incomingLineChainCounted {
+                    incomingLineChainCounted = true
+                    BlomixTrophyHooks.noteIncomingLineChain()
+                }
+                if chainSeriesLevel >= 1, !incomingLineComboCounted {
+                    incomingLineComboCounted = true
+                    BlomixTrophyHooks.noteIncomingLineCombo()
+                }
+            }
+            if !skipColorClearThisResolution {
+                let vanished = presentColorIndexes().subtracting(presentColorIndexes(excluding: winningCells))
+                BlomixTrophyHooks.noteColorClear(count: vanished.count)
+            }
         }
         if comboShown {
             let allCells = Set(components.flatMap { $0 })
@@ -10270,7 +10409,13 @@ final class GameScene: SKScene {
                 ?? LandingBounce.totalDuration
             self.run(SKAction.sequence([
                 SKAction.wait(forDuration: maxBounceDuration + lineStaggerTotal),
-                SKAction.run { self.resolveChains() },
+                SKAction.run {
+                    self.incomingLineResolutionActive = true
+                    self.incomingLineChainCounted = false
+                    self.incomingLineComboCounted = false
+                    self.lastPoseWasMagix = false
+                    self.resolveChains()
+                },
             ]))
         }
 
@@ -10326,7 +10471,9 @@ final class GameScene: SKScene {
         autoDropLockedColumn = nil
         let placedKind = currentBlock
         switch placedKind {
-        case .color, .priks, .magix:
+        case .color, .priks:
+            lastPoseWasMagix = false
+        case .magix:
             break
         case .empty:
             return
@@ -10348,6 +10495,18 @@ final class GameScene: SKScene {
             return
         }
         guard let row = highestEmptyRow(inColumn: columnIndex) else { return }
+
+        if !isTutorialMode {
+            switch placedKind {
+            case .color, .priks:
+                runPureStreak += 1
+                BlomixTrophyHooks.notePureStreak(runPureStreak)
+            case .magix:
+                runPureStreak = 0
+            case .empty:
+                break
+            }
+        }
 
         let placedBlock = placedKind
         pendingGridWrite = .blockPlacement(block: placedBlock, row: row, column: columnIndex)
@@ -10953,8 +11112,11 @@ final class GameScene: SKScene {
                 kind,
                 isUltime: ultime,
                 occupiedCells: occupied,
-                otherBrixCount: otherBrix
+                otherBrixCount: otherBrix,
+                consecutiveMagix: lastPoseWasMagix
             )
+            lastPoseWasMagix = true
+            skipColorClearThisResolution = (kind == .colorx)
         }
         // Popup "CHROMAX" / "BRIXED" / "CROSSX" centré sur la case d'atterrissage.
         spawnMagixNamePopup(name: MagixRules.label(for: kind),
@@ -12011,6 +12173,9 @@ final class GameScene: SKScene {
     private func grantBombxStockBonus() {
         bombCount += 1
         updateBombHUD()
+        if !isTutorialMode {
+            BlomixTrophyHooks.noteBombStock(bombCount)
+        }
         if let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode {
             let pulse = SKAction.sequence([
                 SKAction.scale(to: 1.25, duration: 0.08),
@@ -12698,9 +12863,11 @@ final class GameScene: SKScene {
         if isBombMode {
             // Annulation : on restitue la bombe dans le stock (et on cache l'overlay visée si actif).
             cancelBombAim()
+            stopDuelBombAimTimer()
             isBombMode = false
             bombCount += 1
             updateBombHUD()
+            restorePvPTurnCountdownAfterBomb()
             if !isTutorialMode {
                 BlomixTrophyHooks.noteBombCancel()
             }
@@ -12711,6 +12878,8 @@ final class GameScene: SKScene {
             isBombMode = true
             bombCount -= 1
             updateBombHUD()
+            lastPoseWasMagix = false
+            startDuelBombAimTimerIfNeeded()
         }
         refreshTimerCaptionForAiming()
         if let pvpLbl = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode,
@@ -13187,6 +13356,9 @@ final class GameScene: SKScene {
     /// Bombe : placement direct sur la case touchée, tremblements 0.3 s, puis explosion 3×3.
     private func placeBombAtCell(row: Int, col: Int) {
         guard !isStartScreen, !isGameOver, !isProcessing else { return }
+        noteDuelBombFreezeIfHeld()
+        stopDuelBombAimTimer()
+        lastPoseWasMagix = false
         // bombCount peut être 0 : la bombe est déjà "sortie" du stock à l'activation.
         guard bombCount >= 0 else {
             isBombMode = false
@@ -13236,12 +13408,21 @@ final class GameScene: SKScene {
                 spawnEmitter: false
             ) { [weak self] in
                 guard let self else { return }
+                var brixBroken = 0
+                for addr in self.bombAffectedCells(centerRow: row, centerCol: col) {
+                    if case .priks = self.grid[addr.row][addr.col] { brixBroken += 1 }
+                }
                 self.applyBombExplosion3x3(centerRow: row, centerCol: col)
                 self.isBombMode = false
+                self.restorePvPTurnCountdownAfterBomb()
                 self.updateBombHUD()
                 self.runBombExplosions += 1
+                self.runPureStreak = 0
                 if !self.isTutorialMode {
-                    BlomixTrophyHooks.noteBomb(isNuke: self.isInStagedSoloMode && self.currentStageIndex >= 1)
+                    BlomixTrophyHooks.noteBomb(
+                        isNuke: self.isInStagedSoloMode && self.currentStageIndex >= 1,
+                        brixBroken: brixBroken
+                    )
                 }
                 if self.isTutorialMode { self.tutorialBombDropped() }
 
@@ -13284,6 +13465,9 @@ final class GameScene: SKScene {
     /// Bombe (PvP / fallback colonne) : montée depuis la file, impact sur la première case occupée.
     private func dropBomb(usingColumn column: Int? = nil) {
         guard !isStartScreen, !isGameOver, !isProcessing else { return }
+        noteDuelBombFreezeIfHeld()
+        stopDuelBombAimTimer()
+        lastPoseWasMagix = false
         guard bombCount >= 0 else {
             isBombMode = false
             updatePreviewSprite()
@@ -13364,6 +13548,7 @@ final class GameScene: SKScene {
                 guard let self else { return }
                 self.applyBombExplosion3x3(centerRow: landingRow, centerCol: columnIndex)
                 self.isBombMode = false
+                self.restorePvPTurnCountdownAfterBomb()
                 self.updateBombHUD()
                 if self.isTutorialMode { self.tutorialBombDropped() }
 
@@ -17090,6 +17275,12 @@ final class GameScene: SKScene {
             return
         }
 
+        if touchHitsTrophyToast(location) {
+            childNode(withName: Self.startScreenTrophyToastName)?.removeFromParent()
+            pendingButtonAction = { [weak self] in self?.showTrophySalon() }
+            return
+        }
+
         if isStartScreen {
             // Bannière de mise à jour : "✕" ferme, le reste ouvre l'App Store.
             if let overlay = childNode(withName: Self.startScreenOverlayName),
@@ -17136,13 +17327,6 @@ final class GameScene: SKScene {
                 return
             }
             if touchHitsStartScreenTrophyLink(location) {
-                pendingButtonAction = { [weak self] in self?.showTrophySalon() }
-                return
-            }
-            if let overlay = childNode(withName: Self.startScreenOverlayName),
-               let toast = overlay.childNode(withName: Self.startScreenTrophyToastName),
-               toast.calculateAccumulatedFrame().insetBy(dx: -8, dy: -8).contains(location) {
-                toast.removeFromParent()
                 pendingButtonAction = { [weak self] in self?.showTrophySalon() }
                 return
             }
@@ -18380,11 +18564,150 @@ final class GameScene: SKScene {
 
     func blomixPvP_setTurnCountdown(_ seconds: Int) {
         guard pvpCoordinator != nil else { return }
+        pvpDisplayedTurnSeconds = seconds
+        if duelBombAimActive { return }
         ensurePvPTurnCountdownLabelIfNeeded()
         guard let lbl = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode else { return }
         lbl.text = "\(seconds)s"
         applyTimerAimingChrome(to: lbl, seconds: seconds)
         refreshTimerCaptionForAiming()
+    }
+
+    private func startDuelBombAimTimerIfNeeded() {
+        guard pvpCoordinator != nil else { return }
+        stopDuelBombAimTimer()
+        duelBombAimActive = true
+        duelBombAimStartedAt = Date()
+        duelBombAimSecondsLeft = Self.duelBombAimMaxSeconds
+        refreshDuelBombAimHUD()
+        let tick = SKAction.sequence([
+            SKAction.wait(forDuration: 1),
+            SKAction.run { [weak self] in self?.tickDuelBombAim() },
+        ])
+        run(SKAction.repeatForever(tick), withKey: Self.duelBombAimTimerKey)
+    }
+
+    private func tickDuelBombAim() {
+        guard duelBombAimActive, isBombMode, !isGameOver else {
+            stopDuelBombAimTimer()
+            return
+        }
+        duelBombAimSecondsLeft -= 1
+        refreshDuelBombAimHUD()
+        if duelBombAimSecondsLeft <= 0 {
+            expireDuelBombAim()
+        }
+    }
+
+    private func expireDuelBombAim() {
+        guard isBombMode, !isProcessing, !isGameOver else {
+            stopDuelBombAimTimer()
+            return
+        }
+        let cell = bombAimTargetCell ?? GridAddress(
+            row: (GridLayout.topRowIndex + GridLayout.bottomRowIndex) / 2,
+            col: GridLayout.columnCount / 2
+        )
+        cancelBombAim()
+        placeBombAtCell(row: cell.row, col: cell.col)
+    }
+
+    private func noteDuelBombFreezeIfHeld() {
+        guard pvpCoordinator != nil, let start = duelBombAimStartedAt else { return }
+        if Date().timeIntervalSince(start) >= 8, !isTutorialMode {
+            BlomixTrophyHooks.noteDuelBombFreeze()
+        }
+    }
+
+    private func stopDuelBombAimTimer() {
+        removeAction(forKey: Self.duelBombAimTimerKey)
+        duelBombAimActive = false
+    }
+
+    private func refreshDuelBombAimHUD() {
+        ensurePvPTurnCountdownLabelIfNeeded()
+        guard let lbl = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode else { return }
+        lbl.text = "\(max(duelBombAimSecondsLeft, 0))s"
+        applyTimerAimingChrome(to: lbl, seconds: duelBombAimSecondsLeft)
+        refreshTimerCaptionForAiming()
+    }
+
+    private func restorePvPTurnCountdownAfterBomb() {
+        guard pvpCoordinator != nil else { return }
+        ensurePvPTurnCountdownLabelIfNeeded()
+        guard let lbl = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode else { return }
+        lbl.text = "\(pvpDisplayedTurnSeconds)s"
+        applyTimerAimingChrome(to: lbl, seconds: pvpDisplayedTurnSeconds)
+        refreshTimerCaptionForAiming()
+    }
+
+    private func presentColorIndexes(excluding: Set<GridAddress> = []) -> Set<String> {
+        var colors = Set<String>()
+        for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for c in 0..<GridLayout.columnCount {
+                if excluding.contains(GridAddress(row: r, col: c)) { continue }
+                if case .color(let idx) = grid[r][c] {
+                    colors.insert(idx)
+                }
+            }
+        }
+        return colors
+    }
+
+    private func noteColumnExtremesIfNeeded() {
+        guard !isTutorialMode else { return }
+        var empty = false
+        var full = false
+        var occupiedTotal = 0
+        var occupiedBelowTop3 = 0
+        var brixLineNow = false
+        let height = GridLayout.rowCount - GridLayout.topRowIndex
+        let top3LastRow = GridLayout.topRowIndex + 2
+        for c in 0..<GridLayout.columnCount {
+            var occupied = 0
+            var priksInCol = 0
+            for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+                let cell = grid[r][c]
+                if cell != .empty {
+                    occupied += 1
+                    occupiedTotal += 1
+                    if r > top3LastRow { occupiedBelowTop3 += 1 }
+                }
+                if case .priks = cell { priksInCol += 1 }
+            }
+            if occupied == 0 { empty = true }
+            if occupied == height { full = true }
+            if priksInCol == height { brixLineNow = true }
+        }
+        if !brixLineNow {
+            for r in GridLayout.topRowIndex..<GridLayout.rowCount {
+                var priksInRow = 0
+                for c in 0..<GridLayout.columnCount {
+                    if case .priks = grid[r][c] { priksInRow += 1 }
+                }
+                if priksInRow == GridLayout.columnCount {
+                    brixLineNow = true
+                    break
+                }
+            }
+        }
+        let now = empty && full
+        if now, !hadHighLowColumns {
+            BlomixTrophyHooks.noteColumnHighLow()
+        }
+        hadHighLowColumns = now
+
+        if full { hadFullColumnThisRun = true }
+        let recoverNow = hadFullColumnThisRun && occupiedTotal > 0 && occupiedBelowTop3 == 0
+        if recoverNow, !hadBoardRecoverLayout {
+            BlomixTrophyHooks.noteBoardRecover()
+        }
+        hadBoardRecoverLayout = recoverNow
+
+        if brixLineNow, !hadBrixLineLayout {
+            BlomixTrophyHooks.noteBrixLine()
+        }
+        hadBrixLineLayout = brixLineNow
     }
 
     func blomixPvP_shouldRunTurnTimer() -> Bool {

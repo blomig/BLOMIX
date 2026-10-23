@@ -49,6 +49,7 @@ enum BlomixReviewPrompt {
     }
 
     static func openWriteReview() {
+        BlomixTrophyHooks.noteAppStoreReview()
         UIApplication.shared.open(writeReviewURL)
     }
 

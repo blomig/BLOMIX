@@ -222,7 +222,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 - Five : `FiveMode` (pas de moyenne Arcade)
 - PvP : Elo (`elotype`)
 - Défi Arcade : points podium cumulés — onglet in-app = somme CloudKit des jours clos ; GC `dailywins_arc` = submit du joueur local (le score de la run va **aussi** sur Arcade + moyenne)
-- Défi Five : idem, GC `dailywins_five` ; le score de la run va **seulement** sur `FiveMode`
+- Défi Five : idem, GC `dailywin_five` ; le score de la run va **seulement** sur `FiveMode`
 
 ---
 
@@ -249,7 +249,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 ### Défi du jour
 
-`isDailyChallengeMode` + `BlomixDailyKind` (`.arcade` | `.five`). Hub paramétré `BlomixDailyHubViewController(kind:)`. Graines **indépendantes**. Défi Arcade : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai), slot **`blomix_daily_save_v1`**, CK `DailyScore`, GC `dailywins_arc` ; le score de la run va **aussi** sur Arcade + moyenne. Défi Five : `isFiveMode`, slot **`blomix_five_daily_save_v1`**, CK `FiveDailyScore` (Production), GC `dailywins_five` ; le score de la run va **seulement** sur `FiveMode`. Les cinq slots **coexistent**. Accueil : hero Arcade ; paire Défi Arcade | Défi Five ; Duel | Zen | Five. **Pas** d’abandon croisé. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Hub UIKit (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` + `BlomixDailyKind` (`.arcade` | `.five`). Hub paramétré `BlomixDailyHubViewController(kind:)`. Graines **indépendantes**. Défi Arcade : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai), slot **`blomix_daily_save_v1`**, CK `DailyScore`, GC `dailywins_arc` ; le score de la run va **aussi** sur Arcade + moyenne. Défi Five : `isFiveMode`, slot **`blomix_five_daily_save_v1`**, CK `FiveDailyScore` (Production), GC `dailywin_five` ; le score de la run va **seulement** sur `FiveMode`. Les cinq slots **coexistent**. Accueil : hero Arcade ; paire Défi Arcade | Défi Five ; Duel | Zen | Five. **Pas** d’abandon croisé. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Hub UIKit (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
@@ -358,12 +358,12 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 | **Tutoriel** | `book.fill` → partie guidée (tuto interactif grille, pas l’overlay paginé UIKit) |
 | **Thème** | soleil / lune |
 | **Partager** | `paperplane.fill` |
-| **Salon** | `trophy.fill` → `BlomixTrophySalonViewController` (1ʳᵉ version test) |
+| **Salon** | `trophy.fill` → `BlomixTrophySalonViewController` (1ʳᵉ version test). Toast palier : overlay scène (même Y qu’accueil), tap → Salon. Étoiles post-III sous la cible (1× / 2× / 3× s3, fill gouttière). |
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
 
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - **Arcade** hero pleine largeur sous BLOMIX ; rangée **Défi Arcade | Défi Five** ; rangée **Duel | Zen | Five** (tiers, même hauteur totale qu’avant). Titre chip Défi = **Défi** (traduit) + caption Arcade ou Five ; reprise = Défi + deadline ; après GO = Classement + caption. Caption Continuer sur Arcade / Zen / Five si save. Duel : pastille `person.fill` verte si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
-- 7 rangs accueil en **4+3** (trou gouttière comme BLOMIX) : `ARC. MOY. ZEN FIVE` / `DUEL DÉFI F.DÉFI`. Chiffres **cachés** jusqu’à ce que les **7** fetches aient répondu, puis stagger. F.DÉFI = rang carrière CloudKit Five (`dailywins_five` / `FiveDailyScore`). Écran SCORE : **mêmes 7 onglets, même grille 4+3**.
+- 7 rangs accueil en **4+3** (trou gouttière comme BLOMIX) : `ARC. MOY. ZEN FIVE` / `DUEL DÉFI 5 DÉFI`. Chiffres **cachés** jusqu’à ce que les **7** fetches aient répondu, puis stagger. **5 DÉFI** = rang carrière CloudKit Five (`dailywin_five` / `FiveDailyScore`). Écran SCORE : **mêmes 7 onglets, même grille 4+3**.
 - Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
 - Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi Arcade+Five / Duel+Zen+Five → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
@@ -374,6 +374,7 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - Cartes `panelFill` / bordure chrome ; titres de section en **accent skin** (orange blox)
 - Contenu structuré via `BlomixL10n.creditsSections` (FR/EN/DE/ES/IT/PT) ; `credits.txt` legacy non branché UI
 - Crédits : bouton chrome **Laisser un avis** → `?action=write-review` (pas de pop-up custom, guideline 5.6.1)
+- **Sondage 8.8** (`BlomixPlayerSurvey`) : compteur local `blomix_survey_8_8_*`, seuil 10 parties solo (Arcade / Zen / Five / Défi Arcade / Défi Five — pas Duel, pas tuto). Amorcé une fois avec le compteur avis Arcade/Zen/Five. Offre à l’accueil (après GO, pas pendant splash / Nouveautés / autre modal). Oui → Q1 modes multi, Q2 texte 200, Q3 barre 0…10 + texte 200 ; Plus tard → +10 ; Ne plus demander / réponses envoyées → plus jamais. Record Public `PlayerSurvey` `survey88_{gamePlayerID}`, campagne `"8.8"`. Pas de `displayName`. Échec CK : JSON pending, retry au prochain accueil. Schéma Production à créer avant la vente (voir [RELEASE_8.8.md](RELEASE_8.8.md)).
 - GO Arcade/Zen : après ≥ 3 parties terminées, 1× par `MARKETING_VERSION`, `AppStore.requestReview` (pause 2,5 s, pas pendant overlay record) ; hors tuto / Duel
 - **Conseil du jour** : ancré à 10 % de la hauteur. Si l’iTunes Lookup signale une MAJ, une bannière (lien App Store) **prend ce slot et masque les conseils** ; ✕ rétablit les conseils pour la session.
 
@@ -479,6 +480,8 @@ Blomix/Blomix/
 ├── BlomixTrophyStore.swift            # Catalogue + JSON local `blomix_trophies_v1`
 ├── BlomixTrophyCibleView.swift        # Pastille-cible (tours, peau, paillettes)
 ├── BlomixTrophySalonViewController.swift  # Salon des trophées (modal famille Crédits)
+├── BlomixPlayerSurvey.swift               # Sondage 8.8 : compteur 10 parties, CK `PlayerSurvey`
+├── BlomixPlayerSurveyViewController.swift # Invitation + 3 questions (modal famille Crédits)
 ├── BlomixRulesGuideViewController.swift  # Guide règles + Magix (6.4)
 ├── BlomixPvPH2HManager.swift     # H2H PvP CloudKit (multi-ID game/team + alias, isolé)
 ├── BlomixPublicCloudGate.swift   # Robinet Public DB (503 / Retry-After) H2H + lobby

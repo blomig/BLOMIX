@@ -98,6 +98,8 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | 46 | Ondes de choc bombe |
 | 160 | Game Over focus rings |
 | 200 | Overlay Game Over |
+| 220 | Toast trophée (palier, overlay) |
+| 250 | Overlay quitter / record perso |
 | 300 | Overlay transition stage/tuto |
 
 ---
@@ -729,7 +731,7 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 **Interactions**
 
 - Disque → `LeaderboardViewController` (onglet Arc. / Moy. / Zen / Duel)
-- Icônes → Réglages / Tutoriel (partie guidée) / thème / Partager / Crédits (`BlomixCreditsViewController`)
+- Icônes → Réglages / Tutoriel (partie guidée) / thème / Partager / **Salon** / Crédits (`BlomixCreditsViewController`)
 
 | Effet | Paramètres |
 |---|---|
@@ -739,6 +741,7 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Boutons jeu | cold launch : après le wordmark (`punchIntroChromeDelay` + 0,16 / 0,28 s) ; retour ☰ : PvP+Zen **0,06 s**, Solo **0,10 s**. Slide **14 pt**, scale 1,15→1,0, fade **0,12 s** |
 | Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; chiffres **après** les 5 fetches, stagger L→R **0,07 s** (fade 0,16 s + scale 0,82→1, 0,18 s) |
 | Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
+| Toast trophée | au **palier** (pas au retour accueil). Chip chrome, Y = `height − safeTop − 92`, z **220**. Fade 0,22 / 3,6 / 0,28. Tap → Salon. Apparence plus tard. |
 
 **Bouton Solo hero** (même puits que Duel/Zen ; se distingue par la taille)
 

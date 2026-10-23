@@ -12,6 +12,7 @@ Textes **hors bundle** : Apple ne les lit jamais dans l’IPA. Source de vérit�
 | [`keywords/`](keywords/) | Mots-clés (≤ 100 car.) | Idem, nouvelle locale seulement |
 | [`support-url/`](support-url/) | URL d’assistance | Nouvelle locale (pt-BR) — même URL que FR/EN |
 | [`asc-assets/`](asc-assets/) | Captures (inbox → out) | Upload **manuel** ASC ; Fastlane `skip_screenshots: true` |
+| [`nominations/`](nominations/) | CSV Featuring Nominations | **8.8** — import ASC (envoie direct, pas de brouillon) |
 
 Locales : `en-US`, `fr-FR`, `de-DE`, `es-ES`, `it-IT`, `pt-BR`.
 

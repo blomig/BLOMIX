@@ -803,6 +803,9 @@ enum BlomixL10n {
     static func trophyTitle(_ id: String) -> String {
         tr("trophy.title.\(id)", comment: "Trophy pastille title")
     }
+    static func trophyMaster(_ id: String) -> String {
+        tr("trophy.master.\(id)", comment: "Trophy caption at 3 stars")
+    }
     static func trophyBody(_ id: String) -> String {
         tr("trophy.body.\(id)", comment: "Trophy fiche sentence")
     }
@@ -815,6 +818,21 @@ enum BlomixL10n {
             name, rank
         )
     }
+
+    // MARK: - Sondage 8.8
+    static var surveyInviteBody: String { tr("survey.invite", comment: "Survey invite body") }
+    static var surveyYes: String { tr("survey.yes", comment: "Survey — accept") }
+    static var surveyLater: String { tr("survey.later", comment: "Survey — later") }
+    static var surveyNever: String { tr("survey.never", comment: "Survey — never again") }
+    static var surveyContinue: String { tr("survey.continue", comment: "Survey — next question") }
+    static var surveyQ1: String { tr("survey.q1", comment: "Survey Q1 — why come back") }
+    static var surveyQ1Hint: String { tr("survey.q1_hint", comment: "Survey Q1 — multi select hint") }
+    static var surveyQ2: String { tr("survey.q2", comment: "Survey Q2 — what to improve") }
+    static var surveyQ3: String { tr("survey.q3", comment: "Survey Q3 — recommend") }
+    static var surveyQ3Why: String { tr("survey.q3_why", comment: "Survey Q3 — optional why") }
+    static var surveyRatingLow: String { tr("survey.rating_low", comment: "Survey 0 label") }
+    static var surveyRatingHigh: String { tr("survey.rating_high", comment: "Survey 10 label") }
+    static var surveyThanksBody: String { tr("survey.thanks", comment: "Survey thank-you") }
 
     // MARK: - Generic
     static var ok: String { tr("generic.ok", comment: "Generic OK button") }

@@ -186,6 +186,13 @@ final class BlomixDailyGhostController {
         onDisplayChange?(display)
     }
 
+    /// Score fantôme connu (cache disque ou affichage prêt). Nil si pas encore calculé.
+    func scoreToBeat(day: String) -> Int? {
+        if let cached = cachedScore(forDay: day) { return cached }
+        if case .ready(let score) = display { return score }
+        return nil
+    }
+
     private func cachedScore(forDay day: String) -> Int? {
         let d = UserDefaults.standard
         guard d.integer(forKey: cacheVerKey) == Self.engineVersion,

@@ -55,7 +55,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
-    /// Grille 4+3 = pastilles accueil (Arc. Moy. Zen Five / Duel Défi F.Défi).
+    /// Grille 4+3 = pastilles accueil (Arc. Moy. Zen Five / Duel Défi 5 Défi).
     private enum LeaderboardKind: CaseIterable, Sendable {
         case mainScore
         case averageScore

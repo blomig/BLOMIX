@@ -51,6 +51,14 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         }
     }
 
+    /// Champ CK queryable du jour UTC. Arcade : `day`. Five : `Day` (Dashboard).
+    var ckDayKey: String {
+        switch self {
+        case .arcade: return "day"
+        case .five: return "Day"
+        }
+    }
+
     var recordNamePrefix: String {
         switch self {
         case .arcade: return "daily"
@@ -118,7 +126,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
     var leaderboardID: String {
         switch self {
         case .arcade: return "dailywins_arc"
-        case .five: return "dailywins_five"
+        case .five: return "dailywin_five"
         }
     }
 
@@ -185,6 +193,7 @@ final class BlomixDailyChallenge {
     let kind: BlomixDailyKind
     var leaderboardID: String { kind.leaderboardID }
     private var recordType: String { kind.recordType }
+    private var ckDayKey: String { kind.ckDayKey }
     private var saveKey: String { kind.saveKey }
     private var finishedDayKey: String { kind.finishedDayKey }
     private var finishedScoreKey: String { kind.finishedScoreKey }
@@ -542,7 +551,7 @@ final class BlomixDailyChallenge {
             } else {
                 record = CKRecord(recordType: recordType, recordID: recID)
             }
-            record["day"] = day as CKRecordValue
+            record[ckDayKey] = day as CKRecordValue
             record["score"] = score as CKRecordValue
             record["displayName"] = displayName() as CKRecordValue
             record["gamePlayerID"] = playerID as CKRecordValue
@@ -605,6 +614,7 @@ final class BlomixDailyChallenge {
         let gained = Self.podiumPoints(for: mine.gamePlayerID, in: entries)
         if gained > 0 {
             careerPoints += gained
+            BlomixTrophyHooks.noteDailyPodium()
             print("[Daily] Podium \(day) : +\(gained) (total \(careerPoints)).")
         }
         UserDefaults.standard.set(true, forKey: creditedPrefix + day)
@@ -689,7 +699,7 @@ final class BlomixDailyChallenge {
         }
         var byDay: [String: [BlomixDailyScoreEntry]] = [:]
         for rec in records {
-            let day = (rec["day"] as? String) ?? day(fromRecordName: rec.recordID.recordName) ?? ""
+            let day = (rec[ckDayKey] as? String) ?? day(fromRecordName: rec.recordID.recordName) ?? ""
             guard !day.isEmpty, days.contains(day) else { continue }
             byDay[day, default: []].append(entry(from: rec))
         }
@@ -813,13 +823,13 @@ final class BlomixDailyChallenge {
     }
 
     private func queryScores(day: String) async throws -> [CKRecord] {
-        try await queryScores(predicate: NSPredicate(format: "day == %@", day))
+        try await queryScores(predicate: NSPredicate(format: "%K == %@", ckDayKey, day))
     }
 
     private func queryScores(days: [String]) async throws -> [CKRecord] {
         guard !days.isEmpty else { return [] }
         if days.count == 1 { return try await queryScores(day: days[0]) }
-        return try await queryScores(predicate: NSPredicate(format: "day IN %@", days))
+        return try await queryScores(predicate: NSPredicate(format: "%K IN %@", ckDayKey, days))
     }
 
     private func queryScores(predicate: NSPredicate) async throws -> [CKRecord] {

@@ -108,6 +108,8 @@ La logique gameplay est concentrée dans :
 | `BlomixDailyRNG.swift` | File seedée + effets Magix hashés (Défi du jour) |
 | `BlomixDailyChallenge.swift` | Save daily, CloudKit `DailyScore`, podium GC `dailywins_arc` |
 | `BlomixDailyHubViewController.swift` | Hub du jour (liste + CTA) |
+| `BlomixPlayerSurvey.swift` | Sondage 8.8, CloudKit `PlayerSurvey` |
+| `BlomixPlayerSurveyViewController.swift` | Modal invitation + 3 questions |
 | `BlomixEloManager.swift` | Elo PvP |
 | `ScoreManager.swift` / `GameCenterManager.swift` | Classements GC |
 | `BlomixL10n.swift` | Pont typé localisation |

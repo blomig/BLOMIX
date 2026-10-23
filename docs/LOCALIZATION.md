@@ -132,6 +132,20 @@ Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew
 
 Ce n’est **pas** le champ ASC Nouveautés.
 
+### Sondage 8.8 (accueil)
+
+Après 10 parties solo, modal `BlomixPlayerSurveyViewController`. Clés `survey.*` (FR/EN/DE/ES/IT/PT). Q1 réutilise les titres de modes (`start.button`, `start.zen`, `start.daily`, `start.pvp`, `start.five`). Five et BLOMIX **non traduits**.
+
+| Clé | Usage |
+|---|---|
+| `survey.invite` | Invitation (Oui / Plus tard / Ne plus demander) |
+| `survey.yes` / `survey.later` / `survey.never` / `survey.continue` | Boutons |
+| `survey.q1` / `survey.q1_hint` | Pourquoi revenir — QCM multi |
+| `survey.q2` | Champ libre 200 car. (vide OK) |
+| `survey.q3` / `survey.q3_why` | Recommander + pourquoi (optionnel) |
+| `survey.rating_low` / `survey.rating_high` | Bornes 0 / 10 de la barre |
+| `survey.thanks` | Écran merci ; `generic.ok` pour fermer |
+
 ---
 
 ## Texte promotionnel App Store (hors bundle, **stable**)
@@ -190,7 +204,7 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | PvP | Lobby, invitations, résultats, Elo |
 | Partage | Bouton, a11y, messages accueil/GO, badge record (`share.*`) |
 | Tutoriel | Étapes guidées |
-| Classements | Leaderboard Arcade / moyenne / Zen / Five / Duel / Défi / F.Défi |
+| Classements | Leaderboard Arcade / moyenne / Zen / Five / Duel / Défi / 5 Défi |
 
 Parcourir `BlomixL10n.swift` avant d'ajouter une clé pour éviter les doublons.
 
@@ -209,7 +223,7 @@ Utiliser les noms du [GLOSSARY.md](GLOSSARY.md) :
 | Mode Zen | Zen mode |
 | Mode Five | Five (non traduit, 6 langues) |
 | Défi | Challenge / Challenge / Desafío / Sfida / Desafio |
-| Défi Five (pastille) | F.DÉFI / F.DAY / F.TAG / F.RETO / F.SFIDA / F.DIA |
+| Défi Five (pastille) | 5 DÉFI / 5 DAY / 5 TAG / 5 RETO / 5 SFIDA / 5 DIA |
 | PvP | PvP |
 
 Noms Magix (**CHROMAX**, **BRIXED**, etc.) : **ne pas traduire** — identiques dans toutes les langues.

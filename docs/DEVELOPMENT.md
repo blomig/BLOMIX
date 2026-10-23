@@ -49,7 +49,7 @@ Fichier : `Blomix/Blomix/Blomix.entitlements`
 | Capability | Usage |
 |---|---|
 | **Game Center** | Classements solo/Zen, matchmaking PvP, invitations |
-| **CloudKit** | Défis PvP (`AvailablePlayer`) + Défi du jour (`DailyScore`) — conteneur `iCloud.blomig.BLOMIX`. Schéma Public **Production** à déployer au Dashboard avant TF / magasin. Entitlement `icloud-container-environment` = **Production** aussi pour un ⌘R Xcode (sinon Development, même en config Release). |
+| **CloudKit** | Défis PvP (`AvailablePlayer`) + Défi du jour (`DailyScore` / `FiveDailyScore`) + sondage 8.8 (`PlayerSurvey`) — conteneur `iCloud.blomig.BLOMIX`. Schéma Public **Production** à déployer au Dashboard avant TF / magasin. Entitlement `icloud-container-environment` = **Production** aussi pour un ⌘R Xcode (sinon Development, même en config Release). |
 | **Push (APS)** | Debug : `development` (`Blomix.entitlements`). Release / TestFlight / App Store : `production` (`BlomixRelease.entitlements`) |
 
 ### Tester le PvP
@@ -85,6 +85,23 @@ expr UserDefaults.standard.set(TimeInterval(3 * 3600), forKey: "blomix_debug_dai
 
 Ne pas committer un offset non nul. Release ignore la clé.
 
+### Tester le sondage 8.8
+
+Compteur séparé de l’avis StoreKit. Solo seulement (Défis inclus). Seuil 10, puis +10 si Plus tard.
+
+lldb (app en pause, puis retour accueil) :
+
+```
+expr UserDefaults.standard.set(false, forKey: "blomix_survey_8_8_done")
+expr UserDefaults.standard.set(10, forKey: "blomix_survey_8_8_games")
+expr UserDefaults.standard.set(10, forKey: "blomix_survey_8_8_next_at")
+expr UserDefaults.standard.set(true, forKey: "blomix_survey_8_8_seeded")
+```
+
+Type CloudKit Production `PlayerSurvey` (recordName `survey88_{gamePlayerID}`) : champs `campaign` String, `modes` String, `improve` String, `recommend` Int64, `recommendWhy` String, `locale` String, `appVersion` String, `gamePlayerID` String. Sans ça, l’upload échoue silencieusement (pending local, retry). Dashboard → Query records.
+
+Reset définitif : `expr UserDefaults.standard.removeObject(forKey: "blomix_survey_8_8_done")` + mêmes `games` / `next_at` ci-dessus.
+
 ---
 
 ## Architecture (résumé)
@@ -99,6 +116,7 @@ GameViewController          # Root UIKit, tutoriel, invitations GC
 BlomixMoveAnalyzer          # Évaluation pure Swift (sans SpriteKit)
 BlomixPvPNetworking         # GKMatch, état partagé, attaques
 BlomixPublicCloudGate       # Throttle CloudKit Public (H2H + lobby)
+BlomixPlayerSurvey          # Sondage 8.8 → CK `PlayerSurvey`
 BlomixProceduralSFX         # Sons procéduraux Magix / feedback
 BlomixL10n                  # Pont typé vers Localizable.strings
 ```

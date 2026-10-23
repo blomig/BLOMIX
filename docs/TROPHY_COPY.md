@@ -124,6 +124,24 @@ Un nom par mur. Cutout au-dessus de la grille.
 - phrase : Les deux Défis le même jour.
 - notes :
 
+#### `board_recover`
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : Reprise
+- nom : Reprise en main
+- maître : En Maîtrise
+- phrase : Revenir sous la ligne 3 après avoir eu une colonne pleine.
+- notes : même partie. D’abord une colonne 8/8. Puis toutes les cases non vides dans les 3 premières lignes (rows 0–2, haut). Le bas (rows 3–7) est vide.
+
+#### `pure_streak`
+- courbe : quality
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : Puriste
+- nom : Puriste
+- maître : Nerfs d’acier
+- phrase : Nombre de coups d’affilée joués sans bombe et sans Magix.
+- notes : pastille = plus long streak jamais fait (`recordBest`), pas un compteur de fois. Coup Magix ou bombe = reset. Tu as dit volume ; quality à cause de « le plus grand jamais fait ».
+
 ---
 
 ### Chaînes
@@ -181,6 +199,24 @@ Un nom par mur. Cutout au-dessus de la grille.
 - maître : Videur
 - phrase : Vide la grille (+500).
 - notes :
+
+#### `brix_line`
+- courbe : rare
+- seuils : 0 · **1** · **5** · **10**
+- aujourd’hui : Mur de Brix
+- nom : Maçon
+- maître : Mario Bros
+- phrase : Avoir une ligne ou une colonne pleine de Brix.
+- notes : 8 Brix d’affilée, rangée ou colonne. Compteur de fois (pas quality). Seuils 1 / 5 / 10 (pas le rare 1 / 3 / 10).
+
+#### `bomb_brix`
+- courbe : quality
+- seuils : 0 · **3** · **9** · **13**
+- aujourd’hui : Casseur
+- nom : Casseur
+- maître : King Kong
+- phrase : Nombre de Brix cassés avec une bombe en une pose.
+- notes : pastille = max d’une pose (`recordBest`). Brix **dans la zone d’explosion** (pas les cascades). 3×3 en Zen/Five/Duel/Arcade 1 ; Arcade stage ≥ 2 = nuke (3×3 + bras). III 13 = nuke.
 
 ---
 
@@ -286,6 +322,24 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - maître : Finisseur
 - phrase : SAINTX en Stage Ultime.
 - notes :
+
+#### `magix_last_minute`
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : Magix < 10
+- nom : Dernière minute
+- maître : Sauveur
+- phrase : Poser un Magix quand moins de 10 cases sont libres.
+- notes : compte les vides de la grille au moment de la pose.
+
+#### `magix_last_cell`
+- courbe : volume
+- seuils : 0 · **1** · **5** · **50**
+- aujourd’hui : Magix dernière case
+- nom : Ultime
+- maître : Survivant
+- phrase : Poser un Magix sur la dernière case libre de la grille.
+- notes : 1 vide au moment de la pose. `id` pas `magix_ultime` (déjà `magix_saintx_ultime`).
 
 ---
 
@@ -552,6 +606,15 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - maître : Testeur
 - phrase : Passe le chrome en Clair.
 - notes :
+
+#### `app_store_review`
+- courbe : unique
+- seuils : 0 · **1**
+- aujourd’hui : Avis
+- nom : Partage
+- maître : Entremetteur
+- phrase : Mettre un avis sur l’App Store.
+- notes : unique, pas d’étoiles. Fiche = lien tappable (style liens accueil Réglages · Tutoriel · Crédits, `BlomixAppearance.linkText`) → `BlomixReviewPrompt.writeReviewURL` (même que Crédits). Ouvrir le lien = 1 (Apple ne dit pas si l’avis est posté). Pas de boîte « note-nous » (guideline 5.6.1). `share_home` a déjà aujourd’hui « Partage ».
 
 #### `bomb`
 - courbe : volume

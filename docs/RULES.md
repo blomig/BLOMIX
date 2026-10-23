@@ -210,7 +210,7 @@ Taper à nouveau l'icône bombe **annule** le mode et restitue la bombe au stock
 
 À partir du stage 2, l’icône HUD passe à la texture **nuke**. Les cases hors grille sont ignorées.
 
-En **Duel**, tant que le mode bombe est actif (visée), le **timer de tour (10 s) est gelé**. Annuler ou poser la bombe relance le décompte.
+En **Duel**, tant que le mode bombe est actif (visée), le **timer de tour (10 s) est gelé**. La visée elle-même est plafonnée à **10 s** après l’enclenchement : au bout, la bombe se pose toute seule (case visée, ou centre de grille). Annuler ou poser relance le décompte de tour. Rester ≥ 8 s puis poser = trophée secret *Temps mort*.
 
 ---
 
@@ -250,7 +250,7 @@ Deux défis **indépendants** (graines distinctes) :
 | Règles | Même accélération qu’Arcade (timer, stages, bombe, Magix, ligne /10) | Même règles que Five (sans timer, ligne /5) |
 | Graine | `blomix-daily-v1` | `blomix-five-v1` |
 | Score de la run | Arcade + moyenne | `FiveMode` seulement |
-| Carrière podium | `dailywins_arc` | `dailywins_five` |
+| Carrière podium | `dailywins_arc` | `dailywin_five` |
 | CloudKit | `DailyScore` | `FiveDailyScore` (Production) |
 
 Tout le monde joue la **même file** ce jour-là (UTC) pour **ce** défi. Une seule partie par défi et par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC**. Après ça, la partie non terminée n’est plus classée. Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).

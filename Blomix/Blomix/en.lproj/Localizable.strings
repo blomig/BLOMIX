@@ -93,6 +93,14 @@
 "game_over.record_rank_solo_format" = "You are now ranked #%lld in Arcade";
 "game_over.record_rank_zen_format" = "You are now ranked #%lld in Zen";
 "game_over.record_rank_five_format" = "You are now ranked #%lld in Five";
+"game_over.record_caption" = "Personal best";
+"game_over.place_ordinal_1" = "1st";
+"game_over.place_ordinal_2" = "2nd";
+"game_over.place_ordinal_3" = "3rd";
+"game_over.place_arcade_format" = "%@ in Arcade";
+"game_over.place_zen_format" = "%@ in Zen";
+"game_over.place_five_format" = "%@ in Five";
+"game_over.daily_place_format" = "%@ for now";
 "game_over.leaderboard" = "View leaderboard";
 "game_over.personal_best" = "New personal best!";
 "hud.best_score_title" = "BEST";

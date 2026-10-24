@@ -86,6 +86,29 @@ enum BlomixL10n {
     static func gameOverRecordRankFive(_ rank: Int) -> String {
         String(format: tr("game_over.record_rank_five_format", comment: "New Five rank; %lld = rank"), rank)
     }
+    /// Légende sous la place, quand le même voile est aussi un record.
+    static var gameOverRecordCaption: String {
+        tr("game_over.record_caption", comment: "Personal best caption under a podium place")
+    }
+    static func gameOverPlaceOrdinal(_ place: Int) -> String {
+        switch place {
+        case 1: return tr("game_over.place_ordinal_1", comment: "1st, podium veil")
+        case 2: return tr("game_over.place_ordinal_2", comment: "2nd, podium veil")
+        default: return tr("game_over.place_ordinal_3", comment: "3rd, podium veil")
+        }
+    }
+    static func gameOverPlaceArcade(_ place: Int) -> String {
+        String(format: tr("game_over.place_arcade_format", comment: "Podium place in Arcade; %@ = ordinal"), gameOverPlaceOrdinal(place))
+    }
+    static func gameOverPlaceZen(_ place: Int) -> String {
+        String(format: tr("game_over.place_zen_format", comment: "Podium place in Zen; %@ = ordinal"), gameOverPlaceOrdinal(place))
+    }
+    static func gameOverPlaceFive(_ place: Int) -> String {
+        String(format: tr("game_over.place_five_format", comment: "Podium place in Five; %@ = ordinal"), gameOverPlaceOrdinal(place))
+    }
+    static func gameOverDailyPlace(_ place: Int) -> String {
+        String(format: tr("game_over.daily_place_format", comment: "Live daily podium place; %@ = ordinal"), gameOverPlaceOrdinal(place))
+    }
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
     static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under placement-quality % on game over (justesse / placement)") }

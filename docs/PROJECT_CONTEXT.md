@@ -214,7 +214,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 
 **Multiplicateur stage** : appliqué dans `addScore()` si `isInStagedSoloMode`.
 
-**Game Over** : `finalScore = score` (pas de bonus de fin Brix). Overlay record perso : rang = 1 + joueurs du top 100 dont le score est **strictement supérieur** au nouveau PB (pas `localEntry.rank` encore non indexé).
+**Game Over** : `finalScore = score` (pas de bonus de fin Brix). Second voile (`buildCelebrationOverlay`) si record personnel **ou** si ce score est 1er, 2e ou 3e — un seul voile si les deux. Arcade, Zen, Five : rang mondial de ce score via `fetchGlobalRankInsertingScore` (1 + autres du top 100 strictement au-dessus, joueur local exclu — pas `localEntry.rank`). Défi : top 3 = rang du jour. La place est le titre (couleur skin) ; « Record personnel » passe en légende. Hors top 3 : titre record + « classé #N » quand Game Center répond. Paillettes skin jusqu’à OK. Trophée `*_pb` seulement s’il y a record.
 
 **Leaderboards Game Center** :
 - Solo : score principal + moyenne

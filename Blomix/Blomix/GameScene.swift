@@ -971,6 +971,12 @@ final class GameScene: SKScene {
     private static let gameOverReplayLabelName = "gameOverReplayLabel"
     private static let gameOverRecordOverlayName = "gameOverRecordOverlay"
     private static let gameOverRecordOkName = "gameOverRecordOk"
+    private static let gameOverRecordTitleName = "gameOverRecordTitle"
+    private static let gameOverRecordCaptionName = "gameOverRecordCaption"
+    private static let gameOverRecordScoreName = "gameOverRecordScore"
+    private static let gameOverRecordRankName = "gameOverRecordRank"
+    private static let gameOverRecordSparkleContainerName = "gameOverRecordSparkles"
+    private static let gameOverRecordSparkleActionKey = "gameOverRecordSparkleSpawn"
     private static let gameOverLeaderboardLabelName = "gameOverLeaderboardLabel"
     private static let gameOverPersonalBestLabelName = "gameOverPersonalBestLabel"
     private static let gameOverWorstMoveButtonName = "gameOverWorstMoveButton"
@@ -1522,6 +1528,20 @@ final class GameScene: SKScene {
     /// Carte 1:1 pré-rendue pour la share sheet (invalidée en quittant le GO).
     private var gameOverShareCardImage: UIImage?
 
+    /// Jeton du voile record / top 3. Incrémenté à chaque Game Over pour ignorer un rang arrivé trop tard.
+    private var celebrationToken: Int = 0
+    /// `true` après OK, ou tant que le voile de cette partie n’est pas encore armé.
+    private var celebrationDismissed = true
+    private var celebrationScore: Int = 0
+    private var celebrationIsPersonalBest = false
+    private var celebrationPBNoted = false
+    /// Place 1…3 du jour (Défi). `nil` tant que le fetch n’a pas répondu, ou hors podium.
+    private var celebrationDailyPlace: Int?
+    /// Rang mondial de ce score (1-based). `nil` tant que Game Center n’a pas répondu.
+    private var celebrationWorldRank: Int?
+    private var celebrationAwaitingWorldRank = false
+    private var celebrationAwaitingDailyPlace = false
+
     /// `true` tant que l’écran d’accueil plein écran est affiché ; la partie n’a pas encore commencé.
     private var isStartScreen = true
     /// Accesseurs exposés à GameViewController pour les guards de bannière défi entrant.
@@ -1916,6 +1936,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.previewNodeName)?.removeFromParent()
         childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent()
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
+        childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
         childNode(withName: Self.bottomMenuContainerName)?.removeFromParent()
 
@@ -5360,6 +5381,7 @@ final class GameScene: SKScene {
         }
         isGameOver = true
         isProcessing = true
+        invalidateGameOverCelebration()
         stopStageTimer()
         hapticHeavy()
 
@@ -5848,29 +5870,9 @@ final class GameScene: SKScene {
         // Pré-rendu carte de partage (thème + skin actuels).
         refreshGameOverShareCard()
 
-        // Game Center : soumission solo uniquement sur BlomixMainScore_v3.
+        // Game Center : soumission solo uniquement sur le classement du mode.
         // Les scores PvP sont gérés par le système Elo et n'entrent pas dans ce leaderboard.
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            guard self.pvpCoordinator == nil else { return }
-            let isNewPB: Bool
-            if self.isFiveMode {
-                isNewPB = ScoreManager.shared.isNewFivePersonalBest(finalScore)
-                ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.fiveLeaderboardID, completion: nil)
-            } else if self.isZenMode {
-                isNewPB = ScoreManager.shared.isNewZenPersonalBest(finalScore)
-                ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
-            } else {
-                isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
-                ScoreManager.shared.submitScore(finalScore, completion: nil)
-                ScoreManager.shared.recordGameScore(finalScore)
-            }
-            if isNewPB {
-                self.gameOverShareIsNewPB = true
-                self.refreshGameOverShareCard()
-                self.presentPersonalBestOverlay(score: finalScore)
-            }
-        }
+        startGameOverCelebration(score: finalScore)
 
         scheduleAppStoreReviewPromptIfNeeded()
     }
@@ -5989,6 +5991,8 @@ final class GameScene: SKScene {
 
         let lockedDay = dailyLockedDay ?? activeDailyChallenge.utcToday
         let playerID = GKLocalPlayer.local.gamePlayerID
+        let token = celebrationToken
+        startGameOverCelebration(score: finalScore)
         Task { @MainActor [weak self] in
             guard let self else { return }
             var entries: [BlomixDailyScoreEntry] = []
@@ -5998,6 +6002,7 @@ final class GameScene: SKScene {
             case .unavailable:
                 break
             }
+            guard self.celebrationToken == token, self.isGameOver, self.isDailyChallengeMode else { return }
             if !playerID.isEmpty,
                !entries.contains(where: { $0.gamePlayerID == playerID }) {
                 let name = GKLocalPlayer.local.displayName.isEmpty
@@ -6007,36 +6012,25 @@ final class GameScene: SKScene {
                 entries.sort { $0.score > $1.score }
             }
             let text: String
+            var place: Int?
             if let rank = BlomixDailyChallenge.denseRank(of: playerID, in: entries) {
                 text = rank == 1 ? BlomixL10n.dailyGameOverRankFirst : BlomixL10n.dailyGameOverRank(rank)
                 if rank == 1 {
                     BlomixTrophyHooks.noteDailyRank1()
                 }
+                if (1...3).contains(rank) { place = rank }
             } else if entries.isEmpty {
                 text = BlomixL10n.dailyGameOverRankUnavailable
             } else {
                 text = BlomixL10n.dailyGameOverRankFirst
+                place = 1
             }
             (self.childNode(withName: Self.gameOverOverlayName)?
                 .childNode(withName: Self.gameOverDailyRankLabelName) as? SKLabelNode)?.text = text
-        }
-
-        // Arcade daily → highscore Arcade + moyenne. Five daily → `FiveMode` seulement.
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let isNewPB: Bool
-            if self.isFiveMode {
-                isNewPB = ScoreManager.shared.isNewFivePersonalBest(finalScore)
-                ScoreManager.shared.submitScore(finalScore, leaderboardID: ScoreManager.fiveLeaderboardID, completion: nil)
-            } else {
-                isNewPB = ScoreManager.shared.isNewPersonalBest(finalScore)
-                ScoreManager.shared.submitScore(finalScore, completion: nil)
-                ScoreManager.shared.recordGameScore(finalScore)
-            }
-            if isNewPB {
-                self.gameOverShareIsNewPB = true
-                self.presentPersonalBestOverlay(score: finalScore)
-            }
+            guard self.celebrationToken == token else { return }
+            self.celebrationAwaitingDailyPlace = false
+            self.celebrationDailyPlace = place
+            self.refreshCelebrationOverlay()
         }
     }
 
@@ -6060,7 +6054,7 @@ final class GameScene: SKScene {
 
     private func attemptAppStoreReviewPrompt() {
         guard isGameOver, childNode(withName: Self.gameOverOverlayName) != nil else { return }
-        if childNode(withName: Self.gameOverRecordOverlayName) != nil {
+        if celebrationBlocksReviewPrompt {
             run(
                 SKAction.sequence([
                     SKAction.wait(forDuration: 0.6),
@@ -6073,8 +6067,72 @@ final class GameScene: SKScene {
         BlomixReviewPrompt.requestReview(in: view?.window?.windowScene)
     }
 
-    /// Overlay record perso (famille résultat PvP). OK → game over 6.1 dessous.
-    private func presentPersonalBestOverlay(score: Int) {
+    /// Le voile record / top 3 est là, ou peut encore arriver (rang pas encore connu).
+    private var celebrationBlocksReviewPrompt: Bool {
+        if childNode(withName: Self.gameOverRecordOverlayName) != nil { return true }
+        if celebrationDismissed { return false }
+        if celebrationIsPersonalBest { return true }
+        if isDailyChallengeMode, celebrationAwaitingDailyPlace { return true }
+        if !isDailyChallengeMode, celebrationAwaitingWorldRank { return true }
+        return false
+    }
+
+    /// Invalide un voile encore en vol (focus, replay, partie suivante).
+    private func invalidateGameOverCelebration() {
+        celebrationToken &+= 1
+        celebrationDismissed = true
+        celebrationAwaitingWorldRank = false
+        celebrationAwaitingDailyPlace = false
+        childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
+    }
+
+    /// Record personnel et / ou top 3 du jeu qui vient d’être joué. Un seul voile.
+    private func startGameOverCelebration(score: Int) {
+        let token = celebrationToken
+        celebrationDismissed = false
+        celebrationPBNoted = false
+        celebrationScore = score
+        celebrationIsPersonalBest = false
+        celebrationDailyPlace = nil
+        celebrationWorldRank = nil
+        celebrationAwaitingWorldRank = true
+        celebrationAwaitingDailyPlace = isDailyChallengeMode
+
+        let isNewPB: Bool
+        if isFiveMode {
+            isNewPB = ScoreManager.shared.isNewFivePersonalBest(score)
+            ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.fiveLeaderboardID, completion: nil)
+        } else if isZenMode {
+            isNewPB = ScoreManager.shared.isNewZenPersonalBest(score)
+            ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
+        } else {
+            isNewPB = ScoreManager.shared.isNewPersonalBest(score)
+            ScoreManager.shared.submitScore(score, completion: nil)
+            ScoreManager.shared.recordGameScore(score)
+        }
+        if isNewPB {
+            celebrationIsPersonalBest = true
+            gameOverShareIsNewPB = true
+            if !isDailyChallengeMode {
+                refreshGameOverShareCard()
+            }
+            notePersonalBestTrophyIfNeeded()
+            refreshCelebrationOverlay()
+        }
+
+        let boardID = currentLeaderboardIDForHUD()
+        // Rang de CE score, pas l’ancien rang GC (souvent encore 2ᵉ alors que le score prend la 1ʳᵉ).
+        ScoreManager.shared.fetchGlobalRankInsertingScore(score, leaderboardID: boardID) { [weak self] rank in
+            guard let self, self.celebrationToken == token else { return }
+            self.celebrationAwaitingWorldRank = false
+            self.celebrationWorldRank = rank
+            self.refreshCelebrationOverlay()
+        }
+    }
+
+    private func notePersonalBestTrophyIfNeeded() {
+        guard celebrationIsPersonalBest, !celebrationPBNoted else { return }
+        celebrationPBNoted = true
         if isFiveMode {
             _ = BlomixTrophyStore.shared.increment("five_pb")
         } else if isZenMode {
@@ -6082,16 +6140,80 @@ final class GameScene: SKScene {
         } else {
             _ = BlomixTrophyStore.shared.increment("arcade_pb")
         }
+    }
+
+    /// Titre du voile. Sur un Défi, la place du jour passe devant le rang mondial.
+    private enum CelebrationHero: Equatable {
+        case dailyPlace(Int)
+        case worldPlace(Int)
+        case personalBest
+    }
+
+    private var celebrationShouldShow: Bool {
+        if celebrationIsPersonalBest { return true }
+        if isDailyChallengeMode {
+            if let place = celebrationDailyPlace, (1...3).contains(place) { return true }
+            return false
+        }
+        if let rank = celebrationWorldRank, (1...3).contains(rank) { return true }
+        return false
+    }
+
+    private func celebrationHero() -> CelebrationHero {
+        if isDailyChallengeMode, let place = celebrationDailyPlace, (1...3).contains(place) {
+            return .dailyPlace(place)
+        }
+        // Tant que le jour n’a pas répondu, on ne fige pas un titre mondial qui va peut-être s’effacer.
+        if isDailyChallengeMode, celebrationAwaitingDailyPlace {
+            return .personalBest
+        }
+        if let rank = celebrationWorldRank, (1...3).contains(rank) {
+            return .worldPlace(rank)
+        }
+        return .personalBest
+    }
+
+    private func celebrationWorldPlaceText(_ place: Int) -> String {
+        if isFiveMode { return BlomixL10n.gameOverPlaceFive(place) }
+        if isZenMode { return BlomixL10n.gameOverPlaceZen(place) }
+        return BlomixL10n.gameOverPlaceArcade(place)
+    }
+
+    /// Ligne « classé #N » : le record hors top 3, ou le mondial sous une place de Défi.
+    private func celebrationRankLine(hero: CelebrationHero) -> String {
+        guard celebrationIsPersonalBest, let rank = celebrationWorldRank, rank > 0 else { return "" }
+        if isDailyChallengeMode, celebrationAwaitingDailyPlace { return "" }
+        if case .worldPlace = hero { return "" }
+        if isFiveMode { return BlomixL10n.gameOverRecordRankFive(rank) }
+        if isZenMode { return BlomixL10n.gameOverRecordRankZen(rank) }
+        return BlomixL10n.gameOverRecordRankSolo(rank)
+    }
+
+    private func refreshCelebrationOverlay() {
+        guard isGameOver, !celebrationDismissed else { return }
+        guard childNode(withName: Self.gameOverOverlayName) != nil else { return }
+        guard celebrationShouldShow else { return }
+        if childNode(withName: Self.gameOverRecordOverlayName) == nil {
+            buildCelebrationOverlay()
+        } else {
+            applyCelebrationContent()
+        }
+    }
+
+    /// Voile au-dessus du game over. OK le retire, paillettes comprises.
+    private func buildCelebrationOverlay() {
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
         let overlay = SKNode()
         overlay.name = Self.gameOverRecordOverlayName
         overlay.zPosition = 250
+        overlay.alpha = 0
         addChild(overlay)
 
         let dim = SKSpriteNode(color: BlomixAppearance.gameOverDimColorSK, size: size)
         dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         dim.position = CGPoint(x: size.width / 2, y: size.height / 2)
         dim.alpha = BlomixAppearance.gameOverDimAlpha
+        dim.zPosition = 0
         overlay.addChild(dim)
 
         let ambient = SKNode()
@@ -6103,38 +6225,46 @@ final class GameScene: SKScene {
             containerName: "gameOverRecordAmbient",
             actionKey: "gameOverRecordAmbientSpawn"
         )
+        startCelebrationSparkles(in: overlay)
 
-        let cx = size.width / 2
-        let cy = size.height / 2 + 24
-
-        let title = SKLabelNode(text: BlomixL10n.gameOverRecordTitle)
+        let title = SKLabelNode(text: "")
+        title.name = Self.gameOverRecordTitleName
         title.fontName = Self.displayFontName
         title.fontSize = 32
         title.fontColor = BlomixAppearance.gameOverPrimaryTextSK
         title.horizontalAlignmentMode = .center
         title.verticalAlignmentMode = .center
-        title.position = CGPoint(x: cx, y: cy + 48)
         title.zPosition = 10
         overlay.addChild(title)
 
-        let scoreLine = SKLabelNode(text: BlomixL10n.gameOverRecordScore(score))
+        let caption = SKLabelNode(text: "")
+        caption.name = Self.gameOverRecordCaptionName
+        caption.fontName = Self.chromeFontName
+        caption.fontSize = 16
+        caption.fontColor = BlomixAppearance.gameOverSecondaryTextSK
+        caption.horizontalAlignmentMode = .center
+        caption.verticalAlignmentMode = .center
+        caption.zPosition = 10
+        caption.alpha = 0
+        overlay.addChild(caption)
+
+        let scoreLine = SKLabelNode(text: "")
+        scoreLine.name = Self.gameOverRecordScoreName
         scoreLine.fontName = Self.displayFontName
         scoreLine.fontSize = 36
         scoreLine.fontColor = BlomixAppearance.gameOverPrimaryTextSK
         scoreLine.horizontalAlignmentMode = .center
         scoreLine.verticalAlignmentMode = .center
-        scoreLine.position = CGPoint(x: cx, y: cy)
         scoreLine.zPosition = 10
         overlay.addChild(scoreLine)
 
         let rankLine = SKLabelNode(text: "")
-        rankLine.name = "gameOverRecordRank"
+        rankLine.name = Self.gameOverRecordRankName
         rankLine.fontName = Self.chromeFontName
         rankLine.fontSize = 16
         rankLine.fontColor = BlomixAppearance.gameOverSecondaryTextSK
         rankLine.horizontalAlignmentMode = .center
         rankLine.verticalAlignmentMode = .center
-        rankLine.position = CGPoint(x: cx, y: cy - 40)
         rankLine.zPosition = 10
         rankLine.alpha = 0
         overlay.addChild(rankLine)
@@ -6146,29 +6276,224 @@ final class GameScene: SKScene {
             size: CGSize(width: max(okSize.width, 160), height: max(okSize.height, 44)),
             fontSize: 17
         )
-        ok.position = CGPoint(x: cx, y: size.height * 0.22)
         ok.zPosition = 10
         overlay.addChild(ok)
 
-        let boardID = currentLeaderboardIDForHUD()
-        // Rang **du nouveau score**, pas `localEntry.rank` (souvent encore l’ancien, ex. 2ᵉ alors que le PB est 1ᵉʳ).
-        ScoreManager.shared.fetchGlobalRankInsertingScore(score, leaderboardID: boardID) { [weak self] rank in
-            guard let self, let rank,
-                  let overlay = self.childNode(withName: Self.gameOverRecordOverlayName),
-                  let label = overlay.childNode(withName: "gameOverRecordRank") as? SKLabelNode
-            else { return }
-            if self.isFiveMode {
-                label.text = BlomixL10n.gameOverRecordRankFive(rank)
-            } else if self.isZenMode {
-                label.text = BlomixL10n.gameOverRecordRankZen(rank)
-            } else {
-                label.text = BlomixL10n.gameOverRecordRankSolo(rank)
+        applyCelebrationContent()
+        overlay.run(.fadeIn(withDuration: 0.2))
+    }
+
+    private func applyCelebrationContent() {
+        guard let overlay = childNode(withName: Self.gameOverRecordOverlayName),
+              let title = overlay.childNode(withName: Self.gameOverRecordTitleName) as? SKLabelNode,
+              let caption = overlay.childNode(withName: Self.gameOverRecordCaptionName) as? SKLabelNode,
+              let scoreLine = overlay.childNode(withName: Self.gameOverRecordScoreName) as? SKLabelNode,
+              let rankLine = overlay.childNode(withName: Self.gameOverRecordRankName) as? SKLabelNode,
+              let ok = overlay.childNode(withName: Self.gameOverRecordOkName)
+        else { return }
+
+        let hero = celebrationHero()
+        let titleText: String
+        let titleColor: SKColor
+        let titleSize: CGFloat
+        switch hero {
+        case .dailyPlace(let place):
+            titleText = BlomixL10n.gameOverDailyPlace(place)
+            titleColor = celebrationPlaceColor()
+            titleSize = 40
+        case .worldPlace(let place):
+            titleText = celebrationWorldPlaceText(place)
+            titleColor = celebrationPlaceColor()
+            titleSize = 40
+        case .personalBest:
+            titleText = BlomixL10n.gameOverRecordTitle
+            titleColor = BlomixAppearance.gameOverPrimaryTextSK
+            titleSize = 32
+        }
+        let captionText = (celebrationIsPersonalBest && hero != .personalBest)
+            ? BlomixL10n.gameOverRecordCaption
+            : ""
+        let rankText = celebrationRankLine(hero: hero)
+        let heroChanged = title.text != titleText
+
+        title.text = titleText
+        title.fontColor = titleColor
+        title.fontSize = titleSize
+        caption.text = captionText
+        caption.alpha = captionText.isEmpty ? 0 : 1
+        scoreLine.text = BlomixL10n.gameOverRecordScore(celebrationScore)
+        if rankLine.text != rankText {
+            rankLine.removeAllActions()
+            rankLine.text = rankText
+            rankLine.alpha = 0
+            if !rankText.isEmpty {
+                rankLine.run(.fadeIn(withDuration: 0.22))
             }
-            label.run(.fadeIn(withDuration: 0.22))
+        }
+
+        layoutCelebrationCluster(
+            title: title,
+            caption: caption,
+            captionVisible: !captionText.isEmpty,
+            scoreLine: scoreLine,
+            rankLine: rankLine,
+            rankVisible: !rankText.isEmpty,
+            ok: ok
+        )
+
+        if heroChanged {
+            title.removeAllActions()
+            title.setScale(0.2)
+            let pop = SKAction.scale(to: 1.0, duration: 0.4)
+            pop.timingMode = .easeOut
+            title.run(pop)
+        }
+    }
+
+    private func layoutCelebrationCluster(
+        title: SKLabelNode,
+        caption: SKLabelNode,
+        captionVisible: Bool,
+        scoreLine: SKLabelNode,
+        rankLine: SKLabelNode,
+        rankVisible: Bool,
+        ok: SKNode
+    ) {
+        let cx = size.width / 2
+        var rows: [(SKNode, CGFloat)] = []
+        rows.append((title, title.fontSize * 0.55))
+        if captionVisible { rows.append((caption, 11)) }
+        rows.append((scoreLine, scoreLine.fontSize * 0.55))
+        if rankVisible { rows.append((rankLine, 11)) }
+        let okHalf = max(ok.calculateAccumulatedFrame().height, 44) / 2
+        rows.append((ok, okHalf))
+
+        var gaps = [CGFloat](repeating: 14, count: rows.count)
+        gaps[rows.count - 1] = 0
+        if rows.count >= 2 { gaps[rows.count - 2] = 32 }
+
+        var total = rows.reduce(CGFloat(0)) { $0 + $1.1 * 2 }
+        if rows.count >= 2 {
+            for gap in gaps.dropLast() { total += gap }
+        }
+        var y = size.height * 0.5 + 16 + total / 2 - rows[0].1
+        for index in rows.indices {
+            rows[index].0.position = CGPoint(x: cx, y: y)
+            if index < rows.count - 1 {
+                y -= rows[index].1 + gaps[index] + rows[index + 1].1
+            }
+        }
+    }
+
+    /// Première couleur du skin, assombrie ou éclaircie si elle se fond dans le voile.
+    private func celebrationPlaceColor() -> SKColor {
+        Self.readableAccent(Self.startScreenHeroAccentColor(), on: BlomixAppearance.gameOverDimColorSK)
+    }
+
+    private static func celebrationLuminance(_ color: SKColor) -> CGFloat? {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return nil }
+        func lin(_ x: CGFloat) -> CGFloat {
+            let c = Double(min(1, max(0, x)))
+            let v = c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+            return CGFloat(v)
+        }
+        return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    /// Garde la teinte du skin. Mélange vers le texte du thème seulement si le contraste passe sous 3.
+    private static func readableAccent(_ accent: SKColor, on background: SKColor) -> SKColor {
+        guard let accentY = celebrationLuminance(accent),
+              let backgroundY = celebrationLuminance(background) else { return accent }
+        func contrast(_ a: CGFloat, _ b: CGFloat) -> CGFloat {
+            (max(a, b) + 0.05) / (min(a, b) + 0.05)
+        }
+        if contrast(accentY, backgroundY) >= 3 { return accent }
+        let ink = BlomixAppearance.gameOverPrimaryTextSK
+        var mixed = accent
+        for step in 1...8 {
+            mixed = celebrationMix(accent, ink, CGFloat(step) / 8)
+            if let mixedY = celebrationLuminance(mixed), contrast(mixedY, backgroundY) >= 3 {
+                return mixed
+            }
+        }
+        return mixed
+    }
+
+    private static func celebrationMix(_ a: SKColor, _ b: SKColor, _ t: CGFloat) -> SKColor {
+        let u = min(1, max(0, t))
+        var ar: CGFloat = 0, ag: CGFloat = 0, ab: CGFloat = 0, aa: CGFloat = 0
+        var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+        guard a.getRed(&ar, green: &ag, blue: &ab, alpha: &aa),
+              b.getRed(&br, green: &bg, blue: &bb, alpha: &ba) else {
+            return u < 0.5 ? a : b
+        }
+        return SKColor(
+            red: ar + (br - ar) * u,
+            green: ag + (bg - ag) * u,
+            blue: ab + (bb - ab) * u,
+            alpha: 1
+        )
+    }
+
+    /// Grains ronds, six couleurs du skin, tant que le voile est affiché.
+    private func startCelebrationSparkles(in overlay: SKNode) {
+        let container = SKNode()
+        container.name = Self.gameOverRecordSparkleContainerName
+        container.zPosition = 4
+        overlay.addChild(container)
+
+        func scheduleNextBurst() {
+            let wait = SKAction.wait(forDuration: Double.random(in: 0.05...0.12))
+            let spawn = SKAction.run { [weak self, weak overlay] in
+                guard let self, let overlay, overlay.parent != nil else { return }
+                self.spawnCelebrationSparkleBurst(in: overlay)
+                scheduleNextBurst()
+            }
+            overlay.run(.sequence([wait, spawn]), withKey: Self.gameOverRecordSparkleActionKey)
+        }
+        scheduleNextBurst()
+    }
+
+    private func spawnCelebrationSparkleBurst(in overlay: SKNode) {
+        guard let container = overlay.childNode(withName: Self.gameOverRecordSparkleContainerName) else { return }
+        let palette = BlomixSkinCatalog.shared.bloxSKColors()
+        let fallback = Self.startScreenHeroAccentColor()
+        let count = Int.random(in: 2...4)
+        for _ in 0..<count {
+            let spark = SKShapeNode(circleOfRadius: CGFloat.random(in: 0.7...1.6))
+            spark.fillColor = palette.randomElement() ?? fallback
+            spark.strokeColor = .clear
+            spark.alpha = 0
+            spark.zPosition = 1
+            spark.position = CGPoint(
+                x: CGFloat.random(in: 12...(size.width - 12)),
+                y: CGFloat.random(in: 24...(size.height - 24))
+            )
+            container.addChild(spark)
+            let duration = Double.random(in: 1.15...2.05)
+            let move = SKAction.moveBy(
+                x: CGFloat.random(in: -16...16),
+                y: CGFloat.random(in: 28...72),
+                duration: duration
+            )
+            move.timingMode = .easeOut
+            spark.run(.sequence([
+                .group([
+                    move,
+                    .sequence([
+                        .fadeAlpha(to: CGFloat.random(in: 0.75...1), duration: 0.12),
+                        .wait(forDuration: duration * 0.45),
+                        .fadeOut(withDuration: max(0.2, duration * 0.4)),
+                    ]),
+                ]),
+                .removeFromParent(),
+            ]))
         }
     }
 
     private func dismissPersonalBestOverlay() {
+        celebrationDismissed = true
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
     }
 
@@ -6177,6 +6502,7 @@ final class GameScene: SKScene {
         removeAction(forKey: Self.appStoreReviewPromptActionKey)
         let keepZen = isZenMode
         let keepFive = isFiveMode
+        celebrationDismissed = true
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
         childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
         isGameOver = false
@@ -6800,7 +7126,9 @@ final class GameScene: SKScene {
         BlomixMusicPlayer.shared.resetToBase()
         blomixPvP_teardown()
         removeAllActions()
+        celebrationDismissed = true
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
+        childNode(withName: Self.gameOverRecordOverlayName)?.removeFromParent()
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
         for col in 0..<GridLayout.columnCount {
             childNode(withName: "\(Self.randomLineRisingSpritePrefix)\(col)")?.removeFromParent()

@@ -93,6 +93,14 @@
 "game_over.record_rank_solo_format" = "Ora sei #%lld in Arcade";
 "game_over.record_rank_zen_format" = "Ora sei #%lld in Zen";
 "game_over.record_rank_five_format" = "Ora sei #%lld in Five";
+"game_over.record_caption" = "Record personale";
+"game_over.place_ordinal_1" = "1°";
+"game_over.place_ordinal_2" = "2°";
+"game_over.place_ordinal_3" = "3°";
+"game_over.place_arcade_format" = "%@ in Arcade";
+"game_over.place_zen_format" = "%@ in Zen";
+"game_over.place_five_format" = "%@ in Five";
+"game_over.daily_place_format" = "%@ per ora";
 "game_over.leaderboard" = "Classifica";
 "game_over.personal_best" = "Nuovo record personale!";
 "hud.best_score_title" = "RECORD";

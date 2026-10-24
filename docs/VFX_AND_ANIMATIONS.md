@@ -627,10 +627,23 @@ Pas de son. Premier layout : pas de burst ni de tick. Échelle de la ligne **lin
 
 | Élément | Paramètre |
 |---|---|
-| Fond dim | noir α **0,72** |
+| Fond dim | Sombre : noir α **0,72** ; Clair : beige scène `#F5EEDF` α **0,94** |
 | Score, citation, boutons | fade séquentiel |
 | Blocs ambiants | spawn continu (voir §11) |
 | Victoire PvP | `victory` |
+
+### 9.3 Voile record / top 3 (`buildCelebrationOverlay`)
+
+Au-dessus du game over (z 250). Même voile et mêmes textes de thème que §9.2. **OK** retire le voile et les paillettes.
+
+| | |
+|---|---|
+| **Déclencheur** | Record personnel, ou ce score dans le top 3 (mondial Arcade / Zen / Five ; rang du jour en Défi). Un seul voile si les deux. |
+| **Titre** | Place (**40 pt**, couleur skin, pop 0,2→1 en **0,40 s**) ou **Record personnel !** (**32 pt**) |
+| **Légende** | **Record personnel** sous la place, seulement si les deux motifs |
+| **Rang** | « classé #N » si record hors top 3, ou sous une place de Défi |
+| **Arrivée** | fade du voile **0,20 s** |
+| **Paillettes** | grains ronds, 6 couleurs du skin, burst continu jusqu’à OK. z sous le texte |
 
 ---
 

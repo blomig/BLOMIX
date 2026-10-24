@@ -300,6 +300,8 @@ L'écran Arcade / Zen / Five affiche le **score final**, une citation aléatoire
 
 En **Défi Arcade** et **Défi Five** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer.
 
+Un second voile (OK pour le fermer) s'ouvre si le score est un **record personnel**, ou s'il place le joueur **1er, 2e ou 3e** du jeu joué — les deux ensemble ne font qu'un voile. Arcade, Zen et Five : le top 3 est le rang mondial de ce score. Défi : le top 3 est le rang du jour (« pour l'instant »). La place est le titre (couleur du skin) ; **Record personnel** passe en légende. Hors top 3, le voile de record reste « Record personnel ! » plus le rang mondial quand Game Center répond. Des paillettes aux couleurs du skin tournent tant que le voile est là. Le voile et les textes suivent le thème Sombre / Clair.
+
 ---
 
 ## 12. Analyse des coups (feedback interne)

@@ -23,6 +23,7 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 
 ### Modifié
 
+- **Voile record** : s’ouvre aussi quand ce score est 1er, 2e ou 3e (mondial en Arcade / Zen / Five, rang du jour en Défi). La place est le titre, couleur du skin ; **Record personnel** passe en légende. Paillettes aux couleurs du skin jusqu’à OK. Textes et voile suivent Sombre / Clair.
 - **Duel — liste joueurs** : ne plus s’afficher soi-même (IDs GC live + cache publish + même nom).
 - **Duel — visée bombe** : le timer de tour reste gelé, mais la visée est limitée à **10 s**. Au bout, pose auto (case visée, sinon centre).
 - **Duel — barre d’attaque** : le puits reste à hauteur fixe ; le remplissage 0…50 est une gouttière peau (même shader que BLOMIX), plus le blanc/noir chrome.

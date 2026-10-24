@@ -17,12 +17,13 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 - **Défi Five** : miroir du Défi Arcade, graines `blomix-five-v1` / `blomix-five-fx-v1`, slot `blomix_five_daily_save_v1`, CK `FiveDailyScore` (Production), carrière `dailywin_five`. Le score de la run va sur `FiveMode` seulement (pas Arcade, pas moyenne).
 - Accueil 3 rangées : Arcade hero ; Défi Arcade | Défi Five ; Duel | Zen | Five. Pastilles **4+3**. SCORE 7 onglets. Pastille / onglet Défi Five : **5 Défi** (plus F.DÉFI).
 - Salon : `maître` à 3 étoiles ; mur **Zen** ; nouveaux trophées (`zen_score`, `zen_pb`, `bomb_stock`, `magix_combo`, `color_clear` + 4 secrets). Seuils Arcade 20k, bombes 1/100/1000.
-- Salon — copie 8.8 : `board_recover`, `pure_streak`, `brix_line`, `bomb_brix`, `magix_last_minute`, `magix_last_cell`, `app_store_review` (lien avis App Store, guideline 5.6.1).
+- Salon — copie 8.8 : `board_recover`, `pure_streak` (max 10/50/100), `brix_line`, `bomb_brix`, `magix_last_minute`, `magix_last_cell`, `magix_brixed_strike`, `app_store_review` (lien avis App Store, guideline 5.6.1).
 - **Salon des trophées** : store local, pastilles-cibles, modal, 6ᵉ icône. Toast de palier en overlay scène (même Y qu’accueil, grille inchangée) ; apparence plus tard. Trois étoiles gouttière sous la cible à 1× / 2× / 3× le seuil III.
 - **Sondage 8.8** : après 10 parties solo (Arcade, Zen, Five, Défi Arcade, Défi Five — pas Duel, pas tuto), invitation accueil Oui / Plus tard / Ne plus demander, 3 questions, réponses CloudKit Public `PlayerSurvey`. Plus tard = +10 parties. Pas une boîte « note-nous » (guideline 5.6.1).
 
 ### Modifié
 
+- **Duel — liste joueurs** : ne plus s’afficher soi-même (IDs GC live + cache publish + même nom).
 - **Duel — visée bombe** : le timer de tour reste gelé, mais la visée est limitée à **10 s**. Au bout, pose auto (case visée, sinon centre).
 - **Duel — barre d’attaque** : le puits reste à hauteur fixe ; le remplissage 0…50 est une gouttière peau (même shader que BLOMIX), plus le blanc/noir chrome.
 

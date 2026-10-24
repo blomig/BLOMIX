@@ -71,6 +71,8 @@ final class BlomixAvailablePlayersManager {
     // MARK: - Persistance
 
     private static let defaultsKey = "blomixAvailableForChallenge_v1"
+    private static let cachedGameIDDefaultsKey = "blomix_avail_cached_game_id"
+    private static let cachedTeamIDDefaultsKey = "blomix_avail_cached_team_id"
 
     var isAvailableForChallenge: Bool {
         get { UserDefaults.standard.bool(forKey: Self.defaultsKey) }
@@ -146,6 +148,12 @@ final class BlomixAvailablePlayersManager {
     func setup() {
         guard !isSetup else { return }
         isSetup = true
+        if cachedGamePlayerID == nil {
+            cachedGamePlayerID = UserDefaults.standard.string(forKey: Self.cachedGameIDDefaultsKey)
+        }
+        if cachedTeamPlayerID == nil {
+            cachedTeamPlayerID = UserDefaults.standard.string(forKey: Self.cachedTeamIDDefaultsKey)
+        }
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleResignActive),
             name: UIApplication.willResignActiveNotification, object: nil)
@@ -294,6 +302,8 @@ final class BlomixAvailablePlayersManager {
         let inMatch     = isInActiveMatch
         cachedGamePlayerID = gameID
         cachedTeamPlayerID = teamID
+        UserDefaults.standard.set(gameID, forKey: Self.cachedGameIDDefaultsKey)
+        UserDefaults.standard.set(teamID, forKey: Self.cachedTeamIDDefaultsKey)
 
         Task { [weak self] in
             guard let self else { return }
@@ -577,10 +587,12 @@ final class BlomixAvailablePlayersManager {
                 // Record de joueur disponible.
                 let gameID = recName
                 let teamID = record["teamPlayerID"] as? String ?? gameID
-                if gameID == localGameID { continue }
-                if teamID == localTeamID { continue }
-                if let hb = record["lastHeartbeat"] as? Date, hb < cutoff { continue }
                 let name    = record["displayName"] as? String ?? "?"
+                if isLocalAvailablePlayer(gameID: gameID, teamID: teamID, displayName: name,
+                                          localGameID: localGameID, localTeamID: localTeamID) {
+                    continue
+                }
+                if let hb = record["lastHeartbeat"] as? Date, hb < cutoff { continue }
                 let elo     = Self.intFromRecord(record, key: "eloRating")
                 let inMatch = (Self.intFromRecord(record, key: "inMatch") ?? 0) != 0
                 players.append(BlomixAvailablePlayer(gamePlayerID: gameID,
@@ -602,6 +614,39 @@ final class BlomixAvailablePlayersManager {
     }
 
     // MARK: - Helpers
+
+    /// Toutes les identités locales connues (live GC + dernier publish). Watch / Mac
+    /// du même compte ne doivent pas apparaître dans la liste.
+    private func localIdentityIDs(localGameID: String?, localTeamID: String?) -> Set<String> {
+        var ids = Set<String>()
+        func insert(_ raw: String?) {
+            guard let raw else { return }
+            let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !s.isEmpty, s != "?" else { return }
+            ids.insert(s)
+        }
+        insert(localGameID)
+        insert(localTeamID)
+        insert(cachedGamePlayerID)
+        insert(cachedTeamPlayerID)
+        insert(UserDefaults.standard.string(forKey: Self.cachedGameIDDefaultsKey))
+        insert(UserDefaults.standard.string(forKey: Self.cachedTeamIDDefaultsKey))
+        return ids
+    }
+
+    private func isLocalAvailablePlayer(
+        gameID: String,
+        teamID: String,
+        displayName: String,
+        localGameID: String?,
+        localTeamID: String?
+    ) -> Bool {
+        let ids = localIdentityIDs(localGameID: localGameID, localTeamID: localTeamID)
+        if ids.contains(gameID) || ids.contains(teamID) { return true }
+        let mine = GKLocalPlayer.local.isAuthenticated ? GKLocalPlayer.local.displayName : ""
+        if !mine.isEmpty, displayName == mine { return true }
+        return false
+    }
 
     /// Lit un entier depuis un champ CloudKit (Int, Int64 ou NSNumber).
     private static func intFromRecord(_ record: CKRecord, key: String) -> Int? {

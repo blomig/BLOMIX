@@ -288,7 +288,7 @@ Hors v1 : toutes les skins, Watch.
 IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).  
 **C** = courbe (V volume, R rare, Q qualité, U unique).
 
-~**48** pastilles visibles + **13** secrets = **61** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
+~**49** pastilles visibles + **13** secrets = **62** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
 
 ### Seuil (10)
 
@@ -303,7 +303,7 @@ IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).
 | `play_tutorial` | Tu sais tout | Tuto **au bout** (pas Passer) | U |
 | `play_both_dailies` | Double journée | Les deux Défis le même jour UTC | V |
 | `board_recover` | Reprise en main | Même run : colonne 8/8, puis tout occupé dans rows 0–2 | V |
-| `pure_streak` | Puriste | Plus long streak de coups sans bombe ni Magix (1 → 10 → 100) | Q |
+| `pure_streak` | Puriste | Plus long streak de coups sans bombe ni Magix (10 → 50 → 100) | Q |
 
 ### Chaînes (8)
 
@@ -321,7 +321,7 @@ IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).
 `board_empty` hors Duel. CONNECT et chaînes **comptent** en Duel.  
 `chain_count` : I = 1, II = **100**, III = **1000** (pas 10/100, trop vite).
 
-### Magix (13)
+### Magix (14)
 
 Effet vu à l’atterrissage. Pas en Duel.
 
@@ -329,6 +329,7 @@ Effet vu à l’atterrissage. Pas en Duel.
 |---|---|---|
 | `magix_chromax` | CHROMAX | V |
 | `magix_brixed` | BRIXED | R |
+| `magix_brixed_strike` | Strike | R — un BRIXED casse **plus de 24** Brix |
 | `magix_crossx` | CROSSX | V |
 | `magix_slashx` | SLASHX | V |
 | `magix_scrumblx` | SCRUMBLX | V |

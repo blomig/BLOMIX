@@ -492,6 +492,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "trophy.title.magix_saintx_ultime" = "Infinito ×6";
 "trophy.title.magix_last_minute" = "Último minuto";
 "trophy.title.magix_last_cell" = "Último";
+"trophy.title.magix_brixed_strike" = "Strike";
 "trophy.title.arcade_stage" = "Stage";
 "trophy.title.arcade_nuke" = "Nuke";
 "trophy.title.arcade_score" = "Puntuación";
@@ -549,7 +550,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "trophy.body.play_tutorial" = "Termina el tutorial (sin Saltar).";
 "trophy.body.play_both_dailies" = "Los dos Desafíos el mismo día.";
 "trophy.body.board_recover" = "Volver bajo la línea 3 después de una columna llena.";
-"trophy.body.pure_streak" = "Jugadas seguidas sin bomba y sin Magix.";
+"trophy.body.pure_streak" = "Racha más larga sin bomba ni Magix: 10, 50, 100.";
 "trophy.body.chain_size" = "Cadena más grande: 5, luego 8, luego 10+.";
 "trophy.body.chain_count" = "Cadenas de 5 o más.";
 "trophy.body.combo" = "Una resolución de al menos 2 oleadas.";
@@ -560,6 +561,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "trophy.body.bomb_brix" = "Brix rotos con una sola bomba.";
 "trophy.body.magix_chromax" = "Coloca un CHROMAX.";
 "trophy.body.magix_brixed" = "Coloca un BRIXED.";
+"trophy.body.magix_brixed_strike" = "Romper más de 24 Brix con un solo BRIXED.";
 "trophy.body.magix_crossx" = "Coloca un CROSSX.";
 "trophy.body.magix_slashx" = "Coloca un SLASHX.";
 "trophy.body.magix_scrumblx" = "Coloca un SCRUMBLX.";
@@ -639,6 +641,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "trophy.master.bomb_brix" = "King Kong";
 "trophy.master.magix_chromax" = "Serpent";
 "trophy.master.magix_brixed" = "Demoledor";
+"trophy.master.magix_brixed_strike" = "Atomizador";
 "trophy.master.magix_crossx" = "Cruzado";
 "trophy.master.magix_slashx" = "Alfil";
 "trophy.master.magix_scrumblx" = "Rubik";

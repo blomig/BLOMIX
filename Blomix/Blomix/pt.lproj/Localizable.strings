@@ -505,6 +505,7 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "trophy.title.magix_saintx_ultime" = "Infinito ×6";
 "trophy.title.magix_last_minute" = "Último minuto";
 "trophy.title.magix_last_cell" = "Último";
+"trophy.title.magix_brixed_strike" = "Strike";
 "trophy.title.arcade_stage" = "Stage";
 "trophy.title.arcade_nuke" = "Nuke";
 "trophy.title.arcade_score" = "Pontuação";
@@ -562,7 +563,7 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "trophy.body.play_tutorial" = "Termina o tutorial (sem Saltar).";
 "trophy.body.play_both_dailies" = "Os dois Desafios no mesmo dia.";
 "trophy.body.board_recover" = "Voltar abaixo da linha 3 depois de uma coluna cheia.";
-"trophy.body.pure_streak" = "Jogadas seguidas sem bomba e sem Magix.";
+"trophy.body.pure_streak" = "Série mais longa sem bomba nem Magix: 10, 50, 100.";
 "trophy.body.chain_size" = "Maior corrente: 5, depois 8, depois 10+.";
 "trophy.body.chain_count" = "Correntes de 5 ou mais.";
 "trophy.body.combo" = "Uma resolução com pelo menos 2 vagas.";
@@ -573,6 +574,7 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "trophy.body.bomb_brix" = "Brix partidos com uma só bomba.";
 "trophy.body.magix_chromax" = "Pousa um CHROMAX.";
 "trophy.body.magix_brixed" = "Pousa um BRIXED.";
+"trophy.body.magix_brixed_strike" = "Partir mais de 24 Brix com um só BRIXED.";
 "trophy.body.magix_crossx" = "Pousa um CROSSX.";
 "trophy.body.magix_slashx" = "Pousa um SLASHX.";
 "trophy.body.magix_scrumblx" = "Pousa um SCRUMBLX.";
@@ -652,6 +654,7 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "trophy.master.bomb_brix" = "King Kong";
 "trophy.master.magix_chromax" = "Serpent";
 "trophy.master.magix_brixed" = "Demolidor";
+"trophy.master.magix_brixed_strike" = "Atomizador";
 "trophy.master.magix_crossx" = "Cruzado";
 "trophy.master.magix_slashx" = "Bispo";
 "trophy.master.magix_scrumblx" = "Rubik";

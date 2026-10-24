@@ -505,6 +505,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "trophy.title.magix_saintx_ultime" = "Infinity ×6";
 "trophy.title.magix_last_minute" = "Last minute";
 "trophy.title.magix_last_cell" = "Ultimate";
+"trophy.title.magix_brixed_strike" = "Strike";
 "trophy.title.arcade_stage" = "Stage";
 "trophy.title.arcade_nuke" = "Nuke";
 "trophy.title.arcade_score" = "Score";
@@ -562,7 +563,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "trophy.body.play_tutorial" = "Finish the tutorial (don't skip).";
 "trophy.body.play_both_dailies" = "Both Challenges on the same day.";
 "trophy.body.board_recover" = "Get back under line 3 after a full column.";
-"trophy.body.pure_streak" = "Consecutive moves without a bomb or Magix.";
+"trophy.body.pure_streak" = "Longest run without a bomb or Magix: 10, 50, 100.";
 "trophy.body.chain_size" = "Biggest chain: 5, then 8, then 10+.";
 "trophy.body.chain_count" = "Chains of 5 or more.";
 "trophy.body.combo" = "A resolve with at least 2 waves.";
@@ -573,6 +574,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "trophy.body.bomb_brix" = "Brix broken by a single bomb drop.";
 "trophy.body.magix_chromax" = "Land a CHROMAX.";
 "trophy.body.magix_brixed" = "Land a BRIXED.";
+"trophy.body.magix_brixed_strike" = "Break more than 24 Brix with a single BRIXED.";
 "trophy.body.magix_crossx" = "Land a CROSSX.";
 "trophy.body.magix_slashx" = "Land a SLASHX.";
 "trophy.body.magix_scrumblx" = "Land a SCRUMBLX.";
@@ -652,6 +654,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "trophy.master.bomb_brix" = "King Kong";
 "trophy.master.magix_chromax" = "Serpent";
 "trophy.master.magix_brixed" = "Wrecker";
+"trophy.master.magix_brixed_strike" = "Atomizer";
 "trophy.master.magix_crossx" = "Crusader";
 "trophy.master.magix_slashx" = "Bishop";
 "trophy.master.magix_scrumblx" = "Rubik";

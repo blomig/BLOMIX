@@ -505,6 +505,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "trophy.title.magix_saintx_ultime" = "Unendlich ×6";
 "trophy.title.magix_last_minute" = "Letzte Minute";
 "trophy.title.magix_last_cell" = "Ultimativ";
+"trophy.title.magix_brixed_strike" = "Strike";
 "trophy.title.arcade_stage" = "Stage";
 "trophy.title.arcade_nuke" = "Nuke";
 "trophy.title.arcade_score" = "Punktzahl";
@@ -562,7 +563,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "trophy.body.play_tutorial" = "Schließe das Tutorial ab (nicht überspringen).";
 "trophy.body.play_both_dailies" = "Beide Challenges am selben Tag.";
 "trophy.body.board_recover" = "Wieder unter Zeile 3, nach einer vollen Spalte.";
-"trophy.body.pure_streak" = "Züge in Folge ohne Bombe und ohne Magix.";
+"trophy.body.pure_streak" = "Längste Serie ohne Bombe und Magix: 10, 50, 100.";
 "trophy.body.chain_size" = "Größte Kette: 5, dann 8, dann 10+.";
 "trophy.body.chain_count" = "Ketten mit 5 oder mehr.";
 "trophy.body.combo" = "Eine Auflösung mit mindestens 2 Wellen.";
@@ -573,6 +574,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "trophy.body.bomb_brix" = "Brix, die eine einzige Bombe zerbricht.";
 "trophy.body.magix_chromax" = "Setze ein CHROMAX.";
 "trophy.body.magix_brixed" = "Setze ein BRIXED.";
+"trophy.body.magix_brixed_strike" = "Mehr als 24 Brix mit einem BRIXED zerstören.";
 "trophy.body.magix_crossx" = "Setze ein CROSSX.";
 "trophy.body.magix_slashx" = "Setze ein SLASHX.";
 "trophy.body.magix_scrumblx" = "Setze ein SCRUMBLX.";
@@ -652,6 +654,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "trophy.master.bomb_brix" = "King Kong";
 "trophy.master.magix_chromax" = "Serpent";
 "trophy.master.magix_brixed" = "Abriss";
+"trophy.master.magix_brixed_strike" = "Atomisierer";
 "trophy.master.magix_crossx" = "Kreuzritter";
 "trophy.master.magix_slashx" = "Läufer";
 "trophy.master.magix_scrumblx" = "Rubik";

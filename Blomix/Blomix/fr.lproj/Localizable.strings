@@ -518,6 +518,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "trophy.title.magix_saintx_ultime" = "Infini ×6";
 "trophy.title.magix_last_minute" = "Dernière minute";
 "trophy.title.magix_last_cell" = "Ultime";
+"trophy.title.magix_brixed_strike" = "Strike";
 "trophy.title.arcade_stage" = "Stage";
 "trophy.title.arcade_nuke" = "Nuke";
 "trophy.title.arcade_score" = "Score";
@@ -575,7 +576,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "trophy.body.play_tutorial" = "Va au bout du tutoriel (sans Passer).";
 "trophy.body.play_both_dailies" = "Les deux Défis le même jour.";
 "trophy.body.board_recover" = "Revenir sous la ligne 3 après avoir eu une colonne pleine.";
-"trophy.body.pure_streak" = "Nombre de coups d’affilée joués sans bombe et sans Magix.";
+"trophy.body.pure_streak" = "Plus longue série sans bombe ni Magix : 10, 50, 100.";
 "trophy.body.chain_size" = "Plus grande chaîne : 5, puis 8, puis 10+.";
 "trophy.body.chain_count" = "Chaînes de 5 ou plus.";
 "trophy.body.combo" = "Une résolution à au moins 2 vagues.";
@@ -586,6 +587,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "trophy.body.bomb_brix" = "Nombre de Brix cassés avec une bombe en une pose.";
 "trophy.body.magix_chromax" = "Pose un CHROMAX.";
 "trophy.body.magix_brixed" = "Pose un BRIXED.";
+"trophy.body.magix_brixed_strike" = "Casser plus de 24 Brix avec un seul BRIXED.";
 "trophy.body.magix_crossx" = "Pose un CROSSX.";
 "trophy.body.magix_slashx" = "Pose un SLASHX.";
 "trophy.body.magix_scrumblx" = "Pose un SCRUMBLX.";
@@ -665,6 +667,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "trophy.master.bomb_brix" = "King Kong";
 "trophy.master.magix_chromax" = "Serpent";
 "trophy.master.magix_brixed" = "Démolisseur";
+"trophy.master.magix_brixed_strike" = "Atomiseur";
 "trophy.master.magix_crossx" = "Croisé";
 "trophy.master.magix_slashx" = "Fou";
 "trophy.master.magix_scrumblx" = "Rubik";

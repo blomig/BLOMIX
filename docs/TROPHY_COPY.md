@@ -135,12 +135,12 @@ Un nom par mur. Cutout au-dessus de la grille.
 
 #### `pure_streak`
 - courbe : quality
-- seuils : 0 · **1** · **10** · **100**
+- seuils : 0 · **10** · **50** · **100**
 - aujourd’hui : Puriste
 - nom : Puriste
 - maître : Nerfs d’acier
-- phrase : Nombre de coups d’affilée joués sans bombe et sans Magix.
-- notes : pastille = plus long streak jamais fait (`recordBest`), pas un compteur de fois. Coup Magix ou bombe = reset. Tu as dit volume ; quality à cause de « le plus grand jamais fait ».
+- phrase : Plus longue série de coups sans bombe ni Magix.
+- notes : pastille = plus long streak jamais fait (`recordBest`), pas un compteur de fois. Coup Magix ou bombe = reset.
 
 ---
 
@@ -241,6 +241,15 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - maître : Démolisseur
 - phrase : Pose un BRIXED.
 - notes :
+
+#### `magix_brixed_strike`
+- courbe : rare
+- seuils : 0 · **1** · **3** · **10**
+- aujourd’hui : Strike
+- nom : Strike
+- maître : Atomiseur
+- phrase : Casser plus de 24 Brix avec un seul BRIXED.
+- notes : compte les autres Brix sur la grille (le BRIXED devient un Brix, il n’est pas cassé). Pas Duel, pas tuto.
 
 #### `magix_crossx`
 - courbe : volume

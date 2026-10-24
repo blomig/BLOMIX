@@ -186,7 +186,7 @@ enum BlomixTrophyCatalog {
         add("play_tutorial", .seuil, .unique)
         add("play_both_dailies", .seuil, .volumeDefault)
         add("board_recover", .seuil, .volumeDefault)
-        add("pure_streak", .seuil, .quality(s1: 1, s2: 10, s3: 100))
+        add("pure_streak", .seuil, .quality(s1: 10, s2: 50, s3: 100))
 
         add("chain_size", .chaines, .quality(s1: 5, s2: 8, s3: 10))
         add("chain_count", .chaines, .volume(s2: 100, s3: 1000))
@@ -199,6 +199,7 @@ enum BlomixTrophyCatalog {
 
         add("magix_chromax", .magix, .volumeDefault, magix: "CHROMAX")
         add("magix_brixed", .magix, .rare, magix: "BRIXED")
+        add("magix_brixed_strike", .magix, .rare)
         add("magix_crossx", .magix, .volumeDefault, magix: "CROSSX")
         add("magix_slashx", .magix, .volumeDefault, magix: "SLASHX")
         add("magix_scrumblx", .magix, .volumeDefault, magix: "SCRUMBLX")
@@ -596,6 +597,9 @@ enum BlomixTrophyHooks {
         }
         if kind == .brixed, otherBrixCount == 0 {
             _ = BlomixTrophyStore.shared.increment("secret_brixed_zero")
+        }
+        if kind == .brixed, otherBrixCount > 24 {
+            _ = BlomixTrophyStore.shared.increment("magix_brixed_strike")
         }
         // Magix déjà inscrit : une vide de moins qu’au choix de la pose.
         let emptyAtPose = max(0, 64 - occupiedCells) + 1

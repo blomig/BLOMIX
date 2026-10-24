@@ -202,8 +202,7 @@ BlomixPvPAvailablePlayersViewController.loadAvailablePlayers()
   → fetchAvailablePlayersAndChallenge()
   → CKQuery: lastHeartbeat >= now − 5 min
   → Filtres côté client :
-       • exclure soi-même (gamePlayerID)
-       • exclure même teamPlayerID (comptes liés)
+       • exclure soi-même : gamePlayerID, teamPlayerID, IDs du dernier publish (UD), même displayName GC
        • exclure heartbeat périmé
   → Auto-refresh liste toutes les 8 s (phase .loaded ou .empty)
 ```

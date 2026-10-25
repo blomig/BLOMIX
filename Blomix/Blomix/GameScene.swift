@@ -6226,6 +6226,7 @@ final class GameScene: SKScene {
             actionKey: "gameOverRecordAmbientSpawn"
         )
         startCelebrationSparkles(in: overlay)
+        startCelebrationFireworks(in: overlay)
 
         let title = SKLabelNode(text: "")
         title.name = Self.gameOverRecordTitleName
@@ -6436,6 +6437,31 @@ final class GameScene: SKScene {
         )
     }
 
+    /// Trois feux à l’ouverture du voile. Centres dans la moitié haute, départs étalés sur 1 s.
+    private enum CelebrationFirework {
+        static let count = 3
+        static let sparkCount = 200
+        static let staggerWindow: TimeInterval = 1
+        static let burstDuration: TimeInterval = 0.6
+        /// Diamètre du nuage = un tiers de la hauteur du voile.
+        static let diameterOverHeight: CGFloat = 1.0 / 3.0
+        static let fallDuration: ClosedRange<TimeInterval> = 2.1...3.1
+        static let fallDistance: ClosedRange<CGFloat> = 80...170
+    }
+
+    private static let celebrationDotTexture: SKTexture = {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = 2
+        let img = UIGraphicsImageRenderer(size: CGSize(width: 16, height: 16), format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.cgContext.fillEllipse(in: CGRect(x: 0.5, y: 0.5, width: 15, height: 15))
+        }
+        let tex = SKTexture(image: img)
+        tex.filteringMode = .linear
+        return tex
+    }()
+
     /// Grains ronds, six couleurs du skin, tant que le voile est affiché.
     private func startCelebrationSparkles(in overlay: SKNode) {
         let container = SKNode()
@@ -6485,6 +6511,79 @@ final class GameScene: SKScene {
                         .fadeAlpha(to: CGFloat.random(in: 0.75...1), duration: 0.12),
                         .wait(forDuration: duration * 0.45),
                         .fadeOut(withDuration: max(0.2, duration * 0.4)),
+                    ]),
+                ]),
+                .removeFromParent(),
+            ]))
+        }
+    }
+
+    /// Trois éclatements, une seule fois, à la construction du voile (pas à chaque mise à jour du titre).
+    private func startCelebrationFireworks(in overlay: SKNode) {
+        for _ in 0..<CelebrationFirework.count {
+            let delay = Double.random(in: 0...CelebrationFirework.staggerWindow)
+            overlay.run(.sequence([
+                .wait(forDuration: delay),
+                .run { [weak self, weak overlay] in
+                    guard let self, let overlay, overlay.parent != nil else { return }
+                    self.spawnCelebrationFirework(in: overlay)
+                },
+            ]))
+        }
+    }
+
+    private func spawnCelebrationFirework(in overlay: SKNode) {
+        guard let container = overlay.childNode(withName: Self.gameOverRecordSparkleContainerName) else { return }
+        let palette = BlomixSkinCatalog.shared.bloxSKColors()
+        let fallback = Self.startScreenHeroAccentColor()
+        let margin: CGFloat = 20
+        let xMin = margin
+        let xMax = max(xMin + 1, size.width - margin)
+        let yMin = size.height * 0.5
+        let yMax = max(yMin + 1, size.height - margin)
+        let origin = CGPoint(
+            x: CGFloat.random(in: xMin...xMax),
+            y: CGFloat.random(in: yMin...yMax)
+        )
+        let reach = size.height * CelebrationFirework.diameterOverHeight / 2
+        for _ in 0..<CelebrationFirework.sparkCount {
+            let color = palette.randomElement() ?? fallback
+            let radius = CGFloat.random(in: 1.6...3.4)
+            let side = radius * 2
+            let spark = SKSpriteNode(texture: Self.celebrationDotTexture, size: CGSize(width: side, height: side))
+            spark.color = color
+            spark.colorBlendFactor = 1
+            spark.alpha = 0
+            spark.position = origin
+            spark.zPosition = 2
+            container.addChild(spark)
+
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let distance = reach * sqrt(CGFloat.random(in: 0...1))
+            let burst = SKAction.move(
+                to: CGPoint(x: origin.x + cos(angle) * distance, y: origin.y + sin(angle) * distance),
+                duration: CelebrationFirework.burstDuration
+            )
+            burst.timingMode = .easeOut
+
+            let fallDuration = Double.random(in: CelebrationFirework.fallDuration)
+            let fall = SKAction.moveBy(
+                x: CGFloat.random(in: -22...22),
+                y: -CGFloat.random(in: CelebrationFirework.fallDistance),
+                duration: fallDuration
+            )
+            fall.timingMode = .easeIn
+
+            spark.run(.sequence([
+                .group([
+                    burst,
+                    .fadeAlpha(to: CGFloat.random(in: 0.85...1), duration: 0.04),
+                ]),
+                .group([
+                    fall,
+                    .sequence([
+                        .wait(forDuration: fallDuration * 0.5),
+                        .fadeOut(withDuration: fallDuration * 0.5),
                     ]),
                 ]),
                 .removeFromParent(),

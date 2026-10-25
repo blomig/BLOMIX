@@ -644,6 +644,7 @@ Au-dessus du game over (z 250). Même voile et mêmes textes de thème que §9.2
 | **Rang** | « classé #N » si record hors top 3, ou sous une place de Défi |
 | **Arrivée** | fade du voile **0,20 s** |
 | **Paillettes** | grains ronds, 6 couleurs du skin, burst continu jusqu’à OK. z sous le texte |
+| **Feux** | à l’ouverture seulement : **3** éclatements, départs au hasard sur **1 s**, centres dans la **moitié haute**. Chacun : **200** paillettes skin, côté **3,2…6,8 pt**, disque de diamètre **1/3** de la hauteur en **0,60 s** (ease-out), puis pluie **2,1…3,1 s** (ease-in, −80…170 pt) : opaques la première moitié, fade-out sur la seconde |
 
 ---
 

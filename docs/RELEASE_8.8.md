@@ -47,7 +47,7 @@ La nomination **n’est pas** l’upload magasin. Il y a **deux** binaires, à d
 2. [x] **Nomination featuring** (**22 oct.**, import CSV) — `BLOMIX 8.8 — Five + Trophy Room`, type **App Enhancements**, plage 18 nov. – 2 déc. Id `ff8e6688-d23f-4222-a4ff-579274bd264e`. Sous Envoyées. Ne **pas** en créer une 2ᵉ.
 3. [x] **Game Center** : `FiveMode` + `dailywin_five` déjà actifs (22 oct.).
 4. [x] **CloudKit** : `FiveDailyScore` Production déjà actif (22 oct.).
-5. [x] **TestFlight public A** (21 oct.) : **8.8 (159)**, groupe externe `Featuring`. Lien : https://testflight.apple.com/join/4zA8hFqB — à coller dans Supplemental Materials. **Pas** de `submit` magasin.
+5. [x] **TestFlight** : **8.8 (159)** le 21 oct. ; **8.8 (160)** le 24 oct. (groupe externe `Featuring`, Beta App Review). **8.8 (161)** le 25 oct. (interne seulement ; Featuring reste sur 160). Lien public : https://testflight.apple.com/join/4zA8hFqB — 160 avant d’apparaître sur le lien. **Pas** de `submit` magasin.
 6. [ ] **`TROPHY_COPY.md`** — 20–30 min par soir. **Pas** avant la nomination. Deadline : **mer. 4 nov.**, **avant** l’upload du build magasin B. Voir § Copie.
 7. [x] **CloudKit Production `PlayerSurvey`** — type + indexes déployés ; Query OK (23 oct.). Voir § CloudKit.
 

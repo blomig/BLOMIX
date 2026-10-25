@@ -32,13 +32,13 @@ open Blomix/Blomix.xcodeproj
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
 | `MARKETING_VERSION` | 8.8 (iPhone) ; Watch **8.0** |
-| `CURRENT_PROJECT_VERSION` | 159 (iPhone) ; Watch **146** |
+| `CURRENT_PROJECT_VERSION` | 161 (iPhone) ; Watch **146** |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.6 / 158** en vente. **8.8 / 159** local iPhone (TestFlight éditeurs ; review magasin plus tard). Watch reste **8.0 / 146** (ne pas bumper avec l’iPhone).
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.6 / 158** en vente. **8.8 / 161** local + TestFlight interne. Groupe `Featuring` toujours sur **160** (Beta App Review). Review magasin **11–13 nov.** Watch reste **8.0 / 146** (ne pas bumper avec l’iPhone).
 
 ---
 
@@ -240,7 +240,7 @@ Depuis la racine du dépôt :
 ```bash
 bundle exec fastlane validate    # store/ + entitlements (aucun réseau ASC)
 bundle exec fastlane metadata    # Nouveautés + promo, 6 langues
-bundle exec fastlane beta        # archive Release → TestFlight
+bundle exec fastlane beta        # archive Release → TestFlight interne
 bundle exec fastlane release     # archive + binaire + textes — PAS de review
 bundle exec fastlane submit      # envoi à la review (irréversible)
 ```

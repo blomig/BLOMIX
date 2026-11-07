@@ -6,7 +6,7 @@
 > Watch inchangé : **8.0 / 146**. Ne pas bumper avec l’iPhone.  
 > **Pas de fiche magasin 8.8** tant que `fastlane release` n’a pas tourné. Ne pas `submit` avant le **11 nov.**  
 > Nomination déjà envoyée (`ff8e6688-d23f-4222-a4ff-579274bd264e`). **Ne pas en créer une 2ᵉ.** Si la date bouge : éditer la plage seulement.  
-> Lien éditeurs : https://testflight.apple.com/join/4zA8hFqB — groupe **Featuring = build 160**. **161** et le build du 7 nov. sont internes. Ne pas lancer `tf_featuring` sans demande.
+> Lien éditeurs : https://testflight.apple.com/join/4zA8hFqB — groupe **Featuring = build 160**. **161** et **162** sont internes. Ne pas lancer `tf_featuring` sans demande.
 
 Ce fichier est le **tableau de bord humain** du jalon. Spec produit : [TROPHIES.md](TROPHIES.md), [TROPHY_COPY.md](TROPHY_COPY.md), [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md), [CHANGELOG.md](CHANGELOG.md). Déploiement : [DEVELOPMENT.md](DEVELOPMENT.md) § Fastlane.
 
@@ -37,7 +37,7 @@ La nomination **n’est pas** l’upload magasin. Le magasin **8.6 / 158** est e
 | **159** | 21 oct. | TF, ancien lien éditeurs | Five + salon, copie encore I/II/III |
 | **160** | 24 oct. | Groupe externe **Featuring** (lien public) | Beta App Review. **C’est celui que les éditeurs ouvrent.** |
 | **161** | 25 oct. | TF **interne** | Voile record (perso ou top 3) + feux d’artifice |
-| **du 7 nov.** | 7 nov. | TF **interne** (numéro posé à l’upload) | Visée après arrière-plan, Strike > 13, filet gravité, salon sans debug |
+| **162** | 7 nov. | TF **interne** | Visée après arrière-plan, Strike > 13, filet gravité, salon sans debug |
 
 Pas de 8.7, pas de 8.9. On reste sur **8.8**.
 
@@ -48,7 +48,7 @@ Pas de 8.7, pas de 8.9. On reste sur **8.8**.
 3. [x] **Game Center** `FiveMode` + `dailywin_five` (22 oct.).
 4. [x] **CloudKit** `FiveDailyScore` Production (22 oct.) et `PlayerSurvey` (23 oct.).
 5. [x] **Copie trophées** dans le binaire (6 langues).
-6. [x] **TestFlight** 159 / 160 (Featuring) / 161 interne. Build du **7 nov.** : interne, upload dans la foulée de ce lot.
+6. [x] **TestFlight** 159 / 160 (Featuring) / 161 interne / **162 interne** (7 nov.).
 
 ## Il reste — avant le 11 nov.
 
@@ -59,8 +59,8 @@ Ordre. Rien de ceci n’est le `submit`.
 3. [ ] Upload **manuel** ASC (Fastlane ne pousse pas les captures) — slots 6.5" et 6.9", FR puis EN. **Toi.**
 4. [ ] Réécrire `store/whats-new/` **6 langues**. Aujourd’hui c’est encore le texte CONNECT / paillettes, pas Five ni le salon. **Agent**, au moment du `release` (pas dans l’IPA).
 5. [ ] Preview : **garder** la vidéo actuelle, sauf un plan Five 15–30 s prêt. **Toi.**
-6. [ ] **11–13 nov.** `fastlane release` puis `submit`. Ça **crée** la fiche 8.8 et envoie la review (`automatic_release: true`). Le binaire review = le dernier TF interne s’il n’y a pas eu de correctif entre-temps. **Ensemble.**
-7. [ ] Si on veut que les éditeurs jouent le build du 7 nov. (visée, Strike, voile) : `tf_featuring` **sur demande**. Le lien public reste sur **160** tant que ce n’est pas fait.
+6. [ ] **11–13 nov.** `fastlane release` puis `submit`. Ça **crée** la fiche 8.8 et envoie la review (`automatic_release: true`). Le binaire review = **162** s’il n’y a pas eu de correctif entre-temps. **Ensemble.**
+7. [ ] Si on veut que les éditeurs jouent **162** (visée, Strike, voile) : `tf_featuring` **sur demande**. Le lien public reste sur **160** tant que ce n’est pas fait.
 
 ### Semaine du 18 nov.
 

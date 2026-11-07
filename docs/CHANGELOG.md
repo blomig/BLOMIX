@@ -7,7 +7,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [8.8] — non publié (cible **18 nov. 2026**, glissière 2 déc. ; TF **161** le 25 oct.)
+## [8.8] — non publié (cible **18 nov. 2026**, glissière 2 déc. ; TF **162** le 7 nov.)
 
 Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Salon des trophées : 1ʳᵉ version testable ([TROPHIES.md](TROPHIES.md)). Watch inchangé **8.0 / 146**. Calendrier + actions humaines : [RELEASE_8.8.md](RELEASE_8.8.md).
 
@@ -34,7 +34,7 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 
 ### Portes humaines (avant jalon)
 
-Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF **8.8 / 159**. **24 oct.** : TF **8.8 / 160** (groupe `Featuring`, Beta App Review). **25 oct.** : TF **8.8 / 161** (interne seulement ; Featuring reste sur 160). Ne pas `submit` magasin avant le 11 nov.
+Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF **8.8 / 159**. **24 oct.** : TF **8.8 / 160** (groupe `Featuring`, Beta App Review). **25 oct.** : TF **8.8 / 161** (interne). **7 nov.** : TF **8.8 / 162** (interne ; Featuring reste sur 160). Ne pas `submit` magasin avant le 11 nov.
 
 ---
 

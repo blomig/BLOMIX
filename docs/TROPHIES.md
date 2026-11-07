@@ -329,7 +329,7 @@ Effet vu à l’atterrissage. Pas en Duel.
 |---|---|---|
 | `magix_chromax` | CHROMAX | V |
 | `magix_brixed` | BRIXED | R |
-| `magix_brixed_strike` | Strike | R — un BRIXED casse **plus de 24** Brix |
+| `magix_brixed_strike` | Strike | R — un BRIXED casse **plus de 13** Brix |
 | `magix_crossx` | CROSSX | V |
 | `magix_slashx` | SLASHX | V |
 | `magix_scrumblx` | SCRUMBLX | V |
@@ -556,6 +556,6 @@ Toast **au palier** (overlay scène, z 220) : même position Y que l’ancien ch
 5. Folie + secrets.
 6. l10n 6 langues, guide, GLOSSARY, CHANGELOG, whats-new au jalon.
 
-**1ʳᵉ version (test)** : store local + cible + Salon modal + 6ᵉ icône + hooks principaux + toast au palier (overlay) + étoiles post-III. DEBUG : appui long sur une pastille = +1 (CHROMAX : 100 / 200 / 300 pour les 3 étoiles). Pas de bump marketing. Rangs encore I / II / III.
+**1ʳᵉ version (test)** : store local + cible + Salon modal + 6ᵉ icône + hooks principaux + toast au palier (overlay) + étoiles post-III. Plus d’appui long debug (+1). Pas de bump marketing. Rangs encore I / II / III.
 
 Rien de plus « produit » avant : Five testé, boards GC live, **cette** spec validée (surtout §2 mots des rangs).

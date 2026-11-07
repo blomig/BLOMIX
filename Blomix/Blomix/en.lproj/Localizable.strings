@@ -582,7 +582,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "trophy.body.bomb_brix" = "Brix broken by a single bomb drop.";
 "trophy.body.magix_chromax" = "Land a CHROMAX.";
 "trophy.body.magix_brixed" = "Land a BRIXED.";
-"trophy.body.magix_brixed_strike" = "Break more than 24 Brix with a single BRIXED.";
+"trophy.body.magix_brixed_strike" = "Break more than 13 Brix with a single BRIXED.";
 "trophy.body.magix_crossx" = "Land a CROSSX.";
 "trophy.body.magix_slashx" = "Land a SLASHX.";
 "trophy.body.magix_scrumblx" = "Land a SCRUMBLX.";

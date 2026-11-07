@@ -88,7 +88,7 @@ En **Défi Arcade** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v
 
 1. Tap sur colonne → bloc posé dans `highestEmptyRow` (première case vide depuis le haut).
 2. Ghost preview après appui ≥ 120 ms.
-3. Après toute suppression : `compactGridTowardTop()` — blocs remontent, vides en bas.
+3. Après toute suppression : `compactGridTowardTop()` — blocs remontent, vides en bas. Au repos, si un vide est resté au-dessus d’un bloc, `repairGravityHolesIfNeeded()` tasse avant la ligne entrante (et au retour au premier plan si la partie est idle).
 
 **Mode bombe** : tap direct sur une case (`placeBombAtCell`), pas de gravité pour le placement.
 

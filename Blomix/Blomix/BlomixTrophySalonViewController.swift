@@ -117,15 +117,6 @@ final class BlomixTrophySalonViewController: UIViewController {
         refreshLast()
         contentStack.addArrangedSubview(lastLabel)
 
-        #if DEBUG
-        let debugHint = UILabel()
-        debugHint.text = "DEBUG · appui long sur une cible : +1"
-        debugHint.font = BlomixTypography.uiFont(size: 11, weight: .regular)
-        debugHint.textColor = BlomixAppearance.tertiaryText
-        debugHint.textAlignment = .center
-        contentStack.addArrangedSubview(debugHint)
-        #endif
-
         for wall in BlomixTrophyWall.allCases {
             contentStack.addArrangedSubview(makeWallBlock(wall))
         }
@@ -190,11 +181,6 @@ final class BlomixTrophySalonViewController: UIViewController {
         for (i, def) in trophies.enumerated() {
             let cell = TrophyCell(def: def)
             cell.onTap = { [weak self] in self?.openFiche(id: def.id, scroll: false) }
-            cell.onDebugBump = { [weak self] in
-                BlomixTrophyStore.shared.debugAdd(def.id)
-                self?.refreshBanner()
-                self?.refreshLast()
-            }
             cellByID[def.id] = cell
             row.addArrangedSubview(cell)
             if (i + 1) % columns == 0 {
@@ -377,7 +363,6 @@ final class BlomixTrophySalonViewController: UIViewController {
 private final class TrophyCell: UIView {
     let def: BlomixTrophyDef
     var onTap: (() -> Void)?
-    var onDebugBump: (() -> Void)?
 
     private let cible = BlomixTrophyCibleView()
     private let stars = BlomixTrophyStarsView()
@@ -419,11 +404,6 @@ private final class TrophyCell: UIView {
             caption.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
         ])
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
-        #if DEBUG
-        let long = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
-        long.minimumPressDuration = 0.45
-        addGestureRecognizer(long)
-        #endif
         reload()
     }
 
@@ -444,10 +424,4 @@ private final class TrophyCell: UIView {
     }
 
     @objc private func tapped() { onTap?() }
-
-    @objc private func longPressed(_ g: UILongPressGestureRecognizer) {
-        guard g.state == .began else { return }
-        onDebugBump?()
-        reload()
-    }
 }

@@ -248,7 +248,7 @@ Noms propres **non traduits**. `magix_all_nine` et `magix_saintx_ultime` n’en 
 - aujourd’hui : Strike
 - nom : Strike
 - maître : Atomiseur
-- phrase : Casser plus de 24 Brix avec un seul BRIXED.
+- phrase : Casser plus de 13 Brix avec un seul BRIXED.
 - notes : compte les autres Brix sur la grille (le BRIXED devient un Brix, il n’est pas cassé). Pas Duel, pas tuto.
 
 #### `magix_crossx`

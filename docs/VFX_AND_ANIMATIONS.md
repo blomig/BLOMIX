@@ -184,8 +184,8 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | | |
 |---|---|
 | **Déclencheur** | `ghostHoldDelay = 0,12 s` maintenu |
-| **Visuel** | Colonne : cases vides `#444` α 0,9 ; bloc fantôme α **0,55** |
-| **z** | container **18** |
+| **Visuel** | Colonne : cases vides, sprite couleur du token `ghostColumnHighlight` (sombre ~`#444` α 0,9 ; clair `#D4CBB4` α 0,92). Bloc fantôme α **0,55**, même construction que la grille (`makeSolidGameplayBlockSprite`). Pas de `SKShapeNode`, pas de texture 1×1 partagée : une texture UIGraphics statique reste blanche jusqu’au prochain lancement du processus. |
+| **z** | container **18** ; cases **1**, bloc fantôme **2** |
 | **Audio** | — |
 | **Réf.** | `showGhostPreview`, `ghostHoldTimer`, `hideDropGhostVisuals` |
 | **Sortie** | Masqué ☰ / overlay quitter / accueil (`clearAutoDropAim`). Colonne auto-drop conservée pendant pause chrome ; réaffichée si ≤ 2 s. Timeout (Arcade / Défi / Duel) : si l’appui est encore là, drop **dans cette colonne**. |

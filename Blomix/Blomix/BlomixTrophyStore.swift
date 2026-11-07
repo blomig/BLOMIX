@@ -416,11 +416,6 @@ final class BlomixTrophyStore {
         increment(id, by: 1)
     }
 
-    func debugAdd(_ id: String, by delta: Int = 1) {
-        _ = increment(id, by: delta)
-        refreshDerivedMagixCollection()
-    }
-
     // MARK: Dérivés
 
     func refreshDerivedMagixCollection() {
@@ -598,7 +593,7 @@ enum BlomixTrophyHooks {
         if kind == .brixed, otherBrixCount == 0 {
             _ = BlomixTrophyStore.shared.increment("secret_brixed_zero")
         }
-        if kind == .brixed, otherBrixCount > 24 {
+        if kind == .brixed, otherBrixCount > 13 {
             _ = BlomixTrophyStore.shared.increment("magix_brixed_strike")
         }
         // Magix déjà inscrit : une vide de moins qu’au choix de la pose.

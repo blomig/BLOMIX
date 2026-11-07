@@ -23,6 +23,10 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 
 ### Modifié
 
+- **Trophée Strike** : un BRIXED qui casse **plus de 13** Brix (seuil précédent : 24). Titre et noms de maître inchangés.
+- **Salon** : plus de ligne DEBUG, plus d’appui long qui ajoute +1 à une cible.
+- **Visée** : colonne et bloc fantôme restent visibles après un aller-retour sans quitter l’app, et après « Revenir à l'accueil » puis reprise. Même sprites couleur que les cases de la grille. Une texture blanche partagée restait vide jusqu’à tuer l’app.
+- **Gravité** : filet si un vide reste au-dessus d’un bloc (Brix compris) au repos — tassage avant la ligne entrante, après son écriture, et au retour au premier plan si la partie est idle. Une chaîne créée par ce tassage est résolue.
 - **Voile record** : s’ouvre aussi quand ce score est 1er, 2e ou 3e (mondial en Arcade / Zen / Five, rang du jour en Défi). La place est le titre, couleur du skin ; **Record personnel** passe en légende. Paillettes aux couleurs du skin jusqu’à OK. À l’ouverture, 3 feux d’artifice (200 paillettes, côté 3,2…6,8 pt, moitié haute, étalés sur 1 s ; éclat 0,6 s, pluie 2,1…3,1 s). Textes et voile suivent Sombre / Clair.
 - **Duel — liste joueurs** : ne plus s’afficher soi-même (IDs GC live + cache publish + même nom).
 - **Duel — visée bombe** : le timer de tour reste gelé, mais la visée est limitée à **10 s**. Au bout, pose auto (case visée, sinon centre).

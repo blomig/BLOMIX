@@ -2033,6 +2033,11 @@ final class GameScene: SKScene {
         refreshUpcomingQueueSlots()
         refreshProgressHUDBars()
         layoutPvPTurnCountdownIfNeeded()
+        // La grille n’est posée que dans `drawGrid`. Sans ça, `gridAreaCenter` suit la
+        // nouvelle taille et la visée se calcule à côté de la grille encore affichée.
+        guard !isProcessing, childNode(withName: Self.gridContainerName) != nil else { return }
+        drawGrid()
+        refreshDropGhostAfterLayoutChange()
     }
 
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
@@ -7836,6 +7841,12 @@ final class GameScene: SKScene {
 
         // Aucune chaîne : fin de vague / de partie — reset du combo (`priks.html` : `else { chainSeriesLevel = 0 }` dans la boucle).
         guard !winningCells.isEmpty else {
+            // Filet : une vague ou une ligne peut laisser un vide au-dessus d’un Brix.
+            // On tasse avant la ligne entrante, puis on re-scanne (une chaîne peut apparaître).
+            if !isGameOver, repairGravityHolesIfNeeded() {
+                resolveChains()
+                return
+            }
             chainSeriesLevel = 0
             incomingLineResolutionActive = false
             skipColorClearThisResolution = false
@@ -10524,6 +10535,30 @@ final class GameScene: SKScene {
         }
     }
 
+    /// `true` si une colonne a un vide au-dessus d’un bloc (gravité inversée non respectée).
+    private func gridHasGravityHole() -> Bool {
+        for col in 0..<GridLayout.columnCount {
+            var seenEmpty = false
+            for row in GridLayout.topRowIndex..<GridLayout.rowCount {
+                if grid[row][col] == .empty {
+                    seenEmpty = true
+                } else if seenEmpty {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /// Compacte vers le haut si un trou est au-dessus d’un bloc. No-op sur une grille déjà tassée.
+    /// - Returns: `true` si la grille a changé.
+    @discardableResult
+    private func repairGravityHolesIfNeeded() -> Bool {
+        guard gridHasGravityHole() else { return false }
+        compactGridTowardTop()
+        return true
+    }
+
     // MARK: - Ligne aléatoire (tous les 10 coups, `priks.html`)
 
     /// Chaque case de la ligne suivante est tirée **indépendamment** comme `randomNextPlayableBlock()` (1/8 Priks, 7/8 couleur).
@@ -10807,9 +10842,12 @@ final class GameScene: SKScene {
                 }
             }
             self.isInjectingBottomRandomLine = false
+            // La ligne ne remplit que le trou le plus haut : un vide plus bas laisserait un Brix suspendu.
+            let didRepairHoles = self.repairGravityHolesIfNeeded()
             self.drawGrid()
             // Bounce sur chaque case nouvellement placée (effet vague colonne par colonne).
-            if let container = self.childNode(withName: Self.gridContainerName) {
+            // Après un tassage, la case d’arrivée n’est plus celle du placement : on ne bounce pas au mauvais endroit.
+            if !didRepairHoles, let container = self.childNode(withName: Self.gridContainerName) {
                 for (i, p) in placementsCopy.enumerated() {
                     if let cell = container.childNode(withName: "cell_\(p.row)_\(p.column)") as? SKSpriteNode {
                         let delay = Double(i) * 0.018
@@ -14423,22 +14461,37 @@ final class GameScene: SKScene {
     /// Les Brix utilisent un profil plus discret (`BrixLandingBounce`).
     /// Remontée compactage : stretch de vol pendant le `move` (comme un lancer).
     /// Vague par colonne : le blox le plus haut (près du trou) part le premier ; fenêtre 0,20 s inchangée.
+
+    /// Enfant direct `cell_row_col` uniquement. `childNode(withName:)` interprète le nom
+    /// et peut animer un autre nœud pendant une cascade.
+    private func directGridCellSprite(in container: SKNode, row: Int, column: Int) -> SKSpriteNode? {
+        let name = "cell_\(row)_\(column)"
+        for child in container.children {
+            if child.name == name { return child as? SKSpriteNode }
+        }
+        return nil
+    }
+
     private func animateCompactRiseMoves(_ riseMoves: [CompactRiseMove], in container: SKNode) {
         var byColumn: [[CompactRiseMove]] = Array(repeating: [], count: GridLayout.columnCount)
         for move in riseMoves {
             guard move.column >= 0, move.column < GridLayout.columnCount,
                   move.fromRow >= GridLayout.topRowIndex, move.fromRow < GridLayout.rowCount,
                   move.toRow >= GridLayout.topRowIndex, move.toRow < GridLayout.rowCount else { continue }
-            let nodeName = "cell_\(move.fromRow)_\(move.column)"
-            guard container.childNode(withName: nodeName) is SKSpriteNode else { continue }
+            guard directGridCellSprite(in: container, row: move.fromRow, column: move.column) != nil else { continue }
             byColumn[move.column].append(move)
         }
         for colMoves in byColumn where !colMoves.isEmpty {
             let ordered = colMoves.sorted { $0.fromRow < $1.fromRow }
             let (delayStep, travel) = CompactRiseAnimation.columnTiming(moverCount: ordered.count)
             for (index, move) in ordered.enumerated() {
-                let nodeName = "cell_\(move.fromRow)_\(move.column)"
-                guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
+                guard let sprite = directGridCellSprite(in: container, row: move.fromRow, column: move.column) else { continue }
+                // Un bounce encore en cours écrit `position` chaque frame et peut clouer le Brix sur place.
+                sprite.removeAllActions()
+                sprite.position = Self.gridContainerLocalCellCenter(row: move.fromRow, column: move.column)
+                sprite.zRotation = 0
+                sprite.xScale = 1
+                sprite.yScale = 1
                 let block = grid[move.toRow][move.column]
                 let (sx, sy) = Self.flightStretchScales(for: block)
                 let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
@@ -15790,8 +15843,24 @@ final class GameScene: SKScene {
                 if self.isDailyChallengeMode, !self.isStartScreen, !self.isGameOver {
                     self.applyScoreRaceSnapshotToGhosts()
                 }
+                self.view?.isPaused = false
+                self.isPaused = false
+                self.healGravityHolesIfIdle()
+                self.refreshDropGhostAfterLayoutChange()
             }
         }
+    }
+
+    /// Filet au retour au premier plan : tasse un trou resté visible, sans toucher une anim en cours.
+    private func healGravityHolesIfIdle() {
+        guard !isStartScreen, !isGameOver, !isProcessing, !isInjectingBottomRandomLine else { return }
+        guard childNode(withName: "transitionOverlay") == nil else { return }
+        guard repairGravityHolesIfNeeded() else { return }
+        drawGrid()
+        guard !findWinningChainComponents().isEmpty else { return }
+        isProcessing = true
+        hideDropGhostVisuals()
+        resolveChains()
     }
 
     /// Construit un snapshot complet de la partie solo/Zen courante (après stabilisation).
@@ -16187,8 +16256,26 @@ final class GameScene: SKScene {
     private func touchHitsHintButton(_ pt: CGPoint) -> Bool {
         return false
     }
+
+    /// Réaffiche la visée si le doigt, le ghost ou l’auto-drop sont encore actifs.
+    private func refreshDropGhostAfterLayoutChange() {
+        guard !isProcessing, !isGameOver, !isStartScreen, !dropGhostChromeBlocksDisplay else { return }
+        if let col = ghostPreviewColumn, ghostTouchIsLive || childNode(withName: Self.ghostContainerName) != nil {
+            showGhostPreview(column: col)
+            return
+        }
+        if stageTimerSecondsRemaining <= 2, stageTimerSecondsRemaining > 0 {
+            refreshAutoDropGhostIfNeeded()
+        }
+    }
+
     /// Construit (ou reconstruit) le nœud ghost pour la colonne donnée :
     /// cases vides en surbrillance thème + sprite semi-transparent du bloc courant à l'atterrissage.
+    ///
+    /// Même recette que `drawGrid` : `SKSpriteNode(color:)`. Pas de `SKShapeNode` (souvent
+    /// muet après un arrière-plan) et pas de `SKTexture` statique : une texture UIGraphics
+    /// créée une fois reste blanche jusqu’au prochain lancement. L’accueil puis Continuer
+    /// gardent le même processus, donc la même texture morte.
     private func showGhostPreview(column: Int) {
         childNode(withName: Self.ghostContainerName)?.removeFromParent()
         guard !isProcessing, !isGameOver, !isStartScreen else { return }
@@ -16207,11 +16294,12 @@ final class GameScene: SKScene {
         // ── Surbrillance des cases vides de la colonne ───────────────────────
         for row in GridLayout.topRowIndex..<GridLayout.rowCount {
             guard grid[row][column] == .empty else { continue }
-            let pos = scenePointCellCenter(row: row, column: column)
-            let cell = SKShapeNode(rectOf: CGSize(width: cp - 2, height: cp - 2), cornerRadius: 3)
-            cell.fillColor   = highlight
-            cell.strokeColor = .clear
-            cell.position    = pos
+            let cell = SKSpriteNode(
+                color: highlight,
+                size: CGSize(width: cp - 2, height: cp - 2)
+            )
+            cell.zPosition = 1
+            cell.position = scenePointCellCenter(row: row, column: column)
             container.addChild(cell)
         }
 

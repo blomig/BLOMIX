@@ -37,8 +37,11 @@ ASC a **un slot par taille d’écran**. Coller un PNG 6.9" dans le slot 6.5" (o
 
 | Slot ASC | Pixels portrait | Dossier d’export |
 |---|---|---|
-| iPhone **6.5"** (souvent déjà rempli, en haut de la liste) | **1284 × 2778** (ou 1242 × 2688) | `out/iphone-6.5/` |
-| iPhone **6.9"** (recommandé ; Apple scale le reste) | **1320 × 2868** (ou 1290 × 2796 / 1260 × 2736) | `out/iphone-6.9/` |
+| **Dynamic Island, moyen** — obligatoire (14 Pro, 15, 16, 16 Pro, 17, 17 Pro…) | **1179 × 2556** (ou 1206 × 2622) | `out/iphone-di-medium/` |
+| Dynamic Island, grand (Air, Pro Max, Plus) | **1320 × 2868** (ou 1290 × 2796 / 1260 × 2736) | `out/iphone-6.9/` |
+| Face ID, grand (6,5") | **1284 × 2778** (ou 1242 × 2688) | `out/iphone-6.5/` |
+
+Un 1320×2868 ou un 1284×2778 déposé dans le slot moyen est refusé. Le slot obligatoire suffit : Apple réduit pour les plus petits. Les deux autres slots restent vides, ou reçoivent seulement leur taille.
 
 PNG, sRGB, **sans transparence**. 1 à 10 par slot. Une capture iPhone réelle (1170×2532, etc.) suffit : scale vers le pixel exact.
 

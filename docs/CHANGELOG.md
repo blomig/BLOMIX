@@ -7,7 +7,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [8.8] — non publié (cible **18 nov. 2026**, glissière 2 déc. ; binaire ASC **163** le 8 nov.)
+## [8.8] — en review (envoyée le **8 nov. 2026**, mise en ligne auto ; cible vente **18 nov.**, glissière 2 déc. ; binaire **163**)
 
 Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Salon des trophées : 1ʳᵉ version testable ([TROPHIES.md](TROPHIES.md)). Watch : marketing **8.0**, build **147** (remplace le 146 déjà installé ; la partie en cours reste) ; juice Zen dans le même IPA. Calendrier + actions humaines : [RELEASE_8.8.md](RELEASE_8.8.md).
 
@@ -36,7 +36,7 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 
 ### Portes humaines (avant jalon)
 
-Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF **8.8 / 159**. **24 oct.** : TF **8.8 / 160** (groupe `Featuring`, Beta App Review). **25 oct.** : TF **8.8 / 161** (interne). **7 nov.** : TF **8.8 / 162** (interne ; Featuring reste sur 160). **8 nov.** : code gelé ; Nouveautés 6 langues ; fiche ASC **8.8 / 163** créée, review non lancée. Featuring reste sur **160**. `submit` après les captures.
+Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF **8.8 / 159**. **24 oct.** : TF **8.8 / 160** (groupe `Featuring`, Beta App Review). **25 oct.** : TF **8.8 / 161** (interne). **7 nov.** : TF **8.8 / 162** (interne ; Featuring reste sur 160). **8 nov.** : code gelé ; Nouveautés 6 langues ; fiche ASC **8.8 / 163** ; review lancée, mise en ligne automatique à l’approbation. Featuring reste sur **160**.
 
 ---
 

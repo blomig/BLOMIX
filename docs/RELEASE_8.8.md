@@ -4,10 +4,10 @@
 > Mise en vente visée : **mercredi 18 novembre 2026**.  
 > Glissière (si review) : **mercredi 2 décembre 2026**.  
 > Watch : marketing **8.0**, build **147**. Le marketing ne suit pas l’iPhone. Le build Watch monte seulement quand le binaire Watch change : une IPA encore en 146 ne remplace pas la montre déjà installée. Le juice 8.8 voyage dans l’IPA iPhone.  
-> Fiche 8.8 : `fastlane release` (binaire + Nouveautés). **Pas de `submit`** tant que les captures ne sont pas en place. `submit` reste irréversible (`automatic_release: true`).  
+> Review **lancée le 8 nov. 2026** (`submit`, build **163**, `automatic_release: true`). Dès l’approbation Apple, la 8.8 part en vente sans bouton.  
 > Nomination déjà envoyée (`ff8e6688-d23f-4222-a4ff-579274bd264e`). **Ne pas en créer une 2ᵉ.** Si la date bouge : éditer la plage seulement.  
 > Lien éditeurs : https://testflight.apple.com/join/4zA8hFqB — groupe **Featuring = build 160**. **161**, **162** et **163** ne sont pas sur ce lien. Ne pas lancer `tf_featuring` sans demande.  
-> Binaire de la fiche 8.8 : **163** (uploadé le 8 nov.). Review non lancée.
+> Binaire de la fiche 8.8 : **163**. En review depuis le 8 nov.
 
 Ce fichier est le **tableau de bord humain** du jalon. Spec produit : [TROPHIES.md](TROPHIES.md), [TROPHY_COPY.md](TROPHY_COPY.md), [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md), [CHANGELOG.md](CHANGELOG.md). Déploiement : [DEVELOPMENT.md](DEVELOPMENT.md) § Fastlane.
 
@@ -22,7 +22,7 @@ Ce fichier est le **tableau de bord humain** du jalon. Spec produit : [TROPHIES.
 | Nomination | **faite le 22 oct.** | App Enhancements, plage **18 nov. → 2 déc.** |
 | Copie trophées | **faite** | Option A implémentée (`7ae5406`). Strike passé à **plus de 13** le 7 nov. |
 | Code gelé | **dim. 8 nov.** | Plus de correctif avant publication. Binaire review = l’upload `release` de ce jour. |
-| Envoi review | **après les captures** | `submit` seulement (`automatic_release: true`). Fenêtre visée : **11–13 nov.** |
+| Envoi review | **fait le dim. 8 nov.** | `submit` lancé. Mise en ligne automatique à l’approbation. |
 | **Mise en vente** | **mer. 18 nov.** | Cible. |
 | Glissière | mer. 2 déc. | Si Apple râle. **Éditer** la nomination, ne pas en créer une 2ᵉ. |
 
@@ -32,7 +32,7 @@ Fourchette déjà dans la nomination : **2026-11-18 → 2026-12-02**.
 
 ## Builds (ne pas confondre)
 
-La nomination **n’est pas** l’upload magasin. Le magasin **8.6 / 158** est en vente. La fiche **8.8** existe (binaire **163**, review non lancée).
+La nomination **n’est pas** l’upload magasin. Le magasin **8.6 / 158** est en vente. La fiche **8.8** (binaire **163**) est **en review** depuis le 8 nov.
 
 | Build | Date | Où | Contenu utile |
 |---|---|---|---|
@@ -40,7 +40,7 @@ La nomination **n’est pas** l’upload magasin. Le magasin **8.6 / 158** est e
 | **160** | 24 oct. | Groupe externe **Featuring** (lien public) | Beta App Review. **C’est celui que les éditeurs ouvrent.** |
 | **161** | 25 oct. | TF **interne** | Voile record (perso ou top 3) + feux d’artifice |
 | **162** | 7 nov. | TF **interne** | Visée après arrière-plan, Strike > 13, filet gravité, salon sans debug |
-| **163** | 8 nov. | Fiche ASC **8.8** | Binaire de publication. Pastille salon, juice Watch (build Watch 147). Review non lancée |
+| **163** | 8 nov. | **En review** | Binaire de publication. Pastille salon, juice Watch (build Watch 147). Mise en ligne automatique à l’approbation |
 
 Pas de 8.7, pas de 8.9. On reste sur **8.8**.
 
@@ -52,19 +52,20 @@ Pas de 8.7, pas de 8.9. On reste sur **8.8**.
 4. [x] **CloudKit** `FiveDailyScore` Production (22 oct.) et `PlayerSurvey` (23 oct.).
 5. [x] **Copie trophées** dans le binaire (6 langues).
 6. [x] **TestFlight** 159 / 160 (Featuring) / 161 interne / **162 interne** (7 nov.).
-7. [x] **Fiche 8.8 / 163** (8 nov.) — binaire + Nouveautés. Review non lancée.
+7. [x] **Fiche 8.8 / 163** (8 nov.) — binaire + Nouveautés.
+8. [x] **Review lancée** le 8 nov. (`automatic_release: true`).
 
 ## Il reste — avant le 11 nov.
 
 Ordre. Rien de ceci n’est le `submit`.
 
-1. [ ] **Captures** dans `store/asc-assets/inbox/` : accueil 3 rangées, Five en jeu (LIGNE x/5), salon. Portrait iPhone. **Toi.**
-2. [ ] Recadrage 6.5" / 6.9" → `out/`. **Agent**, dès que les PNG sont là.
-3. [ ] Upload **manuel** ASC (Fastlane ne pousse pas les captures) — slots 6.5" et 6.9", FR puis EN. **Toi.**
+1. [x] **Captures** accueil, Five, salon. FR puis EN. **8 nov.**
+2. [x] Recadrage slot obligatoire Dynamic Island moyen, **1179×2556**. **8 nov.**
+3. [x] Upload **manuel** ASC, slot moyen, FR puis EN. **8 nov.** Les slots 6,9″ et 6,5″ restent vides : Apple réduit.
 4. [x] Réécrire `store/whats-new/` **6 langues** (Five, Défi Five, Salon, voile, Watch). **8 nov.**
 5. [ ] Preview : **garder** la vidéo actuelle, sauf un plan Five 15–30 s prêt. **Toi.**
 6. [x] `fastlane release` (8 nov.) : fiche 8.8, binaire **163**, Nouveautés. **Pas** la review.
-7. [ ] Captures en place, puis `submit`. **Ensemble.**
+7. [x] `submit` le 8 nov. Review en cours. Mise en ligne automatique à l’approbation.
 8. [ ] Si on veut que les éditeurs jouent **163** : `tf_featuring` **sur demande**. Le lien public reste sur **160** tant que ce n’est pas fait.
 
 ### Semaine du 18 nov.

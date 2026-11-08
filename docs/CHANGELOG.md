@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [8.8] — non publié (cible **18 nov. 2026**, glissière 2 déc. ; TF **162** le 7 nov.)
 
-Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Salon des trophées : 1ʳᵉ version testable ([TROPHIES.md](TROPHIES.md)). Watch inchangé **8.0 / 146**. Calendrier + actions humaines : [RELEASE_8.8.md](RELEASE_8.8.md).
+Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Salon des trophées : 1ʳᵉ version testable ([TROPHIES.md](TROPHIES.md)). Watch : marketing **8.0**, build **147** (remplace le 146 déjà installé ; la partie en cours reste) ; juice Zen dans le même IPA. Calendrier + actions humaines : [RELEASE_8.8.md](RELEASE_8.8.md).
 
 ### Ajouté
 
@@ -25,16 +25,18 @@ Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n
 
 - **Trophée Strike** : un BRIXED qui casse **plus de 13** Brix (seuil précédent : 24). Titre et noms de maître inchangés.
 - **Salon** : plus de ligne DEBUG, plus d’appui long qui ajoute +1 à une cible.
+- **Salon — point orange** : le point de l’icône accueil (blox orange du skin) se retrouve sur chaque cible dont le rang vient d’être franchi (I, II ou III) et dont la fiche n’a pas encore été ouverte. Il s’éteint à l’ouverture de cette fiche. Les étoiles ne le rallument pas.
 - **Visée** : colonne et bloc fantôme restent visibles après un aller-retour sans quitter l’app, et après « Revenir à l'accueil » puis reprise. Même sprites couleur que les cases de la grille. Une texture blanche partagée restait vide jusqu’à tuer l’app.
 - **Gravité** : filet si un vide reste au-dessus d’un bloc (Brix compris) au repos — tassage avant la ligne entrante, après son écriture, et au retour au premier plan si la partie est idle. Une chaîne créée par ce tassage est résolue.
 - **Voile record** : s’ouvre aussi quand ce score est 1er, 2e ou 3e (mondial en Arcade / Zen / Five, rang du jour en Défi). La place est le titre, couleur du skin ; **Record personnel** passe en légende. Paillettes aux couleurs du skin jusqu’à OK. À l’ouverture, 3 feux d’artifice (200 paillettes, côté 3,2…6,8 pt, moitié haute, étalés sur 1 s ; éclat 0,6 s, pluie 2,1…3,1 s). Textes et voile suivent Sombre / Clair.
 - **Duel — liste joueurs** : ne plus s’afficher soi-même (IDs GC live + cache publish + même nom).
 - **Duel — visée bombe** : le timer de tour reste gelé, mais la visée est limitée à **10 s**. Au bout, pose auto (case visée, sinon centre).
 - **Duel — barre d’attaque** : le puits reste à hauteur fixe ; le remplissage 0…50 est une gouttière peau (même shader que BLOMIX), plus le blanc/noir chrome.
+- **Watch Zen** (marketing 8.0, build **147**, pour remplacer le 146 déjà sur les montres) : le bloc qui part au tap (P0) respire (échelle 1,0↔1,14, 0,7 s). Une chaîne s’efface case par case — y compris après un Magix, et les effacements groupés COLORX / SAINTX / BRIXED / SCRUMBLX — avant le compactage. Halo doré statique sur les Magix (disque derrière + liseré) pour les séparer des Brix. Paillettes de la couleur de la chaîne jusqu’au score ; le chiffre défile jusqu’à la dernière. Bombe armée : elle prend la place du bloc à venir dans la file (affichage seul, la file réelle ne bouge pas). Une mise à jour ne lance pas une partie neuve : même clés, pas d’écriture au milieu d’un coup. [WATCH_ZEN.md](WATCH_ZEN.md).
 
 ### Portes humaines (avant jalon)
 
-Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF **8.8 / 159**. **24 oct.** : TF **8.8 / 160** (groupe `Featuring`, Beta App Review). **25 oct.** : TF **8.8 / 161** (interne). **7 nov.** : TF **8.8 / 162** (interne ; Featuring reste sur 160). Ne pas `submit` magasin avant le 11 nov.
+Voir [RELEASE_8.8.md](RELEASE_8.8.md). **21 oct.** : 8.6 en vente ; GC/CK Five actifs ; TF **8.8 / 159**. **24 oct.** : TF **8.8 / 160** (groupe `Featuring`, Beta App Review). **25 oct.** : TF **8.8 / 161** (interne). **7 nov.** : TF **8.8 / 162** (interne ; Featuring reste sur 160). **8 nov.** : code gelé ; Nouveautés 6 langues. `submit` après les captures.
 
 ---
 

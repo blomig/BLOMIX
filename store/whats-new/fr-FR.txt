@@ -1,3 +1,5 @@
-• CONNECT : un trait chrome dessine le plus court pont d’un bord à l’autre
-• Magix et bombe : sillage coloré à la pose, paillettes dans chaque case qui disparaît
-• Tous les Magix (COLORX, CHROMAX, SLASHX…) : les mêmes paillettes sur les chaînes qu’ils déclenchent
+• Five : une partie libre, sans chrono ni niveaux. Une ligne tous les 5 coups.
+• Défi Five : le défi du jour, en mode Five.
+• Salon des trophées : tes exploits, du premier palier jusqu’à maître.
+• Fin de partie : un voile si tu bats ton record, ou si tu prends le podium.
+• Apple Watch : le prochain bloc respire, les chaînes filent vers le score, et la bombe prend sa place dans la file.

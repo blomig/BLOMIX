@@ -25,6 +25,8 @@ enum WatchZenStore {
     static func save(_ run: WatchZenRunState) {
         do {
             let data = try JSONEncoder().encode(run)
+            // Même conteneur après une mise à jour (bundle `blomig.BLOMIX.watchkitapp`).
+            // On ne change pas la clé ni `version` : Continuer relit cette partie.
             UserDefaults.standard.set(data, forKey: runKey)
             log.info("save_ok")
         } catch {
@@ -36,6 +38,8 @@ enum WatchZenStore {
         guard let data = UserDefaults.standard.data(forKey: runKey) else { return nil }
         guard let run = try? JSONDecoder().decode(WatchZenRunState.self, from: data),
               run.version == 1 else {
+            // Illisible : on retire seulement cette clé. Une mise à jour ne passe pas ici
+            // tant que le JSON reste en version 1.
             clearRun()
             return nil
         }

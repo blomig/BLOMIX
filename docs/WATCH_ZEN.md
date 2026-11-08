@@ -15,7 +15,7 @@ Règles joueur iPhone : [RULES.md](RULES.md). Magix : [MAGIX.md](MAGIX.md). Arch
 
 BLOMIX iPhone est un puzzle 8×8 en production (`blomig.BLOMIX`, iOS 18+, Swift 6). Toute la logique vit dans `Blomix/Blomix/GameScene.swift` (~16 200 lignes, SpriteKit + juice). En extraire un module partagé pour la Watch casserait 7.3 et le monolithe.
 
-**Watch v1** est une **app compagnon** watchOS, **cible dédiée**, **zéro fichier Swift partagé** avec l’iPhone. Elle embarque une copie gelée d’un moteur Zen *light* sous `Watch/`. Un seul mode : **Zen** (pas de timer, pas de stages, pas de nuke). Même grille 8×8, gravité inversée, chaînes ≥ 5 en 8-connexité, Brix, Magix (glyphe plat), bombes 3×3 (stock 5), ligne tous les 10 coups. Graphisme : carrés + glyphe, **sans particules, sans halo, sans bounce, sans son**. Compactage : **glissement + fondu** (~0,22 s). Pose = tap de **colonne**, fire-on-release.
+**Watch v1** est une **app compagnon** watchOS, **cible dédiée**, **zéro fichier Swift partagé** avec l’iPhone. Elle embarque une copie gelée d’un moteur Zen *light* sous `Watch/`. Un seul mode : **Zen** (pas de timer, pas de stages, pas de nuke). Même grille 8×8, gravité inversée, chaînes ≥ 5 en 8-connexité, Brix, Magix (glyphe + halo statique), bombes 3×3 (stock 5), ligne tous les 10 coups. Graphisme : carrés + glyphe, **sans particules, sans bounce, sans son**. Le bloc à poser (**P0**) respire. Une chaîne s’efface **case par case** (aussi après un Magix), puis le compactage glisse (~0,22 s). Pose = tap de **colonne**, fire-on-release.
 
 L’app Watch **voyage dans l’IPA iOS**. Le joueur installe BLOMIX sur iPhone ; l’install Watch est **automatique** si « Installation automatique des apps » est on, sinon manuelle dans l’app Watch. Il joue Zen poignet seul (iPhone dans le sac, avion). Le record Watch reste local en v1 ; plus tard `WCSession.transferUserInfo` pousse `{score, date, mode: zen}` vers une inbox iPhone qui n’appelle `ScoreManager.submitScore` **que si** le score bat le Zen local.
 
@@ -64,7 +64,7 @@ Douleur si on « partageait » le moteur :
 | Tutoriel, hints, `BlomixMoveAnalyzer` | |
 | Digital Crown pour poser | v1 = tap colonne |
 | Musique, SFX, `AVAudioSession` | |
-| Particules, halo, stretch de lancement, bounce compactage, juice de ligne | |
+| Particules, stretch de lancement, bounce compactage, juice de ligne, halo animé, respiration du fantôme de visée | Halo Magix **statique**, respiration du **P0** et stagger de chaîne : juice 8.8, ci-dessous |
 | Skins iPhone (`color_skins.json` live) | Palette **default** figée ; copie skin via WC **optionnelle plus tard** |
 | Submit GameKit **depuis la Watch** | Historiquement fragile ; file iPhone |
 | Écriture des slots iPhone `blomix_solo_save_v2` / `blomix_zen_save_v1` / `blomix_daily_save_v1` | Interdit, y compris plus tard |
@@ -263,6 +263,8 @@ Bombe (visée **case**) : overlay 3×3 sous le doigt, fire-on-release. ±1 case 
 ```
 
 File : **display-only**. P0 = **slot de droite du trio**. Ordre G→D : P2 → P1 → **P0**. Bombe à **droite** (comme iPhone). Score **hors** barre bas.
+
+Bombe armée : le slot de droite (grand, il respire) montre un disque bombe statique ; P0 réel passe au milieu, P1 à gauche. P2 sort de la file visible. `p0` / `p1` / `p2` et le stock ne changent pas. Annuler ou poser restaure l’affichage réel.
 
 ---
 
@@ -560,7 +562,7 @@ Après `mutate` : **toujours** compact + bonus colonnes (no-op paint si 0 trou),
 
 COLORX / TWISTX : zéro animation.
 
-Rendu Magix : fill priks `#00024c` + glyphe `#ead400`. Blox : palette **default** `color_skins.json` :
+Rendu Magix : fill priks `#00024c` + glyphe `#ead400`, plus un **halo statique** (disque or derrière, ~1,38× le côté, flou, et liseré or sur le carré) pour le distinguer d’un Brix. Grille, visée, file du bas. Pas d’animation de halo. Blox : palette **default** `color_skins.json` :
 
 | Clé | Hex |
 |---|---|
@@ -587,7 +589,19 @@ Pour **chaque** `WatchMagixKind` (et 1 vecteur bombe + 1 vecteur ligne / 10) : J
 
 ### Graphisme — interdit
 
-Pas de : particules, halo, stretch, bounce / sparkles, juice de ligne, respiration preview, shaders, `SKAction`, TimelineView décoratif, haptic en boucle. Compactage Watch : slide + fade 0,22 s (IDs stables). **Haptic** : aucun chrome / drop ; click chaîne plus tard. Redraw geste / post-resolve seulement.
+Pas de : pluie de particules permanente, stretch, bounce / sparkles d’impact, juice de ligne, respiration du **fantôme de visée**, shaders, `SKAction`, TimelineView décoratif au repos, haptic en boucle. Compactage Watch : slide + fade 0,22 s (IDs stables). **Haptic** : aucun chrome / drop ; click chaîne plus tard. Redraw geste / post-resolve / vol de paillettes seulement.
+
+### Juice 8.8 (autorisé)
+
+Marketing Watch **8.0**, build **147**. Le 146 déjà installé ne se remplace que si ce numéro monte.
+
+| Effet | Où | Réglage |
+|---|---|---|
+| Respiration | **P0** seulement (le bloc qui part au tap), pas P1/P2, pas le fantôme. En bombe armée : le disque bombe du slot de droite, pas les deux blocs décalés | échelle 1,0 ↔ 1,14, easeInOut 0,7 s, boucle. Coupée si Réduire les animations |
+| Bombe dans la file | Slot de droite quand `isBombMode` | disque statique noir / rouge / jaune. La file visible décale d’un cran (P0 → milieu, P1 → gauche). File réelle inchangée |
+| Stagger | Chaîne ≥ 5, **et** la chaîne qui suit un Magix. Aussi un effacement groupé (COLORX, SAINTX, BRIXED, SCRUMBLX, ≥ 2 cases) | ordre (ligne, colonne) par composante pour une chaîne ; balayage ligne/colonne pour un wipe. Décalage 0,035 s, plafond 0,28 s, fondu 0,16 s, échelle → 0,72. Puis le compactage habituel |
+| Halo Magix | Grille, visée, file | statique, or `#ead400`. Pas sur les Brix |
+| Paillettes de chaîne | Cases de la chaîne → chiffre du score | couleur du blox, 1 à 3 points par case (plafond 24). Départ décalé comme le fondu. Vitesse : moitié de grille en 0,25 s, plancher 0,18 s. Le chiffre **défile** de la première arrivée à la dernière (+ 0,06 s). Bombe, Brix, colonne : pas de paillettes, le chiffre avance tout de suite. `TimelineView` seulement pendant le vol (~30 fps, < 1 s). Coupé (défilement court, sans points) si Réduire les animations |
 
 ### Batterie / perf
 
@@ -595,7 +609,7 @@ Pas de : particules, halo, stretch, bounce / sparkles, juice de ligne, respirati
 |---|---|
 | Grille 64 rects Canvas | visée ≪ 1 ms / frame sur **S8 (SE 2)**, le plancher |
 | Resolve synchrone 8×8 | négligeable |
-| FPS | 0 idle ; 1 frame post-coup ; highlight = frames du `DragGesture` |
+| FPS | 0 idle ; 1 frame post-coup ; highlight = frames du `DragGesture` ; ~30 fps le temps du vol des paillettes (< 1 s) |
 | RAM | moteur + 1 surface ; viser ≪ 15 Mo |
 | Radio | v1 = 0 ; PR 6 = `transferUserInfo` au GO |
 | AOD | SE 3 : luminance réduite, **0 fps** ; SE 2 : écran off |
@@ -658,7 +672,7 @@ final class WatchZenEngine: ObservableObject {
 
 Home : `hasMidRun` → `restore` sinon `newGame`. Pas de `restoreIfNeeded` magique dans le moteur.
 
-Bombe dans la main : `isBombMode == true` et `bombCount == 0` est **légal** jusqu’au blast ou cancel.
+Bombe dans la main : `isBombMode == true` et `bombCount == 0` est **légal** jusqu’au blast ou cancel. L’affichage de la file décale d’un cran (bombe à la place de P0) ; le moteur ne réécrit pas `p0` / `p1` / `p2`.
 
 API iPhone = inbox scores Zen uniquement (`BlomixWatchScoreInbox`). Pas de save iPhone, pas de `GameScene`.
 
@@ -701,7 +715,9 @@ Watch **ne clobber jamais** les deux slots iPhone. Pont = **scores Zen**, pas un
 
 ### Save run Watch (v1)
 
-JSON = `WatchZenRunState` (champs API ci-dessus — **pas** `aimedBombCell`). Flush : après coup stable, `scenePhase` background / inactive, Home. Visée **toujours** droppée (`aimedBombCell = nil`) au restore / flush / `toggleBombMode` cancel : ce n’est pas un champ disque. Grille déjà compactée (moteur synchrone).
+JSON = `WatchZenRunState` (champs API ci-dessus — **pas** `aimedBombCell`, **pas** les paillettes). Flush : après coup stable (`isProcessing == false`), `scenePhase` background / inactive, Home. **Pas d’écriture au milieu d’un coup** : une suspension ou une mise à jour pendant le fondu garde la sauvegarde du coup précédent (grille et score d’accord). Visée **toujours** droppée (`aimedBombCell = nil`) au restore / flush / `toggleBombMode` cancel : ce n’est pas un champ disque. Grille déjà compactée (moteur synchrone).
+
+**Mise à jour de l’app.** Elle arrive avec la mise à jour iPhone (pas de fiche Watch séparée). watchOS ne remplace le binaire que si `CFBundleVersion` augmente : 8.8 embarque **147** (marketing 8.0). Conteneur Watch `blomig.BLOMIX.watchkitapp`, clés inchangées `blomix_watch_zen_save_v1` et `blomix_watch_zen_best_v1`, JSON `version` **1**. Rien au lancement n’appelle `clearRun` ni `newGame`. `clearRun` : game over, ou « nouvelle partie » confirmée. Après redémarrage (mise à jour comprise), l’accueil propose **Continuer** si la clé est lisible. Le best n’est écrit qu’au game over, en `max`.
 
 **Stub PR 5a** : sérialiser *tout* le snapshot courant dès que le moteur existe (PR 2) — pas besoin d’attendre Magix/bombes. Champs encore à 0 restent valides.
 

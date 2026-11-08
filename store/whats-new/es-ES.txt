@@ -1,3 +1,5 @@
-• CONNECT: una línea cromada traza el puente más corto de un borde al otro
-• Magix y bomba: estela de color al caer, destellos en cada casilla que desaparece
-• Todos los Magix (COLORX, CHROMAX, SLASHX…): los mismos destellos en las cadenas que provocan
+• Five: una partida libre, sin cronómetro ni niveles. Una línea cada 5 jugadas.
+• Desafío Five: el desafío del día, jugado en Five.
+• Salón de trofeos: tus hazañas, del primer rango hasta maestro.
+• Fin de partida: un velo si superas tu récord, o si llegas al podio.
+• Apple Watch: el próximo bloque respira, las cadenas brillan hacia la puntuación y la bomba ocupa su lugar en la cola.

@@ -20,6 +20,8 @@ struct WatchGridCanvas: View {
     let onPlaceBomb: () -> Void
     let onCancel: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
@@ -43,18 +45,34 @@ struct WatchGridCanvas: View {
                 }
 
                 ForEach(cells) { item in
-                    WatchBlockTile(block: item.block)
+                    if case .magix = item.block {
+                        WatchMagixHalo(side: inner)
+                            .scaleEffect(item.clearingIndex == nil || reduceMotion ? 1 : 0.72)
+                            .opacity(item.clearingIndex == nil ? 1 : 0)
+                            .animation(clearAnimation(for: item), value: item.clearingIndex ?? -1)
+                            .position(
+                                x: CGFloat(item.col) * cell + cell / 2,
+                                y: CGFloat(item.row) * cell + cell / 2
+                            )
+                            .animation(slideAnimation, value: item.row)
+                            .animation(slideAnimation, value: item.col)
+                            .allowsHitTesting(false)
+                    }
+                }
+
+                ForEach(cells) { item in
+                    WatchBlockTile(block: item.block, showsHalo: false)
                         .frame(width: inner, height: inner)
+                        .scaleEffect(item.clearingIndex == nil || reduceMotion ? 1 : 0.72)
+                        .opacity(item.clearingIndex == nil ? 1 : 0)
+                        .animation(clearAnimation(for: item), value: item.clearingIndex ?? -1)
                         .position(
                             x: CGFloat(item.col) * cell + cell / 2,
                             y: CGFloat(item.row) * cell + cell / 2
                         )
-                        .transition(.opacity)
+                        .animation(slideAnimation, value: item.row)
+                        .animation(slideAnimation, value: item.col)
                 }
-                .animation(
-                    .easeOut(duration: WatchZenRules.lineRiseAnimationDuration),
-                    value: cells
-                )
 
                 if let magixFX {
                     magixOverlay(fx: magixFX, cell: cell, inner: inner)
@@ -108,6 +126,18 @@ struct WatchGridCanvas: View {
             .gesture(gridGesture(side: side, cell: cell))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var slideAnimation: Animation {
+        .easeOut(duration: WatchZenRules.lineRiseAnimationDuration)
+    }
+
+    private func clearAnimation(for item: WatchLiveCell) -> Animation {
+        let delay = (item.clearingIndex == nil || reduceMotion)
+            ? 0
+            : WatchZenRules.chainClearDelay(index: item.clearingIndex ?? 0)
+        let duration = item.clearingIndex == nil ? 0.12 : WatchZenRules.chainClearFadeDuration
+        return .easeIn(duration: duration).delay(delay)
     }
 
     private func gridGesture(side: CGFloat, cell: CGFloat) -> some Gesture {
@@ -221,15 +251,41 @@ struct WatchGridCanvas: View {
     }
 }
 
+struct WatchMagixHalo: View {
+    var side: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(WatchPalette.prikstext.opacity(0.55))
+            .frame(width: side * 1.38, height: side * 1.38)
+            .blur(radius: max(1.2, side * 0.14))
+    }
+}
+
 struct WatchBlockTile: View {
     let block: WatchBlockType
+    /// `false` sur la grille : le halo est dessiné derrière toutes les cases.
+    var showsHalo: Bool = true
 
     var body: some View {
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
             ZStack {
+                if showsHalo, case .magix = block {
+                    WatchMagixHalo(side: side)
+                }
                 RoundedRectangle(cornerRadius: 1.6, style: .continuous)
                     .fill(WatchPalette.fill(for: block))
+                    .overlay {
+                        if case .magix = block {
+                            RoundedRectangle(cornerRadius: 1.6, style: .continuous)
+                                .strokeBorder(
+                                    WatchPalette.prikstext.opacity(0.95),
+                                    lineWidth: max(1, side * 0.07)
+                                )
+                                .blur(radius: 0.45)
+                        }
+                    }
                 if let mark = WatchBlockTile.mark(for: block) {
                     Text(mark)
                         .font(.system(size: max(8, side * 0.62), weight: .heavy, design: .rounded))

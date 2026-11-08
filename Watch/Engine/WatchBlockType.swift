@@ -130,6 +130,26 @@ enum WatchZenRules {
     static let compactAnimationDuration: Double = 0.22
     static let lineRiseAnimationDuration: Double = 0.32
     static let magixWaveDelay: Double = 0.07
+    /// Décalage entre deux cases d’une même disparition (chaîne ou wipe Magix).
+    static let chainClearStagger: Double = 0.035
+    /// Plafond du décalage, pour qu’une grande chaîne ne fige pas la montre.
+    static let chainClearStaggerCap: Double = 0.28
+    static let chainClearFadeDuration: Double = 0.16
+
+    static func chainClearDelay(index: Int) -> Double {
+        min(Double(max(index, 0)) * chainClearStagger, chainClearStaggerCap)
+    }
+
+    static func chainClearTail(count: Int) -> Double {
+        guard count > 0 else { return 0 }
+        return chainClearDelay(index: count - 1) + chainClearFadeDuration
+    }
+
+    /// Vol d’une paillette : la moitié de la grille en 0,25 s, comme l’iPhone.
+    static let chainSparkleFlightMin: Double = 0.18
+    /// Le chiffre bouge encore quand la dernière paillette touche le score.
+    static let chainSparkleRollPad: Double = 0.06
+    static let chainSparkleRollMin: Double = 0.12
 
     static let neighborDeltas8: [(dr: Int, dc: Int)] = [
         (-1, -1), (-1, 0), (-1, 1),

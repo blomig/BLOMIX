@@ -44,4 +44,19 @@ struct WatchLiveCell: Identifiable, Equatable {
     var row: Int
     var col: Int
     var block: WatchBlockType
+    /// Place dans la vague de disparition. `nil` = bloc posé.
+    var clearingIndex: Int? = nil
+}
+
+/// Vague de paillettes d’une chaîne. Hors sauvegarde.
+struct WatchChainSparkleCell: Equatable {
+    var row: Int
+    var col: Int
+    var colorName: String
+}
+
+struct WatchChainSparkleRequest: Equatable {
+    var token: Int
+    var points: Int
+    var cells: [WatchChainSparkleCell]
 }

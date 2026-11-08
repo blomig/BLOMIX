@@ -1,3 +1,5 @@
-• CONNECT: una linea cromata traccia il ponte più corto da un bordo all’altro
-• Magix e bomba: scia colorata in caduta, scintille in ogni casella che scompare
-• Tutti i Magix (COLORX, CHROMAX, SLASHX…): le stesse scintille sulle catene che innescano
+• Five: una partita libera, senza timer né livelli. Una riga ogni 5 mosse.
+• Sfida Five: la sfida del giorno, giocata in Five.
+• Salone dei trofei: le tue imprese, dal primo grado fino a maestro.
+• Fine partita: un velo se batti il tuo record, o se sali sul podio.
+• Apple Watch: il prossimo blocco respira, le catene scintillano verso il punteggio e la bomba prende posto nella coda.

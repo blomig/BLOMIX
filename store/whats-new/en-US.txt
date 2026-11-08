@@ -1,3 +1,5 @@
-• CONNECT: a chrome line traces the shortest bridge from one side to the other
-• Magix and bombs: colored trail on drop, sparkles in every cell they clear
-• Every Magix (COLORX, CHROMAX, SLASHX…): the same sparkles on the chains they trigger
+• Five: an open game, no timer and no stages. A new line every 5 moves.
+• Five Challenge: today’s daily, played in Five.
+• Trophy lounge: your feats, from the first rank up to master.
+• Game over: a veil when you beat your record, or when you reach the podium.
+• Apple Watch: the next block breathes, chains sparkle toward the score, and the bomb steps into the queue.

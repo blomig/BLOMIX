@@ -1,3 +1,5 @@
-• CONNECT: eine Chromlinie zeichnet die kürzeste Brücke von Rand zu Rand
-• Magix und Bombe: farbige Spur beim Abwurf, Funkeln in jeder verschwindenden Zelle
-• Alle Magix (COLORX, CHROMAX, SLASHX…): dieselben Funken auf den Ketten, die sie auslösen
+• Five: ein freies Spiel, ohne Timer und ohne Stufen. Alle 5 Züge eine neue Reihe.
+• Five-Challenge: die Herausforderung des Tages, gespielt in Five.
+• Trophäen-Salon: deine Taten, vom ersten Rang bis zum Meister.
+• Spielende: ein Schleier, wenn du deinen Rekord schlägst oder das Podium erreichst.
+• Apple Watch: der nächste Block atmet, Ketten funkeln zum Punktestand, und die Bombe rückt in die Reihe.

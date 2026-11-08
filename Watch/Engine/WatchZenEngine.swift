@@ -19,6 +19,11 @@ final class WatchZenEngine: ObservableObject {
     @Published private(set) var incomingPreview: [WatchBlockType]?
     @Published private(set) var isProcessing = false
     @Published private(set) var magixFX: WatchMagixFX?
+    /// Dernière chaîne à faire voler vers le score. Hors sauvegarde.
+    @Published private(set) var chainSparkle: WatchChainSparkleRequest?
+    /// Points de chaîne pas encore comptés dans le delta de `score`.
+    private var chainSparklePoints = 0
+    private var chainSparkleToken = 0
 
     var grid: [[WatchBlockType]] { run.grid }
     var moveCount: Int { run.moveCount }
@@ -57,6 +62,8 @@ final class WatchZenEngine: ObservableObject {
         isProcessing = false
         shouldRunPostPlacementHooks = false
         magixFX = nil
+        chainSparkle = nil
+        chainSparklePoints = 0
         refreshIncomingPreview()
         syncLiveCells()
     }
@@ -71,6 +78,8 @@ final class WatchZenEngine: ObservableObject {
         isProcessing = false
         shouldRunPostPlacementHooks = false
         magixFX = nil
+        chainSparkle = nil
+        chainSparklePoints = 0
         refreshIncomingPreview()
         syncLiveCells()
     }
@@ -85,6 +94,14 @@ final class WatchZenEngine: ObservableObject {
     func flushTransientAim() {
         highlightedColumn = nil
         aimedBombCell = nil
+    }
+
+    /// À appeler quand `score` change. Retire au plus `delta` points de chaîne
+    /// déjà lancés vers le score, pour ne pas les ajouter une seconde fois.
+    func consumeChainSparklePoints(upTo delta: Int) -> Int {
+        let claimed = min(max(0, delta), chainSparklePoints)
+        chainSparklePoints -= claimed
+        return claimed
     }
 
     func setHighlightedColumn(_ col: Int?) {
@@ -249,6 +266,8 @@ final class WatchZenEngine: ObservableObject {
                 magixFX = fx
             }
             await pause(0.12)
+            await animateDisappearance(ordered: orderedDisappearance(plan.wipe))
+            guard !Task.isCancelled, !isGameOver else { return }
             adoptGrid(preShift)
             syncLiveCells()
             await pause(0.12)
@@ -261,6 +280,14 @@ final class WatchZenEngine: ObservableObject {
                 if var fx = magixFX {
                     fx.highlight = wave
                     magixFX = fx
+                }
+                let vanishing = wave.filter { addr in
+                    plan.resultGrid[addr.row][addr.col].isEmpty
+                        && !run.grid[addr.row][addr.col].isEmpty
+                }
+                if vanishing.count >= 2 {
+                    await animateDisappearance(ordered: orderedDisappearance(vanishing))
+                    guard !Task.isCancelled, !isGameOver else { return }
                 }
                 for addr in wave {
                     let block = plan.resultGrid[addr.row][addr.col]
@@ -309,14 +336,27 @@ final class WatchZenEngine: ObservableObject {
 
             rearranged = true
             run.chainClearWaveCount += 1
+            var wavePoints = 0
             for component in components {
-                run.score += WatchZenRules.chainClearScorePoints(
+                wavePoints += WatchZenRules.chainClearScorePoints(
                     chainSeriesLevel: run.chainSeriesLevel,
                     groupSize: component.count
                 )
             }
 
             let columnHadBlockBefore = occupancyByColumn()
+            let ordered = orderedChainRemovalCells(from: components)
+            // Le score logique attend la fin du fondu : une suspension au milieu
+            // du vol ne peut pas sauver des points sans la grille qui va avec.
+            publishChainSparkle(points: wavePoints, cells: ordered)
+            await animateDisappearance(ordered: ordered)
+            guard !Task.isCancelled, !isGameOver else {
+                chainSparklePoints = 0
+                return rearranged
+            }
+            if wavePoints > 0 {
+                run.score += wavePoints
+            }
             for address in winningCells {
                 write(.empty, row: address.row, col: address.col)
             }
@@ -418,7 +458,74 @@ final class WatchZenEngine: ObservableObject {
         )
     }
 
-    private func syncLiveCells(rowOverride: [UUID: Int] = [:]) {
+    /// Paillettes tout de suite. Les points restent hors de `score` jusqu’à la fin du fondu.
+    private func publishChainSparkle(points: Int, cells: [WatchGridAddress]) {
+        guard points > 0, !cells.isEmpty else { return }
+        var sparkCells: [WatchChainSparkleCell] = []
+        sparkCells.reserveCapacity(cells.count)
+        for addr in cells {
+            guard addr.row >= WatchGridLayout.topRowIndex,
+                  addr.row < WatchGridLayout.rowCount,
+                  addr.col >= 0, addr.col < WatchGridLayout.columnCount else { continue }
+            if case .color(let name) = run.grid[addr.row][addr.col] {
+                sparkCells.append(WatchChainSparkleCell(row: addr.row, col: addr.col, colorName: name))
+            }
+        }
+        guard !sparkCells.isEmpty else { return }
+        chainSparkleToken += 1
+        chainSparklePoints += points
+        chainSparkle = WatchChainSparkleRequest(
+            token: chainSparkleToken,
+            points: points,
+            cells: sparkCells
+        )
+    }
+
+    /// Fondu décalé, grille encore intacte. L’appelant retire les cases ensuite.
+    private func animateDisappearance(ordered addresses: [WatchGridAddress]) async {
+        var clearing: [UUID: Int] = [:]
+        var count = 0
+        for addr in addresses {
+            guard addr.row >= WatchGridLayout.topRowIndex,
+                  addr.row < WatchGridLayout.rowCount,
+                  addr.col >= 0, addr.col < WatchGridLayout.columnCount else { continue }
+            guard !run.grid[addr.row][addr.col].isEmpty else { continue }
+            guard let id = cellIDs[addr.row][addr.col] else { continue }
+            clearing[id] = count
+            count += 1
+        }
+        guard count > 0 else { return }
+        syncLiveCells(clearingIndex: clearing)
+        await pause(WatchZenRules.chainClearTail(count: count))
+    }
+
+    /// Wipe Magix : balayage ligne / colonne. Les doublons sautent.
+    private func orderedDisappearance(_ addresses: [WatchGridAddress]) -> [WatchGridAddress] {
+        var seen = Set<WatchGridAddress>()
+        var unique: [WatchGridAddress] = []
+        for addr in addresses where seen.insert(addr).inserted {
+            unique.append(addr)
+        }
+        return unique.sorted { a, b in
+            if a.row != b.row { return a.row < b.row }
+            return a.col < b.col
+        }
+    }
+
+    /// Chaque composante à part, cases en (ligne, colonne) — même ordre que l’iPhone.
+    private func orderedChainRemovalCells(from components: [Set<WatchGridAddress>]) -> [WatchGridAddress] {
+        components.flatMap { cells in
+            cells.sorted { a, b in
+                if a.row != b.row { return a.row < b.row }
+                return a.col < b.col
+            }
+        }
+    }
+
+    private func syncLiveCells(
+        rowOverride: [UUID: Int] = [:],
+        clearingIndex: [UUID: Int] = [:]
+    ) {
         var cells: [WatchLiveCell] = []
         for row in WatchGridLayout.topRowIndex..<WatchGridLayout.rowCount {
             for col in 0..<WatchGridLayout.columnCount {
@@ -429,7 +536,13 @@ final class WatchZenEngine: ObservableObject {
                 }
                 let id = cellIDs[row][col]!
                 let displayRow = rowOverride[id] ?? row
-                cells.append(WatchLiveCell(id: id, row: displayRow, col: col, block: block))
+                cells.append(WatchLiveCell(
+                    id: id,
+                    row: displayRow,
+                    col: col,
+                    block: block,
+                    clearingIndex: clearingIndex[id]
+                ))
             }
         }
         liveCells = cells

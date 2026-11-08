@@ -367,6 +367,8 @@ private final class TrophyCell: UIView {
     private let cible = BlomixTrophyCibleView()
     private let stars = BlomixTrophyStarsView()
     private let caption = UILabel()
+    /// Même point orange que l’icône Salon de l’accueil. Pas de texte.
+    private let unseenDot = UIView()
 
     init(def: BlomixTrophyDef) {
         self.def = def
@@ -383,9 +385,14 @@ private final class TrophyCell: UIView {
         caption.adjustsFontSizeToFitWidth = true
         caption.minimumScaleFactor = 0.7
         caption.translatesAutoresizingMaskIntoConstraints = false
+        unseenDot.isUserInteractionEnabled = false
+        unseenDot.clipsToBounds = true
+        unseenDot.layer.cornerRadius = 4.5
+        unseenDot.translatesAutoresizingMaskIntoConstraints = false
         addSubview(cible)
         addSubview(stars)
         addSubview(caption)
+        addSubview(unseenDot)
         // Caption ancrée à la cible (écart historique 3+9+3) : les étoiles
         // peuvent grossir dans la gouttière sans déplacer trophée ni sous-titre.
         let captionGap: CGFloat = 3 + BlomixTrophyStarsMetrics.wallReservedHeight + 3
@@ -402,6 +409,10 @@ private final class TrophyCell: UIView {
             caption.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
             caption.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
             caption.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
+            unseenDot.widthAnchor.constraint(equalToConstant: 9),
+            unseenDot.heightAnchor.constraint(equalToConstant: 9),
+            unseenDot.topAnchor.constraint(equalTo: cible.topAnchor, constant: 4),
+            unseenDot.trailingAnchor.constraint(equalTo: cible.trailingAnchor, constant: -4),
         ])
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
         reload()
@@ -421,6 +432,10 @@ private final class TrophyCell: UIView {
         caption.textColor = p.value > 0
             ? BlomixAppearance.secondaryText
             : BlomixAppearance.tertiaryText
+        // Rang franchi (I, II ou III) et fiche pas encore ouverte. Les étoiles ne comptent pas.
+        unseenDot.isHidden = !(p.value > 0 && !p.seen)
+        unseenDot.backgroundColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange") ?? .orange
+        bringSubviewToFront(unseenDot)
     }
 
     @objc private func tapped() { onTap?() }

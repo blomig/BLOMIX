@@ -24,9 +24,11 @@ Rangée d’icônes accueil (aujourd’hui 5) : **6ᵉ** icône, SF Symbol `trop
 |---|---|
 | Place | Entre **Partager** et **Crédits** |
 | Caption | court (ex. **Pièce**) — titre d’écran = nom choisi |
-| Badge | point si rang monté / pastille nouvelle non ouverte |
+| Badge | Point orange du skin (blox **orange**), rayon 4,5 pt. **Accueil** : sur l’icône Salon tant qu’une cible allumée n’a pas été ouverte. **Salon** : le même point sur cette cible, jusqu’à l’ouverture de sa fiche. |
 
 Si 6 icônes serrent le 40 mm : `iconStep` 56 → ~50, pas une 2ᵉ rangée.
+
+Le point n’est pas un compteur. `seen` passe à **faux** seulement quand le **rang** monte (aucune → I, I → II, II → III). Il repasse à **vrai** à l’ouverture de la fiche (`markSeen`). Un +1 qui ne change pas le rang, et les étoiles à 1× / 2× / 3× le seuil III, ne rallument pas le point. Le retrofit des scores déjà là crée les progrès avec `seen` faux et sans toast : le point d’accueil reste donc allumé tant que chaque cible concernée n’a pas été ouverte. La file de toasts (`pending`) allume aussi le point d’accueil ; elle ne rallume pas une cible déjà vue. Au retour du Salon, l’accueil est reconstruit : le point d’accueil s’éteint quand il ne reste plus de cible dans ce cas.
 
 ### L’écran (modal UIKit, famille Crédits / Score)
 

@@ -3,7 +3,11 @@
 //  Blomix
 //
 //  Popup « changements de version » sur l’accueil, après le splash.
-//  Ok = cette session seulement ; « Ne plus montrer » = UserDefaults (campagne 6.5).
+//  Ok = cette session seulement ; « Ne plus montrer » = UserDefaults de la campagne.
+//  À chaque MARKETING_VERSION : nouvel campaignID + réécriture de factTexts (6 langues),
+//  dans le même lot que store/whats-new/. Un id inchangé laisse l’ancien texte,
+//  et « Ne plus montrer » de la campagne précédente ne se réinitialise pas.
+//  La 8.8 est sortie avec `7.1_daily_duel` encore en place.
 //
 
 import SpriteKit
@@ -11,9 +15,19 @@ import UIKit
 
 @MainActor
 enum BlomixWhatsNew {
-    /// Identifiant de cette note (pas seulement MARKETING_VERSION : 6.6 sans note ne réaffiche pas).
-    static let campaignID = "7.1_daily_duel"
+    /// Identifiant de cette note. Pas le numéro marketing tout seul :
+    /// tant qu’il ne change pas, la clé UserDefaults et le texte restent ceux de l’ancienne note.
+    /// Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
+    static let campaignID = "8.9"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
+
+    /// Puces du dialogue. À réécrire avec la campagne, pas en dur dans la vue.
+    static var factTexts: [String] {
+        [
+            BlomixL10n.whatsNewSalonPhase,
+            BlomixL10n.whatsNewSalonDot,
+        ]
+    }
 
     /// Fermeture Ok : ne plus montrer jusqu’au prochain cold start.
     private static var dismissedThisSession = false
@@ -39,7 +53,7 @@ enum BlomixWhatsNew {
     }
 }
 
-/// Dialogue changelog 7.1 : voile + panneau Sombre/Clair.
+/// Dialogue changelog : voile + panneau Sombre/Clair. Les puces viennent de `BlomixWhatsNew.factTexts`.
 @MainActor
 final class BlomixWhatsNewDialogView: UIView {
 
@@ -98,9 +112,6 @@ final class BlomixWhatsNewDialogView: UIView {
         title.numberOfLines = 0
         title.translatesAutoresizingMaskIntoConstraints = false
 
-        let dailyRow = makeFactRow(text: BlomixL10n.whatsNewDaily, magix: nil)
-        let presenceRow = makeFactRow(text: BlomixL10n.whatsNewDuelPresence, magix: nil)
-
         let okButton = makeButton(title: BlomixL10n.ok, isSecondary: false)
         okButton.addTarget(self, action: #selector(okTapped), for: .touchUpInside)
         let hideButton = makeButton(title: BlomixL10n.whatsNewDontShow, isSecondary: true)
@@ -111,7 +122,7 @@ final class BlomixWhatsNewDialogView: UIView {
         buttons.spacing = 10
         buttons.translatesAutoresizingMaskIntoConstraints = false
 
-        let facts = UIStackView(arrangedSubviews: [dailyRow, presenceRow])
+        let facts = UIStackView(arrangedSubviews: BlomixWhatsNew.factTexts.map { makeFactRow(text: $0, magix: nil) })
         facts.axis = .vertical
         facts.spacing = 14
         facts.translatesAutoresizingMaskIntoConstraints = false

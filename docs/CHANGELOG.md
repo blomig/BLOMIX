@@ -7,6 +7,18 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [8.9] — en cours (local, pas de bump `MARKETING_VERSION`)
+
+La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
+
+### Modifié
+
+- **Popup accueil** : campagne `8.9` (la 8.8 montrait encore `7.1_daily_duel`, Défi du jour + bonhomme vert). À chaque version marketing : nouvel `BlomixWhatsNew.campaignID` et puces en 6 langues, dans le même lot que `store/whats-new/`.
+- **Salon** : chaque trophée a sa phase de dégradé (même image, bande différente), disque + arc + étoiles ensemble. La fiche suit.
+- **Point orange accueil** : il s’éteint dès qu’il ne reste plus de fiche non vue, sans reconstruire l’accueil et sans passer par une partie.
+
+---
+
 ## [8.8] — en review (envoyée le **8 nov. 2026**, mise en ligne auto ; cible vente **18 nov.**, glissière 2 déc. ; binaire **163**)
 
 Five + Défi Five **codés** (pas de bump `MARKETING_VERSION` tant que le mode n’est pas validé / testé). Salon des trophées : 1ʳᵉ version testable ([TROPHIES.md](TROPHIES.md)). Watch : marketing **8.0**, build **147** (remplace le 146 déjà installé ; la partie en cours reste) ; juice Zen dans le même IPA. Calendrier + actions humaines : [RELEASE_8.8.md](RELEASE_8.8.md).

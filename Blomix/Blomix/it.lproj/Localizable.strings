@@ -326,6 +326,8 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "whatsnew.punch" = "Home: BLOMIX atterra con scintille su ogni lettera";
 "whatsnew.daily" = "Nuova modalità: ogni giorno, la stessa partita Arcade per tutti!";
 "whatsnew.duel_presence" = "Home: omino verde su Duel se ci sono giocatori in Giocatori disponibili";
+"whatsnew.salon_phase" = "Salone dei trofei: ogni trofeo ha la sua sfumatura, come i pulsanti della home.";
+"whatsnew.salon_dot" = "Il puntino arancione si spegne appena apri ogni nuova scheda.";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */

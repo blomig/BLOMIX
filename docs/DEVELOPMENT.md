@@ -197,6 +197,7 @@ Lors d'une évolution majeure du gameplay, mettre à jour **en priorité** :
 5. `GLOSSARY.md` si un terme est ajouté ou renommé
 6. `CHANGELOG.md` à chaque release
 7. `store/whats-new/` (6 langues) à chaque **version marketing**
+8. Popup in-app `BlomixWhatsNew` : nouvel `campaignID` + puces 6 langues (sinon la note précédente reste, cf. 8.8 sortie avec `7.1_daily_duel`)
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nommage.
 
@@ -267,6 +268,7 @@ Fastlane nomme l’italien `it` (pas `it-IT`) dans le dossier généré ; les fi
 ### Checklist release
 
 1. `store/whats-new/` à jour (6 langues, mêmes puces) + CHANGELOG.
+1b. Popup accueil : `BlomixWhatsNew.campaignID` nouveau + `factTexts` en 6 langues (`DOCS/LOCALIZATION.md`). Un id inchangé ne réaffiche rien aux joueurs qui ont tapé « Ne plus montrer ».
 2. `bundle exec fastlane validate`
 3. `bundle exec fastlane release` (ou `beta` puis `metadata`)
 4. Vérifier dans ASC : Nouveautés / promo, build **Valid**, APS production.

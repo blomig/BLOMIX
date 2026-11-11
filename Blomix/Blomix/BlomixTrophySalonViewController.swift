@@ -237,7 +237,12 @@ final class BlomixTrophySalonViewController: UIViewController {
         ficheView = card
 
         let badge = BlomixTrophyFicheCibleRow()
-        badge.configure(value: progress.value, curve: def.curve, secretLocked: lockedSecret)
+        badge.configure(
+            value: progress.value,
+            curve: def.curve,
+            secretLocked: lockedSecret,
+            phaseID: def.id
+        )
         badge.translatesAutoresizingMaskIntoConstraints = false
 
         let title = UILabel()
@@ -415,6 +420,8 @@ private final class TrophyCell: UIView {
             unseenDot.trailingAnchor.constraint(equalTo: cible.trailingAnchor, constant: -4),
         ])
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
+        cible.applyGradientPhase(id: def.id)
+        stars.applyGradientPhase(id: def.id)
         reload()
     }
 

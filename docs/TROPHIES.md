@@ -28,7 +28,7 @@ Rangée d’icônes accueil (aujourd’hui 5) : **6ᵉ** icône, SF Symbol `trop
 
 Si 6 icônes serrent le 40 mm : `iconStep` 56 → ~50, pas une 2ᵉ rangée.
 
-Le point n’est pas un compteur. `seen` passe à **faux** seulement quand le **rang** monte (aucune → I, I → II, II → III). Il repasse à **vrai** à l’ouverture de la fiche (`markSeen`). Un +1 qui ne change pas le rang, et les étoiles à 1× / 2× / 3× le seuil III, ne rallument pas le point. Le retrofit des scores déjà là crée les progrès avec `seen` faux et sans toast : le point d’accueil reste donc allumé tant que chaque cible concernée n’a pas été ouverte. La file de toasts (`pending`) allume aussi le point d’accueil ; elle ne rallume pas une cible déjà vue. Au retour du Salon, l’accueil est reconstruit : le point d’accueil s’éteint quand il ne reste plus de cible dans ce cas.
+Le point n’est pas un compteur. `seen` passe à **faux** seulement quand le **rang** monte (aucune → I, I → II, II → III). Il repasse à **vrai** à l’ouverture de la fiche (`markSeen`). Un +1 qui ne change pas le rang, et les étoiles à 1× / 2× / 3× le seuil III, ne rallument pas le point. Le retrofit des scores déjà là crée les progrès avec `seen` faux et sans toast : le point d’accueil reste donc allumé tant que chaque cible concernée n’a pas été ouverte. La file de toasts (`pending`) allume aussi le point d’accueil ; elle ne rallume pas une cible déjà vue. Le Salon est un modal sur l’accueil déjà construit : fermer le Salon ne redessine pas l’icône. `.blomixTrophiesDidChange` ajoute ou retire le point tant que l’accueil est à l’écran (y compris pendant le Salon). Il s’éteint donc dès la dernière fiche, sans passer par une partie.
 
 ### L’écran (modal UIKit, famille Crédits / Score)
 
@@ -452,6 +452,7 @@ Inspiration : `image_inspi/trophees-chromax-piste-graphique.jpg` (trois plans CH
 - Disque : **dégradé aux couleurs de la peau** du joueur, même recette que les **gouttières** (puits / jauge 0→N°1).
 - Rien de spécifique **par mur** ni **par Magix**. CHROMAX orange-vert-bleu sur la planche = démo ; en jeu c’est la peau, y compris sur la pastille CHROMAX.
 - Arc : **mouvant**, comme les gouttières (shader / dégradé qui glisse), pas un bleu plat.
+- **Phase par trophée** (id) : disque, arc, étoiles et chiffres de seuil de la fiche partagent la même phase, comme le `a_timeOffset` des boutons d’accueil. Une seule image (16 bandes) pour tout le mur — pas un raster par cible.
 
 ### Mur vs fiche
 

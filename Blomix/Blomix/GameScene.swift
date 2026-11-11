@@ -1063,6 +1063,7 @@ final class GameScene: SKScene {
     private static let startScreenHeroSubtitleName = "startScreenHeroSubtitle"
     private static let startScreenShareChipName = "startScreenShareChip"
     private static let startScreenTrophyLinkName = "startScreenTrophyLink"
+    private static let startScreenTrophyBadgeName = "startScreenTrophyBadge"
     private static let startScreenTrophyToastName = "startScreenTrophyToast"
     private static let startScreenShareLabelName = "startScreenShareLabel"
     private static let gameOverShareLabelName = "gameOverShareLabel"
@@ -2880,15 +2881,6 @@ final class GameScene: SKScene {
         attachStartScreenIconCaption(to: shareIcon, text: BlomixL10n.homeIconShare)
         let trophyIcon = makeStartScreenChromeIcon(name: Self.startScreenTrophyLinkName, systemName: "trophy.fill")
         attachStartScreenIconCaption(to: trophyIcon, text: BlomixL10n.homeIconSalon)
-        if BlomixTrophyStore.shared.hasUnseen {
-            let badge = SKShapeNode(circleOfRadius: 4.5)
-            badge.fillColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange")
-                .map { SKColor(cgColor: $0.cgColor) } ?? .orange
-            badge.strokeColor = .clear
-            badge.position = CGPoint(x: 14, y: 14)
-            badge.zPosition = 8
-            trophyIcon.addChild(badge)
-        }
         let creditsIcon = makeStartScreenChromeIcon(name: Self.startScreenCreditsLinkName, systemName: "info.circle.fill")
         attachStartScreenIconCaption(to: creditsIcon, text: BlomixL10n.homeIconCredits)
         let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, trophyIcon, creditsIcon]
@@ -2898,6 +2890,7 @@ final class GameScene: SKScene {
             icon.position = CGPoint(x: -iconRowWidth / 2 + CGFloat(i) * iconStep, y: 0)
             iconRow.addChild(icon)
         }
+        refreshStartScreenTrophyBadge()
 
         let heroKind = startHeroKind()
         let heroTitle: String
@@ -4968,7 +4961,9 @@ final class GameScene: SKScene {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
+                // Le toast vide `pending` sans nouvelle notification. Le point se relit après.
                 self?.presentTrophyToastIfNeeded()
+                self?.refreshStartScreenTrophyBadge()
             }
         }
     }
@@ -5289,6 +5284,30 @@ final class GameScene: SKScene {
     /// Salon des trophées (modal famille Crédits).
     private func showTrophySalon(focusID: String? = nil) {
         presentFullScreenModal(BlomixTrophySalonViewController(focusID: focusID))
+    }
+
+    /// Point orange de l’icône Salon. L’accueil n’est pas reconstruit au retour du modal :
+    /// on ajoute ou on retire le sprite tant que l’écran d’accueil est vivant.
+    private func refreshStartScreenTrophyBadge() {
+        guard isStartScreen,
+              let overlay = childNode(withName: Self.startScreenOverlayName),
+              let iconRow = overlay.childNode(withName: Self.startScreenIconRowName),
+              let trophyIcon = iconRow.childNode(withName: Self.startScreenTrophyLinkName)
+        else { return }
+        let existing = trophyIcon.childNode(withName: Self.startScreenTrophyBadgeName)
+        guard BlomixTrophyStore.shared.hasUnseen else {
+            existing?.removeFromParent()
+            return
+        }
+        if existing != nil { return }
+        let badge = SKShapeNode(circleOfRadius: 4.5)
+        badge.name = Self.startScreenTrophyBadgeName
+        badge.fillColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange")
+            .map { SKColor(cgColor: $0.cgColor) } ?? .orange
+        badge.strokeColor = .clear
+        badge.position = CGPoint(x: 14, y: 14)
+        badge.zPosition = 8
+        trophyIcon.addChild(badge)
     }
 
     /// Chip trophée au palier : même Y qu’à l’accueil, overlay scène (grille inchangée).

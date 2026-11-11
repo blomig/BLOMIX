@@ -21,6 +21,14 @@ final class BlomixTrophyCibleView: UIView {
     var curve: BlomixTrophyCurve = .volumeDefault { didSet { setNeedsLayout() } }
     var isSecretLocked: Bool = false { didSet { setNeedsLayout() } }
 
+    /// Disque et arc : même phase que les étoiles de ce trophée (hash de l’id).
+    func applyGradientPhase(id: String) {
+        let band = BlomixSkinGradientClock.phaseBand(for: id)
+        let clock = BlomixSkinGradientClock.shared
+        clock.setPhaseBand(band, on: discGradient)
+        clock.setPhaseBand(band, on: arcGradient)
+    }
+
     private let ring1 = CAShapeLayer()
     private let ring2 = CAShapeLayer()
     private let ring3 = CAShapeLayer()
@@ -319,6 +327,14 @@ final class BlomixTrophyStarsView: UIView {
         litCount = show ? BlomixTrophyMath.starCount(value: value, curve: curve) : 0
     }
 
+    /// Les trois étoiles partagent la phase du trophée (pas une phase par étoile).
+    func applyGradientPhase(id: String) {
+        let band = BlomixSkinGradientClock.phaseBand(for: id)
+        for slot in slots {
+            slot.view.applyPhaseBand(band)
+        }
+    }
+
     override var intrinsicContentSize: CGSize {
         let size = max(6, pointSize)
         let spacing = max(3, (size * 0.25).rounded())
@@ -421,6 +437,10 @@ private final class StarSlotView: UIView {
         setNeedsLayout()
     }
 
+    func applyPhaseBand(_ band: Int) {
+        BlomixSkinGradientClock.shared.setPhaseBand(band, on: gradient)
+    }
+
     private func applyLit() {
         fillHost.alpha = isLit ? 1 : 0
         outline.isHidden = isLit
@@ -506,6 +526,13 @@ final class BlomixTrophyThresholdLabel: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
+    func applyGradientPhase(id: String) {
+        BlomixSkinGradientClock.shared.setPhaseBand(
+            BlomixSkinGradientClock.phaseBand(for: id),
+            on: gradient
+        )
+    }
+
     override var intrinsicContentSize: CGSize {
         let font = BlomixTypography.displayFont(size: fontSize)
         let sz = (text as NSString).size(withAttributes: [.font: font])
@@ -574,7 +601,12 @@ final class BlomixTrophyFicheCibleRow: UIView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
 
-    func configure(value: Int, curve: BlomixTrophyCurve, secretLocked: Bool) {
+    func configure(value: Int, curve: BlomixTrophyCurve, secretLocked: Bool, phaseID: String) {
+        cible.applyGradientPhase(id: phaseID)
+        stars.applyGradientPhase(id: phaseID)
+        mark1.applyGradientPhase(id: phaseID)
+        mark2.applyGradientPhase(id: phaseID)
+        mark3.applyGradientPhase(id: phaseID)
         cible.value = value
         cible.curve = curve
         cible.isSecretLocked = secretLocked

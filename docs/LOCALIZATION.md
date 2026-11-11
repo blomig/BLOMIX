@@ -119,18 +119,26 @@ Le champ **What’s New** d’App Store Connect n’est **pas** une chaîne `lpr
 
 Détail release : `store/whats-new/README.md`.
 
-### Popup in-app (accueil 7.1)
+### Popup in-app (accueil)
 
-Après le splash, une fois par campagne (`BlomixWhatsNew`, clé `blomix_whatsnew_dont_show_7.1_daily_duel`) :
+Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** le champ ASC Nouveautés (`store/whats-new/`). Les deux se rédigent **dans le même lot** qu’une version marketing. La 8.8 est sortie avec la campagne `7.1_daily_duel` encore en place (Défi du jour + bonhomme vert) : l’id n’avait pas bougé, donc « Ne plus montrer » et le texte non plus.
+
+À chaque `MARKETING_VERSION` qui a une note joueur :
+
+1. Nouvel `BlomixWhatsNew.campaignID` (ex. `8.9`). L’ancienne clé UserDefaults `blomix_whatsnew_dont_show_<id>` ne se réinitialise pas toute seule.
+2. Réécrire `factTexts` et les clés des puces en **FR + EN + DE + ES + IT + PT**.
+3. Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
+
+Campagne courante **`8.9`** (`blomix_whatsnew_dont_show_8.9`) :
 
 | Clé | Usage |
 |---|---|
 | `whatsnew.title` | Titre |
-| `whatsnew.daily` | Défi du jour : même partie Arcade pour tous |
-| `whatsnew.duel_presence` | Pastille verte Duel si Joueurs disponibles |
+| `whatsnew.salon_phase` | Chaque trophée a son dégradé |
+| `whatsnew.salon_dot` | Le point orange s’éteint une fois les fiches ouvertes |
 | `whatsnew.dont_show` | Bouton définitif ; `generic.ok` = cette session seulement |
 
-Ce n’est **pas** le champ ASC Nouveautés.
+Les clés `whatsnew.daily`, `whatsnew.duel_presence` et les plus anciennes restent dans les `lproj` (historique). Elles ne sont plus affichées.
 
 ### Sondage 8.8 (accueil)
 

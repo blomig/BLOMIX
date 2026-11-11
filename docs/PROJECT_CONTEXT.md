@@ -430,6 +430,8 @@ Puits (dégradé vivant du skin, plus lent que Magix) + capsule chrome (fill / t
 
 SpriteKit : **un** `SKShader` puits (et un Magix), décalage de phase via `SKAttribute` `a_timeOffset` — pas un programme Metal par bouton. Masque de crop = texture rectangle arrondi (pas `SKShapeNode`). Échos ambiants : trajet **local** dans le puits (jamais un enfant full-screen du `SKCropNode`, sinon cible GPU ~écran × N puits → jetsam `highwater` ~2 Go sur iPhone 13). Dropdown ☰ : shaders coupés tant que le menu est fermé.
 
+UIKit : une bitmap 48×48 partagée (`BlomixSkinGradientClock`, ~12 fps). Le Salon des trophées y ajoute une bande de phase par id (atlas 16×48, `contentsRect`) : disque, arc et étoiles d’un même trophée bougent ensemble. Pas une image par cible.
+
 ---
 
 ## 15. Localisation

@@ -204,7 +204,7 @@ Si le comportement change, mettre à jour **en même temps** :
 | Eval / hints | `DOCS/EVAL.md` |
 | Terme nouveau | `DOCS/GLOSSARY.md` |
 | i18n | `DOCS/LOCALIZATION.md` + lproj |
-| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (6 langues)** + Fastlane `metadata` / `release` (re-pousse aussi le promo si ASC l’a vidé) |
+| Release | `DOCS/CHANGELOG.md` + version Xcode + **`store/whats-new/` (6 langues)** + popup in-app `BlomixWhatsNew.campaignID` + puces 6 langues + Fastlane `metadata` / `release` (re-pousse aussi le promo si ASC l’a vidé) |
 | Nouveau doc | `DOCS/README.md` (+ README racine si besoin) |
 
 Ligne **Version de référence** des docs = `MARKETING_VERSION` courante.
@@ -247,6 +247,15 @@ Release / jalon : mettre aussi à jour `DOCS/CHANGELOG.md` (et la version de ré
 
 Voir `store/whats-new/README.md` et `DOCS/LOCALIZATION.md`.
 
+### 2c. Popup in-app (`BlomixWhatsNew`) — si release
+
+**Quand** : le même jalon que les Nouveautés ASC. Pas le champ ASC : c’est le dialogue après le splash, dans l’IPA.
+
+**Quoi** (sinon les joueurs revoient la note de l’ancienne campagne — la 8.8 est sortie avec `7.1_daily_duel`) :
+- Nouvel `campaignID` (`blomix_whatsnew_dont_show_<id>` ne se réinitialise pas)
+- Réécrire `factTexts` en **FR + EN + DE + ES + IT + PT**
+- Si « Ne plus montrer » a déjà été tapé en test et que les puces changent encore : nouvel id
+
 ### 3. Commit et push GitHub
 
 **Quand** (moments naturels) :
@@ -265,7 +274,7 @@ Voir `store/whats-new/README.md` et `DOCS/LOCALIZATION.md`.
 **Ordre conseillé en fin de lot** :
 
 ```
-code OK → (1) langues → (2) doc → (2b) nouveautés si release → checklist manuelle si besoin → (3) commit → push
+code OK → (1) langues → (2) doc → (2b) nouveautés ASC si release → (2c) popup in-app si release → checklist manuelle si besoin → (3) commit → push
 ```
 
 Ces points sont la **hygiène de livrable** du projet : un diff code seul, sans l10n/doc/remote à jour (ni Nouveautés si c’est une release), est souvent un travail incomplet.
@@ -309,6 +318,7 @@ Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (Debug `deve
 - [ ] **(1) Langues** : clés `BlomixL10n` + `.lproj` à jour (FR+EN min.) si UI touchée
 - [ ] **(2) Doc** : `DOCS/` alignée si le comportement / les règles changent
 - [ ] **(2b) Nouveautés** : `store/whats-new/` FR+EN+DE+ES+IT+PT si jalon / `MARKETING_VERSION`
+- [ ] **(2c) Popup accueil** : `BlomixWhatsNew.campaignID` + puces 6 langues si jalon / `MARKETING_VERSION`
 - [ ] Terminologie GLOSSARY respectée
 - [ ] Pas de fichiers locaux / secrets dans le diff
 - [ ] **(3) Git** : proposer (ou faire sur demande) commit + push vers GitHub quand le lot est prêt

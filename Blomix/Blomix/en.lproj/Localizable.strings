@@ -339,6 +339,8 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "whatsnew.punch" = "Home: BLOMIX lands with sparkles on each letter";
 "whatsnew.daily" = "New game mode: every day, the same Arcade game for everyone!";
 "whatsnew.duel_presence" = "Home: a green person on Duel when players are in Available Players";
+"whatsnew.salon_phase" = "Trophy lounge: each trophy has its own gradient, like the home buttons.";
+"whatsnew.salon_dot" = "The orange dot turns off once every new card has been opened.";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */

@@ -339,6 +339,8 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "whatsnew.punch" = "Start: BLOMIX setzt mit Funkeln auf jedem Buchstaben auf";
 "whatsnew.daily" = "Neuer Spielmodus: jeden Tag dieselbe Arcade-Partie für alle!";
 "whatsnew.duel_presence" = "Start: grünes Männchen auf Duell, wenn Spieler unter Verfügbare Spieler sind";
+"whatsnew.salon_phase" = "Trophäen-Salon: jede Trophäe hat ihr eigenes Farbspiel, wie die Knöpfe auf der Startseite.";
+"whatsnew.salon_dot" = "Der orange Punkt erlischt, sobald jede neue Karte geöffnet wurde.";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */

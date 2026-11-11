@@ -326,6 +326,8 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "whatsnew.punch" = "Inicio: BLOMIX aterriza con destellos en cada letra";
 "whatsnew.daily" = "Nuevo modo de juego: cada día, la misma partida Arcade para todos.";
 "whatsnew.duel_presence" = "Inicio: un muñeco verde en Duelo si hay jugadores en Jugadores disponibles";
+"whatsnew.salon_phase" = "Salón de trofeos: cada trofeo tiene su propio degradado, como los botones del inicio.";
+"whatsnew.salon_dot" = "El punto naranja se apaga en cuanto abres cada ficha nueva.";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */

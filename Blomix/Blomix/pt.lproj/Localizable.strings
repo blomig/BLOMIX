@@ -339,6 +339,8 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "whatsnew.punch" = "Início: o BLOMIX pousa com brilhos em cada letra";
 "whatsnew.daily" = "Novo modo: todos os dias, a mesma partida Arcade para todo mundo!";
 "whatsnew.duel_presence" = "Início: um bonequinho verde no Duelo quando há jogadores em Disponíveis";
+"whatsnew.salon_phase" = "Salão de troféus: cada troféu tem o seu degradê, como os botões do início.";
+"whatsnew.salon_dot" = "O ponto laranja apaga assim que você abre cada ficha nova.";
 "whatsnew.dont_show" = "Não mostrar de novo";
 
 /* Appearance */

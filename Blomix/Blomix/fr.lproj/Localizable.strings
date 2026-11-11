@@ -352,6 +352,8 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "whatsnew.punch" = "Accueil : BLOMIX se pose avec des paillettes à chaque lettre";
 "whatsnew.daily" = "Nouveau mode de jeu : chaque jour, une partie Arcade identique pour tous !";
 "whatsnew.duel_presence" = "Accueil : un bonhomme vert sur Duel si des joueurs sont dans Joueurs disponibles";
+"whatsnew.salon_phase" = "Salon : chaque trophée a son dégradé, comme les boutons de l’accueil.";
+"whatsnew.salon_dot" = "Le point orange du Salon s’éteint dès que chaque nouvelle fiche a été ouverte.";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */

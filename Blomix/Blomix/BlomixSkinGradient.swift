@@ -945,6 +945,7 @@ final class BlomixSkinGradientClock: NSObject {
     private var lastTimestamp: CFTimeInterval = 0
     private let layers = NSHashTable<BlomixSkinGradientLayer>.weakObjects()
     private var cachedImage: CGImage?
+    private var cachedAtlas: CGImage?
     private var lastPaletteSignature: String = ""
 
     private override init() {
@@ -957,6 +958,7 @@ final class BlomixSkinGradientClock: NSObject {
             Task { @MainActor in
                 BlomixSkinGradient.invalidateShaderCache()
                 self?.cachedImage = nil
+                self?.cachedAtlas = nil
                 self?.lastPaletteSignature = ""
                 self?.publish()
             }
@@ -966,9 +968,7 @@ final class BlomixSkinGradientClock: NSObject {
     func register(_ layer: BlomixSkinGradientLayer) {
         layers.add(layer)
         startIfNeeded()
-        if let img = currentImage() {
-            layer.contents = img
-        }
+        applyContents(to: layer)
     }
 
     func unregister(_ layer: BlomixSkinGradientLayer) {
@@ -1000,6 +1000,7 @@ final class BlomixSkinGradientClock: NSObject {
             return
         }
         cachedImage = nil
+        cachedAtlas = nil
         publish()
     }
 
@@ -1021,9 +1022,48 @@ final class BlomixSkinGradientClock: NSObject {
         return img
     }
 
+    /// Bandes horizontales d’une seule image. 16 = puissances de 2 : le `contentsRect` tombe sur des pixels entiers (48×16).
+    static let phaseBandCount = 16
+
+    /// Même hash djb2 que les puits SpriteKit. Bandes 1…15 seulement :
+    /// la bande 0 reste le bitmap historique (titres, boutons UIKit).
+    static func phaseBand(for name: String) -> Int {
+        var h: UInt64 = 5381
+        for b in name.utf8 { h = ((h << 5) &+ h) &+ UInt64(b) }
+        return Int(h % UInt64(phaseBandCount - 1)) + 1
+    }
+
+    /// Pose la bande et l’image tout de suite (pas au prochain tick).
+    func setPhaseBand(_ band: Int, on layer: BlomixSkinGradientLayer) {
+        let clamped = min(max(band, 0), Self.phaseBandCount - 1)
+        layer.phaseBand = clamped
+        if clamped == 0 {
+            layer.contentsRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        } else {
+            let n = CGFloat(Self.phaseBandCount)
+            layer.contentsRect = CGRect(x: CGFloat(clamped) / n, y: 0, width: 1 / n, height: 1)
+        }
+        applyContents(to: layer)
+    }
+
     private func publish() {
-        guard let img = currentImage() else { return }
-        for case let layer as BlomixSkinGradientLayer in layers.allObjects {
+        let objects = layers.allObjects
+        let needsAtlas = objects.contains { ($0 as? BlomixSkinGradientLayer)?.phaseBand ?? 0 != 0 }
+        let base = currentImage()
+        let atlas = needsAtlas ? currentAtlas() : nil
+        for case let layer as BlomixSkinGradientLayer in objects {
+            if layer.phaseBand != 0, let atlas {
+                layer.contents = atlas
+            } else if let base {
+                layer.contents = base
+            }
+        }
+    }
+
+    private func applyContents(to layer: BlomixSkinGradientLayer) {
+        if layer.phaseBand != 0, let atlas = currentAtlas() {
+            layer.contents = atlas
+        } else if let img = currentImage() {
             layer.contents = img
         }
     }
@@ -1081,21 +1121,122 @@ final class BlomixSkinGradientClock: NSObject {
         }
         return image.cgImage
     }
+
+    /// Même formule que `renderImage`, une tuile 48×48 par bande. Buffer brut : pas un `fill` CoreGraphics par pixel,
+    /// donc le Salon (une image partagée, pas une par trophée) ne paie pas N rasters.
+    private func currentAtlas() -> CGImage? {
+        let sig = paletteSignature()
+        if let cachedAtlas, sig == lastPaletteSignature { return cachedAtlas }
+        let img = renderAtlas(time: time)
+        cachedAtlas = img
+        return img
+    }
+
+    private func renderAtlas(time t: CGFloat) -> CGImage? {
+        let bands = Self.phaseBandCount
+        let tile = 48
+        let width = tile * bands
+        let height = tile
+        let colors = BlomixSkinGradient.paletteUIColors()
+        let rgb: [(CGFloat, CGFloat, CGFloat)] = colors.map { c in
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            c.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return (r, g, b)
+        }
+        let n = max(rgb.count, 1)
+        let timeScale = CGFloat(BlomixSkinGradient.wellTimeScale)
+        let base = t * timeScale
+
+        func pal(_ tRaw: CGFloat) -> (CGFloat, CGFloat, CGFloat) {
+            let ti = (tRaw - floor(tRaw)) * CGFloat(n)
+            let fi = floor(ti)
+            let frac = ti - fi
+            let f = frac * frac * (3 - 2 * frac)
+            let i = Int(fi) % n
+            let j = (i + 1) % n
+            let a = rgb[i], b = rgb[j]
+            return (a.0 + (b.0 - a.0) * f, a.1 + (b.1 - a.1) * f, a.2 + (b.2 - a.2) * f)
+        }
+        func byte(_ x: CGFloat) -> UInt8 {
+            UInt8((min(1, max(0, x)) * 255).rounded())
+        }
+
+        var pixels = [UInt8](repeating: 255, count: width * height * 4)
+        var wxRow = [CGFloat](repeating: 0, count: tile)
+        var wyCol = [CGFloat](repeating: 0, count: height)
+        for band in 0..<bands {
+            let tt = base + CGFloat(band) / CGFloat(bands)
+            let c1 = pal(tt)
+            let c2 = pal(tt + 0.333)
+            let c3 = pal(tt + 0.667)
+            for x in 0..<tile {
+                let u = (CGFloat(x) + 0.5) / CGFloat(tile)
+                wxRow[x] = sin(u * .pi + tt * 0.5) * 0.5 + 0.5
+            }
+            for y in 0..<height {
+                let v = (CGFloat(y) + 0.5) / CGFloat(height)
+                wyCol[y] = cos(v * 2.2 - tt * 0.35) * 0.5 + 0.5
+            }
+            let x0 = band * tile
+            for y in 0..<height {
+                let wy = wyCol[y]
+                let row = y * width
+                for x in 0..<tile {
+                    let wx = wxRow[x]
+                    var r = c1.0 + (c2.0 - c1.0) * wx
+                    var g = c1.1 + (c2.1 - c1.1) * wx
+                    var b = c1.2 + (c2.2 - c1.2) * wx
+                    r += (c3.0 - r) * wy * 0.38
+                    g += (c3.1 - g) * wy * 0.38
+                    b += (c3.2 - b) * wy * 0.38
+                    let i = (row + x0 + x) * 4
+                    pixels[i] = byte(r)
+                    pixels[i + 1] = byte(g)
+                    pixels[i + 2] = byte(b)
+                }
+            }
+        }
+
+        let data = Data(pixels) as CFData
+        guard let provider = CGDataProvider(data: data),
+              let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let image = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: width * 4,
+                space: space,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: true,
+                intent: .defaultIntent
+              )
+        else { return nil }
+        return image
+    }
 }
 
 // MARK: - Layer UIKit
 
 final class BlomixSkinGradientLayer: CALayer {
+    /// 0 = bitmap historique. > 0 = bande de l’atlas (phase, comme `a_timeOffset` des puits).
+    var phaseBand: Int = 0
+
     override init() {
         super.init()
         contentsGravity = .resize
-        actions = ["contents": NSNull()]
+        actions = ["contents": NSNull(), "contentsRect": NSNull()]
     }
 
     override init(layer: Any) {
         super.init(layer: layer)
+        if let other = layer as? BlomixSkinGradientLayer {
+            phaseBand = other.phaseBand
+        }
         contentsGravity = .resize
-        actions = ["contents": NSNull()]
+        actions = ["contents": NSNull(), "contentsRect": NSNull()]
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }

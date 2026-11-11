@@ -140,26 +140,31 @@ enum BlomixAppearance {
     }
 
     /// Cases vides de la grille / file upcoming.
-    /// Clair : un cran sous le fond `#F5EEDF` (sans y coller) pour garder le relief des cases.
+    /// Clair : trou à peine plus chaud que le fond `#F5EEDF`, contraste proche du Sombre.
     static var emptyCell: UIColor {
         isDark
             ? UIColor(white: 0.12, alpha: 1)
-            : UIColor(hexRGB: 0xEBE3D0)
+            : UIColor(hexRGB: 0xF0E6D2)
+    }
+
+    /// Ombre interne en haut d’une case vide, thème Clair seulement. Sombre : pas d’incrustation.
+    static var emptyCellInset: UIColor {
+        UIColor(hexRGB: 0xE4D8C2)
     }
 
     /// Contour léger des cases vides (grille pire coup, etc.).
     static var emptyCellStroke: UIColor {
         isDark
             ? UIColor(white: 0.22, alpha: 1)
-            : UIColor(white: 0, alpha: 0.12)
+            : UIColor(white: 0, alpha: 0.08)
     }
 
     /// Surbrillance colonne de visée (appui long / ghost drop).
-    /// Sombre : ~#444 ; Clair : gris beige plus clair, lisible sur les cases `#EBE3D0`.
+    /// Sombre : ~#444 ; Clair : gris beige plus clair, lisible sur les cases `#F0E6D2`.
     static var ghostColumnHighlight: UIColor {
         isDark
             ? UIColor(white: 0.267, alpha: 0.9)
-            : UIColor(hexRGB: 0xD4CBB4).withAlphaComponent(0.92)
+            : UIColor(hexRGB: 0xE6DCC8).withAlphaComponent(0.92)
     }
 
     static var ghostColumnHighlightSK: SKColor { SKColor(cgColor: ghostColumnHighlight.cgColor) }
@@ -321,6 +326,7 @@ enum BlomixAppearance {
     static var skChipShadowFillSK: SKColor { SKColor(cgColor: skChipShadowFill.cgColor) }
     static var chipPressedFillSK: SKColor { SKColor(cgColor: chipPressedFill.cgColor) }
     static var emptyCellSK: SKColor { SKColor(cgColor: emptyCell.cgColor) }
+    static var emptyCellInsetSK: SKColor { SKColor(cgColor: emptyCellInset.cgColor) }
     static var emptyCellStrokeSK: SKColor { SKColor(cgColor: emptyCellStroke.cgColor) }
     static var dimOverlaySK: SKColor { SKColor(cgColor: dimOverlay.cgColor) }
     static var panelFillSK: SKColor { SKColor(cgColor: panelFill.cgColor) }

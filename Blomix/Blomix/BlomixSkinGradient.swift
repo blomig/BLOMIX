@@ -181,8 +181,8 @@ enum BlomixSkinGradient {
 @MainActor
 enum BlomixButtonRelief {
     static var wellLipAlpha: CGFloat { BlomixAppearance.isDark ? 0.42 : 0.22 }
-    static var contactShadowAlpha: CGFloat { BlomixAppearance.isDark ? 0.32 : 0.18 }
-    static var contactShadowAlphaPressed: CGFloat { BlomixAppearance.isDark ? 0.10 : 0.06 }
+    static var contactShadowAlpha: CGFloat { BlomixAppearance.isDark ? 0.32 : 0.11 }
+    static var contactShadowAlphaPressed: CGFloat { BlomixAppearance.isDark ? 0.10 : 0.04 }
     static let contactShadowOffsetY: CGFloat = 2.5
     static var highlightAlpha: CGFloat { BlomixAppearance.isDark ? 0.42 : 0.55 }
     static var capsuleBottomShadeAlpha: CGFloat { BlomixAppearance.isDark ? 0.28 : 0.14 }

@@ -337,7 +337,7 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 |---|---|---|
 | Fond scène | Noir | `#F5EEDF` |
 | Textes | Blanc / gris clairs | Gris foncé / moyens |
-| Cases vides | `#1F1F1F` approx. | `#EBE3D0` |
+| Cases vides | `#1F1F1F` approx. | `#F0E6D2` + barre haute 2 pt `#E4D8C2` (grille seule) |
 | Halos Magix / bombes / disques | Blanc | Noir |
 | Ombre chips | Gris clair | Noir |
 | Transitions (contour) | Blanc | Gris foncé |
@@ -364,7 +364,9 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 - Rangée d’icônes SF Symbols (`.fill`, teinte `primaryText`), sans libellé sous l’icône
 - **Arcade** hero pleine largeur sous BLOMIX ; rangée **Défi Arcade | Défi Five** ; rangée **Duel | Zen | Five** (tiers, même hauteur totale qu’avant). Titre chip Défi = **Défi** (traduit) + caption Arcade ou Five ; reprise = Défi + deadline ; après GO = Classement + caption. Caption Continuer sur Arcade / Zen / Five si save. Duel : pastille `person.fill` verte si CloudKit liste ≥ 1 pair. Détail défi : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 - 7 rangs accueil en **4+3** (trou gouttière comme BLOMIX) : `ARC. MOY. ZEN FIVE` / `DUEL DÉFI 5 DÉFI`. Chiffres **cachés** jusqu’à ce que les **7** fetches aient répondu, puis stagger. **5 DÉFI** = rang carrière CloudKit Five (`dailywin_five` / `FiveDailyScore`). Écran SCORE : **mêmes 7 onglets, même grille 4+3**.
-- Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; le chrome accueil n’apparaît qu’après (`punchIntroChromeDelay`). Retours ☰ / GO : trou + entrée courte.
+- Cold launch accueil : intro wordmark d’abord (`playPunchIntro`, six poinçons L→R, son `place`) ; à `punchIntroChromeDelay`, tagline + hero, tenue 0,85 s, puis disques (stagger 0,07 s) et icônes (0,05 s). Retours ☰ / GO : hero d’abord, disques déjà là.
+- Modaux Salon / scores / réglages / guide / crédits / sondage / hub Défi : montée 0,25 s depuis le bas, sortie vers le bas (`RiseModalTransition`). Réduire les animations : 0,01 s.
+- En partie : air de gravité, jusqu’à 4 grains lents dans les trous (z 0,4, sous les blox), sans score. Toast de palier = anneau + point + Nunito (même Y).
 - Accueil layout : icônes → nom/rangs → BLOMIX centré → Arcade / Défi Arcade+Five / Duel+Zen+Five → conseils 10 %. Filet anti-chevauchement rangs ↔ hero.
 - Accueil : blox ambiants en fantômes (α 0,20) + copies clipées dans les puits / wordmark / rangs (α 0,70), enfants du crop **seulement le temps de traverser le puits**. Game Over et écrans UIKit : mêmes fantômes, sans copies gouttière.
 - Réglages Sons / Musique : tirette gouttière 6 pt (`BlomixGridSoundSlider`) — dégradé skin à gauche du curseur, `progressTrack` à droite.

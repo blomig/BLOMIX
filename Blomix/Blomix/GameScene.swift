@@ -511,8 +511,10 @@ private enum BlomixMatchSFX: String, CaseIterable {
     case priksVanish = "prix.wav"
     /// Son joué au démarrage des écrans de transition (tuto, passage de stage…).
     case transition = "transition.wav"
-    /// Son joué à l'atterrissage d'un bloc Magix.
+    /// Atterrissage Magix. Voix d’accord court (chaîne Trace).
     case magix = "magix.wav"
+    /// Magix posé juste après un autre Magix. Voix d’accord long.
+    case magixFollow = "magix_follow.wav"
     /// Son joué quand le joueur active la bombe (la sort du stock pour la mettre en jeu).
     case bombLoad = "gun_load.wav"
     /// Son atmosphérique joué au déclenchement de l'effet CLEANX.
@@ -1073,6 +1075,9 @@ final class GameScene: SKScene {
     private static let startScreenTrophyLinkName = "startScreenTrophyLink"
     private static let startScreenTrophyBadgeName = "startScreenTrophyBadge"
     private static let startScreenTrophyToastName = "startScreenTrophyToast"
+    /// Grains d’air sous les blox. `drawGrid` ne retire que `cell_` / `junction_`.
+    private static let gravityAirGrainPrefix = "gravityAirGrain"
+    private static let gravityAirActionKey = "gravityAir"
     private static let startScreenShareLabelName = "startScreenShareLabel"
     private static let gameOverShareLabelName = "gameOverShareLabel"
     private static let studioSplashOverlayName = "studioSplashOverlay"
@@ -1808,6 +1813,10 @@ final class GameScene: SKScene {
     private var ghostPreviewColumn: Int?
     /// true tant que le doigt est posé sur la grille et que le drop n'a pas encore eu lieu.
     private var ghostTouchIsLive: Bool = false
+    /// L’appui a tenu assez longtemps pour montrer la colonne ghost (pas le ghost du timer ≤ 2 s).
+    private var ghostHoldDidReveal: Bool = false
+    /// Incrémenté à chaque nouvel appui, pour ignorer un timer de l’appui précédent.
+    private var ghostHoldGeneration: Int = 0
     private static let ghostHoldDelay: TimeInterval = 0.12
     private static let ghostContainerName = "ghostDropContainer"
 
@@ -1823,6 +1832,9 @@ final class GameScene: SKScene {
     private static let duelBombAimTimerKey = "duelBombAimTimer"
     /// Dernière pose joueur = Magix (pour `magix_combo`).
     private var lastPoseWasMagix = false
+    /// Le coup joueur précédent était un Magix. Sert au son d’arrivée, pas au trophée.
+    /// Une ligne entrante ne le remet pas à faux : ce n’est pas un coup.
+    private var previousDropWasMagix = false
     /// Au moins une chaîne ≥ 5 dans la run (`secret_no_chain`).
     private var runMadeChain = false
     /// Résolution déclenchée par une ligne entrante (`secret_line_chain` / `secret_line_combo`).
@@ -2027,8 +2039,8 @@ final class GameScene: SKScene {
         ) { [weak self] _ in
             Task { @MainActor in
                 guard let self, self.isStartScreen else { return }
-                // Masque immédiatement l'overlay statique : la transition modale (crossDissolve)
-                // révèle ainsi le fond scène plutôt que l'accueil figé.
+                // Masque l’accueil pendant la descente du modal : au retour, l’entrée courte
+                // se rejoue sur le fond scène, pas sur l’accueil figé.
                 self.childNode(withName: Self.startScreenOverlayName)?.alpha = 0
             }
         }
@@ -2123,6 +2135,7 @@ final class GameScene: SKScene {
         isBombMode = false
         stopDuelBombAimTimer()
         lastPoseWasMagix = false
+        previousDropWasMagix = false
         runMadeChain = false
         incomingLineResolutionActive = false
         incomingLineChainCounted = false
@@ -2502,9 +2515,11 @@ final class GameScene: SKScene {
     }
 
     /// Souffle lent (dilate / revient) pour signaler que le badge est un bouton de classement.
+    /// Réduire les animations : le disque reste immobile.
     private static func runStartScreenDiscBreath(on node: SKNode, phaseDelay: TimeInterval) {
         node.removeAction(forKey: "rankDiscBreath")
         node.setScale(1)
+        guard !prefersReducedMotion else { return }
         let up = SKAction.scale(to: 1.08, duration: 1.8)
         up.timingMode = .easeInEaseOut
         let down = SKAction.scale(to: 1.0, duration: 1.8)
@@ -2621,6 +2636,11 @@ final class GameScene: SKScene {
 
     private func runStartScreenGameChipEntrance(on chip: BlomixSKButtonNode, delay: TimeInterval, slideDistance: CGFloat = 14) {
         chip.alpha = 0
+        if Self.prefersReducedMotion {
+            chip.setScale(1)
+            chip.run(.sequence([.wait(forDuration: delay), .fadeIn(withDuration: 0.01)]))
+            return
+        }
         chip.setScale(0)
         chip.position.y -= slideDistance
 
@@ -2666,6 +2686,41 @@ final class GameScene: SKScene {
         case continueSave
         case discover
         case arcade
+    }
+
+    /// Cold launch : le mot et le hero tiennent la première seconde. Le tableau arrive après.
+    private enum StartScreenEntrance {
+        static let heroHold: TimeInterval = 0.85
+        static let discStagger: TimeInterval = 0.07
+        static let iconStagger: TimeInterval = 0.05
+    }
+
+    /// Fondu seul (tagline, nom, conseil). Réduire les animations : 0,01 s.
+    private func runStartScreenFadeEntrance(on node: SKNode, delay: TimeInterval, duration: TimeInterval = 0.22) {
+        node.alpha = 0
+        let fade = Self.prefersReducedMotion ? 0.01 : duration
+        node.run(.sequence([.wait(forDuration: delay), .fadeIn(withDuration: fade)]))
+    }
+
+    /// Disques et icônes : rythme plus petit que les chips. Réduire les animations : fondu commun, sans scale.
+    private func runStartScreenRowEntrance(children: [SKNode], base: TimeInterval, step: TimeInterval) {
+        let reduced = Self.prefersReducedMotion
+        for (index, node) in children.enumerated() {
+            let delay = base + (reduced ? 0 : TimeInterval(index) * step)
+            node.alpha = 0
+            if reduced {
+                node.setScale(1)
+                node.run(.sequence([.wait(forDuration: delay), .fadeIn(withDuration: 0.01)]))
+                continue
+            }
+            node.setScale(0.94)
+            let scale = SKAction.scale(to: 1, duration: 0.20)
+            scale.timingMode = .easeOut
+            node.run(.sequence([
+                .wait(forDuration: delay),
+                .group([.fadeIn(withDuration: 0.20), scale]),
+            ]))
+        }
     }
 
     /// Slot Arcade disque. Un Défi / Zen / snapshot PvP ne passe pas par le hero.
@@ -3130,6 +3185,7 @@ final class GameScene: SKScene {
             }
 
             let t = BlomixCutoutWordmarkNode.punchIntroChromeDelay
+            let dashboard = t + StartScreenEntrance.heroHold
             overlay.run(.sequence([
                 .wait(forDuration: t),
                 .run { [weak self, weak overlay] in
@@ -3139,38 +3195,45 @@ final class GameScene: SKScene {
                 },
             ]))
 
-            subtitle.alpha = 0
-            playerNameLabel.alpha = 0
-            discsContainer.alpha = 0
-            iconRow.alpha = 0
-            subtitle.run(.sequence([.wait(forDuration: t), .fadeIn(withDuration: 0.22)]))
-            playerNameLabel.run(.sequence([.wait(forDuration: t + 0.08), .fadeIn(withDuration: 0.22)]))
-            discsContainer.run(.sequence([.wait(forDuration: t + 0.08), .fadeIn(withDuration: 0.22)]))
-            iconRow.run(.sequence([.wait(forDuration: t + 0.12), .fadeIn(withDuration: 0.20)]))
-            runStartScreenGameChipEntrance(on: pvpChip, delay: t + 0.16)
-            runStartScreenGameChipEntrance(on: zenChip, delay: t + 0.16)
-            runStartScreenGameChipEntrance(on: fiveChip, delay: t + 0.16)
-            runStartScreenGameChipEntrance(on: dailyChip, delay: t + 0.28)
-            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: t + 0.28)
-            runStartScreenGameChipEntrance(on: startChip, delay: t + 0.28)
-            tipContainer.run(.sequence([.wait(forDuration: t + 0.35), .fadeIn(withDuration: 0.5)]))
+            // Mot + hero d’abord. Disques, icônes et modes après la tenue.
+            runStartScreenFadeEntrance(on: subtitle, delay: t)
+            runStartScreenGameChipEntrance(on: startChip, delay: t + 0.08)
+            runStartScreenFadeEntrance(on: playerNameLabel, delay: dashboard)
+            runStartScreenRowEntrance(
+                children: iconRow.children,
+                base: dashboard,
+                step: StartScreenEntrance.iconStagger
+            )
+            runStartScreenRowEntrance(
+                children: discsContainer.children,
+                base: dashboard,
+                step: StartScreenEntrance.discStagger
+            )
+            runStartScreenGameChipEntrance(on: dailyChip, delay: dashboard + 0.22)
+            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: dashboard + 0.30)
+            runStartScreenGameChipEntrance(on: pvpChip, delay: dashboard + 0.40)
+            runStartScreenGameChipEntrance(on: zenChip, delay: dashboard + 0.48)
+            runStartScreenGameChipEntrance(on: fiveChip, delay: dashboard + 0.56)
+            runStartScreenFadeEntrance(on: tipContainer, delay: dashboard + 0.72, duration: 0.5)
         } else {
             titleHost.addChild(BlomixCutoutWordmarkNode(fontSize: Self.homeWordmarkFontSize))
             checkAndShowUpdateBannerIfNeeded(in: overlay)
 
-            subtitle.alpha = 0
-            playerNameLabel.alpha = 0
-            iconRow.alpha = 0
-            subtitle.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.22)]))
-            playerNameLabel.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.22)]))
-            iconRow.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.20)]))
-            runStartScreenGameChipEntrance(on: pvpChip, delay: 0.06)
-            runStartScreenGameChipEntrance(on: zenChip, delay: 0.06)
-            runStartScreenGameChipEntrance(on: fiveChip, delay: 0.06)
-            runStartScreenGameChipEntrance(on: dailyChip, delay: 0.10)
-            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: 0.10)
-            runStartScreenGameChipEntrance(on: startChip, delay: 0.10)
-            tipContainer.run(.sequence([.wait(forDuration: 0.40), .fadeIn(withDuration: 0.5)]))
+            // Retour : hero d’abord, entrée courte. Les disques restent (ils ne sont pas remis à zéro).
+            runStartScreenGameChipEntrance(on: startChip, delay: 0.04)
+            runStartScreenFadeEntrance(on: subtitle, delay: 0.08)
+            runStartScreenFadeEntrance(on: playerNameLabel, delay: 0.14)
+            runStartScreenRowEntrance(
+                children: iconRow.children,
+                base: 0.18,
+                step: StartScreenEntrance.iconStagger
+            )
+            runStartScreenGameChipEntrance(on: dailyChip, delay: 0.16)
+            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: 0.22)
+            runStartScreenGameChipEntrance(on: pvpChip, delay: 0.28)
+            runStartScreenGameChipEntrance(on: zenChip, delay: 0.34)
+            runStartScreenGameChipEntrance(on: fiveChip, delay: 0.40)
+            runStartScreenFadeEntrance(on: tipContainer, delay: 0.48, duration: 0.5)
         }
 
         // Si le joueur avait cliqué "Tutoriel" depuis une partie en cours, on le lance maintenant.
@@ -3194,7 +3257,7 @@ final class GameScene: SKScene {
         guard BlomixWhatsNew.shouldPresent else { return }
         removeAction(forKey: Self.whatsNewPresentActionKey)
         run(SKAction.sequence([
-            SKAction.wait(forDuration: BlomixCutoutWordmarkNode.punchIntroChromeDelay + 0.85),
+            SKAction.wait(forDuration: BlomixCutoutWordmarkNode.punchIntroChromeDelay + StartScreenEntrance.heroHold + 0.85),
             SKAction.run { [weak self] in
                 DispatchQueue.main.async {
                     self?.presentWhatsNewDialogIfNeeded()
@@ -3223,7 +3286,7 @@ final class GameScene: SKScene {
         guard !BlomixWhatsNew.shouldPresent else { return }
         guard BlomixPlayerSurvey.shouldPresent else { return }
         let delay: TimeInterval = afterIntro
-            ? BlomixCutoutWordmarkNode.punchIntroChromeDelay + 1.0
+            ? BlomixCutoutWordmarkNode.punchIntroChromeDelay + StartScreenEntrance.heroHold + 1.05
             : 0.55
         run(SKAction.sequence([
             SKAction.wait(forDuration: delay),
@@ -3908,7 +3971,9 @@ final class GameScene: SKScene {
     /// Son d'arrivée après une pose normale.
     /// Les chaînes (>= 5) laissent la priorité au son de suppression, donc aucun son d'arrivée n'est joué ici.
     private func landingFeel(for placedBlock: BlockType, at address: GridAddress) -> BlomixMatchSFX? {
-        if case .magix = placedBlock { return .magix }
+        if case .magix = placedBlock {
+            return previousDropWasMagix ? .magixFollow : .magix
+        }
         guard case .color(let colorName) = placedBlock else { return .place }
         var visited = Set<GridAddress>()
         let component = collectColorComponent8(start: address, colorName: colorName, globallyVisited: &visited)
@@ -5284,7 +5349,8 @@ final class GameScene: SKScene {
             return
         }
         viewController.modalPresentationStyle = .overFullScreen
-        viewController.modalTransitionStyle = .crossDissolve
+        // Montée depuis le bas (gravité inversée). Le delegate partagé reste retenu.
+        viewController.transitioningDelegate = RiseModalTransition.shared
         rootVC.present(viewController, animated: true)
     }
 
@@ -5363,7 +5429,7 @@ final class GameScene: SKScene {
         trophyIcon.addChild(badge)
     }
 
-    /// Chip trophée au palier : même Y qu’à l’accueil, overlay scène (grille inchangée).
+    /// Mini-cible de palier : anneau + point + libellé Nunito. Même Y qu’à l’accueil, grille inchangée.
     private func presentTrophyToastIfNeeded() {
         guard childNode(withName: Self.studioSplashOverlayName) == nil else { return }
         let pending = BlomixTrophyStore.shared.consumePendingPromotions()
@@ -5372,17 +5438,70 @@ final class GameScene: SKScene {
         childNode(withName: Self.startScreenTrophyToastName)?.removeFromParent()
         let name = BlomixTrophySalonViewController.displayTitle(def)
         let text = BlomixL10n.trophyToastFormat(name: name, rank: promo.rank.roman)
-        let chip = makeStartScreenButtonChip(
-            chipName: Self.startScreenTrophyToastName,
-            labelName: Self.startScreenTrophyToastName + "_lbl",
-            text: text,
-            chipSize: CGSize(width: min(size.width - 48, 280), height: 36),
-            fontSize: 13
-        )
-        chip.position = CGPoint(x: size.width / 2, y: size.height - (view?.safeAreaInsets.top ?? 47) - 92)
-        chip.zPosition = 220
-        addChild(chip)
-        chip.runChromeFadeSequence(fadeIn: 0.22, hold: 3.6, fadeOut: 0.28)
+
+        let fontSize: CGFloat = 13
+        let font = UIFont(name: Self.customUIFontPostScriptName, size: fontSize)
+            ?? UIFont.systemFont(ofSize: fontSize)
+        let maxText = min(size.width - 88, 240)
+        let measured = (text as NSString).size(withAttributes: [.font: font]).width
+        let labelW = min(measured, maxText)
+        let ringRadius: CGFloat = 8
+        let gap: CGFloat = 8
+        let total = ringRadius * 2 + gap + labelW
+        let originX = -total / 2
+
+        let toast = SKNode()
+        toast.name = Self.startScreenTrophyToastName
+        toast.position = CGPoint(x: size.width / 2, y: size.height - (view?.safeAreaInsets.top ?? 47) - 92)
+        toast.zPosition = 220
+
+        let ring = SKShapeNode(circleOfRadius: ringRadius)
+        ring.fillColor = .clear
+        ring.strokeColor = BlomixAppearance.primaryTextSK
+        ring.lineWidth = 1.5
+        ring.position = CGPoint(x: originX + ringRadius, y: 0)
+        ring.zPosition = 1
+        toast.addChild(ring)
+
+        let dot = SKShapeNode(circleOfRadius: 2.4)
+        dot.fillColor = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: "orange")
+            .map { SKColor(cgColor: $0.cgColor) } ?? BlomixAppearance.primaryTextSK
+        dot.strokeColor = .clear
+        dot.zPosition = 1
+        ring.addChild(dot)
+
+        let label = SKLabelNode(text: text)
+        label.name = Self.startScreenTrophyToastName + "_lbl"
+        label.fontName = Self.customUIFontPostScriptName
+        label.fontSize = fontSize
+        label.fontColor = BlomixAppearance.primaryTextSK
+        label.horizontalAlignmentMode = .left
+        label.verticalAlignmentMode = .center
+        label.position = CGPoint(x: originX + ringRadius * 2 + gap, y: 0)
+        label.zPosition = 1
+        if measured > maxText {
+            label.numberOfLines = 2
+            label.preferredMaxLayoutWidth = maxText
+        }
+        toast.addChild(label)
+
+        addChild(toast)
+        toast.alpha = 0
+        let reduced = Self.prefersReducedMotion
+        let fadeIn: TimeInterval = reduced ? 0.01 : 0.22
+        let fadeOut: TimeInterval = reduced ? 0.01 : 0.28
+        if !reduced {
+            ring.setScale(0.65)
+            let grow = SKAction.scale(to: 1, duration: fadeIn)
+            grow.timingMode = .easeOut
+            ring.run(grow)
+        }
+        toast.run(.sequence([
+            .fadeIn(withDuration: fadeIn),
+            .wait(forDuration: 3.6),
+            .fadeOut(withDuration: fadeOut),
+            .removeFromParent(),
+        ]))
     }
 
     /// Prochain bloc « preview » : **1 chance sur 8** d’un `.priks(5)`, sinon couleur aléatoire.
@@ -11087,7 +11206,8 @@ final class GameScene: SKScene {
 
     /// Fait visuellement transiter `currentBlock` : preview → bas de colonne (très rapide) → montée jusqu’à la case d’empilement, puis l’inscrit dans `grid`.
     /// - Parameter column: `nil` → `selectedColumn`. Sinon colonne du tap sur la grille.
-    private func dropBlock(usingColumn column: Int? = nil) {
+    /// - Parameter fromGhostHold: l’appui long avait déjà montré la colonne ghost.
+    private func dropBlock(usingColumn column: Int? = nil, fromGhostHold: Bool = false) {
         guard !isStartScreen, !isGameOver, !isProcessing else { return }
         // En mode bombe, le placement se fait exclusivement via placeBombAtCell (tap direct sur case).
         guard !isBombMode else { return }
@@ -11183,6 +11303,15 @@ final class GameScene: SKScene {
         let unstretchY = SKAction.scaleY(to: 1.0, duration: riseDuration)
         unstretchY.timingMode = .easeIn
 
+        var riseGroup: [SKAction] = [rise, unstretchX, unstretchY]
+        let spinsInFlight = fromGhostHold || {
+            if case .magix = placedBlock { return true }
+            return false
+        }()
+        if spinsInFlight, let spin = Self.flightSpinAction(duration: riseDuration) {
+            riseGroup.append(spin)
+        }
+
         // Traîne de paillettes : démarre après le snap instantané (snapToColumn dure 0 s).
         run(SKAction.sequence([
             SKAction.wait(forDuration: 0.001),
@@ -11209,6 +11338,11 @@ final class GameScene: SKScene {
             if let sfx = self.landingFeel(for: placedBlock, at: placedAddress) {
                 self.playMatchSound(sfx)
                 self.playLandingFeelHaptic(sfx)
+            }
+            if case .magix = placedBlock {
+                self.previousDropWasMagix = true
+            } else {
+                self.previousDropWasMagix = false
             }
             self.selectedColumn = 3
             self.drawGrid(junctionFocus: GridPosition(row: row, col: columnIndex))
@@ -11254,7 +11388,21 @@ final class GameScene: SKScene {
             ]))
         }
 
-        falling.run(SKAction.sequence([snapToColumn, SKAction.group([rise, unstretchX, unstretchY]), finish]))
+        falling.run(SKAction.sequence([snapToColumn, SKAction.group(riseGroup), finish]))
+    }
+
+    /// Un tour pile pendant la montée. Sens au hasard. À la fin, ±2π = droit.
+    /// `rotate(byAngle: ±2π)` est inutilisable : SpriteKit ramène un tour complet à 0.
+    /// Réduire les animations : pas de tour, le vol reste celui d’aujourd’hui.
+    private static func flightSpinAction(duration: TimeInterval) -> SKAction? {
+        guard duration > 0, !prefersReducedMotion else { return nil }
+        let fullTurn: CGFloat = (Bool.random() ? -1 : 1) * 2 * .pi
+        return SKAction.customAction(withDuration: duration) { node, elapsed in
+            let raw = min(1, max(0, elapsed / CGFloat(duration)))
+            // easeOut quadratique, même famille que `timingMode = .easeOut` de la montée.
+            let eased = 1 - (1 - raw) * (1 - raw)
+            node.zRotation = fullTurn * eased
+        }
     }
 
     // MARK: - Blocs Magix — rendu visuel
@@ -13994,6 +14142,7 @@ final class GameScene: SKScene {
         noteDuelBombFreezeIfHeld()
         stopDuelBombAimTimer()
         lastPoseWasMagix = false
+        previousDropWasMagix = false
         // bombCount peut être 0 : la bombe est déjà "sortie" du stock à l'activation.
         guard bombCount >= 0 else {
             isBombMode = false
@@ -14103,6 +14252,7 @@ final class GameScene: SKScene {
         noteDuelBombFreezeIfHeld()
         stopDuelBombAimTimer()
         lastPoseWasMagix = false
+        previousDropWasMagix = false
         guard bombCount >= 0 else {
             isBombMode = false
             updatePreviewSprite()
@@ -15666,6 +15816,7 @@ final class GameScene: SKScene {
         }()
         for child in Array(container.children) {
             guard let name = child.name else { continue }
+            // `gravityAirGrain*` reste : air lent dans les trous, pas une case.
             if name.hasPrefix("cell_") || name.hasPrefix(Self.junctionNodeNamePrefix)
                 || name == Self.colorxOverlayContainerName {
                 child.removeFromParent()
@@ -15698,6 +15849,7 @@ final class GameScene: SKScene {
                     slot.position = CGPoint(x: x, y: y)
                     slot.zPosition = 0
                     container.addChild(slot)
+                    attachLightEmptyCellInset(to: slot)
 
                 case .color(let colorName):
                     let sprite = Self.makeSolidGameplayBlockSprite(block: .color(colorName))
@@ -16329,6 +16481,73 @@ final class GameScene: SKScene {
 
     /// Une fois par frame — physique, timers, logique dépendante du delta temps.
     override func update(_ currentTime: TimeInterval) {
+        syncGravityAir()
+    }
+
+    /// Quelques grains très lents qui montent dans les trous. Ils ne scorent pas.
+    /// Accueil, fin de partie, Réduire les animations : rien.
+    private func syncGravityAir() {
+        guard let container = childNode(withName: Self.gridContainerName) else { return }
+        let alive = !isStartScreen && !isGameOver && !Self.prefersReducedMotion
+        if !alive {
+            stopGravityAir(in: container)
+            return
+        }
+        guard container.action(forKey: Self.gravityAirActionKey) == nil else { return }
+        scheduleGravityAirSpawn(in: container)
+    }
+
+    private func stopGravityAir(in container: SKNode) {
+        container.removeAction(forKey: Self.gravityAirActionKey)
+        for child in container.children where child.name?.hasPrefix(Self.gravityAirGrainPrefix) == true {
+            child.removeFromParent()
+        }
+    }
+
+    private func scheduleGravityAirSpawn(in container: SKNode) {
+        let wait = Double.random(in: 1.6...3.2)
+        container.run(.sequence([
+            .wait(forDuration: wait),
+            .run { [weak self, weak container] in
+                guard let self, let container, container.parent != nil else { return }
+                guard !self.isStartScreen, !self.isGameOver, !Self.prefersReducedMotion else { return }
+                self.spawnGravityAirGrain(in: container)
+                self.scheduleGravityAirSpawn(in: container)
+            },
+        ]), withKey: Self.gravityAirActionKey)
+    }
+
+    private func spawnGravityAirGrain(in container: SKNode) {
+        let existing = container.children.reduce(into: 0) { count, child in
+            if child.name?.hasPrefix(Self.gravityAirGrainPrefix) == true { count += 1 }
+        }
+        guard existing < 4 else { return }
+        let half = GridLayout.spanPoints / 2
+        let side = CGFloat.random(in: 2.2...3.6)
+        let key = Self.colorPalette.randomElement() ?? "red"
+        let color = Self.bloxSolidFillColor(forNormalizedKey: key) ?? SKColor(white: 0.7, alpha: 1)
+        let grain = SKSpriteNode(color: color, size: CGSize(width: side, height: side))
+        grain.name = Self.gravityAirGrainPrefix
+        grain.alpha = CGFloat.random(in: 0.18...0.32)
+        grain.zPosition = 0.4
+        grain.position = CGPoint(x: CGFloat.random(in: -half...half), y: -half - side)
+        container.addChild(grain)
+        let move = SKAction.moveTo(y: half + side, duration: TimeInterval.random(in: 4.5...7.5))
+        move.timingMode = .linear
+        grain.run(.sequence([move, .removeFromParent()]))
+    }
+
+    /// Barre haute du trou, thème Clair, grille principale seulement.
+    private func attachLightEmptyCellInset(to slot: SKSpriteNode) {
+        guard !BlomixAppearance.isDark else { return }
+        let shade = SKSpriteNode(
+            color: BlomixAppearance.emptyCellInsetSK,
+            size: CGSize(width: slot.size.width, height: 2)
+        )
+        shade.anchorPoint = CGPoint(x: 0.5, y: 1)
+        shade.position = CGPoint(x: 0, y: slot.size.height / 2)
+        shade.zPosition = 0.2
+        slot.addChild(shade)
     }
 
     // MARK: - Visée bombe (blast preview)
@@ -16367,11 +16586,15 @@ final class GameScene: SKScene {
     /// Démarre le suivi du doigt : arme un timer qui activera le ghost après 120 ms.
     private func beginGhostTracking(column: Int) {
         ghostTouchIsLive = true
+        ghostHoldDidReveal = false
+        ghostHoldGeneration += 1
+        let generation = ghostHoldGeneration
         ghostPreviewColumn = column
         ghostHoldTimer?.invalidate()
         let t = Timer(timeInterval: Self.ghostHoldDelay, repeats: false) { [weak self] _ in
             Task { @MainActor in
-                guard let self, self.ghostTouchIsLive else { return }
+                guard let self, self.ghostTouchIsLive, self.ghostHoldGeneration == generation else { return }
+                self.ghostHoldDidReveal = true
                 if let col = self.ghostPreviewColumn {
                     self.showGhostPreview(column: col)
                 }
@@ -16476,7 +16699,7 @@ final class GameScene: SKScene {
         case .connectE: kind = .connectE
         case .connectF: kind = .connectF
         case .connectGb: kind = .connectGb
-        case .magix: kind = .magix
+        case .magix, .magixFollow: kind = .magix
         case .wrong: kind = .reject
         default: kind = nil
         }
@@ -16596,6 +16819,7 @@ final class GameScene: SKScene {
     /// Masque le ghost de pré-visée. Ne touche pas à `autoDropLockedColumn` (reprise ☰ / modal).
     private func hideDropGhostVisuals() {
         ghostTouchIsLive = false
+        ghostHoldDidReveal = false
         ghostHoldTimer?.invalidate()
         ghostHoldTimer = nil
         ghostPreviewColumn = nil
@@ -17026,12 +17250,13 @@ final class GameScene: SKScene {
             stopStageTimer()
             let col = autoDropColumnForTimeout()
             autoDropLockedColumn = nil
+            let fromGhostHold = ghostHoldDidReveal
             cancelGhostPreview()
             if let col {
                 selectedColumn = col
                 updatePreviewSprite()
                 hapticSoft()
-                dropBlock(usingColumn: col)
+                dropBlock(usingColumn: col, fromGhostHold: fromGhostHold)
             } else {
                 if !isTutorialMode {
                     _ = BlomixTrophyStore.shared.increment("secret_timeout")
@@ -18502,11 +18727,12 @@ final class GameScene: SKScene {
         }
         guard ghostTouchIsLive else { return }
         let col = ghostPreviewColumn
+        let fromGhostHold = ghostHoldDidReveal
         cancelGhostPreview()
         guard !isProcessing else { return }
         // Analyse : enregistrer le choix du joueur (utilise le lookahead proactif).
         if let c = col { recordMoveChoice(column: c) }
-        dropBlock(usingColumn: col)
+        dropBlock(usingColumn: col, fromGhostHold: fromGhostHold)
     }
 
     /// Annulation (interruption système, alerte, etc.).
@@ -19666,8 +19892,9 @@ final class GameScene: SKScene {
         }
         selectedColumn = col
         updatePreviewSprite()
+        let fromGhostHold = ghostHoldDidReveal
         cancelGhostPreview()
-        dropBlock(usingColumn: col)
+        dropBlock(usingColumn: col, fromGhostHold: fromGhostHold)
     }
 
     func blomixPvP_presentLocalDefeat() {
@@ -20203,6 +20430,76 @@ final class GameScene: SKScene {
             .removeFromParent(),
             .run(completion)
         ]))
+    }
+}
+
+// MARK: - Modaux qui montent
+
+/// Salon, scores, réglages, guide, crédits, sondage, hub Défi.
+/// Présentation depuis le bas, sortie vers le bas. Le lobby PvP ne passe pas ici.
+@MainActor
+private final class RiseModalTransition: NSObject, UIViewControllerTransitioningDelegate {
+    static let shared = RiseModalTransition()
+
+    func animationController(
+        forPresented _: UIViewController,
+        presenting _: UIViewController,
+        source _: UIViewController
+    ) -> (any UIViewControllerAnimatedTransitioning)? {
+        RiseModalAnimator(presenting: true)
+    }
+
+    func animationController(forDismissed _: UIViewController) -> (any UIViewControllerAnimatedTransitioning)? {
+        RiseModalAnimator(presenting: false)
+    }
+}
+
+@MainActor
+private final class RiseModalAnimator: NSObject, UIViewControllerAnimatedTransitioning {
+    private let presenting: Bool
+
+    init(presenting: Bool) {
+        self.presenting = presenting
+    }
+
+    func transitionDuration(using _: UIViewControllerContextTransitioning?) -> TimeInterval {
+        UIAccessibility.isReduceMotionEnabled ? 0.01 : 0.25
+    }
+
+    func animateTransition(using transitionContext: UIViewControllerContextTransitioning) {
+        let duration = transitionDuration(using: transitionContext)
+        let container = transitionContext.containerView
+        if presenting {
+            guard let toView = transitionContext.view(forKey: .to),
+                  let toVC = transitionContext.viewController(forKey: .to) else {
+                transitionContext.completeTransition(false)
+                return
+            }
+            var final = transitionContext.finalFrame(for: toVC)
+            if final.isEmpty { final = container.bounds }
+            toView.frame = final
+            toView.transform = CGAffineTransform(translationX: 0, y: final.height)
+            container.addSubview(toView)
+            UIView.animate(withDuration: duration, delay: 0, options: .curveEaseOut, animations: {
+                toView.transform = .identity
+            }, completion: { _ in
+                transitionContext.completeTransition(!transitionContext.transitionWasCancelled)
+            })
+        } else {
+            guard let fromView = transitionContext.view(forKey: .from)
+                    ?? transitionContext.viewController(forKey: .from)?.view else {
+                transitionContext.completeTransition(false)
+                return
+            }
+            let height = fromView.bounds.height > 1 ? fromView.bounds.height : container.bounds.height
+            UIView.animate(withDuration: duration, delay: 0, options: .curveEaseIn, animations: {
+                fromView.transform = CGAffineTransform(translationX: 0, y: height)
+            }, completion: { _ in
+                let cancelled = transitionContext.transitionWasCancelled
+                if cancelled { fromView.transform = .identity }
+                transitionContext.completeTransition(!cancelled)
+            })
+        }
     }
 }
 

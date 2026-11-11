@@ -20,6 +20,13 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Cascade** : COMBO et CONNECT arrivent après le `+N`, en 40 pt, et restent sur la grille. Dès la 2ᵉ vague la dissolution se resserre et les grains grossissent ; le tremblement d’écran part avec les cases. Réduire les animations : timings de la 1ʳᵉ vague, pas de tremblement en plus, le texte reste en fondu court.
 - **Ligne menaçante** : le compteur rouge tremble de ±1 pt (Five compris, au dernier cran). La bande sous la grille tremble un peu plus et chaque case respire. La grille monte de 2 pt juste avant la poussée. Réduire les animations : le rouge et la bande restent, sans tremblement, sans respiration, sans montée.
 - **Fin de partie** : pendant les anneaux, le reste de la grille s’assombrit et la case qui bloque reste en couleur. Le voile ordinaire et le voile record (top 3, feux) ne changent pas. Réduire les animations : assombrissement immédiat, pas de tremblement sur ce focus. Les haptiques restent.
+- **Accueil** : au lancement, le mot et le hero tiennent 0,85 s. Disques (0,07 s) et icônes (0,05 s) arrivent ensuite, puis Défi et Duel / Zen / Five. Au retour, le hero d’abord, entrée courte, disques déjà là. Nouveautés et sondage attendent la fin de cette entrée. Réduire les animations : fondu court, sans glissé ni scale.
+- **Modaux** : Salon, scores, réglages, guide, crédits, sondage et hub Défi montent en 0,25 s et redescendent. Lobby, Game Center et partage restent en fondu. Réduire les animations : 0,01 s.
+- **Clair** : cases vides `#F0E6D2`, barre interne 2 pt `#E4D8C2` sur la grille seulement. Ombre de contact des boutons 0,11 (0,04 à l’appui). Sombre inchangé. Le thème reste séparé des skins.
+- **Arrivée Magix** : le son commun est l’accord voix court (`magix.wav`). Un Magix posé juste après un autre Magix joue l’accord long (`magix_follow.wav`). Les sons d’effet (SAINTX, SCRUMBLX, ticks procéduraux) ne changent pas. Une bombe entre les deux casse la suite ; une ligne entrante non.
+- **Air de gravité** : en partie, jusqu’à 4 grains lents (couleur skin) montent dans les trous, sous les blox. Ils ne scorent pas. Absents à l’accueil, en fin de partie, et si Réduire les animations.
+- **Toast trophée** : anneau, point et libellé Nunito, à la même place. Réduire les animations : fondu sans scale de l’anneau.
+- **Vol** : un Magix, et tout bloc lâché après l’appui long de la colonne ghost, fait un tour sur lui-même pendant la montée (sens au hasard) et arrive droit. Tap court, ghost du timer et bombe inchangés. Réduire les animations : pas de tour.
 
 ---
 

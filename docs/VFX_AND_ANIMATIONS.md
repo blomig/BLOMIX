@@ -2,7 +2,7 @@
 
 > **Version de référence** : 8.8  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
-> **Dernière mise à jour** : novembre 2026 (lots matière, cascade, ligne, mort — local 8.9, sans bump)  
+> **Dernière mise à jour** : novembre 2026 (lots matière, cascade, ligne, mort, accueil, modaux, Clair, air — local 8.9, sans bump)  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
 
 ---
@@ -48,7 +48,8 @@ Ce document suit le format **Juice Spec** / **VFX Bible**, utilisé en game dev 
 | `pendingRandomLineBloopa` | `5251__noisecollector__bloopa01.aiff` | Apparition preview ligne (coup 9) |
 | `priksVanish` | `prix.wav` | Brix disparaît (compteur → 0) |
 | `transition` | `transition.wav` | Overlay de transition (stage, tuto) |
-| `magix` | `magix.wav` | Atterrissage bloc Magix |
+| `magix` | `magix.wav` | Atterrissage Magix (accord voix court, ex-chaîne Trace). Pas les sons d’effet (SAINTX, SCRUMBLX, procéduraux) |
+| `magixFollow` | `magix_follow.wav` | Magix posé juste après un autre Magix (accord voix long). Une ligne entre les deux ne compte pas comme un coup |
 | `bombLoad` | `gun_load.wav` | Activation mode bombe |
 | `bomb` | `bomb.wav` | Explosion bombe |
 | `cleanx` | `cleanx.wav` | Animation SAINTX (cleanx) |
@@ -118,6 +119,12 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 - Vitesse : `cellPoints × 8 / 0,25` ≈ **1280 pts/s** (identique pour tous les types)
 - Durée montée : `max(0,07, distance / vitesse)` — `easeOut`
 - De-stretch en vol : retour `(1,1)` en `easeIn`
+
+**Tour en vol** (`flightSpinAction`) — Magix toujours, et tout bloc lâché après un appui long qui a montré la colonne ghost (≥ 0,12 s). Pas le ghost du timer ≤ 2 s, pas un tap court, pas la bombe.
+- Un tour pile (±2π), sens 1 chance sur 2, sur **la durée de cette montée**
+- easeOut quadratique, même famille que la montée : le tour se pose avec le bloc, droit à l’arrivée
+- Le sprite de grille qui le remplace est à rotation 0. Chiffre Brix et symbole Magix tournent avec le sprite
+- **Réduire les animations** : pas de tour. Vitesse, stretch, traîne et bounce inchangés
 
 **Stretch en vol** (`flightStretchScales(for:)`) :
 
@@ -193,7 +200,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | | |
 |---|---|
 | **Déclencheur** | `ghostHoldDelay = 0,12 s` maintenu |
-| **Visuel** | Colonne : cases vides, sprite couleur du token `ghostColumnHighlight` (sombre ~`#444` α 0,9 ; clair `#D4CBB4` α 0,92). Bloc fantôme α **0,55**, même construction que la grille (`makeSolidGameplayBlockSprite`). Pas de `SKShapeNode`, pas de texture 1×1 partagée : une texture UIGraphics statique reste blanche jusqu’au prochain lancement du processus. |
+| **Visuel** | Colonne : cases vides, sprite couleur du token `ghostColumnHighlight` (sombre ~`#444` α 0,9 ; clair `#E6DCC8` α 0,92). Bloc fantôme α **0,55**, même construction que la grille (`makeSolidGameplayBlockSprite`). Pas de `SKShapeNode`, pas de texture 1×1 partagée : une texture UIGraphics statique reste blanche jusqu’au prochain lancement du processus. |
 | **z** | container **18** ; cases **1**, bloc fantôme **2** |
 | **Audio** | — |
 | **Réf.** | `showGhostPreview`, `ghostHoldTimer`, `hideDropGhostVisuals` |
@@ -767,12 +774,14 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 | Effet | Paramètres |
 |---|---|
 | Tips rotation | toutes les **5 s**, fade swap texte |
-| Titre accueil (cold launch) | **~2,0 s** poinçon L→R : 0,20 s vide, B puis L à cadence régulière (~0,26 s), ensuite O-M-I-X légèrement accélérés (dernier impact inchangé ≈ 1,30 s). Squash **1,18 / 0,86**, settle 0,16 s easeOut. Son `place` + paillettes (14 éjections + 32 poussières, couleur blox du skin) à chaque impact. Chrome accueil après `punchIntroChromeDelay` ≈ 1,58 s. Retours ☰ / GO : trou + chrome court. |
+| Titre accueil (cold launch) | **~2,0 s** poinçon L→R : 0,20 s vide, B puis L à cadence régulière (~0,26 s), ensuite O-M-I-X légèrement accélérés (dernier impact inchangé ≈ 1,30 s). Squash **1,18 / 0,86**, settle 0,16 s easeOut. Son `place` + paillettes (14 éjections + 32 poussières, couleur blox du skin) à chaque impact. À `punchIntroChromeDelay` ≈ 1,58 s : tagline, hero (+0,08 s) et blox ambiants. Tenue **0,85 s**, puis le tableau. Retours ☰ / GO : hero d’abord (0,04 s), entrée courte, disques déjà visibles. |
 | Wordmark BLOMIX | accueil **60 pt** / jeu 36 pt ; puits clipé sur Changa One |
-| Boutons jeu | cold launch : après le wordmark (`punchIntroChromeDelay` + 0,16 / 0,28 s) ; retour ☰ : PvP+Zen **0,06 s**, Solo **0,10 s**. Slide **14 pt**, scale 1,15→1,0, fade **0,12 s** |
-| Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; chiffres **après** les 5 fetches, stagger L→R **0,07 s** (fade 0,16 s + scale 0,82→1, 0,18 s) |
-| Blocs ambiants | spawn aléatoire 0–2 s (voir §11.3) |
-| Toast trophée | au **palier** (pas au retour accueil). Chip chrome, Y = `height − safeTop − 92`, z **220**. Fade 0,22 / 3,6 / 0,28. Tap → Salon. Apparence plus tard. |
+| Boutons jeu | cold launch : hero avec le mot ; après la tenue, Défi +0,22 / +0,30 s, Duel / Zen / Five +0,40 / +0,48 / +0,56 s. Retour : hero 0,04 s, Défi 0,16 / 0,22, modes 0,28 / 0,34 / 0,40. Slide **14 pt**, scale 0→1,15→1, fade **0,12 s**. **Réduire les animations** : fondu 0,01 s, échelle 1, pas de slide |
+| Disques et icônes | cold launch, après la tenue : disques stagger **0,07 s**, icônes **0,05 s**, fondu 0,20 s, scale 0,94→1. Retour : icônes dès 0,18 s ; disques inchangés. **Réduire les animations** : fondu 0,01 s ensemble, sans scale |
+| Pastilles rang | chiffre (sans `#`, ×2) + libellé 3 lettres en **trou gouttière** (comme BLOMIX) ; cliquable ; chiffres **après** les 7 fetches, stagger L→R **0,07 s** (fade 0,16 s + scale 0,82→1, 0,18 s) — indépendant de l’entrée des disques |
+| Blocs ambiants | démarrent avec le mot (voir §11.3) |
+| Toast trophée | au **palier** (pas au retour accueil). Anneau + point (orange skin) + libellé Nunito, pas un chip chrome. Y = `height − safeTop − 92`, z **220**. Fade 0,22 / 3,6 / 0,28. Anneau scale 0,65→1 à l’entrée. **Réduire les animations** : fondu seul. Tap → Salon |
+| Nouveautés / sondage | cold launch : après la tenue + 0,85 s (Nouveautés) et + 1,05 s (sondage), pour ne pas couvrir l’entrée. Retour : sondage 0,55 s, toujours bloqué si Nouveautés doit passer |
 
 **Bouton Solo hero** (même puits que Duel/Zen ; se distingue par la taille)
 
@@ -787,6 +796,8 @@ Stage 1 : `L1` déjà affiché, grow/settle sans swap. Pas de pulse après l’o
 ### 11.2 Boutons (`BlomixSKButtonNode` / `BlomixUIButton`)
 
 Puits (dégradé skin, `wellTimeScale` 0,035) immobile. Capsule chrome seule animée. Gouttière 6 pt (4 pt compact). Liseré haut + ombre bas sur la capsule ; ombre sous le rebord du puits et ombre de contact sous la capsule (alpha réduite à l’appui). Son `connectE`. Police Changa One.
+
+Ombre de contact (`BlomixButtonRelief`) : Sombre **0,32** (appui **0,10**). Clair **0,11** (appui **0,04**). Décalage Y **2,5** pt. Le thème chrome ne change pas les skins.
 
 | Phase | Durée | Détail |
 |---|---|---|
@@ -836,6 +847,26 @@ Indicateur **HUD uniquement** (Duel). À **droite du gros score** (écart 8 pt, 
 | **Envoi** | Roll chiffre+barre → **50** en **0,22 s**, puis reste (ex. +80 → 50 puis 30) |
 | **Réf. code** | `applyDuelHudMeter` / `applyAttackPileMeter` |
 
+### 11.6 Modaux, planche Clair, air de gravité
+
+**Modaux qui montent** (`RiseModalTransition`, `presentFullScreenModal`)
+
+Salon, scores, réglages, guide, crédits, sondage, hub Défi. Depuis le bas, **0,25 s** easeOut ; sortie vers le bas, **0,25 s** easeIn. `.overFullScreen` : l’animateur ajoute la vue. **Réduire les animations** : **0,01 s**. Lobby PvP, Game Center et feuille de partage restent en fondu.
+
+**Cases vides, thème Clair**
+
+| | Sombre | Clair |
+|---|---|---|
+| Trou | blanc 0,12 | `#F0E6D2` |
+| Barre haute | aucune | **2 pt** `#E4D8C2`, ancre en haut, z 0,2, **grille principale seulement** |
+| Surbrillance visée | inchangée | `#E6DCC8` |
+
+File upcoming, file d’attente et autres fonds vides prennent le trou plus chaud, sans la barre.
+
+**Air de gravité** (`syncGravityAir`, préfixe `gravityAirGrain`)
+
+En partie seulement. Enfants du conteneur de grille, z **0,4** (sur le trou, sous les blox z 1). Max **4**. Spawn **1,6…3,2 s**. Trajet bas → haut **4,5…7,5 s**, côté **2,2…3,6** pt, alpha **0,18…0,32**, couleur skin. Ils ne scorent pas et ne sont pas retirés par `drawGrid`. Accueil, fin de partie, **Réduire les animations** : rien.
+
 ---
 
 ## 12. Haptique et screen shake
@@ -877,7 +908,11 @@ BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → 
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
 NeighborNudge          pose 2 pt | compact 1 pt | 0,04 + 0,06 s | 8 voisins | même couleur vers l’arrivée, le reste loin | pas le sprite qui bounce
 FeelHaptic             place / connect 2–4 / magix / refus / chaîne 2× à 40 ms
-Reduce Motion          voisin + jitter/respiration de ligne + montée 2 pt + shake cascade/GO coupés | pose, chaîne, score, haptiques, rouge LIGNE, bande, anneaux GO gardés
+Reduce Motion          voisin + jitter/respiration de ligne + montée 2 pt + shake cascade/GO + slide/scale accueil + montée modale + grains + scale toast + tour de vol coupés | pose, chaîne, score, haptiques, rouge LIGNE, bande, anneaux GO gardés
+FlightSpin             1 tour ±2π sur riseDuration | easeOut | Magix toujours | appui long ghost | pas tap court ni timer ≤ 2 s
+StartScreenEntrance    tenue hero 0,85 | disques 0,07 | icônes 0,05 | hero cold t+0,08 | retour hero 0,04
+RiseModalTransition    0,25 s montée easeOut / descente easeIn | Réduire les animations 0,01
+GravityAir             max 4 | spawn 1,6–3,2 s | trajet 4,5–7,5 s | côté 2,2–3,6 | α 0,18–0,32 | z 0,4
 ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 / 0,028 / 0,020 | grains 2,0–3,5 / 2,6–4,4 / 3,2–5,2 | shake 1,4 puis 2,0 | sparkles → score ~820 pt/s | cascade 0,07
 ChainCommentaryPopup   delay 0,72 | 40 pt | scale 0,55→1 en 0,36 | shrink 0,82 + fade 0,28 | pas de vol HUD
 BrixLandingSparkles    éjection 6–8 carrés 1,5–2,5 pt (pose / compact) ; poudre ronde inchangée

@@ -1,7 +1,7 @@
 # BLOMIX — Pistes juice / physique des objets
 
 > **Version de référence** : 8.8  
-> Recueil **2026-09**, complété **2026-11** (matière, cascade, ligne, mort — local 8.9). Pistes de **feel**, pas des règles.  
+> Recueil **2026-09**, complété **2026-11** (matière, cascade, ligne, mort, accueil, modaux, Clair, air — local 8.9). Pistes de **feel**, pas des règles.  
 > Spec en jeu : [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).  
 > Magix (blocs + pistes PACKX…) : [MAGIX.md](MAGIX.md).  
 > Modes (4ᵉ mode, Défi Zen du jour…) : [MODE_PISTES.md](MODE_PISTES.md).
@@ -28,7 +28,7 @@ Deux physiques : **transfert** (points → HUD) et **présence** (atterrir, rebo
 
 ## Ce qui tient (ne pas défaire)
 
-- **Pose** : vol commun ; stretch Brix plus sec ; Magix = blox + traîne blanche + gerbe palette. Le type se lit avant le contact.
+- **Pose** : vol commun ; stretch Brix plus sec ; Magix = blox + traîne blanche + gerbe palette. Le type se lit avant le contact. Magix, et l’appui long qui a montré la colonne ghost, ajoutent un tour pile sur la durée de cette montée (sens au hasard, droit à l’arrivée).
 - **Chaîne** : dissolution 0,50 s, paillettes au pic, `+N` qui **est** les points. COMBO / CONNECT sont un commentaire plus tard (0,72 s, 40 pt), jamais vers le HUD.
 - **Cascade** : vague 1 calme (stagger 0,04 s, grains 2,0–3,5). Vague 2 et 3+ serrent le stagger (0,028 puis 0,020) et grossissent les grains. Le shake (1,4 puis 2,0) part avec la dissolution. Pause 0,07 s et compactage 0,20 s inchangés.
 - **Ligne** : dernier cran ±1 pt. La bande tremble plus fort et chaque case respire. Le plateau monte de 2 pt juste avant la poussée.
@@ -38,7 +38,12 @@ Deux physiques : **transfert** (points → HUD) et **présence** (atterrir, rebo
 - **Constantes HUD** : ~824 pt/s, mix paillettes, shatter `+N`. Bounce Magix = blox. Compactage qui n’attend pas le score.
 - **Voisinage** : 8 voisins. Même couleur de Blox attirée (2 pt à la pose, 1 pt au compactage), les autres repoussés. Jamais le sprite qui rebondit.
 - **Haptique de matière** : pose, connect 2/3/4, Magix, refus sourd, chaîne en deux coups. Bombe / ligne / game over restent lourds.
-- **Réduire les animations** (réglage iPhone, pas un bouton du jeu) : voisin, jitter et respiration de la ligne, montée de 2 pt, shakes de cascade et de game over se taisent. La pose, la chaîne, le score, les haptiques, le rouge du compteur, la bande et les anneaux restent. Le commentaire COMBO arrive en fondu, timings de vague 1.
+- **Accueil** : le mot et le hero d’abord (tenue 0,85 s au cold launch). Disques, icônes et modes arrivent après, plus petits. Aucun mode retiré. Au retour, hero d’abord, disques déjà là.
+- **Maisons** : Salon, scores, réglages, guide, crédits, sondage et hub Défi montent avec la gravité (0,25 s) et redescendent. Lobby et feuilles système inchangés.
+- **Clair** : la grille est une planche (trou `#F0E6D2`, barre haute 2 pt, ombre de contact 0,11). Sombre reste une grille éclairée par les couleurs. Thème et skins restent séparés.
+- **Air** : en partie, jusqu’à 4 grains très lents montent dans les trous, sous les blox. Pas une seconde pluie de score.
+- **Toast** : le palier est une mini-cible (anneau, point, Nunito), pas un chip de réglages.
+- **Réduire les animations** (réglage iPhone, pas un bouton du jeu) : voisin, jitter et respiration de la ligne, montée de 2 pt, shakes de cascade et de game over, glissés d’accueil, montée des modaux, grains, scale du toast et tour de vol se taisent. La pose, la chaîne, le score, les haptiques, le rouge du compteur, la bande et les anneaux restent. Le commentaire COMBO arrive en fondu, timings de vague 1.
 
 ---
 

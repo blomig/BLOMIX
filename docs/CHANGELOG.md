@@ -16,6 +16,10 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Popup accueil** : campagne `8.9` (la 8.8 montrait encore `7.1_daily_duel`, Défi du jour + bonhomme vert). À chaque version marketing : nouvel `BlomixWhatsNew.campaignID` et puces en 6 langues, dans le même lot que `store/whats-new/`.
 - **Salon** : chaque trophée a sa phase de dégradé (même image, bande différente), disque + arc + étoiles ensemble. La fiche suit.
 - **Point orange accueil** : il s’éteint dès qu’il ne reste plus de fiche non vue, sans reconstruire l’accueil et sans passer par une partie.
+- **Matière des coups** : à la pose, les huit voisins occupés bougent de 2 pt (1 pt au compactage) : même couleur de Blox vers la case, les autres loin d’elle. Pas les blocs qui rebondissent. Haptique : pose douce, groupes de 2/3/4 de plus en plus nets, Magix medium, refus de colonne sourd, chaîne en deux coups. Bombe, ligne et game over restent lourds. Les blox et Brix restent des carrés unis. Un groupe de 4 ne fait plus varier l’opacité des jonctions. Réglages → Accessibilité → Mouvement → Réduire les animations : le coup de voisin se tait ; la pose, la chaîne, le score et les haptiques restent.
+- **Cascade** : COMBO et CONNECT arrivent après le `+N`, en 40 pt, et restent sur la grille. Dès la 2ᵉ vague la dissolution se resserre et les grains grossissent ; le tremblement d’écran part avec les cases. Réduire les animations : timings de la 1ʳᵉ vague, pas de tremblement en plus, le texte reste en fondu court.
+- **Ligne menaçante** : le compteur rouge tremble de ±1 pt (Five compris, au dernier cran). La bande sous la grille tremble un peu plus et chaque case respire. La grille monte de 2 pt juste avant la poussée. Réduire les animations : le rouge et la bande restent, sans tremblement, sans respiration, sans montée.
+- **Fin de partie** : pendant les anneaux, le reste de la grille s’assombrit et la case qui bloque reste en couleur. Le voile ordinaire et le voile record (top 3, feux) ne changent pas. Réduire les animations : assombrissement immédiat, pas de tremblement sur ce focus. Les haptiques restent.
 
 ---
 

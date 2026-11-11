@@ -1,7 +1,7 @@
 # BLOMIX — Pistes juice / physique des objets
 
-> **Version de référence** : 8.3  
-> Recueil **2026-09**. Pistes de **feel**, pas des règles.  
+> **Version de référence** : 8.8  
+> Recueil **2026-09**, complété **2026-11** (matière, cascade, ligne, mort — local 8.9). Pistes de **feel**, pas des règles.  
 > Spec en jeu : [VFX_AND_ANIMATIONS.md](VFX_AND_ANIMATIONS.md).  
 > Magix (blocs + pistes PACKX…) : [MAGIX.md](MAGIX.md).  
 > Modes (4ᵉ mode, Défi Zen du jour…) : [MODE_PISTES.md](MODE_PISTES.md).
@@ -29,10 +29,16 @@ Deux physiques : **transfert** (points → HUD) et **présence** (atterrir, rebo
 ## Ce qui tient (ne pas défaire)
 
 - **Pose** : vol commun ; stretch Brix plus sec ; Magix = blox + traîne blanche + gerbe palette. Le type se lit avant le contact.
-- **Chaîne** : dissolution 0,50 s, paillettes au pic, `+N` qui **est** les points, COMBO à part (texte, pas monnaie).
+- **Chaîne** : dissolution 0,50 s, paillettes au pic, `+N` qui **est** les points. COMBO / CONNECT sont un commentaire plus tard (0,72 s, 40 pt), jamais vers le HUD.
+- **Cascade** : vague 1 calme (stagger 0,04 s, grains 2,0–3,5). Vague 2 et 3+ serrent le stagger (0,028 puis 0,020) et grossissent les grains. Le shake (1,4 puis 2,0) part avec la dissolution. Pause 0,07 s et compactage 0,20 s inchangés.
+- **Ligne** : dernier cran ±1 pt. La bande tremble plus fort et chaque case respire. Le plateau monte de 2 pt juste avant la poussée.
+- **Mort** : pendant les anneaux, le reste de la grille s’assombrit ; la case qui bloque reste en couleur. Voile ordinaire et voile record inchangés.
 - **Compactage** : 0,20 s, haut → bas, bounce cosmétique. Le monde respire sans voler la main.
 - **Brix vivant** : le bloc ne bounce pas au −1 ; seul le **chiffre** pulse.
 - **Constantes HUD** : ~824 pt/s, mix paillettes, shatter `+N`. Bounce Magix = blox. Compactage qui n’attend pas le score.
+- **Voisinage** : 8 voisins. Même couleur de Blox attirée (2 pt à la pose, 1 pt au compactage), les autres repoussés. Jamais le sprite qui rebondit.
+- **Haptique de matière** : pose, connect 2/3/4, Magix, refus sourd, chaîne en deux coups. Bombe / ligne / game over restent lourds.
+- **Réduire les animations** (réglage iPhone, pas un bouton du jeu) : voisin, jitter et respiration de la ligne, montée de 2 pt, shakes de cascade et de game over se taisent. La pose, la chaîne, le score, les haptiques, le rouge du compteur, la bande et les anneaux restent. Le commentaire COMBO arrive en fondu, timings de vague 1.
 
 ---
 
@@ -72,7 +78,7 @@ Défendable (vivant = impact, mort = fragments du cube). À l’œil, la pose n�
 
 ### 4. COMBO vs `+N`
 
-Même grow ; le `+N` **se verse**, le COMBO **rétrécit**. En cascade ils se marchent (z, 62 pt, delay 0,45 s). Le COMBO n’est pas de la monnaie — ne pas le verser au HUD.
+**Fait (local 8.9).** Le `+N` reste la monnaie (62 pt, grow 0,58 s, shatter vers le HUD). COMBO / CONNECT arrivent après, en 40 pt, et rétrécissent sur place. Le shake de cascade part avec les cases, pas avec le texte.
 
 ### 5. Magix peinture = spawn blox, pas contamination
 
@@ -103,16 +109,16 @@ Ordre de **cohérence de lecture**, pas un backlog.
 | **B** | Magix **consommé** (TWISTX, SCRUMBLX, COLORX-disque) : une fin (fade + mini-burst palette, inverse de l’arrivée) | Plus de fantôme d’une frame | **Fait** (local 7.4) |
 | **C** | Magix qui **mue** (1ʳᵉ case CHROMAX / anneau 0 CROSSX / rang 0 BOMBX / BRIXED) : le disque se **ferme dans** le nouveau corps (modèle SAINTX) | Peinture = contamination, pas teleport | **Fait** (local 7.4) |
 | **D** | Pose Brix : poudre un peu anguleuse, ou 6–8 micro-carrés | Signature, pas une 2ᵉ gerbe de mort | **Fait** (8.1 : 6–8 micro-carrés à l’éjection, pose + compactage) |
-| **E** | COMBO plus petit / plus tard ; toujours pas de vol HUD | Moins de bagarre avec le `+N` | Petit |
+| **E** | COMBO plus petit / plus tard ; toujours pas de vol HUD | Moins de bagarre avec le `+N` | **Fait** (local 8.9) |
 | **F** | Jonctions : fondre avec la case, pas disparaître avant | Le groupe visé a une mort | **Fait** (8.1 : chaîne / cascade ; immédiat ailleurs) |
 | **G** | Une courbe HUD « matière → chiffre » (linéaire ou ease-in léger) dès qu’il y a pluie | Une seule loi | Petit |
 
-**Hors grammaire** (spectacle) : haptique à la gerbe Magix ; nom Magix plus proche du `+N` ; traîne Magix teintée 1 frame / 3 en palette.
+**Hors grammaire** (spectacle) : haptique à l’arrivée Magix **fait** (même instant que la gerbe, transient medium — pas un second coup sur la gerbe) ; nom Magix plus proche du `+N` ; traîne Magix teintée 1 frame / 3 en palette.
 
 **Ne pas toucher** : 824 pt/s, mix paillettes, shatter `+N`, bounce Magix = blox, compactage indépendant du HUD, Brix bloc inerte / chiffre vivant.
 
 Plus rentable **lecture** : **A** + **B**. Plus rentable **poésie** : **C**.  
-**A / A′ / B / C / D / F** faits ; **E** et **G** restent ouverts.
+**A / A′ / B / C / D / E / F** faits ; **G** reste ouvert.
 
 ---
 

@@ -1,8 +1,8 @@
 # Blomix — Spécification VFX, animations et sons
 
-> **Version de référence** : 8.6  
+> **Version de référence** : 8.8  
 > **Sources principales** : `GameScene.swift`, `BlomixProceduralSFX.swift`, `BlomixSKButtonNode.swift`, `BlomixAmbientBlocksView.swift`  
-> **Dernière mise à jour** : octobre 2026  
+> **Dernière mise à jour** : novembre 2026 (lots matière, cascade, ligne, mort — local 8.9, sans bump)  
 > Pistes d’amélioration (pas la spec) : [JUICE_PISTES.md](JUICE_PISTES.md)
 
 ---
@@ -155,7 +155,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 - Fade 0 → 0,85 en 0,05 s puis 0 ; z 37 ; **scène** (pas enfant du sprite)
 - Ne retarde pas l’effet Magix (toujours après bounce **0,15 s**)
 
-**Sons d'atterrissage** (`landingSoundForPlacedBlock`) :
+**Sons d'atterrissage** (`landingFeel`) :
 
 | Groupe formé | Son |
 |---|---|
@@ -167,7 +167,16 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Magix | `magix` |
 | Brix | `place` |
 
-**Délai post-bounce** : `landingBounceTotalDuration(for:)` (0,15 s blox / 0,12 s brix) avant `resolveChains()` ou effet Magix.
+**Haptique d’arrivée** (même instant que le son ; voir § 12) : pose douce, connect 2/3/4 de plus en plus net, Magix medium, refus de colonne sourd. Une chaîne (≥ 5) ne tape pas ici : les deux impulsions partent au début de la dissolution.
+
+**Voisins** (`nudgeNeighbors`) — pose seule, pas la ligne entrante :
+- 8 voisins occupés, diagonales comprises. Pas la case qui rebondit
+- Même couleur de Blox : **2 pt vers** la case. Autre Blox, Brix ou Magix : **2 pt loin** d’elle. Même distance en diagonal
+- 0,04 s aller + 0,06 s retour (`neighborNudge`)
+- Fini avant la dissolution (attente bounce 0,15 s / 0,12 s)
+- **Réduire les animations** : pas de coup
+
+**Délai post-bounce** : `landingBounceTotalDuration(for:)` (0,15 s blox / 0,12 s brix) avant `resolveChains()` ou effet Magix. Le coup de voisin n’allonge pas cette attente.
 
 **Ligne entrante** : stretch proportionnel par colonne via `flightStretchScales(for:)` ; bounce et délai post-ligne adaptés au type de chaque case.
 
@@ -176,7 +185,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Effet | Paramètres |
 |---|---|
 | Respiration (`previewBreathKey`) | scale 1,0↔1,2, **0,5 s**/phase, `easeInEaseOut`, infini |
-| Jitter imminent ligne (`startPreviewJitter`) | cycle **1,1 s**, amplitude X **±1,0**, Y **±0,5** pt, sin/cos ×1,7 fréquence |
+| Jitter imminent ligne (`startPreviewJitter`) | cycle **0,85 s**, amplitude X **±1,6**, Y **±0,9** pt, sin/cos ×1,7 fréquence. **Réduire les animations** : la respiration calme reste |
 | Stop | snap scale 1,0 en **0,06 s** |
 
 ### 1.3 Ghost preview (appui long ≥ 120 ms)
@@ -193,7 +202,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 ### 1.4 Colonne invalide
 
 | Son | `wrong` |
-| Haptique | — |
+| Haptique | tap sourd (voir § 12). La colonne pleine sans autre issue passe par le game over, choc lourd. |
 
 ---
 
@@ -201,7 +210,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 ### 2.1 Blox couleur
 
-- Sprite plein 36×36 pt (`cellPoints − 4`)
+- Sprite plein 36×36 pt (`cellPoints − 4`), coins droits, couleur unie (`SKSpriteNode(color:)`, pas de texture en cache)
 - **Jonctions** : barres H 4×36 / V 36×4 / diagonales entre voisins même couleur (`junction_*`, z ≈ 2)
   - **Chaîne / cascade** : la barre fond avec le **premier** des deux blox (`min(index) × 0,04 s`, 0,20 s, z 25, squash dans l’épaisseur du joint). Pas de retrait à t = 0.
   - **Magix peinture, COLORX roulette, bombe, compactage, réarrangements** : `removeBloxJunctionElementsTouching` immédiat (le réseau est cassé, ce n’est pas une mort de groupe).
@@ -243,10 +252,11 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | | |
 |---|---|
 | **Déclencheur** | Groupe ≥ 5 détecté |
-| **Haptique** | `hapticLight()` |
+| **Haptique** | deux transients Core Haptics à 0 et 0,04 s (intensité 0,48 → 0,82). Repli : deux `UIImpact` `.light` |
 | **Son** | `playChainClearSound` (voir tableau ci-dessous) |
-| **Stagger** | **0,04 s**/case, ordre ligne→colonne |
-| **Réf.** | `ChainClearFeedback` |
+| **Stagger** | Vague 1 : **0,04 s**/case. Vague 2 : **0,028 s**. Vague 3+ : **0,020 s**. Ordre ligne→colonne. **Réduire les animations** : toujours 0,04 s |
+| **Shake** | Vague 2 : intensity **1,4** au début de la dissolution. Vague 3+ : **2,0**. Vague 1 (y compris CONNECT seul) : rien. Pas un second shake avec le texte. **Réduire les animations** : pas de shake |
+| **Réf.** | `ChainClearFeedback.waveFeel` |
 
 **Par case (durée totale ≈ 0,50 s) :**
 
@@ -262,7 +272,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 **Placeholder gris** (`cell_dissolve_bg_*`) sous le sprite pendant le fondu.
 
 **Particules dissolution** (`spawnChainPopDots`) :
-- 7–10 dots r 2,0–3,5 pt + 10 micro-dots r 1,5 pt
+- 7–10 dots : vague 1 r **2,0–3,5** pt ; vague 2 r **2,6–4,4** ; vague 3+ r **3,2–5,2**. + 10 micro-dots r **1,5** pt (inchangés). COLORX / SAINTX / bombe, et **Réduire les animations**, gardent le rayon de la vague 1
 - **Vol vers le gros score** à **vitesse constante** (~820 pt/s = 0,25 s du centre de grille au score), `easeIn`, plancher **0,12 s**
 - Pas de chute / fondu ; spawn au pic du scale-up
 - Couleur = couleur exacte du blox
@@ -286,25 +296,28 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Stagger colonne | Le blox **le plus haut** (près du trou) part le premier, puis celui d’en dessous, etc. **0,018 s**/blox, budget max **0,06 s** (vol min **0,14 s**). Même durée de vol dans la colonne ; tout le monde atterrit à 0,20 s. Colonnes indépendantes. |
 | Stretch en montée | Même profil que le lancer (`FlightStretch` 0,82/1,25 ; Brix plus discret) ; destretch pendant le vol (pas pendant l’attente). |
 | Bounce + paillettes | À l’arrivée, **cosmétique** (`playCompactLandingJuice`) : squash/stretch/settle + 2 couches d’impact. **N’attend pas** cascade / saisie. Pas de son `place` / `connect`. |
-| Cascade pendant bounce | La dissolution **annule** le bounce et recale scale/position. |
+| Voisins immobiles | Après le bounce : **1 pt** vers l’arrivée si même couleur de Blox, sinon loin (8 voisins). Une fois, direction moyenne si plusieurs. Pas les blocs qui rebondissent. **Réduire les animations** : rien. |
+| Cascade pendant bounce | La dissolution **annule** le bounce (et le coup de voisin) et recale scale/position. |
 | Déclencheur | Après vidage + décrément Brix |
 
 ### 3.4 Cascade
 
-| Pause entre vagues | `cascadeBeatDuration` = **0,07 s** |
+| Pause entre vagues | `cascadeBeatDuration` = **0,07 s** (le crescendo ne l’allonge pas, ni le compactage 0,20 s) |
 | Puis | `chainSeriesLevel += 1` → re-scan |
 
 ### 3.5 Popup COMBO (`spawnComboLabelPopup`)
 
-| Niveau | Texte | Délai | Shake écran |
-|---|---|---|---|
-| 1 | COMBO | 0,45 s | intensity **1,4** |
-| ≥ 2 | SUPER / COMBO (2 lignes) | 0,45 s | intensity **2,0** |
+Commentaire, pas la monnaie. Le `+N` (62 pt, grow 0,58 s) reste devant. Le shake est celui de la dissolution (§3.1), pas celui du texte. Jamais de vol vers le HUD.
 
-Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
-- Grow scale 0,12→1,0 en **0,58 s** `easeOut`
-- Shrink 1,0→0,72 + fade **0,33 s**
-- Couleur = couleur de la plus grande composante
+| Niveau | Texte | Délai |
+|---|---|---|
+| 1 | COMBO | 0,72 s |
+| ≥ 2 | SUPER / COMBO (2 lignes, écart 36 pt) | 0,72 s |
+
+- Police **40** pt (couleur de la plus grande composante)
+- Grow scale **0,55→1,0** en **0,36 s** `easeOut`
+- Shrink 1,0→**0,82** + fade **0,28 s**
+- **Réduire les animations** : même délai, fondu d’entrée **0,12 s** à l’échelle 1, puis fondu de sortie. Pas de scale
 
 ### 3.6 CONNECT (pont latéral)
 
@@ -312,7 +325,7 @@ Animation texte (grow identique au `+N` ; **pas** de shatter vers le HUD) :
 |---|---|
 | **Déclencheur** | Composante chaîne qui touche col 0 **et** col 7 |
 | **Score** | +100 (puis × stage Arcade) ; inclus dans le `+N` de la composante |
-| **Popup** | **CONNECT**, même cinématique que COMBO (delay 0,45 s). Si COMBO la même vague : CONNECT 70 pt plus haut, un seul shake (celui du COMBO) |
+| **Popup** | **CONNECT**, même cinématique que COMBO (delay 0,72 s, 40 pt, pas de shake). Si COMBO la même vague : CONNECT **52** pt plus haut |
 | **Flash** | Point chrome (r 3,6 pt, blanc Sombre / noir Clair) sur la **face externe** d’un blox mur G et d’un blox mur D (paire à plus petit écart de ligne). Départ = stagger de **cette** case ; grow 0,20 s puis fade 0,30 s (fenêtre de dissolution) |
 | **Pont** | Trait chrome (même teinte, largeur 3,2 pt) : face G → centres du **plus court chemin 8-connexe dans la composante** → face D. Fade in / hold / fade out dans la fenêtre stagger des blox du chemin (≤ compactage). `z` 25,8 (sous les points). Pas enfant des sprites. |
 | **Réf.** | `LateralConnectBonus`, `spawnConnectLabelPopup`, `spawnLateralConnectFlash`, `spawnLateralConnectPath` |
@@ -512,19 +525,22 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Déclencheur** | `moveCount % 10 == 9` ou attaque PvP |
+| **Déclencheur** | Dernier coup de la période (`% 10 == 9`, ou `% 5 == 4` en Five) ou attaque PvP |
 | **Visuel** | 8 demi-cases masquées (crop 50 % bas) sous la grille |
-| **Jitter** | cycle **1,1 s**, X ±1,0 / Y ±0,5 pt (sin/cos) |
+| **Jitter** | cycle **0,85 s**, X ±1,6 / Y ±0,9 pt (sin/cos), sur la bande |
+| **Respiration** | chaque case 1,0↔**1,08**, **0,21 s**/phase. Le nœud bande reste à l’origine scène (un scale dessus déformerait la ligne) |
+| **Réduire les animations** | bande et son inchangés ; pas de jitter, pas de respiration |
 | **Son** | `pendingRandomLineBloopa` (une fois par apparition) |
 
 ### 7.2 Injection (`addRandomLinePushingGridUp`)
 
 | | |
 |---|---|
-| **Déclencheur** | `moveCount % 10 == 0` |
+| **Déclencheur** | `moveCount % 10 == 0` (Five : `% 5 == 0`) |
+| **Anticipation** | le plateau monte de **2 pt** (0,05 s ease-out) puis revient (0,08 s ease-in). Les sprites, leur traîne et la fin d’injection attendent **0,08 s**. **Réduire les animations** : pas de montée, pas d’attente. L’action est retirée avant `drawGrid` |
 | **Visuel** | 8 sprites montent depuis bas grille ; stretch proportionnel distance |
 | **Vitesse** | ≈ 1280 pts/s (identique chute blox) |
-| **Strip fade** | **0,15 s** au départ |
+| **Strip fade** | **0,15 s** dès le départ (pendant la montée du plateau) |
 | **Son** | `line` + `hapticHeavy()` |
 | **Bounce** | `playLandingBounce(for:)` par case, stagger **0,018 s**/colonne ; délai post-ligne = max bounce selon types présents |
 | **Suite** | `resolveChains()` après durée bounce max + stagger |
@@ -618,7 +634,8 @@ Pas de son. Premier layout : pas de burst ni de tick. Échelle de la ligne **lin
 |---|---|
 | **Déclencheur** | Colonne pleine, point focal fourni |
 | **Durée totale** | **1,38 s** |
-| **Shake** | intensity **2,5** |
+| **Shake** | intensity **2,5**. **Réduire les animations** : pas de shake ici (les autres shakes du jeu restent) |
+| **Plateau** | voile noir α **0,46** sur la grille (fondu **0,28 s**, z 12, sous le cadre z 50). La case du focus passe à z **30** et reste en couleur. **Réduire les animations** : fondu **0,01 s**. Pas de focus (pas de point) : pas de voile |
 | **Ondes** | 4 anneaux, stagger **0,12 s**, rayon 2,1×cellule → scale 0,18, **0,34 s** |
 | **Titre** | fade in + grow 20→40 pt, hold **0,18 s** |
 | **Son** | `end` (déclenché avant overlay) |
@@ -802,7 +819,9 @@ Puits (dégradé skin, `wellTimeScale` 0,035) immobile. Capsule chrome seule ani
 |---|---|---|
 | 0–5 | gris `#A3A3A3` | — |
 | 6–8 | orange `#F4A261` | — |
-| 9–10 | rouge | shake ±2 pt, cycle 0,05 s |
+| 9–10 | rouge | shake ±**1** pt, cycle 0,05 s. **Réduire les animations** : le rouge reste, le shake non |
+
+Five (période 5) : gris 0–2, orange 3, rouge 4–5. Le shake est sur le dernier cran (4/5), même amplitude.
 
 ### 11.5 Pile d’attaque Duel (`hudAttackPile`)
 
@@ -821,16 +840,27 @@ Indicateur **HUD uniquement** (Duel). À **droite du gros score** (écart 8 pt, 
 
 ## 12. Haptique et screen shake
 
-| Fonction | Style UIKit | Usage |
+**Core Haptics** (`FeelHaptic`, `CHHapticEngine`) pour la matière des coups. Si le téléphone n’a pas de Taptic Engine, repli `UIImpact` (pas le vocabulaire bombe / ligne). **Réduire les animations** ne coupe pas ces retours.
+
+| Moment | Transient (intensité, netteté) | Repli |
 |---|---|---|
-| `hapticSoft()` | `.soft` | Auto-drop stage |
-| `hapticLight()` | `.light` | Début dissolution chaîne |
-| `hapticHeavy()` | `.heavy` | Bombe, ligne entrante, explosion |
+| Pose isolée, Brix | 0,32 / 0,20 | `.light` 0,40 |
+| Groupe de 2 | 0,42 / 0,36 | `.light` 0,55 |
+| Groupe de 3 | 0,55 / 0,50 | `.medium` 0,50 |
+| Groupe de 4 | 0,70 / 0,66 | `.medium` 0,75 |
+| Magix | 0,60 / 0,55 | `.medium` 0,65 |
+| Colonne pleine, une autre libre | 0,36 / 0,06 (sourd) | `.light` 0,35 |
+| Début de chaîne | deux coups, 0 et 0,04 s : 0,48/0,40 puis 0,82/0,78 | deux `.light` |
+
+| Fonction | Style UIKit | Usage inchangé |
+|---|---|---|
+| `hapticSoft()` | `.medium` | Démarrage, auto-drop |
+| `hapticHeavy()` | `.heavy` | Bombe, ligne entrante, slam de stage, game over, défi reçu |
 
 **Screen shake** (`shakeScreen`) :
 - `CAKeyframeAnimation` position.x, durée **0,14 s**
 - Valeurs : `[0, v, −v, 0,55v, −0,55v, 0,2v, −0,2v, 0]`
-- Intensités courantes : combo **1,4–2,0**, bombe/GO **2,5**
+- Intensités courantes : cascade vague 2 **1,4**, vague 3+ **2,0** (au début de la dissolution), bombe/GO **2,5**
 
 ---
 
@@ -845,11 +875,16 @@ Magix consume / morph  18–24 dots +12–28 pt / 0,22 s ; fade 0,18 ; mue pulse
 BrixFlightStretch      x 0,88 | y 1,16
 BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s | 3 étoiles présence 0,64 s
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
-ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 | sparkles → score ~820 pt/s (0,25 s centre→score) | cascade 0,07 | jonctions 0,20 s avec 1er blox
+NeighborNudge          pose 2 pt | compact 1 pt | 0,04 + 0,06 s | 8 voisins | même couleur vers l’arrivée, le reste loin | pas le sprite qui bounce
+FeelHaptic             place / connect 2–4 / magix / refus / chaîne 2× à 40 ms
+Reduce Motion          voisin + jitter/respiration de ligne + montée 2 pt + shake cascade/GO coupés | pose, chaîne, score, haptiques, rouge LIGNE, bande, anneaux GO gardés
+ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 / 0,028 / 0,020 | grains 2,0–3,5 / 2,6–4,4 / 3,2–5,2 | shake 1,4 puis 2,0 | sparkles → score ~820 pt/s | cascade 0,07
+ChainCommentaryPopup   delay 0,72 | 40 pt | scale 0,55→1 en 0,36 | shrink 0,82 + fade 0,28 | pas de vol HUD
 BrixLandingSparkles    éjection 6–8 carrés 1,5–2,5 pt (pose / compact) ; poudre ronde inchangée
-PendingLinePreview     jitter X 1,0 Y 0,5 | cycle 1,1
+PendingLinePreview     jitter X 1,6 Y 0,9 | cycle 0,85 | breath 1,08 / 0,21 s
+IncomingLinePush       plateau +2 pt | 0,05 + 0,08 s | sprites attendent 0,08 s
 ScorePopupFeedback     grow 0,58 + shatter burst 6–16 pt / 0,08 + vol ~824 pt/s + stagger 0,14 | dots 14–78 (×1,5) mix cases
-GameOverFocus          total 1,38 | rings 4 | stagger 0,12
+GameOverFocus          total 1,38 | rings 4 | stagger 0,12 | voile α 0,46 | case fatale z 30
 BombExplosionFeedback  shock 0,52×5 | flash 0,15 | block stagger 0,02
 ghostHoldDelay         0,12
 ```

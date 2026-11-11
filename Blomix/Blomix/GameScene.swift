@@ -6,10 +6,12 @@
 //  (voir PROJECT_CONTEXT.md).
 //  Textures PNG : catalogue `Assets.xcassets` → groupe « WebImages » (bombe, écrans, etc.).
 //  Blox couleur + Priks : carrés **générés** (SKSpriteNode couleur unie), mêmes hexa que les jonctions (+ teinte Priks).
+//  Pas de SKTexture statique : une texture UIGraphics reste blanche après un passage en arrière-plan.
 //  Sons : ressources « Sounds » du projet, copiées à la racine du bundle (`begin.wav`, `empty_coll.wav`, `.aiff`, …) ; police `BitcountGridSingleInk-Variable.ttf` via UIAppFonts.
 //
 
 import AVFoundation
+import CoreHaptics
 import GameKit
 import SpriteKit
 import UIKit
@@ -910,6 +912,10 @@ final class GameScene: SKScene {
     /// Bande de **8** cases sous la **preview du joueur** (visible au coup `period-1`).
     private static let bottomLinePreviewStripName = "bottomLinePreviewStrip"
     private static let bottomLinePreviewJitterActionKey = "bottomLinePreviewJitter"
+    private static let bottomLinePreviewBreathActionKey = "bottomLinePreviewBreath"
+    private static let incomingLineBoardLiftKey = "incomingLineBoardLift"
+    /// Voile du focus de défaite. Pas de préfixe `cell_` : `drawGrid` ne doit pas le prendre pour une case.
+    private static let gameOverFocusDimName = "gameOverFocusDim"
     private static let randomLineRisingSpritePrefix = "randomLineRisingCol"
     private static let bombHudIconName = "bombHudIcon"
     private static let bombHudCountLabelName = "bombHudCountLabel"
@@ -924,6 +930,8 @@ final class GameScene: SKScene {
     private static let scoreHudLabelName = "hudScoreLabel"
     /// Bounce d’arrivée après compactage (cosmétique, n’entre pas dans la file de jeu).
     private static let compactLandingBounceKey = "compactLandingBounce"
+    /// Coup des voisins à l’atterrissage. La dissolution l’annule pour reprendre la main sur `position`.
+    private static let neighborNudgeKey = "neighborNudge"
     private static let bestScoreAboveName    = "hudBestScoreAbove"     // RECORD / À BATTRE — chiffre
     private static let bestScoreTitleName    = "hudBestScoreTitle"
     /// N°1 all-time (Arcade / Zen / Five), même bandeau que RECORD.
@@ -1266,6 +1274,25 @@ final class GameScene: SKScene {
 
         /// Courte pause après la phase physique avant de re-scanner la grille (cascades plus lisibles).
         static let cascadeBeatDuration: TimeInterval = 0.07
+        /// Vague 2 (`chainSeriesLevel == 1`) : stagger plus serré, grains plus gros.
+        static let cascadeStaggerWave2: TimeInterval = 0.028
+        static let cascadeGrainRadiusWave2: ClosedRange<CGFloat> = 2.6...4.4
+        static let cascadeShakeWave2: CGFloat = 1.4
+        /// Vague 3+ (`chainSeriesLevel >= 2`).
+        static let cascadeStaggerWave3: TimeInterval = 0.020
+        static let cascadeGrainRadiusWave3: ClosedRange<CGFloat> = 3.2...5.2
+        static let cascadeShakeWave3: CGFloat = 2.0
+
+        /// Feel de la vague en cours. Vague 1, ou Réduire les animations : stagger et grains de base, pas de shake.
+        static func waveFeel(level: Int, reducedMotion: Bool) -> (stagger: TimeInterval, grainRadius: ClosedRange<CGFloat>, shake: CGFloat?) {
+            if reducedMotion || level <= 0 {
+                return (dissolveStagger, popDotRadiusRange, nil)
+            }
+            if level == 1 {
+                return (cascadeStaggerWave2, cascadeGrainRadiusWave2, cascadeShakeWave2)
+            }
+            return (cascadeStaggerWave3, cascadeGrainRadiusWave3, cascadeShakeWave3)
+        }
         /// Mort des jonctions : même fenêtre que le scale-up du premier blox du couple.
         static let junctionDissolveDuration: TimeInterval = dissolveScaleUpDuration
         static let junctionDissolveZ: CGFloat = 25
@@ -1281,7 +1308,7 @@ final class GameScene: SKScene {
         static let pathZ: CGFloat = 25.8
         static let pathLineWidth: CGFloat = 3.2
         /// Décale CONNECT au-dessus du COMBO si les deux partent ensemble.
-        static let popupYLiftWhenCombo: CGFloat = 70
+        static let popupYLiftWhenCombo: CGFloat = 52
 
         static var chromeSK: SKColor {
             BlomixAppearance.isDark ? .white : .black
@@ -1315,11 +1342,35 @@ final class GameScene: SKScene {
         static let vanishStarTurnDurationRange: ClosedRange<TimeInterval> = 0.55...1.10
     }
 
-    /// Animation discrète de la ligne des 10 en attente (léger tremblement).
+    /// Ligne imminente : la bande tremble et chaque case respire. Le bloc courant reprend les mêmes amplitudes.
     private enum PendingLinePreviewFeedback {
-        static let jitterAmplitudeX: CGFloat = 1.0
-        static let jitterAmplitudeY: CGFloat = 0.5
-        static let organicCycleDuration: TimeInterval = 1.1
+        static let jitterAmplitudeX: CGFloat = 1.6
+        static let jitterAmplitudeY: CGFloat = 0.9
+        static let organicCycleDuration: TimeInterval = 0.85
+        /// Respiration des cases de la bande (pas du nœud bande : il est à l’origine scène).
+        static let breathPeakScale: CGFloat = 1.08
+        static let breathHalfDuration: TimeInterval = 0.21
+    }
+
+    /// La grille frémit vers le haut une fraction de seconde avant que la ligne parte.
+    private enum IncomingLinePushFeedback {
+        static let boardLift: CGFloat = 2
+        static let liftOutDuration: TimeInterval = 0.05
+        static let liftBackDuration: TimeInterval = 0.08
+        static let anticipate: TimeInterval = 0.08
+    }
+
+    /// COMBO / CONNECT : commentaire, pas la monnaie. Le `+N` (62 pt, 0,58 s) reste devant.
+    private enum ChainCommentaryPopup {
+        static let delay: TimeInterval = 0.72
+        static let fontSize: CGFloat = 40
+        static let lineSpacing: CGFloat = 36
+        static let startScale: CGFloat = 0.55
+        static let growDuration: TimeInterval = 0.36
+        static let shrinkScale: CGFloat = 0.82
+        static let shrinkDuration: TimeInterval = 0.28
+        static let fadeDuration: TimeInterval = 0.28
+        static let reducedFadeIn: TimeInterval = 0.12
     }
 
     /// Feedback "points -> score" : le `+N` se brise en paillettes à pleine taille ; le HUD roule à leur arrivée.
@@ -1407,6 +1458,12 @@ final class GameScene: SKScene {
         static let titleHoldDuration: TimeInterval = 0.18
         static let titleStartFontSize: CGFloat = 20
         static let titleEndFontSize: CGFloat = 40
+        /// Voile sur le reste de la grille pendant les anneaux. Sous le cadre (z 50), au-dessus des cases (z 1).
+        static let boardDimAlpha: CGFloat = 0.46
+        static let boardDimFadeDuration: TimeInterval = 0.28
+        static let boardDimZ: CGFloat = 12
+        static let fatalCellZ: CGFloat = 30
+        static let reducedMotionDimFade: TimeInterval = 0.01
     }
 
     /// Citation affichée sur l’overlay de fin de partie.
@@ -1929,6 +1986,7 @@ final class GameScene: SKScene {
         // Pré-chauffe les Taptic Engines pour que les premiers retours soient immédiats.
         hapticEngine.prepare()
         hapticLightEngine.prepare()
+        warmFeelHapticEngine()
 
         childNode(withName: Self.backgroundNodeName)?.removeFromParent()
         childNode(withName: Self.titleNodeName)?.removeFromParent()
@@ -3847,24 +3905,19 @@ final class GameScene: SKScene {
         playMatchSound(sfx, playbackRate: 1.0)
     }
 
-    /// Son d'arrivée après une pose normale, selon la taille de la composante 8-connexe créée par le blox posé.
+    /// Son d'arrivée après une pose normale.
     /// Les chaînes (>= 5) laissent la priorité au son de suppression, donc aucun son d'arrivée n'est joué ici.
-    private func landingSoundForPlacedBlock(_ placedBlock: BlockType, at address: GridAddress) -> BlomixMatchSFX? {
+    private func landingFeel(for placedBlock: BlockType, at address: GridAddress) -> BlomixMatchSFX? {
         if case .magix = placedBlock { return .magix }
         guard case .color(let colorName) = placedBlock else { return .place }
         var visited = Set<GridAddress>()
         let component = collectColorComponent8(start: address, colorName: colorName, globallyVisited: &visited)
         switch component.count {
-        case 2:
-            return .connectE
-        case 3:
-            return .connectF
-        case 4:
-            return .connectGb
-        case 5...:
-            return nil
-        default:
-            return .place
+        case 2: return .connectE
+        case 3: return .connectF
+        case 4: return .connectGb
+        case 5...: return nil
+        default: return .place
         }
     }
 
@@ -7012,8 +7065,12 @@ final class GameScene: SKScene {
     /// Cercles concentriques « lock-on » qui se referment vers `focusPoint` avant l’overlay Game Over.
     private func playGameOverFocusAnimation(at focusPoint: CGPoint, completion: @escaping () -> Void) {
         // Onde de choc vers l'extérieur + tremblement d'écran au moment de l'impact.
+        // Réduire les animations : les anneaux restent, pas le tremblement. Les haptiques sont déjà partis.
         addBombShockWave(at: focusPoint)
-        shakeScreen(intensity: 2.5)
+        if !Self.prefersReducedMotion {
+            shakeScreen(intensity: 2.5)
+        }
+        dimBoardExceptFatalCell(near: focusPoint)
 
         let holder = SKNode()
         holder.zPosition = GameOverFocusFeedback.layerZ
@@ -7079,6 +7136,42 @@ final class GameScene: SKScene {
                 },
             ])
         )
+    }
+
+    /// Le reste du plateau s’éteint ; la case du focus reste en couleur. Pas de shader.
+    /// Sans ce focus (pas de case à isoler), l’appelant ne passe pas ici.
+    private func dimBoardExceptFatalCell(near focusPoint: CGPoint) {
+        guard let container = childNode(withName: Self.gridContainerName) else { return }
+        container.childNode(withName: Self.gameOverFocusDimName)?.removeFromParent()
+
+        let dim = SKSpriteNode(
+            color: .black,
+            size: CGSize(width: GridLayout.spanPoints, height: GridLayout.spanPoints)
+        )
+        dim.name = Self.gameOverFocusDimName
+        dim.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        dim.position = .zero
+        dim.zPosition = GameOverFocusFeedback.boardDimZ
+        dim.alpha = 0
+        container.addChild(dim)
+        let fade = Self.prefersReducedMotion
+            ? GameOverFocusFeedback.reducedMotionDimFade
+            : GameOverFocusFeedback.boardDimFadeDuration
+        dim.run(SKAction.fadeAlpha(to: GameOverFocusFeedback.boardDimAlpha, duration: fade))
+
+        let local = container.convert(focusPoint, from: self)
+        var best: SKNode?
+        var bestDist = CGFloat.greatestFiniteMagnitude
+        for child in container.children {
+            guard let name = child.name, name.hasPrefix("cell_") else { continue }
+            if name.contains("dissolve") || name.contains("connect") { continue }
+            let distance = hypot(child.position.x - local.x, child.position.y - local.y)
+            if distance < bestDist {
+                bestDist = distance
+                best = child
+            }
+        }
+        best?.zPosition = GameOverFocusFeedback.fatalCellZ
     }
 
     /// Pioche une citation aléatoire depuis `gameover_quotes.json` (bundle), sinon fallback interne.
@@ -8014,7 +8107,7 @@ final class GameScene: SKScene {
             }
         }
 
-        // Popup « COMBO » / « SUPER COMBO » à partir du niveau 2 de cascade.
+        // Popup « COMBO » / « SUPER COMBO » dès la 2ᵉ vague (`chainSeriesLevel` ≥ 1).
         // Couleur = celle de la plus grande composante (lue avant que la grille soit effacée).
         // Position = centroïde de toutes les composantes de la vague.
         let comboShown = chainSeriesLevel >= 1
@@ -8059,8 +8152,7 @@ final class GameScene: SKScene {
         for pop in connectPopups {
             spawnConnectLabelPopup(
                 at: CGPoint(x: pop.center.x, y: pop.center.y + connectLift),
-                color: pop.color,
-                shakes: !comboShown
+                color: pop.color
             )
         }
 
@@ -8107,8 +8199,15 @@ final class GameScene: SKScene {
             return
         }
 
-        hapticLight()
-        let stagger  = ChainClearFeedback.dissolveStagger
+        playChainFeelHaptic()
+        let wave = ChainClearFeedback.waveFeel(
+            level: chainSeriesLevel,
+            reducedMotion: Self.prefersReducedMotion
+        )
+        if let shake = wave.shake {
+            shakeScreen(intensity: shake)
+        }
+        let stagger  = wave.stagger
         let cellAnim = ChainClearFeedback.dissolvePerCellAnimationDuration
         let tail     = Double(max(ordered.count - 1, 0)) * stagger + cellAnim
         dissolveBloxJunctionsWithChainCells(ordered: ordered, stagger: stagger)
@@ -8141,6 +8240,7 @@ final class GameScene: SKScene {
                 && (address.col == 0 || address.col == lastCol)
             let prep = SKAction.run { [weak self] in
                 sprite.removeAction(forKey: Self.compactLandingBounceKey)
+                sprite.removeAction(forKey: Self.neighborNudgeKey)
                 sprite.xScale = 1
                 sprite.yScale = 1
                 sprite.position = Self.gridContainerLocalCellCenter(row: address.row, column: address.col)
@@ -8173,7 +8273,7 @@ final class GameScene: SKScene {
             let popDots = SKAction.run { [weak self] in
                 guard let self else { return }
                 let scenePoint = self.convert(sprite.position, from: container)
-                self.spawnChainPopDots(at: scenePoint, color: dotColor)
+                self.spawnChainPopDots(at: scenePoint, color: dotColor, radiusRange: wave.grainRadius)
                 if self.magixCausedDisappearLinger {
                     self.spawnSpecialOrbitLingerSparks(at: scenePoint, pickColor: Self.pickMagixOrbitColor)
                 }
@@ -8211,7 +8311,11 @@ final class GameScene: SKScene {
     /// Paillettes de dissolution : cercles de la couleur du blox, éparpillés dans la case,
     /// puis vol vers le gros score (pas de fondu en chute — le HUD les « avale »).
     /// Ne bloque pas compactage / cascade / saisie.
-    private func spawnChainPopDots(at scenePoint: CGPoint, color: SKColor) {
+    private func spawnChainPopDots(
+        at scenePoint: CGPoint,
+        color: SKColor,
+        radiusRange: ClosedRange<CGFloat> = ChainClearFeedback.popDotRadiusRange
+    ) {
         let cellHalf = GridLayout.cellPoints * 0.42
         let target = scoreHudTargetCenter()
 
@@ -8254,7 +8358,7 @@ final class GameScene: SKScene {
 
         let count = Int.random(in: 7...10)
         for _ in 0..<count {
-            spawnDot(radius: CGFloat.random(in: ChainClearFeedback.popDotRadiusRange))
+            spawnDot(radius: CGFloat.random(in: radiusRange))
         }
         for _ in 0..<10 {
             spawnDot(radius: 1.5)
@@ -8290,10 +8394,14 @@ final class GameScene: SKScene {
 
     /// Première / dernière arrivée des paillettes de cases (t = 0 au début de vague). Compactage / cascade ignorent cette valeur.
     private func chainSparkleArrivalWindow(cells: [GridAddress]) -> (first: TimeInterval, last: TimeInterval)? {
-        sparkleArrivalWindow(
+        let wave = ChainClearFeedback.waveFeel(
+            level: chainSeriesLevel,
+            reducedMotion: Self.prefersReducedMotion
+        )
+        return sparkleArrivalWindow(
             cells: cells,
             spawnAt: ChainClearFeedback.dissolveScaleUpDuration,
-            stagger: ChainClearFeedback.dissolveStagger
+            stagger: wave.stagger
         )
     }
 
@@ -9137,21 +9245,18 @@ final class GameScene: SKScene {
 
     // MARK: - Combo label popup (cascade niveaux 2 et 3+)
 
-    /// Affiche « COMBO » (cascade niveau 2) ou « SUPER / COMBO » (cascade niveau 3+) au centroïde de la vague.
-    /// La couleur reprend celle de la composante la plus grande.
+    /// Affiche « COMBO » (2ᵉ vague) ou « SUPER / COMBO » (3ᵉ vague et après) au centroïde.
+    /// Plus petit et plus tard que le `+N`. Ne va pas au HUD. Le shake de cascade est déjà parti avec la dissolution.
     private func spawnComboLabelPopup(level: Int, at position: CGPoint, color: SKColor) {
-        let delay: TimeInterval = 0.45
-
         let container = SKNode()
         container.position = position
-        container.setScale(0.12)
-        container.alpha   = 1
+        container.alpha = 1
         container.zPosition = 37        // au-dessus du "+N" (zPos 35)
         addChild(container)
 
         let font = Self.gridFontName
-        let fSize: CGFloat = 62
-        let lineSpacing: CGFloat = 56
+        let fSize = ChainCommentaryPopup.fontSize
+        let lineSpacing = ChainCommentaryPopup.lineSpacing
 
         func makeLabel(_ text: String, yOffset: CGFloat) -> SKLabelNode {
             let lbl = SKLabelNode(text: text)
@@ -9171,55 +9276,57 @@ final class GameScene: SKScene {
             container.addChild(makeLabel("COMBO", yOffset: 0))
         }
 
-        // Grow identique au "+N" ; le COMBO garde shrink+fade (il ne se verse pas dans le HUD).
-        let grow = SKAction.scale(to: 1.0, duration: 0.58)
-        grow.timingMode = .easeOut
-        let shrink = SKAction.scale(to: 0.72, duration: 0.33)
-        shrink.timingMode = .easeIn
-        let fade = SKAction.fadeOut(withDuration: 0.33)
-
-        // SUPER COMBO (level ≥ 2) : shake un peu plus marqué.
-        let shakeIntensity: CGFloat = level >= 2 ? 2.0 : 1.4
-        container.run(SKAction.sequence([
-            SKAction.wait(forDuration: delay),
-            SKAction.run { [weak self] in self?.shakeScreen(intensity: shakeIntensity) },
-            grow,
-            SKAction.group([shrink, fade]),
-            SKAction.removeFromParent(),
-        ]))
+        runChainCommentary(container)
     }
 
-    /// Popup « CONNECT » : même grow / shrink / delay que COMBO. `shakes` = false si un COMBO part déjà.
-    private func spawnConnectLabelPopup(at position: CGPoint, color: SKColor, shakes: Bool) {
-        let delay: TimeInterval = 0.45
+    /// Popup « CONNECT » : même régime que COMBO. Pas de shake (il part avec la dissolution, s’il y en a un).
+    private func spawnConnectLabelPopup(at position: CGPoint, color: SKColor) {
         let container = SKNode()
         container.position = position
-        container.setScale(0.12)
         container.alpha = 1
         container.zPosition = 37
         addChild(container)
 
         let lbl = SKLabelNode(text: "CONNECT")
         lbl.fontName = Self.gridFontName
-        lbl.fontSize = 62
+        lbl.fontSize = ChainCommentaryPopup.fontSize
         lbl.fontColor = color
         lbl.horizontalAlignmentMode = .center
         lbl.verticalAlignmentMode = .center
         container.addChild(lbl)
 
-        let grow = SKAction.scale(to: 1.0, duration: 0.58)
-        grow.timingMode = .easeOut
-        let shrink = SKAction.scale(to: 0.72, duration: 0.33)
-        shrink.timingMode = .easeIn
-        let fade = SKAction.fadeOut(withDuration: 0.33)
-        var steps: [SKAction] = [SKAction.wait(forDuration: delay)]
-        if shakes {
-            steps.append(SKAction.run { [weak self] in self?.shakeScreen(intensity: 1.4) })
+        runChainCommentary(container)
+    }
+
+    /// Même attente que le `+N` ait eu le temps de grossir. Réduire les animations : fondu, sans scale.
+    private func runChainCommentary(_ container: SKNode) {
+        let delay = SKAction.wait(forDuration: ChainCommentaryPopup.delay)
+        if Self.prefersReducedMotion {
+            container.setScale(1)
+            container.alpha = 0
+            let fadeIn = SKAction.fadeIn(withDuration: ChainCommentaryPopup.reducedFadeIn)
+            let fadeOut = SKAction.fadeOut(withDuration: ChainCommentaryPopup.fadeDuration)
+            container.run(SKAction.sequence([
+                delay,
+                fadeIn,
+                fadeOut,
+                SKAction.removeFromParent(),
+            ]))
+            return
         }
-        steps.append(grow)
-        steps.append(SKAction.group([shrink, fade]))
-        steps.append(SKAction.removeFromParent())
-        container.run(SKAction.sequence(steps))
+        container.setScale(ChainCommentaryPopup.startScale)
+        container.alpha = 1
+        let grow = SKAction.scale(to: 1.0, duration: ChainCommentaryPopup.growDuration)
+        grow.timingMode = .easeOut
+        let shrink = SKAction.scale(to: ChainCommentaryPopup.shrinkScale, duration: ChainCommentaryPopup.shrinkDuration)
+        shrink.timingMode = .easeIn
+        let fade = SKAction.fadeOut(withDuration: ChainCommentaryPopup.fadeDuration)
+        container.run(SKAction.sequence([
+            delay,
+            grow,
+            SKAction.group([shrink, fade]),
+            SKAction.removeFromParent(),
+        ]))
     }
 
     /// Fil chrome le long du plus court pont 8-connexe : faces externes + centres, fade dans la fenêtre des blox du chemin.
@@ -10711,16 +10818,29 @@ final class GameScene: SKScene {
             strip.addChild(crop)
         }
         addChild(strip)
-        let jitter = SKAction.repeatForever(
-            SKAction.customAction(withDuration: PendingLinePreviewFeedback.organicCycleDuration) { node, elapsed in
-                let t = CGFloat(elapsed)
-                let x1 = sin(t * 18.0) * PendingLinePreviewFeedback.jitterAmplitudeX
-                let x2 = sin(t * 7.3 + 1.2) * PendingLinePreviewFeedback.jitterAmplitudeX * 0.55
-                let y1 = cos(t * 15.5 + 0.7) * PendingLinePreviewFeedback.jitterAmplitudeY
-                node.position = CGPoint(x: x1 + x2, y: y1)
+        // Réduire les animations : la bande reste (l’info), sans tremblement ni respiration.
+        if !Self.prefersReducedMotion {
+            let jitter = SKAction.repeatForever(
+                SKAction.customAction(withDuration: PendingLinePreviewFeedback.organicCycleDuration) { node, elapsed in
+                    let t = CGFloat(elapsed)
+                    let x1 = sin(t * 18.0) * PendingLinePreviewFeedback.jitterAmplitudeX
+                    let x2 = sin(t * 7.3 + 1.2) * PendingLinePreviewFeedback.jitterAmplitudeX * 0.55
+                    let y1 = cos(t * 15.5 + 0.7) * PendingLinePreviewFeedback.jitterAmplitudeY
+                    node.position = CGPoint(x: x1 + x2, y: y1)
+                }
+            )
+            strip.run(jitter, withKey: Self.bottomLinePreviewJitterActionKey)
+            for crop in strip.children {
+                let swell = SKAction.scale(to: PendingLinePreviewFeedback.breathPeakScale, duration: PendingLinePreviewFeedback.breathHalfDuration)
+                swell.timingMode = .easeInEaseOut
+                let settle = SKAction.scale(to: 1, duration: PendingLinePreviewFeedback.breathHalfDuration)
+                settle.timingMode = .easeInEaseOut
+                crop.run(
+                    SKAction.repeatForever(SKAction.sequence([swell, settle])),
+                    withKey: Self.bottomLinePreviewBreathActionKey
+                )
             }
-        )
-        strip.run(jitter, withKey: Self.bottomLinePreviewJitterActionKey)
+        }
         if let incomingAttackPreview {
             if pvpIncomingAttackPreviewSoundPlayedForID != incomingAttackPreview.id {
                 pvpIncomingAttackPreviewSoundPlayedForID = incomingAttackPreview.id
@@ -10770,15 +10890,28 @@ final class GameScene: SKScene {
         let line = nextBottomLine
         nextBottomLine = nextBottomLineRowForSession()
 
-        // Fondu du strip de prévisualisation en même temps que les sprites commencent à monter :
-        // le jitter s'arrête et le strip disparaît doucement pendant les premiers instants du trajet,
-        // donnant l'impression que les blocs tremblotants s'élèvent directement.
+        // Le strip s’éteint tout de suite. Le plateau frémit, puis les sprites montent
+        // (le fondu donne l’impression que la bande part avec eux).
         if let strip = childNode(withName: Self.bottomLinePreviewStripName) {
             strip.removeAction(forKey: Self.bottomLinePreviewJitterActionKey)
+            for crop in strip.children {
+                crop.removeAction(forKey: Self.bottomLinePreviewBreathActionKey)
+            }
             strip.run(SKAction.sequence([
                 SKAction.fadeOut(withDuration: 0.15),
                 SKAction.removeFromParent(),
             ]))
+        }
+
+        // Frémissement de la grille avant le contact. Les sprites de ligne sont des enfants de la scène :
+        // seul le plateau bouge. Réduire les animations : pas d’attente, pas de montée.
+        let anticipate: TimeInterval = Self.prefersReducedMotion ? 0 : IncomingLinePushFeedback.anticipate
+        if anticipate > 0, let container = childNode(withName: Self.gridContainerName) {
+            let up = SKAction.moveBy(x: 0, y: IncomingLinePushFeedback.boardLift, duration: IncomingLinePushFeedback.liftOutDuration)
+            up.timingMode = .easeOut
+            let down = SKAction.moveBy(x: 0, y: -IncomingLinePushFeedback.boardLift, duration: IncomingLinePushFeedback.liftBackDuration)
+            down.timingMode = .easeIn
+            container.run(SKAction.sequence([up, down]), withKey: Self.incomingLineBoardLiftKey)
         }
 
         pendingGridWrite = .bottomLine(line: line, placements: placements)
@@ -10827,14 +10960,25 @@ final class GameScene: SKScene {
             unstretchY.timingMode = .easeIn
 
             // Traîne de paillettes pour chaque colonne de la ligne entrante.
-            run(makeTrailSpawnAction(riseDuration: duration,
-                                     pickColor: { Self.bloxTrailColor(for: block) },
-                                     trackedSprite: sprite))
+            // Même attente que le vol : pas de grains pendant que le sprite est encore immobile.
+            let trail = makeTrailSpawnAction(riseDuration: duration,
+                                             pickColor: { Self.bloxTrailColor(for: block) },
+                                             trackedSprite: sprite)
+            if anticipate > 0 {
+                run(SKAction.sequence([SKAction.wait(forDuration: anticipate), trail]))
+            } else {
+                run(trail)
+            }
 
             let endPoint = scenePointCellCenter(row: placement.row, column: col)
             let move = SKAction.move(to: endPoint, duration: duration)
             move.timingMode = .easeOut
-            sprite.run(SKAction.group([move, unstretchX, unstretchY]))
+            let travel = SKAction.group([move, unstretchX, unstretchY])
+            if anticipate > 0 {
+                sprite.run(SKAction.sequence([SKAction.wait(forDuration: anticipate), travel]))
+            } else {
+                sprite.run(travel)
+            }
         }
 
         let lineCopy = line
@@ -10842,6 +10986,8 @@ final class GameScene: SKScene {
 
         let finishInjection: () -> Void = { [weak self] in
             guard let self else { return }
+            // Avant `drawGrid`, qui recale le plateau : une action résiduelle le décalerait encore.
+            self.childNode(withName: Self.gridContainerName)?.removeAction(forKey: Self.incomingLineBoardLiftKey)
             self.playMatchSound(.line)
             self.hapticHeavy()
             for col in 0..<GridLayout.columnCount {
@@ -10899,7 +11045,7 @@ final class GameScene: SKScene {
 
         run(
             SKAction.sequence([
-                SKAction.wait(forDuration: duration),
+                SKAction.wait(forDuration: duration + anticipate),
                 SKAction.run { finishInjection() },
             ])
         )
@@ -10966,6 +11112,7 @@ final class GameScene: SKScene {
             let hasRoomElsewhere = (0..<GridLayout.columnCount).contains { $0 != columnIndex && !checkGameOver(forNormalDropInColumn: $0) }
             if hasRoomElsewhere {
                 playMatchSound(.wrong)
+                playLandingFeelHaptic(.wrong)
                 return
             }
             let losePoint = scenePointCellCenter(row: GridLayout.bottomRowIndex, column: columnIndex)
@@ -11059,8 +11206,9 @@ final class GameScene: SKScene {
             if self.pvpCoordinator == nil {
             }
             let placedAddress = GridAddress(row: row, col: columnIndex)
-            if let sfx = self.landingSoundForPlacedBlock(placedBlock, at: placedAddress) {
+            if let sfx = self.landingFeel(for: placedBlock, at: placedAddress) {
                 self.playMatchSound(sfx)
+                self.playLandingFeelHaptic(sfx)
             }
             self.selectedColumn = 3
             self.drawGrid(junctionFocus: GridPosition(row: row, col: columnIndex))
@@ -11069,11 +11217,20 @@ final class GameScene: SKScene {
             }
             self.updatePreviewSprite()
             // Bounce sur le sprite fraîchement créé par drawGrid.
-            if let container = self.childNode(withName: Self.gridContainerName),
-               let cell = container.childNode(withName: "cell_\(row)_\(columnIndex)") as? SKSpriteNode {
-                self.playLandingBounce(on: cell,
-                                       blockColor: Self.bloxTrailColor(for: placedBlock),
-                                       block: placedBlock)
+            // Les voisins bougent à part : le bounce écrit déjà `position` sur la case posée.
+            if let container = self.childNode(withName: Self.gridContainerName) {
+                if let cell = container.childNode(withName: "cell_\(row)_\(columnIndex)") as? SKSpriteNode {
+                    self.playLandingBounce(on: cell,
+                                           blockColor: Self.bloxTrailColor(for: placedBlock),
+                                           block: placedBlock)
+                }
+                self.nudgeNeighbors(
+                    aroundRow: row,
+                    column: columnIndex,
+                    amplitude: NeighborNudge.dropAmplitude,
+                    in: container,
+                    skipping: [placedAddress]
+                )
             }
             // Feedback qualité du coup (si disponible, mode solo uniquement).
             if let quality = self.analyzerPendingQuality {
@@ -14290,9 +14447,11 @@ final class GameScene: SKScene {
                     withKey: Self.previewBreathKey)
     }
 
-    /// Tremblement organique du bloc preview quand la ligne entrante est imminente (9e coup sur 10).
+    /// Tremblement organique du bloc preview quand la ligne entrante est imminente (dernier coup de la période).
     /// Même signature sin/cos que le jitter du strip de prévisualisation en bas.
+    /// Réduire les animations : on laisse la respiration calme.
     private func startPreviewJitter() {
+        guard !Self.prefersReducedMotion else { return }
         guard let preview = childNode(withName: Self.previewNodeName) as? SKSpriteNode,
               !preview.isHidden else { return }
         preview.removeAction(forKey: Self.previewBreathKey)
@@ -14541,13 +14700,16 @@ final class GameScene: SKScene {
     }
 
     /// Bounce + paillettes d’impact : cosmétique, ne retarde pas cascade / saisie.
+    /// Les blocs qui rebondissent ne reçoivent pas le coup de voisin (leur `position` est déjà animée).
     private func playCompactLandingJuice(riseMoves: [CompactRiseMove]) {
         guard let container = childNode(withName: Self.gridContainerName) else { return }
+        var arrivals = Set<GridAddress>()
         for move in riseMoves {
             let block = grid[move.toRow][move.column]
             guard block != .empty else { continue }
             let nodeName = "cell_\(move.toRow)_\(move.column)"
             guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
+            arrivals.insert(GridAddress(row: move.toRow, col: move.column))
             playLandingBounce(
                 on: sprite,
                 blockColor: Self.bloxTrailColor(for: block),
@@ -14555,6 +14717,115 @@ final class GameScene: SKScene {
                 actionKey: Self.compactLandingBounceKey
             )
         }
+        nudgeStationaryNeighborsOfCompactArrivals(arrivals, in: container)
+    }
+
+    /// Coup des 8 voisins. Même couleur de Blox : vers la case. Le reste : loin d’elle.
+    /// Même distance en diagonal qu’en orthogonal. Réduire les animations : rien.
+    /// La ligne entrante ne passe pas ici (ses cases rebondissent déjà).
+    private enum NeighborNudge {
+        static let dropAmplitude: CGFloat = 2
+        static let compactAmplitude: CGFloat = 1
+        static let outDuration: TimeInterval = 0.04
+        static let backDuration: TimeInterval = 0.06
+    }
+
+    /// Réglages iPhone, pas un réglage BLOMIX. Lu à chaque coup (le joueur peut le changer en partie).
+    private static var prefersReducedMotion: Bool {
+        UIAccessibility.isReduceMotionEnabled
+    }
+
+    private func nudgeNeighbors(
+        aroundRow row: Int,
+        column: Int,
+        amplitude: CGFloat,
+        in container: SKNode,
+        skipping: Set<GridAddress>
+    ) {
+        guard !Self.prefersReducedMotion else { return }
+        for dr in -1...1 {
+            for dc in -1...1 {
+                if dr == 0, dc == 0 { continue }
+                let nr = row + dr
+                let nc = column + dc
+                guard nr >= GridLayout.topRowIndex, nr < GridLayout.rowCount,
+                      nc >= 0, nc < GridLayout.columnCount else { continue }
+                let neighbor = GridAddress(row: nr, col: nc)
+                guard !skipping.contains(neighbor) else { continue }
+                guard grid[nr][nc] != .empty else { continue }
+                // +1 = loin, −1 = vers la case (même couleur). Ligne croissante vers le bas.
+                let sign: CGFloat = Self.blocksShareBloxColor(grid[nr][nc], grid[row][column]) ? -1 : 1
+                let rawX = CGFloat(nc - column) * sign
+                let rawY = CGFloat(row - nr) * sign
+                let len = hypot(rawX, rawY)
+                guard len > 0.01 else { continue }
+                nudgeGridSprite(
+                    row: nr,
+                    column: nc,
+                    dx: rawX / len * amplitude,
+                    dy: rawY / len * amplitude,
+                    in: container
+                )
+            }
+        }
+    }
+
+    /// Voisins immobiles autour des arrivées de compactage. Même couleur : vers l’arrivée.
+    /// Les autres : loin. Un voisin touché plusieurs fois ne part qu’une fois, direction moyenne.
+    private func nudgeStationaryNeighborsOfCompactArrivals(_ arrivals: Set<GridAddress>, in container: SKNode) {
+        guard !Self.prefersReducedMotion else { return }
+        guard !arrivals.isEmpty else { return }
+        var planned: [GridAddress: (CGFloat, CGFloat)] = [:]
+        for arrival in arrivals {
+            for dr in -1...1 {
+                for dc in -1...1 {
+                    if dr == 0, dc == 0 { continue }
+                    let nr = arrival.row + dr
+                    let nc = arrival.col + dc
+                    guard nr >= GridLayout.topRowIndex, nr < GridLayout.rowCount,
+                          nc >= 0, nc < GridLayout.columnCount else { continue }
+                    let neighbor = GridAddress(row: nr, col: nc)
+                    guard !arrivals.contains(neighbor) else { continue }
+                    guard grid[nr][nc] != .empty else { continue }
+                    let sign: CGFloat = Self.blocksShareBloxColor(
+                        grid[nr][nc],
+                        grid[arrival.row][arrival.col]
+                    ) ? -1 : 1
+                    var acc = planned[neighbor] ?? (0, 0)
+                    acc.0 += CGFloat(nc - arrival.col) * sign
+                    acc.1 += CGFloat(arrival.row - nr) * sign
+                    planned[neighbor] = acc
+                }
+            }
+        }
+        let amplitude = NeighborNudge.compactAmplitude
+        for (neighbor, acc) in planned {
+            let len = hypot(acc.0, acc.1)
+            guard len > 0.01 else { continue }
+            nudgeGridSprite(
+                row: neighbor.row,
+                column: neighbor.col,
+                dx: acc.0 / len * amplitude,
+                dy: acc.1 / len * amplitude,
+                in: container
+            )
+        }
+    }
+
+    private func nudgeGridSprite(row: Int, column: Int, dx: CGFloat, dy: CGFloat, in container: SKNode) {
+        guard let sprite = directGridCellSprite(in: container, row: row, column: column) else { return }
+        if sprite.action(forKey: Self.compactLandingBounceKey) != nil { return }
+        let out = SKAction.moveBy(x: dx, y: dy, duration: NeighborNudge.outDuration)
+        out.timingMode = .easeOut
+        let back = SKAction.moveBy(x: -dx, y: -dy, duration: NeighborNudge.backDuration)
+        back.timingMode = .easeIn
+        sprite.run(SKAction.sequence([out, back]), withKey: Self.neighborNudgeKey)
+    }
+
+    /// Deux Blox de la même couleur. Brix et Magix ne comptent pas comme une couleur.
+    private static func blocksShareBloxColor(_ a: BlockType, _ b: BlockType) -> Bool {
+        guard case .color(let left) = a, case .color(let right) = b else { return false }
+        return left == right
     }
 
     private func playLandingBounce(on sprite: SKSpriteNode,
@@ -15400,6 +15671,11 @@ final class GameScene: SKScene {
                 child.removeFromParent()
             }
         }
+        // Le voile de défaite reste sous l’overlay tant que la partie est finie.
+        // Une nouvelle grille (isGameOver redevenu faux) le retire.
+        if !isGameOver {
+            container.childNode(withName: Self.gameOverFocusDimName)?.removeFromParent()
+        }
         borderConnections.removeAll()
         diagonalConnections.removeAll()
         container.position = gridAreaCenter
@@ -15559,8 +15835,9 @@ final class GameScene: SKScene {
         lbl.text = "eval: \(score)"
     }
 
-    /// Met à jour le compteur "LIGNE x/10" en haut à gauche.
-    /// Couleurs : 0-5 gris, 6-8 orange, 9-10 rouge + shake.
+    /// Met à jour le compteur "LIGNE x/10" (x/5 en Five) en haut à gauche.
+    /// Période 10 : 0-5 gris, 6-8 orange, 9-10 rouge. Période 5 : 0-2 gris, 3 orange, 4-5 rouge.
+    /// Le dernier cran tremble de ±1 pt. Réduire les animations : la couleur reste, le tremblement non.
     private func refreshLigneCounterHUD() {
         guard !isStartScreen else { return }
         guard let caption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode,
@@ -15589,9 +15866,9 @@ final class GameScene: SKScene {
         }
 
         let shakeKey = "ligneShake"
-        if displayValue >= incomingLinePreviewRemainder {
+        if displayValue >= incomingLinePreviewRemainder, !Self.prefersReducedMotion {
             if value.action(forKey: shakeKey) == nil {
-                let dx: CGFloat = 2
+                let dx: CGFloat = 1
                 let dt: TimeInterval = 0.05
                 let shake = SKAction.repeatForever(SKAction.sequence([
                     SKAction.moveBy(x: -dx, y: 0, duration: dt),
@@ -16123,7 +16400,7 @@ final class GameScene: SKScene {
     private let hapticEngine      = UIImpactFeedbackGenerator(style: .medium)
     /// Générateur haptique `.heavy` pour les impacts percutants (explosion bombe).
     private let hapticHeavyEngine = UIImpactFeedbackGenerator(style: .heavy)
-    /// Générateur haptique `.light` pour les chaînes (action fréquente, toucher doux).
+    /// Générateur `.light` : repli du vocabulaire de pose / chaîne quand Core Haptics n’est pas là.
     private let hapticLightEngine = UIImpactFeedbackGenerator(style: .light)
 
     private func hapticSoft() {
@@ -16150,14 +16427,144 @@ final class GameScene: SKScene {
         }
     }
 
-    /// Retour haptique léger — déclenché à chaque création de chaîne.
-    private func hapticLight() {
+    /// Vocabulaire d’atterrissage. `hapticHeavy` (bombe, ligne, slam, game over) ne passe pas ici.
+    /// Réduire les animations ne coupe pas ces retours : le bouton haptique système est ailleurs.
+    private enum FeelHaptic {
+        case place, connectE, connectF, connectGb, magix, reject, chain
+
+        var coreEvents: [CHHapticEvent] {
+            func transient(_ intensity: Float, _ sharpness: Float, at time: TimeInterval) -> CHHapticEvent {
+                CHHapticEvent(
+                    eventType: .hapticTransient,
+                    parameters: [
+                        CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
+                        CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
+                    ],
+                    relativeTime: time
+                )
+            }
+            switch self {
+            case .place:
+                return [transient(0.32, 0.20, at: 0)]
+            case .connectE:
+                return [transient(0.42, 0.36, at: 0)]
+            case .connectF:
+                return [transient(0.55, 0.50, at: 0)]
+            case .connectGb:
+                return [transient(0.70, 0.66, at: 0)]
+            case .magix:
+                return [transient(0.60, 0.55, at: 0)]
+            case .reject:
+                return [transient(0.36, 0.06, at: 0)]
+            case .chain:
+                return [transient(0.48, 0.40, at: 0), transient(0.82, 0.78, at: 0.04)]
+            }
+        }
+    }
+
+    private var feelHapticEngine: CHHapticEngine?
+    private var feelHapticEngineRunning = false
+
+    private func warmFeelHapticEngine() {
+        _ = playCoreFeelHaptic(.place, dryRun: true)
+    }
+
+    private func playLandingFeelHaptic(_ sfx: BlomixMatchSFX) {
+        let kind: FeelHaptic?
+        switch sfx {
+        case .place: kind = .place
+        case .connectE: kind = .connectE
+        case .connectF: kind = .connectF
+        case .connectGb: kind = .connectGb
+        case .magix: kind = .magix
+        case .wrong: kind = .reject
+        default: kind = nil
+        }
+        guard let kind else { return }
+        playFeelHaptic(kind)
+    }
+
+    private func playChainFeelHaptic() {
+        playFeelHaptic(.chain)
+    }
+
+    private func playFeelHaptic(_ kind: FeelHaptic) {
         if Thread.isMainThread {
-            hapticLightEngine.impactOccurred()
-            hapticLightEngine.prepare()
+            if !playCoreFeelHaptic(kind, dryRun: false) {
+                playFeelHapticFallback(kind)
+            }
         } else {
             DispatchQueue.main.async { [weak self] in
-                self?.hapticLightEngine.impactOccurred()
+                guard let self else { return }
+                if !self.playCoreFeelHaptic(kind, dryRun: false) {
+                    self.playFeelHapticFallback(kind)
+                }
+            }
+        }
+    }
+
+    /// `dryRun` ne joue rien : il démarre le moteur pour que le premier vrai coup parte tout de suite.
+    private func playCoreFeelHaptic(_ kind: FeelHaptic, dryRun: Bool) -> Bool {
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return false }
+        if attemptCoreFeelHaptic(kind, dryRun: dryRun) { return true }
+        feelHapticEngine = nil
+        feelHapticEngineRunning = false
+        return attemptCoreFeelHaptic(kind, dryRun: dryRun)
+    }
+
+    private func attemptCoreFeelHaptic(_ kind: FeelHaptic, dryRun: Bool) -> Bool {
+        let engine: CHHapticEngine
+        if let feelHapticEngine {
+            engine = feelHapticEngine
+        } else if let created = try? CHHapticEngine() {
+            created.playsHapticsOnly = true
+            created.isAutoShutdownEnabled = true
+            feelHapticEngine = created
+            engine = created
+        } else {
+            return false
+        }
+        do {
+            if !feelHapticEngineRunning {
+                try engine.start()
+                feelHapticEngineRunning = true
+            }
+            if dryRun { return true }
+            let pattern = try CHHapticPattern(events: kind.coreEvents, parameters: [])
+            let player = try engine.makePlayer(with: pattern)
+            try player.start(atTime: CHHapticTimeImmediate)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Secours si le téléphone n’a pas de Taptic Engine (simulateur). Pas le vocabulaire bombe / ligne.
+    private func playFeelHapticFallback(_ kind: FeelHaptic) {
+        switch kind {
+        case .place:
+            hapticLightEngine.impactOccurred(intensity: 0.40)
+            hapticLightEngine.prepare()
+        case .connectE:
+            hapticLightEngine.impactOccurred(intensity: 0.55)
+            hapticLightEngine.prepare()
+        case .connectF:
+            hapticEngine.impactOccurred(intensity: 0.50)
+            hapticEngine.prepare()
+        case .connectGb:
+            hapticEngine.impactOccurred(intensity: 0.75)
+            hapticEngine.prepare()
+        case .magix:
+            hapticEngine.impactOccurred(intensity: 0.65)
+            hapticEngine.prepare()
+        case .reject:
+            hapticLightEngine.impactOccurred(intensity: 0.35)
+            hapticLightEngine.prepare()
+        case .chain:
+            hapticLightEngine.impactOccurred(intensity: 0.55)
+            hapticLightEngine.prepare()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) { [weak self] in
+                self?.hapticLightEngine.impactOccurred(intensity: 0.90)
                 self?.hapticLightEngine.prepare()
             }
         }
@@ -16291,10 +16698,10 @@ final class GameScene: SKScene {
     /// Construit (ou reconstruit) le nœud ghost pour la colonne donnée :
     /// cases vides en surbrillance thème + sprite semi-transparent du bloc courant à l'atterrissage.
     ///
-    /// Même recette que `drawGrid` : `SKSpriteNode(color:)`. Pas de `SKShapeNode` (souvent
-    /// muet après un arrière-plan) et pas de `SKTexture` statique : une texture UIGraphics
-    /// créée une fois reste blanche jusqu’au prochain lancement. L’accueil puis Continuer
-    /// gardent le même processus, donc la même texture morte.
+    /// Même recette que `drawGrid` : `SKSpriteNode(color:)`.
+    /// Pas de `SKShapeNode` (souvent muet après un arrière-plan) et pas de `SKTexture`
+    /// statique : une texture UIGraphics créée une fois reste blanche jusqu’au prochain
+    /// lancement. L’accueil puis Continuer gardent le même processus, donc la même texture morte.
     private func showGhostPreview(column: Int) {
         childNode(withName: Self.ghostContainerName)?.removeFromParent()
         guard !isProcessing, !isGameOver, !isStartScreen else { return }

@@ -44,6 +44,7 @@ Toute la documentation est dans le dossier [`docs/`](docs/README.md) :
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
 | [docs/SPEC_6.4.md](docs/SPEC_6.4.md) | Cahier 6.4 (build 118) |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Conventions de contribution et maintenance doc |
+| [docs/EVALUATION_EDITEUR.md](docs/EVALUATION_EDITEUR.md) | Évaluation éditeur (12 novembre 2026) |
 
 Politique de confidentialité : [docs/privacy-policy.html](docs/privacy-policy.html)
 

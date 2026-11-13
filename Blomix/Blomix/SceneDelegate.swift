@@ -29,6 +29,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
+        BlomixTelemetry.noteBecameActive()
         BlomixWatchScoreInbox.shared.activate()
         // Secours si `willConnect` n’avait pas encore de `rootViewController` (ordre de callbacks / storyboard).
         guard let windowScene = scene as? UIWindowScene,
@@ -36,5 +37,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         ScoreManager.shared.authenticateOnLaunch(from: root)
         // Filet hors ligne → GC : hiscores Solo/Zen locaux + pending + moyenne (throttle interne).
         ScoreManager.shared.syncScoresWithGameCenterIfPossible(reason: "scene_did_become_active")
+    }
+
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        BlomixTelemetry.noteEnteredBackground()
     }
 }

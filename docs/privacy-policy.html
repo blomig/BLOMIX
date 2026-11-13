@@ -100,7 +100,7 @@
     <section class="card">
       <h1>Blomix Privacy Policy / Politique de confidentialité</h1>
       <p class="muted">
-        Last updated / Dernière mise à jour: April 20, 2026
+        Last updated / Dernière mise à jour: November 13, 2026
       </p>
       <p>
         This page contains the privacy policy for the Blomix mobile game in English and French.
@@ -133,6 +133,29 @@
       </ul>
       <p>
         This local data is stored on your device to make the game function correctly and preserve your preferences.
+      </p>
+
+      <h3>Anonymous usage measurement</h3>
+      <p>
+        If iCloud is available, Blomix may send small batches of play events to the public CloudKit database of the
+        container the game already uses (<code>iCloud.blomig.BLOMIX</code>, record type <code>TelemetryBatch</code>).
+        There is no third-party analytics SDK and no advertising identifier (no IDFA).
+      </p>
+      <p>A batch can include:</p>
+      <ul>
+        <li>a random install identifier created on the device (not your name, email, or Game Center id);</li>
+        <li>the first launch of this measurement;</li>
+        <li>the start of a session, when the app returns to the foreground;</li>
+        <li>the end of a game: mode and, when the start was seen, duration in seconds;</li>
+        <li>that a new daily challenge was started, with the UTC day and which daily (Arcade or Five);</li>
+        <li>the app version and the language code, on the batch only.</li>
+      </ul>
+      <p>
+        Events stay on the device until a silent upload succeeds. If you are offline, if iCloud is off, or if the
+        record type is not deployed yet, nothing is shown and play is unchanged. The developer does not sell this
+        data and does not use it to track you across other companies' apps or websites. CloudKit still marks the
+        record with the iCloud account that created it. Other players cannot read these records when the console
+        permissions are set to create-only. Details for the developer: the file <code>TELEMETRY.md</code> next to this page.
       </p>
 
       <h3>2. Game Center</h3>
@@ -229,6 +252,30 @@
       <p>
         Ces données locales sont stockées sur votre appareil afin d'assurer le bon fonctionnement du jeu et de
         conserver vos préférences.
+      </p>
+
+      <h3>Mesure anonyme d'usage</h3>
+      <p>
+        Si iCloud est disponible, Blomix peut envoyer de petits lots d'événements de jeu vers la base CloudKit
+        publique du conteneur déjà utilisé par le jeu (<code>iCloud.blomig.BLOMIX</code>, type
+        <code>TelemetryBatch</code>). Il n'y a pas de SDK d'analyse tiers et pas d'identifiant publicitaire (pas d'IDFA).
+      </p>
+      <p>Un lot peut contenir :</p>
+      <ul>
+        <li>un identifiant d'installation aléatoire créé sur l'appareil (pas votre nom, votre e-mail, ni votre identifiant Game Center) ;</li>
+        <li>le premier lancement de cette mesure ;</li>
+        <li>le début d'une session, quand l'app revient au premier plan ;</li>
+        <li>la fin d'une partie : le mode et, si le début a été vu, la durée en secondes ;</li>
+        <li>le démarrage d'un nouveau défi du jour, avec le jour UTC et lequel (Arcade ou Five) ;</li>
+        <li>la version de l'app et le code de langue, sur le lot seulement.</li>
+      </ul>
+      <p>
+        Les événements restent sur l'appareil tant qu'un envoi silencieux n'a pas réussi. Hors ligne, sans iCloud,
+        ou si le type d'enregistrement n'est pas encore déployé, rien ne s'affiche et la partie ne change pas.
+        Le développeur ne vend pas ces données et ne s'en sert pas pour vous suivre d'une app ou d'un site d'une
+        autre société à l'autre. CloudKit marque toutefois l'enregistrement avec le compte iCloud qui l'a créé.
+        Les autres joueurs ne peuvent pas lire ces lots lorsque les droits de la console sont limités à la création.
+        Le détail pour le développeur est dans le fichier <code>TELEMETRY.md</code> à côté de cette page.
       </p>
 
       <h3>2. Game Center</h3>

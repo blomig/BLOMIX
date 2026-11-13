@@ -3749,6 +3749,11 @@ final class GameScene: SKScene {
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+        BlomixTelemetry.noteGameBegan(mode: telemetryModeLabel())
+        BlomixTelemetry.noteDailyPlayed(
+            mode: kind == .five ? "daily_five" : "daily_arcade",
+            utcDay: locked.day
+        )
         if isInStagedSoloMode {
             startStagedSoloSession()
         } else if isFiveMode {
@@ -3804,6 +3809,7 @@ final class GameScene: SKScene {
         refreshGameCenterStatusLabelText()
 
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+        BlomixTelemetry.noteGameBegan(mode: telemetryModeLabel())
 
         // Mode solo (hors tutoriel) : overlay Stage 1 + démarrage du timer.
         if isInStagedSoloMode {
@@ -3840,6 +3846,7 @@ final class GameScene: SKScene {
         refreshGameCenterStatusLabelText()
 
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+        BlomixTelemetry.noteGameBegan(mode: "zen")
 
         startZenSession()
     }
@@ -3887,6 +3894,7 @@ final class GameScene: SKScene {
         refreshGameCenterStatusLabelText()
 
         NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+        BlomixTelemetry.noteGameBegan(mode: "five")
 
         startFiveSession()
     }
@@ -5512,6 +5520,16 @@ final class GameScene: SKScene {
         ]))
     }
 
+    /// Libellé stable pour la mesure. Pas une chaîne joueur.
+    private func telemetryModeLabel() -> String {
+        if isTutorialMode { return "tutorial" }
+        if pvpCoordinator != nil { return "duel" }
+        if isDailyChallengeMode { return isFiveMode ? "daily_five" : "daily_arcade" }
+        if isFiveMode { return "five" }
+        if isZenMode { return "zen" }
+        return "arcade"
+    }
+
     /// Arcade, Zen, Five neuves seulement. Le Défi partage une file seedée : un BOMBX forcé fausserait le classement.
     /// Le tutoriel a une file scriptée. Le Duel et tout `pvpCoordinator` sont exclus. La reprise ne passe pas ici.
     private func grantPendingMagixBAsFirstBlockIfEligible() -> Bool {
@@ -5635,6 +5653,7 @@ final class GameScene: SKScene {
             noteTrophiesAtGameOver(finalScore: finalScore)
             BlomixPlayerSurvey.recordCompletedGame()
         }
+        BlomixTelemetry.noteGameEnded(mode: telemetryModeLabel())
 
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
         if let preview = childNode(withName: Self.previewNodeName) {
@@ -19619,6 +19638,7 @@ final class GameScene: SKScene {
         blomixPvP_refreshOpponentHudLabel()
 
         resetSessionModelForNewMatch()
+        BlomixTelemetry.noteGameBegan(mode: "duel")
         isGameOver = false
         isProcessing = false
         isInjectingBottomRandomLine = false
@@ -19997,6 +20017,7 @@ final class GameScene: SKScene {
     }
 
     private func blomixPvP_showPvPResult(didWin: Bool) {
+        BlomixTelemetry.noteGameEnded(mode: "duel")
         if let coordinator = pvpCoordinator {
             BlomixTrophyStore.shared.noteDuelFinished(didWin: didWin)
             if didWin {

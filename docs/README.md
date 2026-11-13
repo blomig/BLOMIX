@@ -47,6 +47,7 @@
 | [SPEC_6.4.md](SPEC_6.4.md) | Cahier 6.4 / build 118 (accueil, HUD, guide) |
 | [SPEC_6.7.md](SPEC_6.7.md) | Cahier 6.7 / build 127 (chrome tactile : puits + capsule) |
 | [privacy-policy.html](privacy-policy.html) | Politique de confidentialité (FR/EN) |
+| [TELEMETRY.md](TELEMETRY.md) | Mesure anonyme : schéma CloudKit `TelemetryBatch` et étiquette App Privacy |
 
 ---
 

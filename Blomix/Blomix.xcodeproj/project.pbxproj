@@ -44,7 +44,6 @@
 		10000000000000000000015B /* line_new.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008B /* line_new.mp3 */; };
 		10000000000000000000015C /* place.wav in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008C /* place.wav */; };
 		10000000000000000000015D /* place_new.wav in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008D /* place_new.wav */; };
-		10000000000000000000015E /* BitcountGridSingleInk-Variable.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */; };
 		100000000000000000000165 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* SceneDelegate.swift */; };
 		100000000000000000000171 /* GameCenterManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000170 /* GameCenterManager.swift */; };
 		100000000000000000000173 /* GameKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 100000000000000000000172 /* GameKit.framework */; };
@@ -75,8 +74,6 @@
 		1000000000000000000002A1 /* Nunito-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002A0 /* Nunito-Regular.ttf */; };
 		1000000000000000000002A3 /* Nunito-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002A2 /* Nunito-Medium.ttf */; };
 		1000000000000000000002A5 /* Nunito-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000002A4 /* Nunito-SemiBold.ttf */; };
-		1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C4 /* DynaPuff-Regular.ttf */; };
-		1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */; };
 		1000000000000000000001C9 /* BlomixMusicPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001C8 /* BlomixMusicPlayer.swift */; };
 		1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CA /* Puzzle Game 2.mp3 */; };
 		1000000000000000000001CD /* BlomixAmbientBlocksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001CC /* BlomixAmbientBlocksView.swift */; };
@@ -154,7 +151,6 @@
 		10000000000000000000008B /* line_new.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = line_new.mp3; sourceTree = "<group>"; };
 		10000000000000000000008C /* place.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = place.wav; sourceTree = "<group>"; };
 		10000000000000000000008D /* place_new.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = place_new.wav; sourceTree = "<group>"; };
-		10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BitcountGridSingleInk-Variable.ttf"; sourceTree = "<group>"; };
 		100000000000000000000096 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		10000000000000000000009F /* 5251__noisecollector__bloopa01.aiff */ = {isa = PBXFileReference; lastKnownFileType = audio.aiff; path = 5251__noisecollector__bloopa01.aiff; sourceTree = "<group>"; };
 		1000000000000000000000A0 /* chain_new-1.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "chain_new-1.wav"; sourceTree = "<group>"; };
@@ -191,8 +187,6 @@
 		1000000000000000000002A0 /* Nunito-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-Regular.ttf"; sourceTree = "<group>"; };
 		1000000000000000000002A2 /* Nunito-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-Medium.ttf"; sourceTree = "<group>"; };
 		1000000000000000000002A4 /* Nunito-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Nunito-SemiBold.ttf"; sourceTree = "<group>"; };
-		1000000000000000000001C4 /* DynaPuff-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "DynaPuff-Regular.ttf"; sourceTree = "<group>"; };
-		1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "AlfaSlabOne-Regular.ttf"; sourceTree = "<group>"; };
 		1000000000000000000001C8 /* BlomixMusicPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixMusicPlayer.swift; sourceTree = "<group>"; };
 		1000000000000000000001CA /* Puzzle Game 2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "Puzzle Game 2.mp3"; sourceTree = "<group>"; };
 		1000000000000000000001CC /* BlomixAmbientBlocksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAmbientBlocksView.swift; sourceTree = "<group>"; };
@@ -403,13 +397,10 @@
 				100000000000000000000195 /* credits.txt */,
 				10000000000000000000018A /* Localizable.strings */,
 				100000000000000000000231 /* InfoPlist.strings */,
-				10000000000000000000008E /* BitcountGridSingleInk-Variable.ttf */,
 				1000000000000000000001C2 /* GoogleSans-Regular.ttf */,
 				1000000000000000000002A0 /* Nunito-Regular.ttf */,
 				1000000000000000000002A2 /* Nunito-Medium.ttf */,
 				1000000000000000000002A4 /* Nunito-SemiBold.ttf */,
-				1000000000000000000001C4 /* DynaPuff-Regular.ttf */,
-				1000000000000000000001C6 /* AlfaSlabOne-Regular.ttf */,
 				100000000000000000000004 /* Info.plist */,
 				1000000000000000000000A4 /* Blomix.entitlements */,
 				1000000000000000000000A6 /* BlomixRelease.entitlements */,
@@ -745,13 +736,10 @@
 				100000000000000000000188 /* color_skins.json in Resources */,
 				100000000000000000000189 /* Localizable.strings in Resources */,
 				100000000000000000000230 /* InfoPlist.strings in Resources */,
-				10000000000000000000015E /* BitcountGridSingleInk-Variable.ttf in Resources */,
 				1000000000000000000001C3 /* GoogleSans-Regular.ttf in Resources */,
 				1000000000000000000002A1 /* Nunito-Regular.ttf in Resources */,
 				1000000000000000000002A3 /* Nunito-Medium.ttf in Resources */,
 				1000000000000000000002A5 /* Nunito-SemiBold.ttf in Resources */,
-				1000000000000000000001C5 /* DynaPuff-Regular.ttf in Resources */,
-				1000000000000000000001C7 /* AlfaSlabOne-Regular.ttf in Resources */,
 				E3C896142FFC2EBA003991E8 /* cleanx.wav in Resources */,
 				E3C896152FFC2EBA003991E8 /* scrumblx.wav in Resources */,
 				1000000000000000000001CB /* Puzzle Game 2.mp3 in Resources */,

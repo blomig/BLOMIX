@@ -7,7 +7,7 @@
 //  Textures PNG : catalogue `Assets.xcassets` → groupe « WebImages » (bombe, écrans, etc.).
 //  Blox couleur + Priks : carrés **générés** (SKSpriteNode couleur unie), mêmes hexa que les jonctions (+ teinte Priks).
 //  Pas de SKTexture statique : une texture UIGraphics reste blanche après un passage en arrière-plan.
-//  Sons : ressources « Sounds » du projet, copiées à la racine du bundle (`begin.wav`, `empty_coll.wav`, `.aiff`, …) ; police `BitcountGridSingleInk-Variable.ttf` via UIAppFonts.
+//  Sons : ressources « Sounds » du projet, copiées à la racine du bundle (`begin.wav`, `empty_coll.wav`, `.aiff`, …).
 //
 
 import AVFoundation

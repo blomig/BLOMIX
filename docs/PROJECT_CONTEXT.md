@@ -403,6 +403,17 @@ Deux visages figés (plus de picker joueur) :
 | Display / grille | Changa One | Titres, gros score, overlays, record, Brix, Magix, COMBO, `+N` |
 | Chrome | Nunito Regular / Medium / SemiBold | Micro-captions / corps / chips |
 
+Licences lues dans la table `name` des fichiers (13 nov. 2026), pas d’un catalogue externe :
+
+| Fichier | Rôle | Licence |
+|---|---|---|
+| `ChangaOne-Regular.ttf` | PostScript `ChangaOne`, enregistré à la main (`GameViewController`) | SIL OFL 1.1. Copyright 2011 Eduardo Tunni. Reserved Font Name « Changa ». |
+| `ChangaOne-Italic.ttf` | `UIAppFonts` | SIL OFL 1.1, même auteur et même nom réservé. |
+| `Nunito-Regular.ttf`, `Nunito-Medium.ttf`, `Nunito-SemiBold.ttf` | `UIAppFonts`. Corps : Regular sous 13 pt, SemiBold si graisse ≥ semibold, sinon Medium | SIL OFL 1.1. Copyright 2014 The Nunito Project Authors. Vernon Adams. |
+| `GoogleSans-Regular.ttf` | `UIAppFonts` seulement. `BlomixTypography` ne demande pas ce visage (le chrome est Nunito) | SIL OFL 1.1. Copyright 2025 The Google Sans Project Authors (`github.com/googlefonts/googlesans`). |
+
+Retirés du target et du dépôt, parce qu’aucun code, aucun `UIAppFonts` et aucun `BlomixTypography` ne les chargeait : Alfa Slab One, Bitcount Grid Single Ink, DynaPuff (ils étaient encore copiés dans le bundle), Londrina Shadow et Early GameBoy (`gameboy.ttf`, absents du projet Xcode). L’archive `old_web_code/priks.html` cite encore `gameboy.ttf` à côté d’elle ; ce fichier n’y est pas. Les clés `settings.font.*` restent : plus aucun écran ne les lit.
+
 ### Skins couleur
 
 `color_skins.json` — skin Default + Perso (couleurs custom). Indépendant du thème chrome.

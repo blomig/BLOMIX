@@ -36,6 +36,7 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Justesse** : sous le pourcentage, « Les Magix ne sont pas notés » (6 langues). Le calcul est inchangé : Magix et bombes restent hors note.
 - **Mesure anonyme** : file locale et envoi groupé CloudKit public `TelemetryBatch` (premier lancement, session, fin de partie avec mode et durée, défi du jour commencé). Pas d’IDFA, pas d’identifiant Game Center, pas de SDK tiers. Hors ligne ou schéma absent : rien ne s’affiche. Schéma et étiquette : [TELEMETRY.md](TELEMETRY.md). Politique FR/EN mise à jour.
 - **Tests de référence** : `swift test` (moteur Watch + `BlomixDailyRNG`, graines fixes) et cible `BlomixReferenceTests` (`BlomixMoveAnalyzer`, hébergée par l’app). `GameScene` n’est pas modifié pour ces tests. Voir [DEVELOPMENT.md](DEVELOPMENT.md).
+- **Polices** : retirées du bundle et du dépôt Alfa Slab One, Bitcount, DynaPuff, Londrina Shadow et Early GameBoy (`gameboy.ttf`). Conservées, SIL OFL 1.1 (table `name` des fichiers) : Changa One Regular + Italic (Eduardo Tunni, nom réservé « Changa »), Nunito Regular / Medium / SemiBold (Vernon Adams), Google Sans Regular (enregistrée, le chrome reste Nunito). Détail : [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 
 ---
 

@@ -27,6 +27,7 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Air de gravité** : en partie, jusqu’à 4 grains lents (couleur skin) montent dans les trous, sous les blox. Ils ne scorent pas. Absents à l’accueil, en fin de partie, et si Réduire les animations.
 - **Toast trophée** : anneau, point et libellé Nunito, à la même place. Réduire les animations : fondu sans scale de l’anneau.
 - **Vol** : un Magix, et tout bloc lâché après l’appui long de la colonne ghost, fait un tour sur lui-même pendant la montée (sens au hasard) et arrive droit. Tap court, ghost du timer et bombe inchangés. Réduire les animations : pas de tour.
+- **Copie** : clés FR du tutoriel interactif dédoublonnées (le texte déjà effectif reste : « Tape sur une colonne… », bombe qui casse blox et Brix). Accents et « Tape » à la place de « Cliques ». Libellé son FR/EN : Brix, comme DE/ES/IT/PT. `rules.txt` (plus affiché) : Prix → Brix.
 
 ---
 

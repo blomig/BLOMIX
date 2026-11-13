@@ -191,22 +191,22 @@
 "settings.music_track_puzzle_game2" = "Puzzle Game 2";
 "settings.music_track_calm" = "Calm";
 "settings.sound.pending_line" = "Alerte prochaine ligne";
-"settings.sound.priks_vanish" = "Disparition Priks";
+"settings.sound.priks_vanish" = "Disparition Brix";
 
 "tutorial.got_it" = "J’ai compris";
 "tutorial.dont_show_again" = "Afficher ce guide au démarrage";
 "tutorial.hint_score" = "Ton score";
-"tutorial.hint_grid" = "Cliques sur une colonne pour y lancer un blox. Le but est de faire des chaînes de 5 blox de même couleur.";
-"tutorial.hint_brix" = "De temps en temps, un blox spécial apparait (une brix) comportant un numéro. Cette brix ne disparait pas de la même manière, il faut faire des chaînes à proximité (5) pour faire diminuer le chiffre peu à peu...";
+"tutorial.hint_grid" = "Tape sur une colonne pour y lancer un blox. Le but est de faire des chaînes de 5 blox de même couleur.";
+"tutorial.hint_brix" = "De temps en temps, un blox spécial apparaît (un Brix) comportant un numéro. Ce Brix ne disparaît pas de la même manière, il faut faire des chaînes à proximité (5) pour faire diminuer le chiffre peu à peu...";
 "tutorial.hint_queue" = "Ici les prochains blox que tu pourras lancer. Tous les 10 blox lancés, une ligne vient perturber tes constructions.";
 "tutorial.hint_bomb" = "Tu peux jouer une bombe s'il t'en reste. Ça éclate une grosse zone !";
 "rules.show_guides_at_start" = "Afficher les guides au démarrage de la partie";
 "tutorial.page1_title" = "But du jeu";
 "tutorial.page1_body" = "Le but du jeu est de faire le plus gros score. Pour marquer des points, il faut utiliser les blox (pierres de couleur), et réussir à les placer dans la grille (du bas vers le haut), de manière à faire des \"chaînes\" de 5 blox de la même couleur. Les chaînes ainsi formées donnent des points, et disparaissent, laissant de la place pour les blox suivants.";
-"tutorial.page1_chain_caption" = "= chaine → points !";
+"tutorial.page1_chain_caption" = "= chaîne → points !";
 "tutorial.page2_title" = "Pas si facile !";
 "tutorial.page2_body" = "Le jeu serait un peu trop simple s’il fallait simplement faire des chaînes de couleur. Tous les 10 blox, une ligne de blox aléatoire va venir perturber vos beaux alignements. Et, le meilleur pour la fin, vous avez une chance sur 8 qu’un blox mute avant de pouvoir être lancé, et devienne une Brix. Cette pierre un peu spéciale, avec un numéro, ne peut pas être cassée comme les autres. Il faut faire des chaînes à proximité (5) pour la faire disparaître. Heureusement, vous disposez de bombes (une bombe en début de partie, et une nouvelle toutes les 10 chaînes créées) : une bombe casse les 9 cases autour de sa case d’impact, et casse les Brix d’un coup !";
-"tutorial.page3_title" = "A vous de jouer !";
+"tutorial.page3_title" = "À vous de jouer !";
 "tutorial.page3_body" = "Un petit bonus vous sera accordé si vous avez plus de Brix que la moyenne statistique. Ce n'est pas grand-chose, mais ça vous évitera de blâmer le sort ;).
 
 N'oubliez pas d'essayer le jeu en Player Vs Player : les règles sont identiques, mais tous les 50 points réalisés, vous \"envoyez\" une ligne de blox à l’autre joueur. Le vainqueur est celui qui parvient à rester en vie.
@@ -233,19 +233,6 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "update.banner_available" = "Version %@ disponible — Mettre à jour ↗";
 
 "pvp.leaderboard_invite_not_recent_player" = "Game Center ne permet d'inviter que des joueurs avec qui vous avez récemment joué. Utilisez la recherche automatique PvP pour rencontrer ce joueur.";
-
-"menu.tutorial" = "Tutoriel";
-"tutorial.skip" = "Passer";
-"tutorial.intro_text" = "Tape pour placer les blox";
-"tutorial.chain_prompt" = "Fais une chaîne de 5 blox de même couleur";
-"tutorial.chain_hint" = "Essaye avec les bleus ↓";
-"tutorial.chain_success" = "Super ! 5 blox = effacés !";
-"tutorial.brix_prompt" = "Les Brix sont plus résistants";
-"tutorial.brix_hint" = "Fais des chaînes à côté pour les faire baisser";
-"tutorial.brix_success" = "Super ! Le Brix se rapproche de la disparition !";
-"tutorial.bomb_prompt" = "Tape sur une case pour poser la bombe !";
-"tutorial.bomb_hint" = "Active-la puis vise une colonne";
-"tutorial.bomb_success" = "Super ! Tu sais tout — bonne partie !";
 
 "menu.tutorial" = "Tutoriel";
 "tutorial.skip" = "Passer";

@@ -191,7 +191,7 @@
 "settings.music_track_puzzle_game2" = "Puzzle Game 2";
 "settings.music_track_calm" = "Calm";
 "settings.sound.pending_line" = "Next line warning";
-"settings.sound.priks_vanish" = "Priks vanish";
+"settings.sound.priks_vanish" = "Brix vanish";
 
 "tutorial.got_it" = "Got it";
 "tutorial.dont_show_again" = "Show this guide at startup";

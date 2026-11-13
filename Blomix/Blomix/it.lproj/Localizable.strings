@@ -202,13 +202,9 @@
 "tutorial.page1_body" = "L'obiettivo è il punteggio più alto. Piazza blox (pietre colorate) nella griglia (dal basso verso l'alto) e forma «catene» di 5 blox dello stesso colore. Le catene danno punti e scompaiono, lasciando spazio ai successivi.";
 "tutorial.page1_chain_caption" = "= catena → punti!";
 "tutorial.page2_title" = "Non così facile!";
-"tutorial.page2_body" = "Sarebbe troppo facile se bastassero le catene di colore. Ogni 10 blox entra una linea casuale che altera la costruzione. E il meglio: 1 volta su 8 un blox muta prima di essere piazzato e diventa un Brix. Questa pietra numerata non si elimina come le altre: fai catene vicino (5) per farla sparire. Per fortuna hai le bombe (una all'inizio, e una nuova ogni 10 catene): una bomba distrugge le 9 caselle intorno all'impatto e elimina i Brix in un colpo.";
+"tutorial.page2_body" = "Ogni 10 blox che piazzi, sale una linea casuale e scompiglia la griglia (ogni 5 in Five). Piazzare una bomba non conta: il contatore della linea non avanza.\n\n1 blox su 8 diventa un Brix. Una catena accanto gli toglie 1 a ogni ondata. A 0, sparisce.\n\nInizi con 5 bombe (3 in Duel). Non si ricaricano ogni 10 catene. In Zen, Five, Duel e in questa guida l’esplosione è un quadrato 3×3 e distrugge i Brix in quella zona. In Arcade, lo stage 1 è anch’esso 3×3, poi la zona si allunga a croce. Un BOMBX può restituirtene una.";
 "tutorial.page3_title" = "Tocca a te!";
-"tutorial.page3_body" = "Un piccolo bonus se hai più Brix della media statistica. Non è molto, ma ti evita di incolpare il destino ;).
-
-Prova la modalità PvP: stesse regole, ma ogni 50 punti «invii» una linea di blox all'avversario. Vince l'ultimo in piedi.
-
-In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
+"tutorial.page3_body" = "In Duel, le regole della griglia sono le stesse. Ogni 50 punti mandi una linea all’altro giocatore. Vince chi resta in gioco.\n\nNelle impostazioni puoi cambiare colori e suoni.";
 
 "pvp.mode_choice_hint" = "Come vuoi giocare?";
 "pvp.mode_auto_desc" = "Pronto a giocare";

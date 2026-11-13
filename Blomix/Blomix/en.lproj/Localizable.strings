@@ -205,13 +205,9 @@
 "tutorial.page1_body" = "The goal of the game is to get the highest score. To score points, use blox (coloured stones) and place them into the grid (from the bottom up) to form \"chains\" of 5 blox of the same colour. The chains score points and vanish, making room for the next blox.";
 "tutorial.page1_chain_caption" = "= chain → points!";
 "tutorial.page2_title" = "Not that easy!";
-"tutorial.page2_body" = "The game would be too easy if all you had to do was make colour chains. Every 10 blox, a random line drops in and disrupts your stack. And best of all: there is a 1-in-8 chance that a blox mutates before you can launch it and becomes a Brix. This special stone, marked with a number, cannot be cleared like the others — you need to form chains nearby (5) to make it disappear. Fortunately you have bombs (one at the start, and a new one every 10 chains): a bomb destroys the 9 cells around its impact point and clears Brix in one hit!";
+"tutorial.page2_body" = "Every 10 blox you place, a random line rises and shakes your grid (every 5 in Five). Placing a bomb is not a move: the line counter does not advance.\n\nThere is a 1-in-8 chance a blox becomes a Brix. A chain next to it takes 1 off each wave. At 0, it disappears.\n\nYou start with 5 bombs (3 in Duel). They are not refilled every 10 chains. In Zen, Five, Duel and this guide, the blast is a 3×3 square and destroys Brix in that zone. In Arcade, stage 1 is also 3×3, then the zone grows into a cross. A BOMBX can give you one more.";
 "tutorial.page3_title" = "Your turn!";
-"tutorial.page3_body" = "A small bonus will be awarded if you have more Brix than the statistical average. It's not much, but it will save you from blaming fate ;).
-
-Don't forget to try Player vs Player mode: the rules are identical, but every 50 points you score you \"send\" a line of blox to the other player. The winner is the last one standing.
-
-Finally: in Settings you can manage fonts, colours and sounds to make your BLOMIX experience as enjoyable as possible.";
+"tutorial.page3_body" = "In Duel, the grid rules are the same. Every 50 points, you send a line to the other player. The last one still in the game wins.\n\nIn Settings you can change colours and sounds.";
 
 "pvp.mode_choice_hint" = "How do you want to play?";
 "pvp.mode_auto_desc" = "Ready to play";

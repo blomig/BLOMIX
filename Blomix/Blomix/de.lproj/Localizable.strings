@@ -205,13 +205,9 @@
 "tutorial.page1_body" = "Ziel ist der höchste Score. Setze Blox (farbige Steine) ins Gitter (von unten nach oben) und bilde „Ketten“ aus 5 gleichfarbigen Blox. Ketten geben Punkte und verschwinden — Platz für die nächsten Blox.";
 "tutorial.page1_chain_caption" = "= Kette → Punkte!";
 "tutorial.page2_title" = "Nicht so einfach!";
-"tutorial.page2_body" = "Das Spiel wäre zu leicht, wenn es nur um Farbketten ginge. Alle 10 Blox kommt eine Zufallszeile und stört deinen Aufbau. Und das Beste: Mit 1 zu 8 mutiert ein Blox vor dem Setzen zu einem Brix. Dieser nummerierte Stein lässt sich nicht wie andere räumen — bilde Ketten in der Nähe (5), um ihn zu entfernen. Zum Glück hast du Bomben (eine am Start, und alle 10 Ketten eine neue): Eine Bombe zerstört die 9 Felder um den Einschlag und räumt Brix auf einen Schlag weg!";
+"tutorial.page2_body" = "Alle 10 gesetzten Blox steigt eine Zufallszeile auf und stört dein Feld (alle 5 in Five). Eine Bombe zu setzen zählt nicht: der Zeilenzähler rückt nicht vor.\n\n1 von 8 Blox wird ein Brix. Eine Kette daneben zieht bei jeder Welle 1 ab. Bei 0 verschwindet er.\n\nDu startest mit 5 Bomben (3 im Duel). Sie kommen nicht alle 10 Ketten nach. In Zen, Five, Duel und in dieser Anleitung ist die Explosion ein 3×3-Quadrat und zerstört Brix in dieser Zone. In Arcade ist Stage 1 auch 3×3, danach wächst die Zone zum Kreuz. Ein BOMBX kann dir eine weitere geben.";
 "tutorial.page3_title" = "Du bist dran!";
-"tutorial.page3_body" = "Ein kleiner Bonus gibt es, wenn du mehr Brix als der statistische Durchschnitt hast. Nicht viel — aber du kannst das Schicksal nicht beschuldigen ;).
-
-Probier den PvP-Modus: gleiche Regeln, aber alle 50 Punkte „schickst“ du eine Blox-Linie zum Gegner. Wer zuletzt stehen bleibt, gewinnt.
-
-In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein bestes BLOMIX-Erlebnis.";
+"tutorial.page3_body" = "Im Duel gelten dieselben Gitterregeln. Alle 50 Punkte schickst du dem anderen Spieler eine Zeile. Wer zuletzt noch im Spiel ist, gewinnt.\n\nIn den Einstellungen kannst du Farben und Töne ändern.";
 
 "pvp.mode_choice_hint" = "Wie möchtest du spielen?";
 "pvp.mode_auto_desc" = "Bereit zum Spielen";

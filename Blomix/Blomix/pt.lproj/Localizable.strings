@@ -205,13 +205,9 @@
 "tutorial.page1_body" = "O objetivo é fazer a maior pontuação. Para pontuar, use blox (pedras coloridas) e coloque-os na grade (de baixo para cima) para formar \"cadeias\" de 5 blox da mesma cor. As cadeias valem pontos e desaparecem, abrindo espaço para os próximos blox.";
 "tutorial.page1_chain_caption" = "= cadeia → pontos!";
 "tutorial.page2_title" = "Não é tão fácil!";
-"tutorial.page2_body" = "O jogo seria fácil demais se bastasse fazer cadeias de cor. A cada 10 blox, uma linha aleatória sobe e bagunça a pilha. E o melhor: há 1 chance em 8 de um blox mutar antes do lançamento e virar um Brix. Essa pedra especial, marcada com um número, não some como as outras — é preciso formar cadeias ao lado (5) para fazê-la desaparecer. Felizmente você tem bombas (uma no início, e uma nova a cada 10 cadeias): a bomba destrói as 9 casas ao redor do impacto e limpa Brix de uma vez!";
+"tutorial.page2_body" = "A cada 10 blox colocados, uma linha aleatória sobe e mexe na sua grade (a cada 5 no Five). Colocar uma bomba não conta: o contador de linha não avança.\n\nHá 1 chance em 8 de um blox virar um Brix. Uma cadeia ao lado tira 1 a cada onda. Em 0, ele some.\n\nVocê começa com 5 bombas (3 no Duel). Elas não voltam a cada 10 cadeias. Em Zen, Five, Duel e neste guia, a explosão é um quadrado 3×3 e destrói os Brix dessa zona. No Arcade, o stage 1 também é 3×3; depois a zona cresce em cruz. Um BOMBX pode devolver uma.";
 "tutorial.page3_title" = "Sua vez!";
-"tutorial.page3_body" = "Um pequeno bônus é dado se você tiver mais Brix do que a média estatística. Não é muito, mas evita culpar a sorte ;).
-
-Não deixe de experimentar o modo Jogador vs Jogador: as regras são as mesmas, mas a cada 50 pontos você \"envia\" uma linha de blox ao outro jogador. Vence quem ficar por último.
-
-Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do seu jeito.";
+"tutorial.page3_body" = "No Duel, as regras da grade são as mesmas. A cada 50 pontos, você envia uma linha ao outro jogador. Ganha quem continua no jogo.\n\nNos ajustes, você pode mudar as cores e os sons.";
 
 "pvp.mode_choice_hint" = "Como você quer jogar?";
 "pvp.mode_auto_desc" = "Pronto para jogar";

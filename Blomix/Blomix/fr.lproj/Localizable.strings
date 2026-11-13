@@ -205,13 +205,9 @@
 "tutorial.page1_body" = "Le but du jeu est de faire le plus gros score. Pour marquer des points, il faut utiliser les blox (pierres de couleur), et réussir à les placer dans la grille (du bas vers le haut), de manière à faire des \"chaînes\" de 5 blox de la même couleur. Les chaînes ainsi formées donnent des points, et disparaissent, laissant de la place pour les blox suivants.";
 "tutorial.page1_chain_caption" = "= chaîne → points !";
 "tutorial.page2_title" = "Pas si facile !";
-"tutorial.page2_body" = "Le jeu serait un peu trop simple s’il fallait simplement faire des chaînes de couleur. Tous les 10 blox, une ligne de blox aléatoire va venir perturber vos beaux alignements. Et, le meilleur pour la fin, vous avez une chance sur 8 qu’un blox mute avant de pouvoir être lancé, et devienne une Brix. Cette pierre un peu spéciale, avec un numéro, ne peut pas être cassée comme les autres. Il faut faire des chaînes à proximité (5) pour la faire disparaître. Heureusement, vous disposez de bombes (une bombe en début de partie, et une nouvelle toutes les 10 chaînes créées) : une bombe casse les 9 cases autour de sa case d’impact, et casse les Brix d’un coup !";
-"tutorial.page3_title" = "À vous de jouer !";
-"tutorial.page3_body" = "Un petit bonus vous sera accordé si vous avez plus de Brix que la moyenne statistique. Ce n'est pas grand-chose, mais ça vous évitera de blâmer le sort ;).
-
-N'oubliez pas d'essayer le jeu en Player Vs Player : les règles sont identiques, mais tous les 50 points réalisés, vous \"envoyez\" une ligne de blox à l’autre joueur. Le vainqueur est celui qui parvient à rester en vie.
-
-Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs, les sons, pour rendre l’expérience de BLOMIX la plus agréable pour votre goût.";
+"tutorial.page2_body" = "Tous les 10 blox posés, une ligne aléatoire remonte et bouscule ta grille (tous les 5 en Five). Poser une bombe ne compte pas : le compteur de ligne n’avance pas.\n\nUn blox sur 8 devient un Brix. Une chaîne à côté lui retire 1 à chaque vague. À 0, il disparaît.\n\nTu commences avec 5 bombes (3 en Duel). Elles ne reviennent pas toutes les 10 chaînes. En Zen, en Five, en Duel et dans ce guide, l’explosion est un carré de 3×3 et casse les Brix de cette zone. En Arcade, le stage 1 est aussi un 3×3, puis la zone s’allonge en croix. Un BOMBX peut t’en rendre une.";
+"tutorial.page3_title" = "À toi de jouer !";
+"tutorial.page3_body" = "En Duel, les règles de la grille sont les mêmes. Tous les 50 points, tu envoies une ligne à l’autre joueur. Le dernier encore en jeu gagne.\n\nDans les réglages, tu peux changer les couleurs et les sons.";
 
 "pvp.mode_choice_hint" = "Comment voulez-vous jouer ?";
 "pvp.mode_auto_desc" = "Prêt à jouer";
@@ -255,7 +251,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "transition.tutorial.title"        = "TUTORIEL";
 "transition.tutorial.subtitle"     = "1 min pour apprendre le jeu";
 "transition.tutorial_end.title"    = "FIN DU TUTO";
-"transition.tutorial_end.subtitle" = "À vous de jouer";
+"transition.tutorial_end.subtitle" = "À toi de jouer";
 
 /* Intro mode Zen */
 "zen.overlay.level_prefix" = "Mode";

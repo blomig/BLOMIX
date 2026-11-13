@@ -202,13 +202,9 @@
 "tutorial.page1_body" = "El objetivo es la mayor puntuación. Coloca blox (piedras de color) en la cuadrícula (de abajo arriba) y forma «cadenas» de 5 blox del mismo color. Las cadenas dan puntos y desaparecen, dejando sitio para los siguientes.";
 "tutorial.page1_chain_caption" = "= cadena → ¡puntos!";
 "tutorial.page2_title" = "¡No tan fácil!";
-"tutorial.page2_body" = "Sería demasiado fácil si solo hubiera que hacer cadenas de color. Cada 10 blox entra una línea aleatoria que altera tu construcción. Y lo mejor: 1 de cada 8 blox muta antes de colocarse y se convierte en un Brix. Esta piedra numerada no se elimina como las demás: haz cadenas cerca (5) para hacerla desaparecer. Afortunadamente tienes bombas (una al inicio, y una nueva cada 10 cadenas): una bomba destruye las 9 casillas alrededor del impacto y elimina Brix de un golpe.";
-"tutorial.page3_title" = "¡A jugar!";
-"tutorial.page3_body" = "Recibirás un pequeño bonus si tienes más Brix que la media estadística. No es mucho, pero te evitará culpar al destino ;).
-
-Prueba el modo PvP: mismas reglas, pero cada 50 puntos «envías» una línea de blox al rival. Gana el último en pie.
-
-En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo de BLOMIX.";
+"tutorial.page2_body" = "Cada 10 blox que colocas, sube una línea al azar y desordena tu rejilla (cada 5 en Five). Colocar una bomba no cuenta: el contador de línea no avanza.\n\n1 de cada 8 blox se convierte en un Brix. Una cadena al lado le resta 1 en cada oleada. En 0, desaparece.\n\nEmpiezas con 5 bombas (3 en Duel). No se recargan cada 10 cadenas. En Zen, Five, Duel y en esta guía, la explosión es un cuadrado de 3×3 y destruye los Brix de esa zona. En Arcade, el stage 1 también es 3×3; después la zona se alarga en cruz. Un BOMBX puede devolverte una.";
+"tutorial.page3_title" = "¡Te toca!";
+"tutorial.page3_body" = "En Duel, las reglas de la rejilla son las mismas. Cada 50 puntos envías una línea al otro jugador. Gana quien sigue en juego.\n\nEn Ajustes puedes cambiar los colores y los sonidos.";
 
 "pvp.mode_choice_hint" = "¿Cómo quieres jugar?";
 "pvp.mode_auto_desc" = "Listo para jugar";

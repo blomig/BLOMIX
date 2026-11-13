@@ -2,7 +2,32 @@
 
 > **13 novembre 2026.** Branche `8.9`, à partir de `f7abd5d` et de [EVALUATION_EDITEUR.md](EVALUATION_EDITEUR.md) (12 novembre, note **4/10**).
 > État binaire : `MARKETING_VERSION` **8.8**, build iPhone **163**, Watch **8.0 / 147**. Ce document ne bumpe rien et ne lance aucun lane.
-> Les décisions D1… sont des choix produit. La recommandation est un avis, pas une décision prise.
+> Les décisions D1… étaient des choix produit. Elles sont tranchées ci-dessous. La section 2 garde le contexte et les options.
+
+---
+
+## Décisions validées (13/11/2026)
+
+Lomig a validé la liste suivante. Ce qui n’est pas dans les lots 0 à 6 de ce passage reste hors code (fiche, kit, notification).
+
+- **D1** : Analytics App Store + télémétrie anonyme dans le jeu (CloudKit, sans SDK tiers).
+- **D2** : rester gratuit, sans pub ni achat pour la 8.9.
+- **D3** : réécrire la description App Store dans les 6 langues (rédigée par le CM, validée par Lomig). Publication après la nomination, après le 2 décembre (D17).
+- **D4** : garder le nom BLOMIX, changer le sous-titre.
+- **D5** : refaire 6 à 8 captures App Store avec accroche.
+- **D6** : attendre la mesure avant de simplifier l’accueil. **Lot abandonné** pour la 8.9 (L10).
+- **D7** : geler les modes pour la 8.9.
+- **D8** : chaque **nouveau** trophée maxé (plein + 3 étoiles) donne **une fois** un MAGIX B comme premier bloc de la partie solo suivante (jamais en Duel). L’idée « commencer avec 6 bombes » n’est pas retenue. L’historique déjà maxé au premier lancement 8.9 ne crédite rien.
+- **D9** : ne pas changer la rareté des Magix.
+- **D10** : corriger les textes du tuto (bombes page 2, tu/vous, bonus) sans nouveau parcours. Le bonus « moyenne statistique » **n’est pas dans le code** (seul un commentaire orphelin dans `GameScene` en parle) : la page 3 retire la phrase, elle ne l’explique pas.
+- **D11** : notification locale du défi du jour, **après** la mise en place de la mesure. Pas dans ce passage.
+- **D12** : **C**, ne pas changer le Duel. **Lot abandonné** (L13).
+- **D13** : **B**, une phrase « Les Magix ne sont pas notés » (6 langues).
+- **D14** : ne rien changer. Les couleurs sont déjà paramétrables (skin perso). Retour positif d’un joueur daltonien. Point éditeur jugé non pertinent. **Lot abandonné** (L12).
+- **D15** : **A**, retirer l’iPad des textes presse et du kit (app iPhone + Watch). Hors code. **L16 abandonné**.
+- **D16** : **B**, tests de référence (moteur Watch, `BlomixMoveAnalyzer`, `BlomixDailyRNG`) sans toucher `GameScene`. **L14 abandonné** (extraction du moteur).
+- **D17** : une version publique toutes les 2–3 semaines (TestFlight entre les deux). Nouvelle fiche App Store (D3–D5) publiée après la nomination (après le 2 déc.).
+- **D18** : **B**, garder la DA. Supprimer seulement les polices non référencées, après audit de licence.
 
 ---
 
@@ -138,7 +163,7 @@ Recommandation : **B** ou **C**. **A** change l’équilibre et les graines du d
 
 Contexte : 3 pages puis un overlay interactif. Mélange tu / vous. Page 3 explique un bonus de pitié (« plus de Brix que la moyenne statistique ») au pire moment. Le code fait bien un bonus ≥ 0 d’excès sur N/8 (`GameScene`, +1 pt par Brix au-delà du théorique). Page 2 dit encore « une bombe au départ, une nouvelle toutes les 10 chaînes » et « 9 cases autour » : le stock est **5** (3 en Duel), il n’y a pas de recharge toutes les 10 chaînes, la zone Zen/Five/Duel/tuto est un **3×3**, l’Arcade passe ensuite en croix.
 
-- **A.** Relire les 3 pages en 6 langues : tutoiement unique, bombes alignées sur `RULES.md`, bonus dit en une phrase vraie, « Duel » à la place de « Player Vs Player ». Pas de nouveau flux.
+- **A.** Relire les 3 pages en 6 langues : tutoiement unique, bombes alignées sur `RULES.md`, « Duel » à la place de « Player Vs Player ». Pas de nouveau flux. Le bonus « moyenne statistique » décrit ici **n’existe pas** dans le calcul du score : le commentaire au-dessus de `chainSeriesLevel` est orphelin. La page 3 retire la phrase.
 - **B.** Remplacer les pages par une première partie guidée (~60 s), Magix introduits plus tard.
 - **C.** Laisser le texte. Seules les coquilles de ce lot (section 6) sont corrigées.
 
@@ -228,7 +253,9 @@ Recommandation : **B** comme hygiène (lot L8, licences d’abord). **A** est un
 
 ## 3. Lots de travail
 
-Estimation : **S** moins d’une journée, **M** quelques jours, **L** une semaine ou plus. Aucun lot au-delà de L1 n’est commencé.
+Estimation : **S** moins d’une journée, **M** quelques jours, **L** une semaine ou plus.
+
+Lots **abandonnés** après validation : **L10** (accueil, D6), **L12** (accessibilité, D14), **L13** (Duel, D12), **L14** (moteur partagé, D16-A), **L16** (iPad, D15-B). **L15** ne débloque plus de skins : il devient la récompense MAGIX B de D8. **L4** (notification) attend la mesure (D11). **L5** et **L6** (fiche, captures) attendent le 2 décembre (D17).
 
 | Lot | Contenu | Fichiers | Taille | Risque | Dépend de |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -241,16 +268,16 @@ Estimation : **S** moins d’une journée, **M** quelques jours, **L** une semai
 | **L7** | Hygiène doc : versions de référence encore à 8.6 / 7.x, `AGENTS.md` et `README.md` disent 8.6 build 158 et `DOCS/` alors que le dossier est `docs/` | `AGENTS.md`, `README.md`, en-têtes `docs/*.md` | S | Écrire « 8.9 » avant le bump de `MARKETING_VERSION` recreuse le décalage. Le faire **le jour du bump** | D17 |
 | **L8** | Audit licences (polices, Freesound, Soundimage) puis retrait des `.ttf` et wav non référencés (`place.wav` / `place_new.wav`, `empty_coll_old.wav`, 53 Mo de `Sounds/`) | `Blomix/Blomix/*.ttf`, `Sounds/`, `project.pbxproj` **seulement** si un fichier sort du target, `credits` | M | Effacer un son encore branché sur `BlomixMatchSFX`. Licences à lire avant de supprimer | D18-B |
 | **L9** | Tests d’or Watch + analyseur, sans extraire `GameScene` | target de test nouveau, `Watch/Engine/`, `BlomixMoveAnalyzer.swift`, `BlomixDailyRNG.swift` | L | Faux verts si les graines ne sont pas figées. Ne pas « réparer » le monolithe au passage | D16-B |
-| **L10** | Accueil 3 portes | `GameScene.swift` (accueil), l10n, `docs/PROJECT_CONTEXT.md` | L | Reprise de partie, pastilles, classements, point orange du salon | D6, D7 |
-| **L11** | Télémétrie anonyme | type dédié, branchements session / fin de tuto / mode, politique de confidentialité `docs/privacy-policy.html` | M | Vie privée, review Apple si le texte de politique ment. Pas d’IDFA | D1-B |
-| **L12** | Mode daltonien + Dynamic Type chrome | skins ou overlay de motifs, `BlomixAppearance`, contrôleurs UIKit | L | Lisibilité des Brix (chiffre déjà petit). DA | D14, D18 |
-| **L13** | Duel : bot mis en avant | `BlomixPvPUI.swift`, `BlomixPvPBotEngine.swift`, l10n | L | Elo, revanche, « ne pas se lister soi-même » | D12 |
-| **L14** | Moteur partagé iPhone / Watch | nouveau package, `GameScene.swift`, `Watch/Engine/` | L | Régression chaînes, save v8, 5 slots. Hors 8.9 sauf demande explicite | D16-A |
-| **L15** | Skins débloqués par trophées | `BlomixTrophyStore.swift`, `color_skins.json`, réglages | L | Save des déblocages, joueurs qui ont déjà les paliers | D8-A |
-| **L16** | iPad | target, layouts, captures iPad | L | Deuxième famille d’appareils, review | D15-B |
+| **L10** | **Abandonné** (D6). Accueil inchangé tant que la mesure n’a pas parlé | — | — | — | D6 |
+| **L11** | Télémétrie anonyme | type dédié, branchements session / fin de partie / défi, politique `docs/privacy-policy.html`, schéma CloudKit | M | Vie privée, review Apple si le texte de politique ment. Pas d’IDFA. Échec d’envoi silencieux | D1 |
+| **L12** | **Abandonné** (D14). Couleurs déjà dans le skin perso | — | — | — | D14 |
+| **L13** | **Abandonné** (D12-C). Duel inchangé | — | — | — | D12 |
+| **L14** | **Abandonné** (D16-B). Pas d’extraction de `GameScene` | — | — | — | D16 |
+| **L15** | Récompense MAGIX B : un trophée **nouveau** à 3 étoiles crédite un BOMBX, premier bloc de la prochaine partie Arcade / Zen / Five. Pas le Défi, pas le Duel, pas le tutoriel, pas la reprise. Historique non crédité | `BlomixTrophyStore.swift`, `GameScene.swift` (injection + message), `BlomixL10n`, 6 `.strings`, `docs/TROPHIES.md`, `docs/RULES.md` | M | Crédit rétroactif ou consommation sur une grille jetée (retour accueil, prep Duel). Graine du Défi si on injectait là | D8, D9 |
+| **L16** | **Abandonné** (D15-A). iPad retiré des textes presse, pas du binaire | — | — | — | D15 |
 | **L17** | Checklist de release automatisée (`campaignID`, 6 whats-new, en-têtes docs) | `scripts/`, éventuellement le workflow `store-metadata.yml` | S | Un script qui bumpe ou qui pousse ASC serait hors contrat. Lecture seule | D17-A |
 
-Lots explicitement non ouverts : changement des probabilités Magix (D9), mode Contrats (D7-C), thème musical et nouvelle icône (D18-A), monétisation (D2).
+Lots explicitement non ouverts : probabilités Magix (D9), mode Contrats (D7), thème musical et nouvelle icône (D18-A), monétisation (D2), accueil (D6 / L10), accessibilité (D14 / L12), Duel (D12 / L13), extraction du moteur (L14), iPad (L16).
 
 ---
 
@@ -342,12 +369,10 @@ Faits. Compilation à vérifier avec le scheme `Blomix`. Pas de bump, pas de fas
 
 ---
 
-## 7. Ordre proposé une fois les D cochés
+## 7. Ordre après validation (13/11/2026)
 
-1. L1 (fait) et build **164** si un TestFlight interne est utile.
-2. D1 et D10 en premier : mesurer, et arrêter que le tuto mente sur les bombes (L2, L11).
-3. D13-B (L3) dans le même train si la phrase tient en 6 langues.
-4. D3 + D4 + D5 (L5, L6) avant tout nouveau mail. D15-A dans le même geste, hors code.
-5. D11 (L4) quand le texte de permission est choisi.
-6. D16-B (L9) en fond, sans build joueur obligatoire.
-7. D6, D8, D12, D14, D18 seulement après un retour de joueurs (sondage + chiffres), pas par défaut.
+1. Décisions écrites en tête de ce fichier. Lots L10, L12, L13, L14, L16 abandonnés. L15 = MAGIX B (D8).
+2. D8 (L15), D10 (L2), D13 (L3), D1 (L11), D16-B (L9), D18-B (polices seulement).
+3. D11 (L4) seulement une fois que la mesure tourne.
+4. D3 + D4 + D5 (L5, L6) et D15-A (textes presse) **après le 2 décembre**. Pas de `metadata` / `release` avant.
+5. D2, D7, D9, D12, D14 : rien à coder.

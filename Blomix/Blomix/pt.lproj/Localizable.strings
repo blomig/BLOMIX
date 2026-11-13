@@ -481,6 +481,7 @@ Por fim: em Ajustes você gerencia fontes, cores e sons para deixar o BLOMIX do 
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Última subida: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
+"trophy.magix_b_reward" = "Troféu no máximo: este BOMBX é para você.";
 "trophy.wall.seuil" = "Limiar";
 "trophy.wall.chaines" = "Correntes";
 "trophy.wall.magix" = "Magix";

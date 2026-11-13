@@ -1075,6 +1075,8 @@ final class GameScene: SKScene {
     private static let startScreenTrophyLinkName = "startScreenTrophyLink"
     private static let startScreenTrophyBadgeName = "startScreenTrophyBadge"
     private static let startScreenTrophyToastName = "startScreenTrophyToast"
+    /// Note discrète : le premier bloc vient d’un trophée maxé.
+    private static let magixBRewardNoteName = "magixBRewardNote"
     /// Grains d’air sous les blox. `drawGrid` ne retire que `cell_` / `junction_`.
     private static let gravityAirGrainPrefix = "gravityAirGrain"
     private static let gravityAirActionKey = "gravityAir"
@@ -3787,6 +3789,7 @@ final class GameScene: SKScene {
         hapticSoft()
 
         resetSessionModelForNewMatch()
+        let magixBReward = grantPendingMagixBAsFirstBlockIfEligible()
 
         addTopTitle()
         setupBombHUD()
@@ -3795,6 +3798,7 @@ final class GameScene: SKScene {
         updatePreviewSprite()
         rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
+        if magixBReward { presentMagixBRewardNote() }
 
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
@@ -3821,6 +3825,7 @@ final class GameScene: SKScene {
         hapticSoft()
 
         resetSessionModelForNewMatch(zen: true)
+        let magixBReward = grantPendingMagixBAsFirstBlockIfEligible()
 
         addTopTitle()
         setupBombHUD()
@@ -3829,6 +3834,7 @@ final class GameScene: SKScene {
         updatePreviewSprite()
         rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
+        if magixBReward { presentMagixBRewardNote() }
 
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
@@ -3866,6 +3872,7 @@ final class GameScene: SKScene {
         hapticSoft()
 
         resetSessionModelForNewMatch(five: true)
+        let magixBReward = grantPendingMagixBAsFirstBlockIfEligible()
 
         addTopTitle()
         setupBombHUD()
@@ -3874,6 +3881,7 @@ final class GameScene: SKScene {
         updatePreviewSprite()
         rebuildGameOverflowMenu()
         setGameplayNodesHidden(false)
+        if magixBReward { presentMagixBRewardNote() }
 
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
@@ -5500,6 +5508,41 @@ final class GameScene: SKScene {
             .fadeIn(withDuration: fadeIn),
             .wait(forDuration: 3.6),
             .fadeOut(withDuration: fadeOut),
+            .removeFromParent(),
+        ]))
+    }
+
+    /// Arcade, Zen, Five neuves seulement. Le Défi partage une file seedée : un BOMBX forcé fausserait le classement.
+    /// Le tutoriel a une file scriptée. Le Duel et tout `pvpCoordinator` sont exclus. La reprise ne passe pas ici.
+    private func grantPendingMagixBAsFirstBlockIfEligible() -> Bool {
+        guard !isTutorialMode, !isDailyChallengeMode, pvpCoordinator == nil else { return false }
+        guard BlomixTrophyStore.shared.consumePendingMagixB() else { return false }
+        currentBlock = .magix(.bombx)
+        return true
+    }
+
+    /// Sous le mot-marque, quelques secondes. Le nom BOMBX n’est pas traduit.
+    private func presentMagixBRewardNote() {
+        childNode(withName: Self.magixBRewardNoteName)?.removeFromParent()
+        let label = SKLabelNode(text: BlomixL10n.trophyMagixBReward)
+        label.name = Self.magixBRewardNoteName
+        label.fontName = Self.customUIFontPostScriptName
+        label.fontSize = 12
+        label.fontColor = BlomixAppearance.tertiaryTextSK
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .center
+        label.numberOfLines = 2
+        label.preferredMaxLayoutWidth = size.width - 40
+        let titleY = childNode(withName: Self.titleNodeName)?.position.y ?? (size.height - 96)
+        label.position = CGPoint(x: size.width / 2, y: titleY - 36)
+        label.zPosition = 6
+        label.alpha = 0
+        addChild(label)
+        let reduced = Self.prefersReducedMotion
+        label.run(.sequence([
+            .fadeIn(withDuration: reduced ? 0.01 : 0.22),
+            .wait(forDuration: 4.0),
+            .fadeOut(withDuration: reduced ? 0.01 : 0.3),
             .removeFromParent(),
         ]))
     }
@@ -7474,6 +7517,7 @@ final class GameScene: SKScene {
         isProcessing = false
         isInjectingBottomRandomLine = false
         resetSessionModelForNewMatch()
+        childNode(withName: Self.magixBRewardNoteName)?.removeFromParent()
 
         updateBombHUD()
         if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {

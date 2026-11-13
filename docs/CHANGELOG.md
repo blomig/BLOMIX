@@ -11,6 +11,10 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 
+### Ajouté
+
+- **Trophée maxé** : un trophée qui passe à 3 étoiles (plein + 3 étoiles, pas les courbes Unique) crédite **une fois** un BOMBX. Il est le premier bloc de la prochaine partie **neuve** Arcade, Zen ou Five. Rien pour l’historique déjà maxé au premier lancement, rien en Duel, au tutoriel, au Défi (file commune), ni à la reprise. Note discrète en 6 langues. Les taux de Magix ne changent pas.
+
 ### Modifié
 
 - **Popup accueil** : campagne `8.9` (la 8.8 montrait encore `7.1_daily_duel`, Défi du jour + bonhomme vert). À chaque version marketing : nouvel `BlomixWhatsNew.campaignID` et puces en 6 langues, dans le même lot que `store/whats-new/`.

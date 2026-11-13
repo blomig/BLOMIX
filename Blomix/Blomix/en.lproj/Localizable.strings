@@ -481,6 +481,7 @@ Finally: in Settings you can manage fonts, colours and sounds to make your BLOMI
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Last rank up: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
+"trophy.magix_b_reward" = "Maxed trophy: this BOMBX is yours.";
 "trophy.wall.seuil" = "Threshold";
 "trophy.wall.chaines" = "Chains";
 "trophy.wall.magix" = "Magix";

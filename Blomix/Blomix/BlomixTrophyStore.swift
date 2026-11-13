@@ -317,12 +317,16 @@ final class BlomixTrophyStore {
     private var loaded = false
     /// Retrofit hiscores : allume les pastilles sans file de toasts (ce n’est pas un palier « maintenant »).
     private var suppressPromotionToasts = false
+    /// Crédit BOMBX (8.9). Clé à part : ne pas faire échouer le décodage de `blomix_trophies_v1`.
+    private var magixB = MagixBRewardState()
 
     private init() {
         payload = Payload()
         load()
         retrofitIfNeeded()
         backfillZenScoreIfNeeded()
+        loadMagixB()
+        baselineMagixBIfNeeded()
     }
 
     // MARK: Lecture
@@ -486,9 +490,87 @@ final class BlomixTrophyStore {
             }
         }
         payload.items[id] = new
+        creditMagixBIfNewlyMaxed(id: id, def: def, value: new.value)
         save()
         notify()
         return newRank > oldRank ? newRank : nil
+    }
+
+    // MARK: Récompense MAGIX B (8.9)
+
+    /// État persisté à part du JSON trophées (v1 sans ces champs).
+    private struct MagixBRewardState: Codable {
+        var baselineDone: Bool = false
+        /// Déjà payés, ou déjà à 3 étoiles au premier lancement 8.9 (sans crédit).
+        var creditedIDs: [String] = []
+        /// BOMBX encore à poser. Un par trophée nouvellement maxé.
+        var pending: Int = 0
+
+        init() {}
+
+        private enum CodingKeys: String, CodingKey {
+            case baselineDone, creditedIDs, pending
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            baselineDone = try c.decodeIfPresent(Bool.self, forKey: .baselineDone) ?? false
+            creditedIDs = try c.decodeIfPresent([String].self, forKey: .creditedIDs) ?? []
+            pending = try c.decodeIfPresent(Int.self, forKey: .pending) ?? 0
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(baselineDone, forKey: .baselineDone)
+            try c.encode(creditedIDs, forKey: .creditedIDs)
+            try c.encode(pending, forKey: .pending)
+        }
+    }
+
+    private static let magixBDefaultsKey = "blomix_trophy_magix_b_v1"
+
+    /// Consomme un crédit. `false` s’il n’y en a pas. L’appelant ne le fait que pour une nouvelle partie Arcade, Zen ou Five.
+    func consumePendingMagixB() -> Bool {
+        guard magixB.baselineDone, magixB.pending > 0 else { return false }
+        magixB.pending -= 1
+        saveMagixB()
+        return true
+    }
+
+    private func loadMagixB() {
+        guard let data = UserDefaults.standard.data(forKey: Self.magixBDefaultsKey),
+              let decoded = try? JSONDecoder().decode(MagixBRewardState.self, from: data) else { return }
+        magixB = decoded
+    }
+
+    private func saveMagixB() {
+        guard let data = try? JSONEncoder().encode(magixB) else { return }
+        UserDefaults.standard.set(data, forKey: Self.magixBDefaultsKey)
+    }
+
+    /// Premier passage : fige les trophées déjà à 3 étoiles. Aucun crédit pour l’historique.
+    private func baselineMagixBIfNeeded() {
+        guard !magixB.baselineDone else { return }
+        for def in BlomixTrophyCatalog.all {
+            let value = payload.items[def.id]?.value ?? 0
+            guard BlomixTrophyMath.starCount(value: value, curve: def.curve) >= 3 else { continue }
+            if !magixB.creditedIDs.contains(def.id) {
+                magixB.creditedIDs.append(def.id)
+            }
+        }
+        magixB.pending = 0
+        magixB.baselineDone = true
+        saveMagixB()
+    }
+
+    /// Un trophée paie une fois, au moment où il atteint 3 étoiles. Unique : 0 étoile, jamais.
+    private func creditMagixBIfNewlyMaxed(id: String, def: BlomixTrophyDef, value: Int) {
+        guard magixB.baselineDone, !suppressPromotionToasts else { return }
+        guard BlomixTrophyMath.starCount(value: value, curve: def.curve) >= 3 else { return }
+        guard !magixB.creditedIDs.contains(id) else { return }
+        magixB.creditedIDs.append(id)
+        magixB.pending += 1
+        saveMagixB()
     }
 
     private func load() {

@@ -844,6 +844,10 @@ enum BlomixL10n {
             name, rank
         )
     }
+    /// Premier bloc d’une partie solo neuve, après un trophée nouvellement maxé (3 étoiles).
+    static var trophyMagixBReward: String {
+        tr("trophy.magix_b_reward", comment: "Discreet note: this BOMBX is the reward for a newly maxed trophy")
+    }
 
     // MARK: - Sondage 8.8
     static var surveyInviteBody: String { tr("survey.invite", comment: "Survey invite body") }

@@ -481,6 +481,7 @@ Dernier point : vous pouvez dans les réglages gérer les polices, les couleurs,
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Dernière montée : %@ · %@";
 "trophy.toast_format" = "%@ · %@";
+"trophy.magix_b_reward" = "Trophée maxé : ce BOMBX est pour toi.";
 "trophy.wall.seuil" = "Seuil";
 "trophy.wall.chaines" = "Chaînes";
 "trophy.wall.magix" = "Magix";

@@ -84,6 +84,18 @@ Le compteur au centre continue. Ce n’est **pas** un 4ᵉ rang : les tours s’
 
 Exemple Volume (s3 = 100) : 100 → ★☆☆ · 200 → ★★☆ · 300 → ★★★. Rare (s3 = 10) : 10 / 20 / 30.
 
+### Récompense 8.9 — un BOMBX (D8)
+
+Un trophée est **maxé** quand `BlomixTrophyMath.starCount` vaut **3** (`n ≥ 3 × s3`, tours pleins + 3 étoiles). Courbe **Unique** : 0 étoile, jamais de récompense.
+
+Au **premier** chargement du store après cette règle, chaque trophée déjà à 3 étoiles est noté dans `creditedIDs` et **ne crédite rien** (`pending` forcé à 0). Ensuite, chaque **nouveau** passage à 3 étoiles ajoute **1** crédit, une fois par identifiant. Le retrofit des scores et le backfill Zen passent avec `suppressPromotionToasts` et ne paient pas : la baseline tourne après eux.
+
+Le crédit est consommé au début d’une **nouvelle** partie **Arcade, Zen ou Five** : `currentBlock` devient un BOMBX (MAGIX B). Les deux blocs suivants restent tirés comme d’habitude. Les taux `MagixRules` ne changent pas (D9).
+
+Pas de crédit consommé pour : reprise de sauvegarde, tutoriel (file scriptée), Duel / PvP, Défi Arcade et Défi Five (file seedée commune, classements partagés). Une note discrète (`trophy.magix_b_reward`, 6 langues) explique d’où vient le bloc.
+
+Persistance : `UserDefaults` `blomix_trophy_magix_b_v1`, à part de `blomix_trophies_v1`, pour que l’ancien JSON reste lisible.
+
 Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », anneaux sans fill, **pas** de 0 au centre.
 
 Nouveau palier : **toast overlay** au moment du palier (même Y qu’à l’accueil, chip actuel, apparence plus tard). Pas de changement de layout grille. Souffle 2 cycles (disques accueil) : **pas encore**.

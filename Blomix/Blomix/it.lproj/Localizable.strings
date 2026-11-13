@@ -468,6 +468,7 @@ In Impostazioni puoi gestire font, colori e suoni per il tuo BLOMIX ideale.";
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Ultimo grado: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
+"trophy.magix_b_reward" = "Trofeo al massimo: questo BOMBX è per te.";
 "trophy.wall.seuil" = "Soglia";
 "trophy.wall.chaines" = "Catene";
 "trophy.wall.magix" = "Magix";

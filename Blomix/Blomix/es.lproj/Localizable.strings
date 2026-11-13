@@ -468,6 +468,7 @@ En Ajustes puedes cambiar fuentes, colores y sonidos para disfrutar al máximo d
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Último ascenso: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
+"trophy.magix_b_reward" = "Trofeo al máximo: este BOMBX es para ti.";
 "trophy.wall.seuil" = "Umbral";
 "trophy.wall.chaines" = "Cadenas";
 "trophy.wall.magix" = "Magix";

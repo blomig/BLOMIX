@@ -481,6 +481,7 @@ In den Einstellungen kannst du Schrift, Farben und Sounds anpassen — für dein
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Letzter Aufstieg: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
+"trophy.magix_b_reward" = "Trophäe voll: dieses BOMBX ist für dich.";
 "trophy.wall.seuil" = "Schwelle";
 "trophy.wall.chaines" = "Ketten";
 "trophy.wall.magix" = "Magix";

@@ -285,6 +285,10 @@ En fin de partie Arcade / Zen / Five, un récapitulatif indique la **justesse** 
 
 Le pourcentage **ne compte pas** les Magix ni les bombes : seuls les placements de Blox / Brix sont évalués, sur un horizon de 3 blocs visibles (P0, P1, P2).
 
+### Récompense d’un trophée maxé
+
+Un trophée qui **atteint 3 étoiles pour la première fois** après la 8.9 donne **une fois** un BOMBX. Il est le **premier bloc** de la prochaine **nouvelle** partie Arcade, Zen ou Five. Les trophées déjà à 3 étoiles avant ce premier lancement ne donnent rien. Rien en Duel, au tutoriel, au Défi du jour (la file du jour reste la même pour tout le monde), ni sur une partie reprise. La rareté des Magix dans la file ne change pas. Détail : [TROPHIES.md](TROPHIES.md).
+
 Voir [EVAL.md](EVAL.md) pour l’algorithme.
 
 ---

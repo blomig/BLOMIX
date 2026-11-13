@@ -169,7 +169,28 @@ Voir [LOCALIZATION.md](LOCALIZATION.md). En bref :
 
 ## Tests
 
-Aucune cible de tests unitaires n'est configurée actuellement.  
+Deux jeux de références, sans toucher au gameplay de `GameScene` :
+
+```bash
+# Moteur Watch (WatchZenRules, WatchMagixResolve) et BlomixDailyRNG, graines fixes.
+# Mac, hors app : Package.swift à la racine. 8 tests.
+swift test
+
+# BlomixMoveAnalyzer. BlockType est dans GameScene.swift, donc la cible
+# BlomixReferenceTests est hébergée par l’app (`@testable import BLOMIX`).
+# Ne pas passer CODE_SIGNING_ALLOWED=NO : au lancement, GameScene ouvre
+# CloudKit et le conteneur exige l’entitlement iCloud. Sans signature,
+# l’app s’arrête avant que XCTest se connecte.
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild test -project Blomix/Blomix.xcodeproj -scheme Blomix \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:BlomixReferenceTests
+```
+
+Le package ne compile pas l’analyseur : extraire `BlockType` de `GameScene.swift` est hors de ce lot. La compilation de l’app seule (`xcodebuild build … CODE_SIGNING_ALLOWED=NO`) ne lance pas cette cible.
+
+La checklist manuelle reste la validation de partie :
+
 Validation manuelle recommandée :
 
 - [ ] Partie solo complète (6 stages + game over)

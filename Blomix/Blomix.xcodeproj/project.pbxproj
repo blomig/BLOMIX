@@ -86,6 +86,7 @@
 		100000000000000000000325 /* BlomixTrophySalonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000324 /* BlomixTrophySalonViewController.swift */; };
 		100000000000000000000327 /* BlomixPlayerSurvey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000326 /* BlomixPlayerSurvey.swift */; };
 		10000000000000000000032B /* BlomixTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000032A /* BlomixTelemetry.swift */; };
+		T10000000000000000000003 /* AnalyzerReferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = T10000000000000000000002 /* AnalyzerReferenceTests.swift */; };
 		100000000000000000000329 /* BlomixPlayerSurveyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000328 /* BlomixPlayerSurveyViewController.swift */; };
 		1000000000000000000001D1 /* BlomixPvPH2HManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000001D0 /* BlomixPvPH2HManager.swift */; };
 		100000000000000000000271 /* BlomixPublicCloudGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000270 /* BlomixPublicCloudGate.swift */; };
@@ -201,6 +202,8 @@
 		100000000000000000000324 /* BlomixTrophySalonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixTrophySalonViewController.swift; sourceTree = "<group>"; };
 		100000000000000000000326 /* BlomixPlayerSurvey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPlayerSurvey.swift; sourceTree = "<group>"; };
 		10000000000000000000032A /* BlomixTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixTelemetry.swift; sourceTree = "<group>"; };
+		T10000000000000000000001 /* BlomixReferenceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BlomixReferenceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		T10000000000000000000002 /* AnalyzerReferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzerReferenceTests.swift; sourceTree = "<group>"; };
 		100000000000000000000328 /* BlomixPlayerSurveyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPlayerSurveyViewController.swift; sourceTree = "<group>"; };
 		1000000000000000000001D0 /* BlomixPvPH2HManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPH2HManager.swift; sourceTree = "<group>"; };
 		100000000000000000000270 /* BlomixPublicCloudGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPublicCloudGate.swift; sourceTree = "<group>"; };
@@ -303,6 +306,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		T10000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 
@@ -314,6 +324,13 @@
 			remoteGlobalIDString = A10000000000000000000020;
 			remoteInfo = "BLOMIX Watch";
 		};
+		T10000000000000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000050 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 100000000000000000000030;
+			remoteInfo = BLOMIX;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXGroup section */
@@ -321,6 +338,7 @@
 			isa = PBXGroup;
 			children = (
 				100000000000000000000012 /* Blomix */,
+				T1000000000000000000000C /* BlomixReferenceTests */,
 				A1000000000000000000000B /* Watch */,
 				100000000000000000000013 /* Products */,
 				E320AF3E2F8C128900139B2F /* Recovered References */,
@@ -409,8 +427,17 @@
 			children = (
 				100000000000000000000010 /* BLOMIX.app */,
 				A1000000000000000000000A /* BLOMIX Watch.app */,
+				T10000000000000000000001 /* BlomixReferenceTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		T1000000000000000000000C /* BlomixReferenceTests */ = {
+			isa = PBXGroup;
+			children = (
+				T10000000000000000000002 /* AnalyzerReferenceTests.swift */,
+			);
+			path = BlomixReferenceTests;
 			sourceTree = "<group>";
 		};
 		100000000000000000000014 /* Base.lproj */ = {
@@ -594,6 +621,23 @@
 			productReference = A1000000000000000000000A /* BLOMIX Watch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		T10000000000000000000006 /* BlomixReferenceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = T10000000000000000000009 /* Build configuration list for PBXNativeTarget "BlomixReferenceTests" */;
+			buildPhases = (
+				T10000000000000000000004 /* Sources */,
+				T10000000000000000000005 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				T10000000000000000000007 /* PBXTargetDependency */,
+			);
+			name = BlomixReferenceTests;
+			productName = BlomixReferenceTests;
+			productReference = T10000000000000000000001 /* BlomixReferenceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 
@@ -602,6 +646,11 @@
 			isa = PBXTargetDependency;
 			target = A10000000000000000000020 /* BLOMIX Watch */;
 			targetProxy = A10000000000000000000026 /* PBXContainerItemProxy */;
+		};
+		T10000000000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 100000000000000000000030 /* BLOMIX */;
+			targetProxy = T10000000000000000000008 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -618,6 +667,10 @@
 					};
 					A10000000000000000000020 = {
 						CreatedOnToolsVersion = 16.0;
+					};
+					T10000000000000000000006 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = 100000000000000000000030;
 					};
 				};
 			};
@@ -641,6 +694,7 @@
 			targets = (
 				100000000000000000000030 /* BLOMIX */,
 				A10000000000000000000020 /* BLOMIX Watch */,
+				T10000000000000000000006 /* BlomixReferenceTests */,
 			);
 		};
 /* End PBXProject section */
@@ -793,6 +847,14 @@
 				A10000000000000000000056 /* WatchPalette.swift in Sources */,
 				A10000000000000000000057 /* WatchMagixResolve.swift in Sources */,
 				A10000000000000000000058 /* WatchZenScoreBridge.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		T10000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				T10000000000000000000003 /* AnalyzerReferenceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1140,6 +1202,50 @@
 			};
 			name = Release;
 		};
+		T1000000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX.ReferenceTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BLOMIX.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BLOMIX";
+			};
+			name = Debug;
+		};
+		T1000000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_ALLOWED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = blomig.BLOMIX.ReferenceTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BLOMIX.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BLOMIX";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1167,6 +1273,15 @@
 			buildConfigurations = (
 				A10000000000000000000030 /* Debug */,
 				A10000000000000000000031 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		T10000000000000000000009 /* Build configuration list for PBXNativeTarget "BlomixReferenceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				T1000000000000000000000A /* Debug */,
+				T1000000000000000000000B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

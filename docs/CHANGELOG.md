@@ -35,6 +35,7 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Tutoriel** (6 langues) : page 2 alignée sur les règles (ligne /10 ou /5, bombe ≠ coup, stock 5 ou 3 en Duel, zone 3×3 puis croix en Arcade, pas de recharge toutes les 10 chaînes). Page 3 : tutoiement en français, Duel à la place de « Player Vs Player », couleurs et sons. La phrase sur le bonus « moyenne statistique » est retirée : ce bonus n’est pas calculé (commentaire orphelin seulement). Pas de nouveau parcours.
 - **Justesse** : sous le pourcentage, « Les Magix ne sont pas notés » (6 langues). Le calcul est inchangé : Magix et bombes restent hors note.
 - **Mesure anonyme** : file locale et envoi groupé CloudKit public `TelemetryBatch` (premier lancement, session, fin de partie avec mode et durée, défi du jour commencé). Pas d’IDFA, pas d’identifiant Game Center, pas de SDK tiers. Hors ligne ou schéma absent : rien ne s’affiche. Schéma et étiquette : [TELEMETRY.md](TELEMETRY.md). Politique FR/EN mise à jour.
+- **Tests de référence** : `swift test` (moteur Watch + `BlomixDailyRNG`, graines fixes) et cible `BlomixReferenceTests` (`BlomixMoveAnalyzer`, hébergée par l’app). `GameScene` n’est pas modifié pour ces tests. Voir [DEVELOPMENT.md](DEVELOPMENT.md).
 
 ---
 

@@ -420,7 +420,7 @@
 "home.icon.credits" = "Credits";
 "hud.attack_caption" = "attack";
 "hud.time_aiming_caption" = "aiming";
-"game_over.optimality_excludes" = "Excludes Magix and bombs";
+"game_over.optimality_excludes" = "Magix moves are not scored";
 "pvp.challenge_keep_app_open" = "Keep the app open · 60 s";
 "guide.title" = "Guide";
 "guide.replay_tutorial" = "Replay tutorial";

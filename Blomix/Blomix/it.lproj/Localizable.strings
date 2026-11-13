@@ -407,7 +407,7 @@
 "home.icon.credits" = "Crediti";
 "hud.attack_caption" = "attacco";
 "hud.time_aiming_caption" = "mira";
-"game_over.optimality_excludes" = "Esclusi Magix e bombe";
+"game_over.optimality_excludes" = "I Magix non sono valutati";
 "pvp.challenge_keep_app_open" = "Tieni l’app aperta · 60 s";
 "guide.title" = "Guida";
 "guide.replay_tutorial" = "Rigioca il tutorial";

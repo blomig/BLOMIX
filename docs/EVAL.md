@@ -245,7 +245,7 @@ optimalityPercent = moyenne × 100
 
 1. **Cascades profondes** aux niveaux 2–3 : seule la position finale est scorée (partiellement compensé par `immediateClearing`).
 2. **Horizon borné à 3** : setups à 4+ coups sous-évalués.
-3. **Magix et bombes** : non simulés dans le lookahead (`simulateDropAny` retourne vide si P0 est Magix ; le mode bombe n’est pas analysé). Une partie riche en Magix peut donc afficher une justesse basse alors que les effets spéciaux ont été bien utilisés. C’est la limite affichée côté joueur dans [RULES.md](RULES.md) §10.
+3. **Magix et bombes** : non simulés dans le lookahead (`simulateDropAny` retourne vide si P0 est Magix ; le mode bombe n’est pas analysé). Une partie riche en Magix peut donc afficher une justesse basse alors que les effets spéciaux ont été bien utilisés. Sous le pourcentage, le joueur lit « Les Magix ne sont pas notés » (`game_over.optimality_excludes`, 6 langues). Le calcul ignore aussi les bombes ; la phrase validée ne les cite pas. Détail joueur : [RULES.md](RULES.md) §10.
 4. **Lignes futures** : le joueur ne les passe au lookahead que si visibles ; le fantôme Défi injecte `nextLine` à la ply qui franchit les 10 coups. Au-delà d’une ligne, toujours inconnu (`urgencyH`).
 5. **`risk` dominant** : même avec le facteur dynamique v2.
 

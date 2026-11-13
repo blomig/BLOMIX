@@ -33,6 +33,7 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Vol** : un Magix, et tout bloc lâché après l’appui long de la colonne ghost, fait un tour sur lui-même pendant la montée (sens au hasard) et arrive droit. Tap court, ghost du timer et bombe inchangés. Réduire les animations : pas de tour.
 - **Copie** : clés FR du tutoriel interactif dédoublonnées (le texte déjà effectif reste : « Tape sur une colonne… », bombe qui casse blox et Brix). Accents et « Tape » à la place de « Cliques ». Libellé son FR/EN : Brix, comme DE/ES/IT/PT. `rules.txt` (plus affiché) : Prix → Brix.
 - **Tutoriel** (6 langues) : page 2 alignée sur les règles (ligne /10 ou /5, bombe ≠ coup, stock 5 ou 3 en Duel, zone 3×3 puis croix en Arcade, pas de recharge toutes les 10 chaînes). Page 3 : tutoiement en français, Duel à la place de « Player Vs Player », couleurs et sons. La phrase sur le bonus « moyenne statistique » est retirée : ce bonus n’est pas calculé (commentaire orphelin seulement). Pas de nouveau parcours.
+- **Justesse** : sous le pourcentage, « Les Magix ne sont pas notés » (6 langues). Le calcul est inchangé : Magix et bombes restent hors note.
 
 ---
 

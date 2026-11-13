@@ -420,7 +420,7 @@
 "home.icon.credits" = "Crédits";
 "hud.attack_caption" = "attaque";
 "hud.time_aiming_caption" = "visée";
-"game_over.optimality_excludes" = "Hors Magix et bombes";
+"game_over.optimality_excludes" = "Les Magix ne sont pas notés";
 "pvp.challenge_keep_app_open" = "L’app doit rester ouverte · 60 s";
 "guide.title" = "Guide";
 "guide.replay_tutorial" = "Rejouer le tuto";

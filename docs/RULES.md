@@ -283,7 +283,7 @@ Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_D
 
 En fin de partie Arcade / Zen / Five, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie. Absent en Défi.
 
-Le pourcentage **ne compte pas** les Magix ni les bombes : seuls les placements de Blox / Brix sont évalués, sur un horizon de 3 blocs visibles (P0, P1, P2).
+Le pourcentage **ne compte pas** les Magix ni les bombes : seuls les placements de Blox / Brix sont évalués, sur un horizon de 3 blocs visibles (P0, P1, P2). Sous le chiffre, la phrase affichée est « Les Magix ne sont pas notés » (les bombes sont aussi hors calcul, la phrase ne les cite pas).
 
 ### Récompense d’un trophée maxé
 

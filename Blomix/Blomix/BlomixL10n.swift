@@ -112,7 +112,7 @@ enum BlomixL10n {
     static var gameOverLeaderboard: String { tr("game_over.leaderboard", comment: "Game over — open rankings") }
     static var gameOverPersonalBest: String { tr("game_over.personal_best", comment: "Shown when new high score") }
     static var gameOverOptimalityLabel: String { tr("game_over.optimality_label", comment: "Subtitle under placement-quality % on game over (justesse / placement)") }
-    static var gameOverOptimalityExcludes: String { tr("game_over.optimality_excludes", comment: "Game over — optimality ignores Magix and bombs") }
+    static var gameOverOptimalityExcludes: String { tr("game_over.optimality_excludes", comment: "Game over — line under the accuracy percent: Magix moves are not scored") }
     static func gameOverMoveStats(excellent: Int, mistakes: Int) -> String {
         String(format: tr("game_over.move_stats_format", comment: "%lld excellent, %lld mistakes"), excellent, mistakes)
     }

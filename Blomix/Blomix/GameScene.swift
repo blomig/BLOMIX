@@ -7353,6 +7353,47 @@ final class GameScene: SKScene {
             }
         }
         best?.zPosition = GameOverFocusFeedback.fatalCellZ
+        let kept = best.flatMap { Self.gridAddressFromCellNodeName($0.name ?? "") }
+        parkGameOverJunctions(in: container, keeping: kept)
+    }
+
+    /// `cell_row_col` seulement. Les noms `cell_dissolve_*` / `cell_connect_*` ne passent pas ici.
+    private static func gridAddressFromCellNodeName(_ name: String) -> GridAddress? {
+        let parts = name.split(separator: "_")
+        guard parts.count == 3, parts[0] == "cell",
+              let row = Int(parts[1]), let col = Int(parts[2]) else { return nil }
+        return GridAddress(row: row, col: col)
+    }
+
+    /// Le voile (z 12) ne couvre que ce qui est en dessous.
+    /// Le coup précédent a souvent ses barres à z ≥ 12 (`elevateBloxJunctionsTouching`),
+    /// et une fonte en cours les passe à z 25. Les diagonales, longues, restent alors
+    /// lisibles au-dessus du voile. On retire tout `junction_*` qui ne touche pas
+    /// la case gardée. Celles qui la touchent passent juste sous elle (z 29).
+    private func parkGameOverJunctions(in container: SKNode, keeping focus: GridAddress?) {
+        let keptZ = GameOverFocusFeedback.fatalCellZ - 1
+        for child in Array(container.children) {
+            guard let name = child.name else { continue }
+            if name.hasPrefix("cell_connect_path_") {
+                child.removeAllActions()
+                child.removeFromParent()
+                continue
+            }
+            guard name.hasPrefix(Self.junctionNodeNamePrefix) else { continue }
+            let key = String(name.dropFirst(Self.junctionNodeNamePrefix.count))
+            let keep = focus.map {
+                junctionBorderKeyTouchesCell(key, row: $0.row, col: $0.col)
+                    || junctionDiagonalKeyTouchesCell(key, row: $0.row, col: $0.col)
+            } ?? false
+            if keep {
+                child.zPosition = keptZ
+                continue
+            }
+            child.removeAllActions()
+            child.removeFromParent()
+        }
+        borderConnections = borderConnections.filter { $0.value.parent != nil }
+        diagonalConnections = diagonalConnections.filter { $0.value.parent != nil }
     }
 
     /// Pioche une citation aléatoire depuis `gameover_quotes.json` (bundle), sinon fallback interne.
@@ -15845,8 +15886,11 @@ final class GameScene: SKScene {
         let melt = SKAction.group(parts)
         node.run(SKAction.sequence([
             SKAction.wait(forDuration: delay),
-            SKAction.run { [weak node] in
-                node?.zPosition = ChainClearFeedback.junctionDissolveZ
+            SKAction.run { [weak self, weak node] in
+                guard let node, node.parent != nil else { return }
+                // Le voile a déjà classé les barres. Ne pas les remettre devant.
+                guard self?.isGameOver != true else { return }
+                node.zPosition = ChainClearFeedback.junctionDissolveZ
             },
             melt,
             SKAction.removeFromParent(),
@@ -15854,7 +15898,9 @@ final class GameScene: SKScene {
     }
 
     /// Remonte les traits qui touchent la case du **dernier** blox posé.
+    /// Pas après la défaite : ce z ≥ 12 passe devant le voile (z 12).
     private func elevateBloxJunctionsTouching(_ focus: GridPosition) {
+        guard !isGameOver else { return }
         let r = focus.row
         let c = focus.col
         var z: CGFloat = 12

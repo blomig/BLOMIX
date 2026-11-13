@@ -276,6 +276,8 @@ Lots **abandonnés** après validation : **L10** (accueil, D6), **L12** (accessi
 | **L15** | Récompense MAGIX B : un trophée **nouveau** à 3 étoiles crédite un BOMBX, premier bloc de la prochaine partie Arcade / Zen / Five. Pas le Défi, pas le Duel, pas le tutoriel, pas la reprise. Historique non crédité | `BlomixTrophyStore.swift`, `GameScene.swift` (injection + message), `BlomixL10n`, 6 `.strings`, `docs/TROPHIES.md`, `docs/RULES.md` | M | Crédit rétroactif ou consommation sur une grille jetée (retour accueil, prep Duel). Graine du Défi si on injectait là | D8, D9 |
 | **L16** | **Abandonné** (D15-A). iPad retiré des textes presse, pas du binaire | — | — | — | D15 |
 | **L17** | Checklist de release automatisée (`campaignID`, 6 whats-new, en-têtes docs) | `scripts/`, éventuellement le workflow `store-metadata.yml` | S | Un script qui bumpe ou qui pousse ASC serait hors contrat. Lecture seule | D17-A |
+| **L18** | Voile de fin : retirer les barres de liaison qui ne touchent pas la case gardée (diagonales à z ≥ 12 ou fonte à z 25) | `GameScene.swift`, `docs/VFX_AND_ANIMATIONS.md` | S | Enlever aussi les liaisons de la case focus, ou laisser une fonte les remettre devant | B1 |
+| **L19** | Air : grains immobiles (cycle, recyclage, pause, Réduire les animations) et densité environ +30 à 50 % | `GameScene.swift` (`syncGravityAir`), `docs/VFX_AND_ANIMATIONS.md` | S | Trop de sprites si le plafond monte fort. Le bouton Réduire les animations doit continuer de tout couper | B2 |
 
 Lots explicitement non ouverts : probabilités Magix (D9), mode Contrats (D7), thème musical et nouvelle icône (D18-A), monétisation (D2), accueil (D6 / L10), accessibilité (D14 / L12), Duel (D12 / L13), extraction du moteur (L14), iPad (L16).
 

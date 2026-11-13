@@ -642,7 +642,7 @@ Pas de son. Premier layout : pas de burst ni de tick. Échelle de la ligne **lin
 | **Déclencheur** | Colonne pleine, point focal fourni |
 | **Durée totale** | **1,38 s** |
 | **Shake** | intensity **2,5**. **Réduire les animations** : pas de shake ici (les autres shakes du jeu restent) |
-| **Plateau** | voile noir α **0,46** sur la grille (fondu **0,28 s**, z 12, sous le cadre z 50). La case du focus passe à z **30** et reste en couleur. Les `junction_*` qui ne la touchent pas sont retirés (le coup précédent les laisse souvent à z ≥ 12, une fonte les passe à z 25 : les diagonales dépassent alors du voile). Celles de la case focus passent à z **29**. Le pont CONNECT encore en file est retiré. **Réduire les animations** : fondu **0,01 s**. Pas de focus (pas de point) : pas de voile |
+| **Plateau** | voile noir α **0,46** sur la grille (fondu **0,28 s**, z 12, sous le cadre z 50). La case du focus passe à z **30** et reste en couleur. **Aucune** liaison ne reste au-dessus du voile : H, V, diagonales (`junction_*`, souvent z ≥ 12 après le coup précédent, ou z 25 en fonte), pont CONNECT (`cell_connect_path_`, z 25,8) et point de pont (`cell_connect_flash`, z 26) sont retirés. Une fonte, un pont ou un `drawGrid` encore en file ne les recrée pas ; le redraw remet la case focus à z 30. **Réduire les animations** : fondu **0,01 s**. Pas de focus (pas de point) : pas de voile |
 | **Ondes** | 4 anneaux, stagger **0,12 s**, rayon 2,1×cellule → scale 0,18, **0,34 s** |
 | **Titre** | fade in + grow 20→40 pt, hold **0,18 s** |
 | **Son** | `end` (déclenché avant overlay) |

@@ -1583,6 +1583,8 @@ final class GameScene: SKScene {
 
     /// `true` après `triggerGameOver()` : entrées bloquées ; **RESTART** ou **R** → retour écran d’accueil.
     private var isGameOver = false
+    /// Case laissée au-dessus du voile. Un `drawGrid` pendant la fin de partie la remet à ce z.
+    private var gameOverFatalCell: GridAddress?
 
     /// Score final au moment du **Game Over** (identique à `score` dans `triggerGameOver`) — envoi `ScoreManager` / affichage record.
     private(set) var gameOverFinalScore: Int = 0
@@ -5637,6 +5639,7 @@ final class GameScene: SKScene {
             BlomixSoloSaveManager.shared.clearArcade()
         }
         isGameOver = true
+        gameOverFatalCell = nil
         isProcessing = true
         invalidateGameOverCelebration()
         stopStageTimer()
@@ -7353,8 +7356,8 @@ final class GameScene: SKScene {
             }
         }
         best?.zPosition = GameOverFocusFeedback.fatalCellZ
-        let kept = best.flatMap { Self.gridAddressFromCellNodeName($0.name ?? "") }
-        parkGameOverJunctions(in: container, keeping: kept)
+        gameOverFatalCell = best.flatMap { Self.gridAddressFromCellNodeName($0.name ?? "") }
+        parkGameOverJunctions(in: container)
     }
 
     /// `cell_row_col` seulement. Les noms `cell_dissolve_*` / `cell_connect_*` ne passent pas ici.
@@ -7365,30 +7368,17 @@ final class GameScene: SKScene {
         return GridAddress(row: row, col: col)
     }
 
-    /// Le voile (z 12) ne couvre que ce qui est en dessous.
-    /// Le coup précédent a souvent ses barres à z ≥ 12 (`elevateBloxJunctionsTouching`),
-    /// et une fonte en cours les passe à z 25. Les diagonales, longues, restent alors
-    /// lisibles au-dessus du voile. On retire tout `junction_*` qui ne touche pas
-    /// la case gardée. Celles qui la touchent passent juste sous elle (z 29).
-    private func parkGameOverJunctions(in container: SKNode, keeping focus: GridAddress?) {
-        let keptZ = GameOverFocusFeedback.fatalCellZ - 1
+    /// Le voile (z 12) ne couvre que ce qui est en dessous. H, V, diagonales, ponts
+    /// CONNECT et points de pont passent devant dès qu’ils sont à z ≥ 12 (coup
+    /// précédent, fonte à z 25, pont à z 25,8). Aucune liaison ne reste : la case
+    /// fatale, elle, reste à z 30.
+    private func parkGameOverJunctions(in container: SKNode) {
         for child in Array(container.children) {
             guard let name = child.name else { continue }
-            if name.hasPrefix("cell_connect_path_") {
-                child.removeAllActions()
-                child.removeFromParent()
-                continue
-            }
-            guard name.hasPrefix(Self.junctionNodeNamePrefix) else { continue }
-            let key = String(name.dropFirst(Self.junctionNodeNamePrefix.count))
-            let keep = focus.map {
-                junctionBorderKeyTouchesCell(key, row: $0.row, col: $0.col)
-                    || junctionDiagonalKeyTouchesCell(key, row: $0.row, col: $0.col)
-            } ?? false
-            if keep {
-                child.zPosition = keptZ
-                continue
-            }
+            let isLink = name.hasPrefix(Self.junctionNodeNamePrefix)
+                || name.hasPrefix("cell_connect_path_")
+                || name.hasPrefix("cell_connect_flash")
+            guard isLink else { continue }
             child.removeAllActions()
             child.removeFromParent()
         }
@@ -9560,7 +9550,7 @@ final class GameScene: SKScene {
         cellAnim: TimeInterval,
         in container: SKNode
     ) {
-        guard !paths.isEmpty else { return }
+        guard !paths.isEmpty, !isGameOver else { return }
         let fadeInMax = ChainClearFeedback.dissolveScaleUpDuration
         let fadeOutMax = ChainClearFeedback.dissolveScaleDownDuration
             + ChainClearFeedback.dissolveFadeDuration
@@ -9591,6 +9581,7 @@ final class GameScene: SKScene {
         hold: TimeInterval,
         fadeOut: TimeInterval
     ) {
+        guard !isGameOver else { return }
         guard let start = cells.first, let goal = cells.last else { return }
         let lastCol = GridLayout.columnCount - 1
         let spriteHalf = (GridLayout.cellPoints - 4) / 2
@@ -9640,11 +9631,13 @@ final class GameScene: SKScene {
 
     /// Point chrome sur la face externe d’un blox mur (L ou R), calé sur la dissolution de cette case.
     private func spawnLateralConnectFlash(at localPoint: CGPoint, in container: SKNode) {
+        guard !isGameOver else { return }
         let dot = SKShapeNode(circleOfRadius: LateralConnectBonus.flashRadius)
         dot.fillColor = LateralConnectBonus.chromeSK
         dot.strokeColor = .clear
         dot.position = localPoint
         dot.zPosition = LateralConnectBonus.flashZ
+        dot.name = "cell_connect_flash"
         dot.setScale(0.35)
         container.addChild(dot)
         let grow = SKAction.scale(to: LateralConnectBonus.flashPeakScale,
@@ -15749,6 +15742,9 @@ final class GameScene: SKScene {
     private func rebuildBloxJunctionShapes(in container: SKNode) {
         borderConnections.removeAll()
         diagonalConnections.removeAll()
+        // Fin de partie : le focus a déjà tout retiré. Un refresh ne les remet pas,
+        // même sous le voile — un z hérité ≥ 12 repasserait devant.
+        guard !isGameOver else { return }
         bloxJunctionZCounter = 2
         for row in GridLayout.topRowIndex..<GridLayout.rowCount {
             for col in 0..<GridLayout.columnCount {
@@ -15870,6 +15866,11 @@ final class GameScene: SKScene {
         squashX: Bool,
         squashY: Bool
     ) {
+        guard !isGameOver else {
+            node.removeAllActions()
+            node.removeFromParent()
+            return
+        }
         node.removeAllActions()
         let dur = ChainClearFeedback.junctionDissolveDuration
         let end = ChainClearFeedback.junctionDissolveEndScale
@@ -15891,8 +15892,11 @@ final class GameScene: SKScene {
             SKAction.wait(forDuration: delay),
             SKAction.run { [weak self, weak node] in
                 guard let node, node.parent != nil else { return }
-                // Le voile a déjà classé les barres. Ne pas les remettre devant.
-                guard self?.isGameOver != true else { return }
+                // Partie finie pendant l’attente : la barre ne doit pas finir sa fonte devant le voile.
+                guard self?.isGameOver != true else {
+                    node.removeFromParent()
+                    return
+                }
                 node.zPosition = ChainClearFeedback.junctionDissolveZ
             },
             melt,
@@ -15938,6 +15942,7 @@ final class GameScene: SKScene {
         // Une nouvelle grille (isGameOver redevenu faux) le retire.
         if !isGameOver {
             container.childNode(withName: Self.gameOverFocusDimName)?.removeFromParent()
+            gameOverFatalCell = nil
         }
         borderConnections.removeAll()
         diagonalConnections.removeAll()
@@ -15990,6 +15995,10 @@ final class GameScene: SKScene {
         rebuildBloxJunctionShapes(in: container)
         if let focus = junctionFocus {
             elevateBloxJunctionsTouching(focus)
+        }
+        if isGameOver, let fatal = gameOverFatalCell {
+            container.childNode(withName: "cell_\(fatal.row)_\(fatal.col)")?
+                .zPosition = GameOverFocusFeedback.fatalCellZ
         }
 
         container.childNode(withName: Self.gridFrameOutlineName)?.removeFromParent()
@@ -20064,6 +20073,7 @@ final class GameScene: SKScene {
         // D’abord l’anim (critique UI). H2H/Elo (UserDefaults + GC) **après**,
         // sinon freeze MainActor entre la dernière pose et les ronds de game over.
         isGameOver = true
+        gameOverFatalCell = nil
         isProcessing = true
         playMatchSound(.end)
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()

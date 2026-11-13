@@ -865,7 +865,7 @@ File upcoming, file d’attente et autres fonds vides prennent le trou plus chau
 
 **Air de gravité** (`syncGravityAir`, préfixe `gravityAirGrain`)
 
-En partie seulement. Enfants du conteneur de grille, z **0,4** (sur le trou, sous les blox z 1). Max **4**. Spawn **1,6…3,2 s**. Trajet bas → haut **4,5…7,5 s**, côté **2,2…3,6** pt, alpha **0,18…0,32**, couleur skin. Ils ne scorent pas et ne sont pas retirés par `drawGrid`. Accueil, fin de partie, **Réduire les animations** : rien.
+En partie seulement. Enfants du conteneur de grille, z **0,4** (sur le trou, sous les blox z 1). Max **6** (avant 4). Spawn **1,1…2,2 s** (avant 1,6…3,2). Trajet bas → haut **4,5…7,5 s**, côté **2,2…3,6** pt, alpha **0,18…0,32**, couleur skin. Densité moyenne environ **3,5** grains au lieu de **2,5**. Ils ne scorent pas et ne sont pas retirés par `drawGrid`. Un grain sans action de montée (SCRUMBLX vide les actions de la grille ; retour au premier plan) repart, ou revient en bas s’il est déjà sorti. Accueil, fin de partie, **Réduire les animations** : rien.
 
 ---
 
@@ -912,7 +912,7 @@ Reduce Motion          voisin + jitter/respiration de ligne + montée 2 pt + sha
 FlightSpin             1 tour ±2π sur riseDuration | easeOut | Magix toujours | appui long ghost | pas tap court ni timer ≤ 2 s
 StartScreenEntrance    tenue hero 0,85 | disques 0,07 | icônes 0,05 | hero cold t+0,08 | retour hero 0,04
 RiseModalTransition    0,25 s montée easeOut / descente easeIn | Réduire les animations 0,01
-GravityAir             max 4 | spawn 1,6–3,2 s | trajet 4,5–7,5 s | côté 2,2–3,6 | α 0,18–0,32 | z 0,4
+GravityAir             max 6 | spawn 1,1–2,2 s | trajet 4,5–7,5 s | côté 2,2–3,6 | α 0,18–0,32 | z 0,4 | grain sans action relancé
 ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 / 0,028 / 0,020 | grains 2,0–3,5 / 2,6–4,4 / 3,2–5,2 | shake 1,4 puis 2,0 | sparkles → score ~820 pt/s | cascade 0,07
 ChainCommentaryPopup   delay 0,72 | 40 pt | scale 0,55→1 en 0,36 | shrink 0,82 + fade 0,28 | pas de vol HUD
 BrixLandingSparkles    éjection 6–8 carrés 1,5–2,5 pt (pose / compact) ; poudre ronde inchangée

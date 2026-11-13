@@ -28,7 +28,7 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Modaux** : Salon, scores, réglages, guide, crédits, sondage et hub Défi montent en 0,25 s et redescendent. Lobby, Game Center et partage restent en fondu. Réduire les animations : 0,01 s.
 - **Clair** : cases vides `#F0E6D2`, barre interne 2 pt `#E4D8C2` sur la grille seulement. Ombre de contact des boutons 0,11 (0,04 à l’appui). Sombre inchangé. Le thème reste séparé des skins.
 - **Arrivée Magix** : le son commun est l’accord voix court (`magix.wav`). Un Magix posé juste après un autre Magix joue l’accord long (`magix_follow.wav`). Les sons d’effet (SAINTX, SCRUMBLX, ticks procéduraux) ne changent pas. Une bombe entre les deux casse la suite ; une ligne entrante non.
-- **Air de gravité** : en partie, jusqu’à 4 grains lents (couleur skin) montent dans les trous, sous les blox. Ils ne scorent pas. Absents à l’accueil, en fin de partie, et si Réduire les animations.
+- **Air de gravité** : en partie, jusqu’à 6 grains lents (couleur skin) montent dans les trous, sous les blox. Ils ne scorent pas. Absents à l’accueil, en fin de partie, et si Réduire les animations.
 - **Toast trophée** : anneau, point et libellé Nunito, à la même place. Réduire les animations : fondu sans scale de l’anneau.
 - **Vol** : un Magix, et tout bloc lâché après l’appui long de la colonne ghost, fait un tour sur lui-même pendant la montée (sens au hasard) et arrive droit. Tap court, ghost du timer et bombe inchangés. Réduire les animations : pas de tour.
 - **Copie** : clés FR du tutoriel interactif dédoublonnées (le texte déjà effectif reste : « Tape sur une colonne… », bombe qui casse blox et Brix). Accents et « Tape » à la place de « Cliques ». Libellé son FR/EN : Brix, comme DE/ES/IT/PT. `rules.txt` (plus affiché) : Prix → Brix.
@@ -38,6 +38,7 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 - **Tests de référence** : `swift test` (moteur Watch + `BlomixDailyRNG`, graines fixes) et cible `BlomixReferenceTests` (`BlomixMoveAnalyzer`, hébergée par l’app). `GameScene` n’est pas modifié pour ces tests. Voir [DEVELOPMENT.md](DEVELOPMENT.md).
 - **Polices** : retirées du bundle et du dépôt Alfa Slab One, Bitcount, DynaPuff, Londrina Shadow et Early GameBoy (`gameboy.ttf`). Conservées, SIL OFL 1.1 (table `name` des fichiers) : Changa One Regular + Italic (Eduardo Tunni, nom réservé « Changa »), Nunito Regular / Medium / SemiBold (Vernon Adams), Google Sans Regular (enregistrée, le chrome reste Nunito). Détail : [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 - **Fin de partie** : la case qui bloque reste au-dessus du voile. Les barres qui ne la touchent pas n’y restent plus (diagonales du coup précédent à z ≥ 12, ou fonte à z 25). Les liaisons de cette case passent juste sous elle.
+- **Air de gravité** : un grain dont la montée a été coupée (SCRUMBLX, retour au premier plan) repart au lieu de rester collé et de bloquer le plafond. Plafond 6, apparition un peu plus fréquente (environ +40 % de grains). Réduire les animations les retire toujours.
 
 ---
 

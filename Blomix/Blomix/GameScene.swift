@@ -13426,6 +13426,9 @@ final class GameScene: SKScene {
                 // Stoppe les moveBy horizontaux résiduels avant le rebuild.
                 container.removeAllActions()
                 for child in container.children {
+                    // Les grains d’air ne sont pas des cases : couper leur montée les fige,
+                    // et ils occupent ensuite le plafond sans jamais repartir.
+                    if child.name?.hasPrefix(Self.gravityAirGrainPrefix) == true { continue }
                     child.removeAllActions()
                 }
                 container.position = containerScenePos
@@ -16595,6 +16598,17 @@ final class GameScene: SKScene {
 
     /// Quelques grains très lents qui montent dans les trous. Ils ne scorent pas.
     /// Accueil, fin de partie, Réduire les animations : rien.
+    /// Densité visée ~3,5 grains (avant : ~2,5, plafond 4). Plafond 6, spawn plus serré.
+    private enum GravityAir {
+        static let maxGrains = 6
+        static let spawnWait: ClosedRange<Double> = 1.1...2.2
+        static let travel: ClosedRange<TimeInterval> = 4.5...7.5
+        static let side: ClosedRange<CGFloat> = 2.2...3.6
+        static let alpha: ClosedRange<CGFloat> = 0.18...0.32
+        static let z: CGFloat = 0.4
+        static let riseActionKey = "gravityAirRise"
+    }
+
     private func syncGravityAir() {
         guard let container = childNode(withName: Self.gridContainerName) else { return }
         let alive = !isStartScreen && !isGameOver && !Self.prefersReducedMotion
@@ -16602,8 +16616,48 @@ final class GameScene: SKScene {
             stopGravityAir(in: container)
             return
         }
+        reviveStuckGravityAir(in: container)
         guard container.action(forKey: Self.gravityAirActionKey) == nil else { return }
         scheduleGravityAirSpawn(in: container)
+    }
+
+    /// Un `removeAllActions` (SCRUMBLX) ou une pause qui a jeté l’action laisse le grain en place.
+    /// Sans action, il comptait dans le plafond et plus rien ne naissait.
+    private func reviveStuckGravityAir(in container: SKNode) {
+        for child in container.children {
+            guard child.name?.hasPrefix(Self.gravityAirGrainPrefix) == true else { continue }
+            guard child.action(forKey: GravityAir.riseActionKey) == nil else { continue }
+            restartGravityAirRise(on: child)
+        }
+    }
+
+    /// `fullTravel` : grain neuf, parti du bas. Sinon la durée suit la distance qui reste,
+    /// à la vitesse moyenne du trajet (4,5…7,5 s sur toute la grille).
+    private func restartGravityAirRise(on grain: SKNode, fullTravel: TimeInterval? = nil) {
+        let half = GridLayout.spanPoints / 2
+        let side = max(grain.frame.height, GravityAir.side.lowerBound)
+        let top = half + side
+        let bottom = -half - side
+        let recycled = grain.position.y >= top - 0.5 || grain.position.y < bottom - side
+        if recycled {
+            grain.position = CGPoint(
+                x: CGFloat.random(in: -half...half),
+                y: bottom
+            )
+        }
+        let duration: TimeInterval
+        if let fullTravel, recycled || grain.position.y <= bottom + 1 {
+            duration = fullTravel
+        } else {
+            let distance = max(1, top - grain.position.y)
+            let fullSpan = GridLayout.spanPoints + side * 2
+            let meanTravel = (GravityAir.travel.lowerBound + GravityAir.travel.upperBound) / 2
+            let speed = fullSpan / CGFloat(meanTravel)
+            duration = max(0.35, TimeInterval(distance / speed))
+        }
+        let move = SKAction.moveTo(y: top, duration: duration)
+        move.timingMode = .linear
+        grain.run(.sequence([move, .removeFromParent()]), withKey: GravityAir.riseActionKey)
     }
 
     private func stopGravityAir(in container: SKNode) {
@@ -16614,7 +16668,7 @@ final class GameScene: SKScene {
     }
 
     private func scheduleGravityAirSpawn(in container: SKNode) {
-        let wait = Double.random(in: 1.6...3.2)
+        let wait = Double.random(in: GravityAir.spawnWait)
         container.run(.sequence([
             .wait(forDuration: wait),
             .run { [weak self, weak container] in
@@ -16630,20 +16684,18 @@ final class GameScene: SKScene {
         let existing = container.children.reduce(into: 0) { count, child in
             if child.name?.hasPrefix(Self.gravityAirGrainPrefix) == true { count += 1 }
         }
-        guard existing < 4 else { return }
+        guard existing < GravityAir.maxGrains else { return }
         let half = GridLayout.spanPoints / 2
-        let side = CGFloat.random(in: 2.2...3.6)
+        let side = CGFloat.random(in: GravityAir.side)
         let key = Self.colorPalette.randomElement() ?? "red"
         let color = Self.bloxSolidFillColor(forNormalizedKey: key) ?? SKColor(white: 0.7, alpha: 1)
         let grain = SKSpriteNode(color: color, size: CGSize(width: side, height: side))
         grain.name = Self.gravityAirGrainPrefix
-        grain.alpha = CGFloat.random(in: 0.18...0.32)
-        grain.zPosition = 0.4
+        grain.alpha = CGFloat.random(in: GravityAir.alpha)
+        grain.zPosition = GravityAir.z
         grain.position = CGPoint(x: CGFloat.random(in: -half...half), y: -half - side)
         container.addChild(grain)
-        let move = SKAction.moveTo(y: half + side, duration: TimeInterval.random(in: 4.5...7.5))
-        move.timingMode = .linear
-        grain.run(.sequence([move, .removeFromParent()]))
+        restartGravityAirRise(on: grain, fullTravel: TimeInterval.random(in: GravityAir.travel))
     }
 
     /// Barre haute du trou, thème Clair, grille principale seulement.

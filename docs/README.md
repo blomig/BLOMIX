@@ -43,6 +43,7 @@
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Conventions de contribution et maintenance doc |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
 | [EVALUATION_EDITEUR.md](EVALUATION_EDITEUR.md) | Évaluation éditeur (12 novembre 2026) : verdict, critique par métier, plan 30/60/90 |
+| [PLAN_8.9.md](PLAN_8.9.md) | Plan 8.9 : décisions à valider, lots, builds TestFlight (non lancés) |
 | [SPEC_6.4.md](SPEC_6.4.md) | Cahier 6.4 / build 118 (accueil, HUD, guide) |
 | [SPEC_6.7.md](SPEC_6.7.md) | Cahier 6.7 / build 127 (chrome tactile : puits + capsule) |
 | [privacy-policy.html](privacy-policy.html) | Politique de confidentialité (FR/EN) |

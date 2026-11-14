@@ -46,7 +46,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A10000000000000000000020"
             BuildableName = "BLOMIX Watch.app"
-            BlueprintName = "BLOMIX Watch"
             ReferencedContainer = "container:Blomix.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -63,7 +62,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A10000000000000000000020"
             BuildableName = "BLOMIX Watch.app"
-            BlueprintName = "BLOMIX Watch"
             ReferencedContainer = "container:Blomix.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

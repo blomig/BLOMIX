@@ -262,6 +262,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`, `isFiveMode`
+- `activePlaySeconds` (optionnel, défaut 0, pas de bump) : temps de jeu actif déjà accumulé, pour la télémétrie. Voir [TELEMETRY.md](TELEMETRY.md)
 - Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero **Arcade** + caption Continuer si slot Arcade, chips Zen / Five + Continuer si save, puces Défi selon l’état du jour
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)

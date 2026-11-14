@@ -18,12 +18,16 @@ Identifiant : UUID aléatoire, clé `blomix_telemetry_install_id`. Créé une fo
 |---|---|---|
 | `first_launch` | Une fois, au premier passage au premier plan après l’installation de cette mesure | — |
 | `session_start` | Chaque retour au premier plan (`sceneDidEnterBackground` rouvre le compteur) | — |
-| `game_end` | Fin Arcade, Zen, Five, Défi, tutoriel (`triggerGameOver`) ou Duel (écran de résultat) | `mode`, `durationSec` si le début a été vu |
+| `game_end` | Fin Arcade, Zen, Five, Défi, tutoriel (`triggerGameOver`) ou Duel (écran de résultat) | `mode`, `durationSec` si une partie était suivie, `resumed` dans le même cas |
 | `daily_played` | **Nouvelle** partie de défi (pas la reprise) | `mode`, `day` (jour UTC de la graine) |
 
 `mode` : `arcade`, `zen`, `five`, `daily_arcade`, `daily_five`, `duel`, `tutorial`.
 
-La reprise d’une sauvegarde ne compte pas comme un début. Une fin sans début envoie `game_end` sans durée.
+`durationSec` est un entier : **temps de jeu actif**, pas l’horloge murale. Le chrono n’avance que si une partie est ouverte, l’app est au premier plan, et le jeu n’est pas en pause (menu ☰, modal ouvert depuis la partie, confirmation pour quitter). Il s’arrête en arrière-plan, en pause, et au retour au menu. Une partie neuve remet le compteur à zéro (`noteGameBegan`).
+
+La reprise (`noteGameResumed(mode:activePlaySeconds:)`) restaure ce compteur. Elle n’émet ni début de partie ni `daily_played`. `resumed` vaut `true` si cette reprise a eu lieu au moins une fois. Les secondes vivent dans la sauvegarde de la partie, champ optionnel `activePlaySeconds` de `BlomixSoloGameSave` (défaut 0, pas de bump de version : les saves d’avant se relisent). Le Défi embarque la même struct. Le Duel n’a pas de reprise : le chrono reste en mémoire, `resumed` reste faux.
+
+Une fin sans partie suivie envoie `game_end` **sans** `durationSec` ni `resumed` (clés absentes, comme avant). `session_start`, `first_launch` et `daily_played` n’ont pas ces clés non plus.
 
 File locale `blomix_telemetry_queue_v1`, 200 événements max (les plus anciens sautent). Envoi par lots de 20. Succès : ces ids sortent de la file. Échec réseau : on réessaie plus tard. Autre erreur (schéma absent, compte refusé) : pause d’une heure, sans toucher au robinet public du Duel (`BlomixPublicCloudGate`). iCloud absent ou `accountStatus` différent de `.available` : on ne fait rien.
 
@@ -39,7 +43,7 @@ Conteneur : `iCloud.blomig.BLOMIX`. Base : **Public**. Type : `TelemetryBatch`.
 | `locale` | String | aucun |
 | `sentAt` | Date/Time | Queryable, sortable |
 
-`eventsJSON` est un tableau JSON. Les dates (`at`) sont en ISO-8601. Exemple d’élément : `{"id":"…","kind":"game_end","mode":"zen","durationSec":420,"at":"2026-11-13T18:00:00Z"}`. `day` n’est présent que pour `daily_played`.
+`eventsJSON` est un tableau JSON. Les dates (`at`) sont en ISO-8601. Exemple d’élément : `{"id":"…","kind":"game_end","mode":"zen","durationSec":420,"resumed":false,"at":"2026-11-13T18:00:00Z"}`. `day` n’est présent que pour `daily_played`. `resumed` n’est présent que pour un `game_end` dont la partie était suivie. Un lot déjà en file, sans cette clé, reste lisible.
 
 Droits **avant** de déployer en Production :
 

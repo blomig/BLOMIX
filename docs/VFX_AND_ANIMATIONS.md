@@ -48,8 +48,8 @@ Ce document suit le format **Juice Spec** / **VFX Bible**, utilisé en game dev 
 | `pendingRandomLineBloopa` | `5251__noisecollector__bloopa01.aiff` | Apparition preview ligne (coup 9) |
 | `priksVanish` | `prix.wav` | Brix disparaît (compteur → 0) |
 | `transition` | `transition.wav` | Overlay de transition (stage, tuto) |
-| `magix` | `magix.wav` | Atterrissage Magix (accord voix court, ex-chaîne Trace). Pas les sons d’effet (SAINTX, SCRUMBLX, procéduraux) |
-| `magixFollow` | `magix_follow.wav` | Magix posé juste après un autre Magix (accord voix long). Une ligne entre les deux ne compte pas comme un coup |
+| `magix` | `magix.wav` | Atterrissage Magix (accord voix court, ex-chaîne Trace). Auteur : **Repeal**. Pas les sons d’effet (SAINTX, SCRUMBLX, procéduraux) |
+| `magixFollow` | `magix_follow.wav` | Magix posé juste après un autre Magix (accord voix long). Auteur : **Repeal**. Une ligne entre les deux ne compte pas comme un coup |
 | `bombLoad` | `gun_load.wav` | Activation mode bombe |
 | `bomb` | `bomb.wav` | Explosion bombe |
 | `cleanx` | `cleanx.wav` | Animation SAINTX (cleanx) |

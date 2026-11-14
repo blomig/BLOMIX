@@ -79,6 +79,10 @@ Contexte : App Analytics est inactif. Aucun `UNUserNotificationCenter`, aucune t
 
 Recommandation : **B**. Sans J1/J7, le reste du plan 90 jours ne se tranche pas. Le script `create_analytics_request.py` cité par l’évaluation **n’est pas dans ce dépôt**.
 
+**Fait — chrono actif.** `durationSec` compte le temps de jeu au premier plan, hors pause et hors menu. Il est stocké dans la sauvegarde (`activePlaySeconds`) et restauré par `noteGameResumed`, sans nouveau début ni `daily_played`. `game_end` ajoute le booléen `resumed` (vrai si la partie a été reprise au moins une fois). Le Duel, sans reprise, garde le chrono en mémoire. Détail : [TELEMETRY.md](TELEMETRY.md).
+
+**Fait — crédit son.** Repeal, auteur des sons de pose des Magix (`magix.wav`, `magix_follow.wav`), est dans la section Sons des crédits (6 langues).
+
 ### D2 — Promesse « gratuit, sans pub, sans achat »
 
 Contexte : revenu 0 € par construction. L’évaluation propose un pack Supporter cosmétique, un pitch Apple Arcade, ou une licence du défi du jour. La promesse est aussi l’argument le plus répété de la fiche.

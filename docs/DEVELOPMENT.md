@@ -176,7 +176,8 @@ Deux jeux de références, sans toucher au gameplay de `GameScene` :
 # Mac, hors app : Package.swift à la racine. 8 tests.
 swift test
 
-# BlomixMoveAnalyzer. BlockType est dans GameScene.swift, donc la cible
+# BlomixMoveAnalyzer et le chrono actif (`BlomixActivePlaySession`).
+# BlockType est dans GameScene.swift, donc la cible
 # BlomixReferenceTests est hébergée par l’app (`@testable import BLOMIX`).
 # Ne pas passer CODE_SIGNING_ALLOWED=NO : au lancement, GameScene ouvre
 # CloudKit et le conteneur exige l’entitlement iCloud. Sans signature,

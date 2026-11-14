@@ -156,6 +156,9 @@
 "settings.section_appearance" = "Erscheinungsbild";
 "settings.appearance.dark" = "Dunkel";
 "settings.appearance.light" = "Hell";
+"settings.visual_style" = "Visueller Stil";
+"settings.visual_style.old" = "Klassisch";
+"settings.visual_style.new" = "Neu (Beta)";
 "settings.section_font" = "Schrift";
 "settings.section_colors" = "Farben";
 "settings.adjust_sounds" = "Sounds anpassen";

@@ -156,6 +156,9 @@
 "settings.section_appearance" = "Apparence";
 "settings.appearance.dark" = "Sombre";
 "settings.appearance.light" = "Clair";
+"settings.visual_style" = "Style visuel";
+"settings.visual_style.old" = "Classique";
+"settings.visual_style.new" = "Nouveau (bêta)";
 "settings.section_font" = "Police";
 "settings.section_colors" = "Couleurs";
 "settings.adjust_sounds" = "Régler les sons";

@@ -153,6 +153,9 @@
 "settings.section_appearance" = "Aspetto";
 "settings.appearance.dark" = "Scuro";
 "settings.appearance.light" = "Chiaro";
+"settings.visual_style" = "Stile visivo";
+"settings.visual_style.old" = "Classico";
+"settings.visual_style.new" = "Nuovo (beta)";
 "settings.section_font" = "Font";
 "settings.section_colors" = "Colori";
 "settings.adjust_sounds" = "Regola suoni";

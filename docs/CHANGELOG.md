@@ -7,6 +7,16 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [9.0] — en cours (local, branche `9.0`, pas de bump `MARKETING_VERSION`)
+
+Prototype de look. Pas de fiche ASC. Le rendu en jeu ne change pas tant que « Nouveau (bêta) » n’a pas de matière (étape 1).
+
+### Ajouté
+
+- **Style visuel** (Réglages, section Apparence) : segment Classique / Nouveau (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle`. Nouveau dessine encore exactement Classique. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. [PLAN_9.0.md](PLAN_9.0.md).
+
+---
+
 ## [8.9] — en cours (local, pas de bump `MARKETING_VERSION`)
 
 La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.

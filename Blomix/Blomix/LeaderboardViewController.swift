@@ -1760,6 +1760,87 @@ private final class BlomixMasterVolumeRowView: UIView {
     }
 }
 
+/// Ligne « Style visuel » (9.0) : Classique / Nouveau (bêta).
+/// Écrit `BlomixVisualStyle` seulement. Ne reconstruit pas la partie.
+@MainActor
+private final class BlomixVisualStyleRowView: UIView {
+    private let titleLabel = UILabel()
+    private let control = UISegmentedControl(items: [
+        BlomixL10n.settingsVisualStyleOld,
+        BlomixL10n.settingsVisualStyleNew,
+    ])
+
+    override init(frame: CGRect) {
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+        backgroundColor = BlomixAppearance.panelFill
+        layer.cornerRadius = 8
+        layer.borderWidth = 0.5
+        layer.borderColor = BlomixAppearance.chipBorder.cgColor
+        directionalLayoutMargins = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 10, trailing: 12)
+
+        titleLabel.text = BlomixL10n.settingsVisualStyle
+        titleLabel.font = BlomixTypography.displayFont(size: 15)
+        titleLabel.textColor = BlomixAppearance.primaryText
+
+        // 0 = Old, 1 = New. L’ordre est fixe.
+        control.selectedSegmentIndex = BlomixVisualStyle.isNew ? 1 : 0
+        control.apportionsSegmentWidthsByContent = true
+        control.accessibilityLabel = BlomixL10n.settingsVisualStyle
+        control.addAction(UIAction { [weak self] _ in
+            self?.commitSelection()
+        }, for: .valueChanged)
+        control.heightAnchor.constraint(equalToConstant: 36).isActive = true
+
+        let stack = UIStackView(arrangedSubviews: [titleLabel, control])
+        stack.axis = .vertical
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: layoutMarginsGuide.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: layoutMarginsGuide.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: layoutMarginsGuide.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: layoutMarginsGuide.bottomAnchor),
+        ])
+        applyChrome()
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:)") }
+
+    func refreshChrome() {
+        backgroundColor = BlomixAppearance.panelFill
+        layer.borderColor = BlomixAppearance.chipBorder.cgColor
+        titleLabel.textColor = BlomixAppearance.primaryText
+        applyChrome()
+    }
+
+    private func applyChrome() {
+        control.overrideUserInterfaceStyle = BlomixAppearance.isDark ? .dark : .light
+        control.backgroundColor = BlomixAppearance.chipFill
+        control.selectedSegmentTintColor = BlomixAppearance.isDark
+            ? UIColor(white: 0.38, alpha: 1)
+            : .white
+        let normal: [NSAttributedString.Key: Any] = [
+            .foregroundColor: BlomixAppearance.secondaryText,
+            .font: BlomixTypography.uiFont(size: 14, weight: .medium),
+        ]
+        let selected: [NSAttributedString.Key: Any] = [
+            .foregroundColor: BlomixAppearance.primaryText,
+            .font: BlomixTypography.uiFont(size: 14, weight: .semibold),
+        ]
+        control.setTitleTextAttributes(normal, for: .normal)
+        control.setTitleTextAttributes(selected, for: .selected)
+    }
+
+    /// Persiste le segment. Aucun redraw : New rend encore Old (PLAN_9.0, V3).
+    private func commitSelection() {
+        let style: BlomixVisualStyle = control.selectedSegmentIndex == 1 ? .new : .old
+        BlomixVisualStyle.current = style
+    }
+}
+
 // MARK: -
 
 @MainActor
@@ -1782,6 +1863,8 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     private let appearanceSectionLabel = UILabel()
     private let colorsSectionLabel = UILabel()
     private let appearanceStack = UIStackView()
+    // 9.0 New: ligne Old/New. Le rendu ne branche pas encore ce réglage.
+    private let visualStyleRow = BlomixVisualStyleRowView()
     private let skinsStack = UIStackView()
     private var persoPickerSlot: BlomixPersoColorSlot?
     private var persoPickerSkinId: String = BlomixSkinCatalog.persoSkinId
@@ -1838,6 +1921,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         appearanceStack.distribution = .fillEqually
         contentStack.addArrangedSubview(appearanceStack)
         rebuildAppearanceRow()
+        contentStack.addArrangedSubview(visualStyleRow)
 
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         contentStack.addArrangedSubview(colorsSectionLabel)
@@ -1881,6 +1965,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         configureSectionHeading(appearanceSectionLabel, text: BlomixL10n.settingsAppearanceSection)
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
+        visualStyleRow.refreshChrome()
     }
 
     private func rebuildAppearanceRow() {
@@ -1923,6 +2008,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         rebuildSkinRows()
         soundsVolumeRow.refreshChrome()
         musicVolumeRow.refreshChrome()
+        visualStyleRow.refreshChrome()
         if let gameVC = presentingViewController as? GameViewController {
             gameVC.applyBlomixAppearanceChrome()
         } else {

@@ -105,6 +105,7 @@
 		100000000000000000000223 /* BlomixMoveAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000222 /* BlomixMoveAnalyzer.swift */; };
 		100000000000000000000230 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000231 /* InfoPlist.strings */; };
 		100000000000000000000240 /* BlomixAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000241 /* BlomixAppearance.swift */; };
+		100000000000000000000331 /* BlomixVisualStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000330 /* BlomixVisualStyle.swift */; };
 		100000000000000000000251 /* BlomixShareComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000250 /* BlomixShareComposer.swift */; };
 		100000000000000000000261 /* BlomixPvPLocalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000260 /* BlomixPvPLocalSession.swift */; };
 		E32D3DC42FA4FC9A00E9E3F1 /* victory.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */; };
@@ -238,6 +239,7 @@
 		100000000000000000000247 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = pt; path = pt.lproj/tips_of_day.json; sourceTree = "<group>"; };
 		100000000000000000000248 /* pt */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = pt; path = pt.lproj/gameover_quotes.json; sourceTree = "<group>"; };
 		100000000000000000000241 /* BlomixAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixAppearance.swift; sourceTree = "<group>"; };
+		100000000000000000000330 /* BlomixVisualStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixVisualStyle.swift; sourceTree = "<group>"; };
 		100000000000000000000250 /* BlomixShareComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixShareComposer.swift; sourceTree = "<group>"; };
 		100000000000000000000260 /* BlomixPvPLocalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixPvPLocalSession.swift; sourceTree = "<group>"; };
 		E32D3DC22FA4FC9A00E9E3F1 /* victory.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = victory.mp3; sourceTree = "<group>"; };
@@ -384,6 +386,7 @@
 				100000000000000000000312 /* BlomixPvPBotEloStore.swift */,
 				1000000000000000000001C0 /* BlomixTypography.swift */,
 				100000000000000000000241 /* BlomixAppearance.swift */,
+				100000000000000000000330 /* BlomixVisualStyle.swift */,
 				100000000000000000000250 /* BlomixShareComposer.swift */,
 				100000000000000000000260 /* BlomixPvPLocalSession.swift */,
 				100000000000000000000003 /* GameScene.swift */,
@@ -815,6 +818,7 @@
 				100000000000000000000313 /* BlomixPvPBotEloStore.swift in Sources */,
 				1000000000000000000001C1 /* BlomixTypography.swift in Sources */,
 				100000000000000000000240 /* BlomixAppearance.swift in Sources */,
+				100000000000000000000331 /* BlomixVisualStyle.swift in Sources */,
 				100000000000000000000251 /* BlomixShareComposer.swift in Sources */,
 				100000000000000000000261 /* BlomixPvPLocalSession.swift in Sources */,
 			);

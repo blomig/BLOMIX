@@ -17,7 +17,8 @@ La 8.8 (build **163**) est en vente. Ce lot ne crée pas de fiche ASC.
 
 ### Modifié
 
-- **Popup accueil** : campagne `8.9` (la 8.8 montrait encore `7.1_daily_duel`, Défi du jour + bonhomme vert). À chaque version marketing : nouvel `BlomixWhatsNew.campaignID` et puces en 6 langues, dans le même lot que `store/whats-new/`.
+- **Popup accueil** : campagne `8.9b` (la 8.8 montrait encore `7.1_daily_duel`, Défi du jour + bonhomme vert ; `8.9` a pu être masquée en TestFlight). À chaque version marketing : nouvel `BlomixWhatsNew.campaignID` et puces en 6 langues, dans le même lot que `store/whats-new/`.
+- **Notes 8.9** : popup en 4 puces (trophée complété, matière des coups, air dans la grille, dégradé du Salon). `store/whats-new/` réécrit en 6 langues, à la place du texte 8.8. La note du BOMBX dit « complété ».
 - **Salon** : chaque trophée a sa phase de dégradé (même image, bande différente), disque + arc + étoiles ensemble. La fiche suit.
 - **Point orange accueil** : il s’éteint dès qu’il ne reste plus de fiche non vue, sans reconstruire l’accueil et sans passer par une partie.
 - **Matière des coups** : à la pose, les huit voisins occupés bougent de 2 pt (1 pt au compactage) : même couleur de Blox vers la case, les autres loin d’elle. Pas les blocs qui rebondissent. Haptique : pose douce, groupes de 2/3/4 de plus en plus nets, Magix medium, refus de colonne sourd, chaîne en deux coups. Bombe, ligne et game over restent lourds. Les blox et Brix restent des carrés unis. Un groupe de 4 ne fait plus varier l’opacité des jonctions. Réglages → Accessibilité → Mouvement → Réduire les animations : le coup de voisin se tait ; la pose, la chaîne, le score et les haptiques restent.

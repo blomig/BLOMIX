@@ -1,5 +1,7 @@
-• Five: ein freies Spiel, ohne Timer und ohne Stufen. Alle 5 Züge eine neue Reihe.
-• Five-Challenge: die Herausforderung des Tages, gespielt in Five.
-• Trophäen-Salon: deine Taten, vom ersten Rang bis zum Meister.
-• Spielende: ein Schleier, wenn du deinen Rekord schlägst oder das Podium erreichst.
-• Apple Watch: der nächste Block atmet, Ketten funkeln zum Punktestand, und die Bombe rückt in die Reihe.
+• Trophäe abgeschlossen: jede Trophäe, die du auf 3 Sterne bringst, schenkt dir ein BOMBX, als erster Block deiner nächsten Partie in Arcade, Zen oder Five.
+• Lebendigere Züge: ein langer Druck dreht den Block, die Nachbarn reagieren beim Setzen, und die Vibration folgt der Stärke deiner Ketten.
+• Kaskaden: COMBO und CONNECT bleiben auf dem Feld, und jede Welle trifft härter.
+• Die drohende Linie ist besser lesbar, und das Spielende ist klarer.
+• Trophäen-Salon: ein eigenes Farbspiel für jede Trophäe.
+• Tutorial überarbeitet, und die Platzierung sagt, dass Magix nicht gewertet werden.
+• Anonyme Messung der Nutzung, ohne Werbung und ohne Tracking, um das Spiel zu verbessern.

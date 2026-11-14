@@ -1,5 +1,7 @@
-• Five: an open game, no timer and no stages. A new line every 5 moves.
-• Five Challenge: today’s daily, played in Five.
-• Trophy lounge: your feats, from the first rank up to master.
-• Game over: a veil when you beat your record, or when you reach the podium.
-• Apple Watch: the next block breathes, chains sparkle toward the score, and the bomb steps into the queue.
+• Completed trophy: each trophy you take to 3 stars gives you a BOMBX, as the first block of your next Arcade, Zen, or Five game.
+• Livelier moves: a long launch spins the block, neighbors react when it lands, and vibration follows the strength of your chains.
+• Cascades: COMBO and CONNECT stay on the grid, and each wave hits harder.
+• The incoming line is easier to read, and game over is clearer.
+• Trophy lounge: a gradient of its own for each trophy.
+• Tutorial revised, and placement now says that Magix moves are not scored.
+• Anonymous usage measurement, with no ads and no tracking, to improve the game.

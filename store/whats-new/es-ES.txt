@@ -1,5 +1,7 @@
-• Five: una partida libre, sin cronómetro ni niveles. Una línea cada 5 jugadas.
-• Desafío Five: el desafío del día, jugado en Five.
-• Salón de trofeos: tus hazañas, del primer rango hasta maestro.
-• Fin de partida: un velo si superas tu récord, o si llegas al podio.
-• Apple Watch: el próximo bloque respira, las cadenas brillan hacia la puntuación y la bomba ocupa su lugar en la cola.
+• Trofeo completado: cada trofeo que llevas a 3 estrellas te regala un BOMBX, como primer bloque de tu próxima partida de Arcade, Zen o Five.
+• Jugadas más vivas: un lanzamiento largo hace girar el bloque, los vecinos reaccionan al colocarlo y la vibración sigue la fuerza de tus cadenas.
+• Cascadas: COMBO y CONNECT se quedan en la rejilla, y cada oleada pega más fuerte.
+• La línea amenazante se lee mejor, y el fin de partida es más claro.
+• Salón de trofeos: un degradado propio para cada trofeo.
+• Tutorial revisado, y el acierto indica que los Magix no se puntúan.
+• Medición anónima del uso, sin publicidad ni rastreo, para mejorar el juego.

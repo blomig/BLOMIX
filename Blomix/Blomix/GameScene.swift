@@ -645,7 +645,7 @@ extension BlockType: Codable {
 // MARK: - Sauvegarde de partie solo
 
 struct BlomixSoloGameSave: Codable {
-    static let currentVersion = 8   // v8 : isFiveMode ; v7 encore lisible
+    static let currentVersion = 8   // v8 : isFiveMode ; v7 encore lisible. 8.9 : activePlaySeconds optionnel (défaut 0), pas de bump.
     static let minReadableVersion = 7
     let version: Int
     let grid: [[BlockType]]
@@ -668,13 +668,16 @@ struct BlomixSoloGameSave: Codable {
     let hintsRemaining: Int
     let isZenMode: Bool
     let isFiveMode: Bool
+    /// Temps de jeu actif déjà accumulé (secondes entières), pour la télémétrie. Défaut 0 sur les saves d’avant.
+    let activePlaySeconds: Int
 
     // Initializer explicite (nécessaire car init(from:) supprime le memberwise synthétique).
     init(version: Int, grid: [[BlockType]], currentBlock: BlockType, blockAfterCurrent: BlockType,
          blockTwoAhead: BlockType, selectedColumn: Int, moveCount: Int, nextBottomLine: [BlockType],
          bombCount: Int, isBombMode: Bool, chainClearWaveCount: Int, score: Int, displayedScore: Int,
          chainSeriesLevel: Int, savedAt: Date, currentStageIndex: Int, stageTimerSecondsRemaining: Int,
-         moveRecords: [BlomixMoveRecord], hintsRemaining: Int, isZenMode: Bool, isFiveMode: Bool) {
+         moveRecords: [BlomixMoveRecord], hintsRemaining: Int, isZenMode: Bool, isFiveMode: Bool,
+         activePlaySeconds: Int = 0) {
         self.version                    = version
         self.grid                       = grid
         self.currentBlock               = currentBlock
@@ -696,6 +699,7 @@ struct BlomixSoloGameSave: Codable {
         self.hintsRemaining             = hintsRemaining
         self.isZenMode                  = isZenMode
         self.isFiveMode                 = isFiveMode
+        self.activePlaySeconds          = max(0, activePlaySeconds)
     }
 
     // Décodage rétrocompatible : isZenMode / isFiveMode défaut à false.
@@ -722,6 +726,7 @@ struct BlomixSoloGameSave: Codable {
         hintsRemaining            = try c.decode(Int.self,            forKey: .hintsRemaining)
         isZenMode                 = (try? c.decode(Bool.self,         forKey: .isZenMode)) ?? false
         isFiveMode                = (try? c.decode(Bool.self,         forKey: .isFiveMode)) ?? false
+        activePlaySeconds         = max(0, (try? c.decode(Int.self,   forKey: .activePlaySeconds)) ?? 0)
     }
 }
 
@@ -2060,6 +2065,7 @@ final class GameScene: SKScene {
                     self.replayStartScreenIfNeeded()
                 } else {
                     self.resumeStageTimerForChrome()
+                    BlomixTelemetry.setPlayPaused(false)
                 }
             }
         }
@@ -2787,6 +2793,8 @@ final class GameScene: SKScene {
     /// Fond scène plein écran, titre **BLOMIX**, sous-titre, boutons de jeu et overlay accueil.
     /// `playIntro` : poinçon wordmark uniquement à froid (splash). Retours GO / ☰ : entrée courte.
     private func presentStartScreen(playIntro: Bool = false) {
+        // Menu : le chrono s’arrête. Une sauvegarde de quitter est prise avant cet appel.
+        BlomixTelemetry.noteGameSuspended()
         for kind in BlomixDailyKind.allCases {
             let daily = BlomixDailyChallenge.service(kind)
             daily.noteActiveSession(day: nil)
@@ -7716,11 +7724,13 @@ final class GameScene: SKScene {
         overlay.alpha = 0
         overlay.run(SKAction.fadeIn(withDuration: 0.16))
         hideDropGhostVisuals()
+        BlomixTelemetry.setPlayPaused(true)
     }
 
     private func dismissQuitConfirmOverlay(restoreAimGhost: Bool = true) {
         childNode(withName: Self.quitConfirmOverlayName)?.removeFromParent()
         guard restoreAimGhost else { return }
+        BlomixTelemetry.setPlayPaused(false)
         if isStageTimerPausedForChrome {
             resumeStageTimerForChrome()
         } else {
@@ -10728,6 +10738,8 @@ final class GameScene: SKScene {
         childNode(withName: Self.bottomMenuContainerName)?
             .childNode(withName: Self.hudGameMenuDropdownName)?.isHidden = true
         setOverflowMenuDropdownShadersEnabled(false)
+        // resumeTimer false : modal ou confirmation quitter, la partie reste en pause.
+        BlomixTelemetry.setPlayPaused(!resumeTimer)
         if resumeTimer { resumeStageTimerForChrome() }
     }
 
@@ -10736,6 +10748,7 @@ final class GameScene: SKScene {
             .childNode(withName: Self.hudGameMenuDropdownName) else { return }
         drop.isHidden.toggle()
         setOverflowMenuDropdownShadersEnabled(!drop.isHidden)
+        BlomixTelemetry.setPlayPaused(!drop.isHidden)
         if drop.isHidden {
             resumeStageTimerForChrome()
         } else {
@@ -16467,7 +16480,8 @@ final class GameScene: SKScene {
             moveRecords: analyzerGameStats.records,
             hintsRemaining: hintsRemaining,
             isZenMode: isZenMode,
-            isFiveMode: isFiveMode
+            isFiveMode: isFiveMode,
+            activePlaySeconds: BlomixTelemetry.activePlaySecondsForSave()
         )
     }
 
@@ -16589,6 +16603,11 @@ final class GameScene: SKScene {
 
         soundBank.play(.begin)
         refreshGameCenterStatusLabelText()
+        // Chrono actif : restaure les secondes de la save. Pas un début, pas de daily_played.
+        BlomixTelemetry.noteGameResumed(
+            mode: telemetryModeLabel(),
+            activePlaySeconds: save.activePlaySeconds
+        )
         // Reprendre la musique du mode sauvegardé.
         if isUntimedSoloMode {
             BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)

@@ -337,6 +337,10 @@
 "whatsnew.duel_presence" = "Home: a green person on Duel when players are in Available Players";
 "whatsnew.salon_phase" = "Trophy lounge: each trophy has its own gradient, like the home buttons.";
 "whatsnew.salon_dot" = "The orange dot turns off once every new card has been opened.";
+"whatsnew.trophy_completed" = "Completed trophy: a BOMBX waits as the first block of your next solo game";
+"whatsnew.moves_matter" = "Your moves have more weight: the block spins on a long launch, neighbors react when it lands";
+"whatsnew.grid_air" = "Air in the grid: small grains rise through the holes";
+"whatsnew.salon_gradient" = "Trophy lounge: each trophy has its own gradient";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */
@@ -477,7 +481,7 @@
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Last rank up: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
-"trophy.magix_b_reward" = "Maxed trophy: this BOMBX is yours.";
+"trophy.magix_b_reward" = "Completed trophy: this BOMBX is yours.";
 "trophy.wall.seuil" = "Threshold";
 "trophy.wall.chaines" = "Chains";
 "trophy.wall.magix" = "Magix";

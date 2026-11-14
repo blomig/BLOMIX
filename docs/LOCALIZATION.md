@@ -129,16 +129,18 @@ Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** l
 2. Réécrire `factTexts` et les clés des puces en **FR + EN + DE + ES + IT + PT**.
 3. Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
 
-Campagne courante **`8.9`** (`blomix_whatsnew_dont_show_8.9`) :
+Campagne courante **`8.9b`** (`blomix_whatsnew_dont_show_8.9b`). `8.9` a pu être masquée en TestFlight avant cette réécriture.
 
 | Clé | Usage |
 |---|---|
 | `whatsnew.title` | Titre |
-| `whatsnew.salon_phase` | Chaque trophée a son dégradé |
-| `whatsnew.salon_dot` | Le point orange s’éteint une fois les fiches ouvertes |
+| `whatsnew.trophy_completed` | Trophée complété : BOMBX en premier bloc de la prochaine partie solo |
+| `whatsnew.moves_matter` | Lancer long, voisins à la pose |
+| `whatsnew.grid_air` | Grains dans les trous |
+| `whatsnew.salon_gradient` | Chaque trophée a son dégradé |
 | `whatsnew.dont_show` | Bouton définitif ; `generic.ok` = cette session seulement |
 
-Les clés `whatsnew.daily`, `whatsnew.duel_presence` et les plus anciennes restent dans les `lproj` (historique). Elles ne sont plus affichées.
+Les clés `whatsnew.salon_phase`, `whatsnew.salon_dot`, `whatsnew.daily`, `whatsnew.duel_presence` et les plus anciennes restent dans les `lproj` (historique). Elles ne sont plus affichées.
 
 ### Sondage 8.8 (accueil)
 

@@ -324,6 +324,10 @@
 "whatsnew.duel_presence" = "Inicio: un muñeco verde en Duelo si hay jugadores en Jugadores disponibles";
 "whatsnew.salon_phase" = "Salón de trofeos: cada trofeo tiene su propio degradado, como los botones del inicio.";
 "whatsnew.salon_dot" = "El punto naranja se apaga en cuanto abres cada ficha nueva.";
+"whatsnew.trophy_completed" = "Trofeo completado: un BOMBX te espera como primer bloque de tu próxima partida solo";
+"whatsnew.moves_matter" = "Tus jugadas tienen más cuerpo: el bloque gira en el lanzamiento largo y los vecinos reaccionan al posarlo";
+"whatsnew.grid_air" = "Aire en la rejilla: pequeños granos suben por los huecos";
+"whatsnew.salon_gradient" = "Salón de trofeos: cada trofeo tiene su degradado";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */
@@ -464,7 +468,7 @@
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Último ascenso: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
-"trophy.magix_b_reward" = "Trofeo al máximo: este BOMBX es para ti.";
+"trophy.magix_b_reward" = "Trofeo completado: este BOMBX es para ti.";
 "trophy.wall.seuil" = "Umbral";
 "trophy.wall.chaines" = "Cadenas";
 "trophy.wall.magix" = "Magix";

@@ -17,15 +17,18 @@ import UIKit
 enum BlomixWhatsNew {
     /// Identifiant de cette note. Pas le numéro marketing tout seul :
     /// tant qu’il ne change pas, la clé UserDefaults et le texte restent ceux de l’ancienne note.
-    /// Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
-    static let campaignID = "8.9"
+    /// `8.9b` : des testeurs TestFlight ont pu taper « Ne plus montrer » sur `8.9`
+    /// avant cette réécriture. Cette clé UserDefaults ne se réinitialise pas.
+    static let campaignID = "8.9b"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Puces du dialogue. À réécrire avec la campagne, pas en dur dans la vue.
     static var factTexts: [String] {
         [
-            BlomixL10n.whatsNewSalonPhase,
-            BlomixL10n.whatsNewSalonDot,
+            BlomixL10n.whatsNewTrophyCompleted,
+            BlomixL10n.whatsNewMovesMatter,
+            BlomixL10n.whatsNewGridAir,
+            BlomixL10n.whatsNewSalonGradient,
         ]
     }
 

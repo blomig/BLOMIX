@@ -337,6 +337,10 @@
 "whatsnew.duel_presence" = "Start: grünes Männchen auf Duell, wenn Spieler unter Verfügbare Spieler sind";
 "whatsnew.salon_phase" = "Trophäen-Salon: jede Trophäe hat ihr eigenes Farbspiel, wie die Knöpfe auf der Startseite.";
 "whatsnew.salon_dot" = "Der orange Punkt erlischt, sobald jede neue Karte geöffnet wurde.";
+"whatsnew.trophy_completed" = "Trophäe abgeschlossen: ein BOMBX wartet als erster Block deiner nächsten Solo-Partie";
+"whatsnew.moves_matter" = "Mehr Gewicht im Zug: der Block dreht sich beim langen Drücken, die Nachbarn reagieren beim Setzen";
+"whatsnew.grid_air" = "Luft im Feld: kleine Körner steigen in den Lücken auf";
+"whatsnew.salon_gradient" = "Trophäen-Salon: jede Trophäe hat ihr eigenes Farbspiel";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */
@@ -477,7 +481,7 @@
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Letzter Aufstieg: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
-"trophy.magix_b_reward" = "Trophäe voll: dieses BOMBX ist für dich.";
+"trophy.magix_b_reward" = "Trophäe abgeschlossen: dieses BOMBX ist für dich.";
 "trophy.wall.seuil" = "Schwelle";
 "trophy.wall.chaines" = "Ketten";
 "trophy.wall.magix" = "Magix";

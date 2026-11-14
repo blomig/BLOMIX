@@ -803,9 +803,14 @@ enum BlomixL10n {
     static var whatsNewPunch: String { tr("whatsnew.punch", comment: "7.0 — BLOMIX punch sparkles on home") }
     static var whatsNewDaily: String { tr("whatsnew.daily", comment: "7.1 — Daily Challenge: same Arcade game for everyone") }
     static var whatsNewDuelPresence: String { tr("whatsnew.duel_presence", comment: "7.1 — green person badge on Duel when peers are listed") }
-    /// Campagne 8.9. Réécrire avec `BlomixWhatsNew.campaignID` à la prochaine version marketing.
+    /// Campagne 8.9, plus affichées. Réécrire avec `BlomixWhatsNew.campaignID`.
     static var whatsNewSalonPhase: String { tr("whatsnew.salon_phase", comment: "8.9 — each trophy has its own skin gradient") }
     static var whatsNewSalonDot: String { tr("whatsnew.salon_dot", comment: "8.9 — home trophy dot turns off once every new card is opened") }
+    /// Campagne 8.9b.
+    static var whatsNewTrophyCompleted: String { tr("whatsnew.trophy_completed", comment: "8.9b — a completed trophy grants a BOMBX on the next solo game") }
+    static var whatsNewMovesMatter: String { tr("whatsnew.moves_matter", comment: "8.9b — long launch spins the block, neighbors react on landing") }
+    static var whatsNewGridAir: String { tr("whatsnew.grid_air", comment: "8.9b — small grains rise through holes in the grid") }
+    static var whatsNewSalonGradient: String { tr("whatsnew.salon_gradient", comment: "8.9b — each trophy has its own gradient") }
     static var whatsNewDontShow: String { tr("whatsnew.dont_show", comment: "Don't show this version dialog again") }
 
     // MARK: - Salon des trophées

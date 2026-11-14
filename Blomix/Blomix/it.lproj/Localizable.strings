@@ -324,6 +324,10 @@
 "whatsnew.duel_presence" = "Home: omino verde su Duel se ci sono giocatori in Giocatori disponibili";
 "whatsnew.salon_phase" = "Salone dei trofei: ogni trofeo ha la sua sfumatura, come i pulsanti della home.";
 "whatsnew.salon_dot" = "Il puntino arancione si spegne appena apri ogni nuova scheda.";
+"whatsnew.trophy_completed" = "Trofeo completato: un BOMBX ti aspetta come primo blocco della prossima partita solo";
+"whatsnew.moves_matter" = "Le tue mosse hanno più corpo: il blocco ruota nel lancio lungo e i vicini reagiscono alla posa";
+"whatsnew.grid_air" = "Aria nella griglia: piccoli grani salgono nei buchi";
+"whatsnew.salon_gradient" = "Salone dei trofei: ogni trofeo ha la sua sfumatura";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */
@@ -464,7 +468,7 @@
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Ultimo grado: %@ · %@";
 "trophy.toast_format" = "%@ · %@";
-"trophy.magix_b_reward" = "Trofeo al massimo: questo BOMBX è per te.";
+"trophy.magix_b_reward" = "Trofeo completato: questo BOMBX è per te.";
 "trophy.wall.seuil" = "Soglia";
 "trophy.wall.chaines" = "Catene";
 "trophy.wall.magix" = "Magix";

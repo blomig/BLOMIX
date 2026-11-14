@@ -2,7 +2,7 @@
 
 > À lire en premier par tout agent (Grok Build) qui travaille sur la branche `9.0`.
 > Worktree : `~/Developer/BLOMIX-9.0`. Ne jamais toucher `~/Documents/GIT/BLOMIX` (iCloud).
-> Étape 0 faite le 14/11/2026. Prochaine : étape 1. Le rendu New est encore le rendu Old.
+> Étape 1 faite le 14/11/2026. Prochaine : étape 2. En New, les Blox couleur sont en gelée. Priks, Magix, bombe, file et aperçu restent Old.
 
 ## 1. Objectif
 
@@ -34,13 +34,13 @@ pour prototyper et tester sans rien casser.
   écrit tout de suite UserDefaults et poste la notification. Il ne reconstruit pas la grille.
   Le style sera lu à la **prochaine partie** (étape 1+), jamais au milieu d’une résolution.
 - Compatible avec Sombre / Clair : New doit fonctionner dans les deux, même si la maquette est en clair.
-  Étape 0 : les deux thèmes affichent le segment ; le plateau ne change pas.
+  Les deux thèmes affichent le segment. Étape 1 : la texture gelée est mise en cache pour les deux apparences.
 
 ## 4. Point de branchement du rendu
 
 - Les blocs de grille passent par `GameScene.makeSolidGameplayBlockSprite(block:pixelSize:priksDigitFontSize:)`
-  (≈ 12 appels) : c'est le point d'entrée principal. En New, déléguer à
-  `BlomixNewBlockRenderer` ; en Old, code actuel inchangé.
+  (11 appels, §4.1) : c'est le point d'entrée principal. Étape 1 : seul le cas `.color` délègue à
+  `BlomixNewBlockRenderer` quand `visualStyleForRun == .new`. En Old, le carré uni est inchangé.
 - Autres fabriques à inventorier avant d'y toucher : `makeBlockCell`, `makeFallingBlockNode`,
   `makeBottomLinePreviewCellNode`, aperçu « prochains blox », Magix (`makeMagixShaderSprite`).
 - Grille vide (cellules), cadre de grille, HUD : étapes ultérieures.
@@ -144,7 +144,7 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 | Étape | Contenu | Critère de sortie |
 |---|---|---|
 | 0 | **Fait le 14/11/2026.** Réglage Old/New (enum, notification, ligne Réglages, 6 langues). New = Old. Inventaire §4.1. Pas de rebuild en partie (V3). | Bascule visible, aucun changement de plateau, build + tests OK |
-| 1 | Bloc gelée unitaire (Blox couleur) en New via `BlomixNewBlockRenderer`, textures en cache | Grille en New avec blocs gelée, Old inchangé |
+| 1 | **Fait le 14/11/2026.** Blox couleur en gelée (`BlomixNewBlockRenderer`), cache par couleur / pixels / Clair-Sombre. Style figé au début de partie (V5). | Grille New : Blox gelée. Old identique. Priks, Magix, bombe, file et aperçu encore Old. |
 | 2 | Priks + Magix + bombe + bloc qui tombe + aperçu prochains blox en New | Tous les types de blocs rendus en New |
 | 3 | Grille de verre et cellules vides | Plateau conforme à la maquette |
 | 4 | Fusion des blocs adjacents de même couleur | Formes continues, diagonales lisibles |
@@ -174,3 +174,4 @@ Chaque étape = un commit local, `CHANGELOG.md` + ce plan mis à jour (cocher, n
 | V2 | Bascule Old/New dans Réglages, Old par défaut et inchangé. | 14/11/2026 |
 | V3 | Le segment persiste tout de suite (`UserDefaults` `BlomixVisualStyle`, notification `blomixVisualStyleDidChange`, `object` = le nouveau style). Il ne reconstruit pas la partie, même ouverte depuis le menu en cours. Étape 0 : aucun abonné, New et Old sont le même code de rendu. Étapes 1+ : lire le style **au début de partie** (nouvelle partie ou reprise), pas pendant une résolution. | 14/11/2026 |
 | V4 | `makeSolidGameplayBlockSprite` a 11 appels. La file « prochains blox », le gros bloc courant, la chute Magix, la bombe, l’overlay pire coup, le guide, le partage et la Watch sont d’autres points (§4.1). | 14/11/2026 |
+| V5 | Le style de la partie est le snapshot statique `GameScene.visualStyleForRun` (la fabrique est `static`). Il est lu dans `BlomixVisualStyle.current` une fois, avant le premier `drawGrid`, pour : Arcade neuve (le tutoriel passe par là), Zen, Five, Défi neuf, reprise (`restoreFromSoloSave`, y compris Défi repris), et chaque manche PvP au handshake. Remis à `.old` au retour accueil (grille masquée). `didChangeSize` et les résolutions ne relisent pas UserDefaults. La texture gelée est un masque d’éclairage multiplié par `sprite.color` (`colorBlendFactor` 1) : dissolution et cycle SAINTX continuent d’écrire la couleur. Le reflet blanc est un sprite enfant. Une partie typique : **6** textures gelée (6 couleurs du skin, taille `cell − 4`, une apparence, une échelle) **+ 1** reflet partagé. Changer Clair/Sombre en cours de partie ajoute jusqu’à 6 entrées, pas un rendu par bloc. `morphMagixSprite` vers un Blox couleur reste un aplat jusqu’au prochain `drawGrid` (mutateur, étape 2). La chute couleur passe déjà par la fabrique : elle est gelée dès cette étape. | 14/11/2026 |

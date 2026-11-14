@@ -3751,6 +3751,8 @@ final class GameScene: SKScene {
         addTopTitle()
         setupBombHUD()
         setupScoreHUD()
+        // 9.0 New: style figé avant le premier dessin de cette partie.
+        captureVisualStyleForRun()
         drawGrid()
         updatePreviewSprite()
         rebuildGameOverflowMenu()
@@ -3809,6 +3811,8 @@ final class GameScene: SKScene {
         addTopTitle()
         setupBombHUD()
         setupScoreHUD()
+        // 9.0 New: style figé avant le premier dessin de cette partie.
+        captureVisualStyleForRun()
         drawGrid()
         updatePreviewSprite()
         rebuildGameOverflowMenu()
@@ -3846,6 +3850,8 @@ final class GameScene: SKScene {
         addTopTitle()
         setupBombHUD()
         setupScoreHUD()
+        // 9.0 New: style figé avant le premier dessin de cette partie.
+        captureVisualStyleForRun()
         drawGrid()
         updatePreviewSprite()
         rebuildGameOverflowMenu()
@@ -3894,6 +3900,8 @@ final class GameScene: SKScene {
         addTopTitle()
         setupBombHUD()
         setupScoreHUD()
+        // 9.0 New: style figé avant le premier dessin de cette partie.
+        captureVisualStyleForRun()
         drawGrid()
         updatePreviewSprite()
         rebuildGameOverflowMenu()
@@ -7581,6 +7589,8 @@ final class GameScene: SKScene {
         if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
             scoreLabel.text = "0"
         }
+        // 9.0 New: l'accueil et la grille masquée restent en Old.
+        resetVisualStyleForHome()
         drawGrid()
         setGameplayNodesHidden(true)
         // isWindingDown reste true jusqu'après la présentation/restauration pour bloquer tout
@@ -15546,6 +15556,20 @@ final class GameScene: SKScene {
     }
 
 
+    /// 9.0 New: style de la partie en cours. Défaut Old (accueil, avant le premier gel).
+    /// Lu par la fabrique statique. Jamais relu dans UserDefaults pendant une résolution.
+    nonisolated(unsafe) private static var visualStyleForRun: BlomixVisualStyle = .old
+
+    /// 9.0 New: une lecture, au démarrage ou à la reprise, avant le premier `drawGrid`.
+    private func captureVisualStyleForRun() {
+        Self.visualStyleForRun = BlomixVisualStyle.current
+    }
+
+    /// 9.0 New: entre deux parties, ne pas laisser un plateau masqué en New.
+    private func resetVisualStyleForHome() {
+        Self.visualStyleForRun = .old
+    }
+
     /// Blox / Brix : carré couleur unie. Magix : disque shader (même taille `cell − 4` que la bombe).
     private static func makeSolidGameplayBlockSprite(
         block: BlockType,
@@ -15556,6 +15580,10 @@ final class GameScene: SKScene {
         switch block {
         case .color(let colorName):
             let c = bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
+            // 9.0 New: gelée seulement pour le style figé au début de cette partie.
+            if visualStyleForRun == .new {
+                return BlomixNewBlockRenderer.makeColorSprite(fill: c, pointSize: size)
+            }
             let s = SKSpriteNode(color: c, size: size)
             s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             return s
@@ -16574,6 +16602,8 @@ final class GameScene: SKScene {
         addTopTitle()
         setupBombHUD()
         setupScoreHUD()
+        // 9.0 New: style figé avant le premier dessin de la reprise.
+        captureVisualStyleForRun()
         drawGrid()
         updatePreviewSprite()
         refreshUpcomingQueueSlots()
@@ -19620,6 +19650,8 @@ final class GameScene: SKScene {
             if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
                 scoreLabel.text = "0"
             }
+            // 9.0 New: retour accueil, la grille masquée reste en Old.
+            resetVisualStyleForHome()
             drawGrid()
             setGameplayNodesHidden(true)
             blomixPvP_exitToHomeOrArcade()
@@ -19791,6 +19823,8 @@ final class GameScene: SKScene {
             node.zPosition = 1
             addChild(node)
         }
+        // 9.0 New: chaque manche (première ou revanche) fige le style avant la grille jouable.
+        captureVisualStyleForRun()
         drawGrid()
         updatePreviewSprite()
         refreshUpcomingQueueSlots()
@@ -20345,6 +20379,8 @@ final class GameScene: SKScene {
         if let scoreLabel = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode {
             scoreLabel.text = "0"
         }
+        // 9.0 New: retour accueil, la grille masquée reste en Old.
+        resetVisualStyleForHome()
         drawGrid()
         setGameplayNodesHidden(true)
 

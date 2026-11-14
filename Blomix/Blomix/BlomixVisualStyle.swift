@@ -5,8 +5,10 @@
 //  Style de rendu Old / New (9.0). Orthogonal au thème chrome (`BlomixAppearance`)
 //  et aux skins de couleurs. Défaut = Old.
 //
-//  Étape 0 : New ne change aucun pixel. Aucune scène n’écoute la notification.
-//  Le style est seulement persisté. Voir docs/PLAN_9.0.md, décision V3.
+//  Étape 0 : le réglage est persisté. Aucune scène n’écoute la notification.
+//  Étape 1 : `GameScene` fige `current` au début de partie (`visualStyleForRun`).
+//  New ne change que les Blox couleur de la fabrique principale.
+//  Voir docs/PLAN_9.0.md, décisions V3 et V5.
 //
 
 import Foundation

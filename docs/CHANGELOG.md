@@ -9,11 +9,12 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [9.0] — en cours (local, branche `9.0`, pas de bump `MARKETING_VERSION`)
 
-Prototype de look. Pas de fiche ASC. Le rendu en jeu ne change pas tant que « Nouveau (bêta) » n’a pas de matière (étape 1).
+Prototype de look. Pas de fiche ASC. En Nouveau, les Blox couleur sont en gelée. Priks, Magix, bombe, file et aperçu restent Classique.
 
 ### Ajouté
 
-- **Style visuel** (Réglages, section Apparence) : segment Classique / Nouveau (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle`. Nouveau dessine encore exactement Classique. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. [PLAN_9.0.md](PLAN_9.0.md).
+- **Style visuel** (Réglages, section Apparence) : segment Classique / Nouveau (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle`. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. Il est figé au début de la partie suivante. [PLAN_9.0.md](PLAN_9.0.md).
+- **Blox gelée** (Nouveau seulement) : coins arrondis, volume (clair en haut, profond en bas), reflet blanc en haut à gauche, liseré intérieur, ombre courte en bas à droite, contour un peu plus sombre que la teinte. La couleur vient du skin. Classique reste le carré uni. Une partie typique garde 6 textures gelée en cache, plus un reflet partagé.
 
 ---
 

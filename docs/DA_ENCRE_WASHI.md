@@ -24,7 +24,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
   (commentaires `// 9.0 Ink:`). La géométrie des pièces reste dans `BlomixNewBlockRenderer`.
   Les points d'entrée sont les mêmes (`makeSolidGameplayBlockSprite`, `applyJelly`, pièces au repos).
   Pas de `switch` supplémentaire : `.new` suffit.
-- **Caveat Brush** remplace Changa One (display et grille) quand `BlomixVisualStyle.current` est `.new`.
+- **Chelsea Market** remplace Changa One (display et grille) quand `BlomixVisualStyle.current` est `.new`.
   Nunito reste le chrome. Classique garde Changa One.
 - **Réutiliser la géométrie existante** de `BlomixNewBlockRenderer` : groupes 8-connexes (V8),
   contours orthogonaux avec congés, diagonale seule en capsule (V9), cases séparées pendant les
@@ -37,27 +37,28 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 ## 3. Direction visuelle détaillée
 
 ### Papier (fond)
-- Mode Clair : washi blanc cassé chaud (ordre d'idée `#F6F1E7`), fibres douces et grain fin visibles mais discrets.
-- Texture générée **une fois** (bruit procédural + quelques fibres courbes), en tuile ou à la taille de l'écran, mise en cache.
+- Mode Clair : washi blanc cassé ocre (`#F3E8D4`, un cran plus chaud que le premier `#F6F1E7`), grain fin discret. Pas de fibres courbes : elles se lisaient comme des traits par-dessus le filet.
+- Texture générée **une fois** (bruit procédural), à la taille de la grille, mise en cache.
 - Mode Sombre : papier sumi anthracite chaud (ordre d'idée `#26231F`), même grain ; l'encre y devient de la gouache
   claire et saturée. Il doit marcher, même si le Clair est la référence.
 
 ### Blocs (Blox de couleur)
 - Chaque case est une flaque d'aquarelle saturée, bords **légèrement irréguliers** peints à la main.
-- Pigment plus dense le long du bord (liseré plus sombre de 1 à 2 pt), plus clair au centre, le grain du papier transparaît un peu.
+- Granulation fine, à l'échelle du papier (bruit de valeur en points, pas en fraction de la pièce). Le grain est présent. La variation lente reste très légère, pour que deux cases d'une même pièce ne portent pas le même motif. Le washi transparaît dans les pointes du grain. Pas de liseré gris. Stable : même graine, même tache.
 - **Irrégularité stable** : le tremblé du bord est déterministe (graine = couleur + coordonnées des cases du groupe).
   La même pièce doit être dessinée à l'identique à chaque `drawGrid` : aucun scintillement.
 - Garder la forme de la case reconnaissable : le tremblé reste faible (≈ 1 pt), jamais au point de mordre sur le filet.
 - Couleurs = celles du skin du joueur (comme la gelée, `sprite.color` × masque), mais **vives et franches**,
-  jamais boueuses ni grises. Traiter les couleurs pâles sur le papier (violet 1,55, jaune 1,56, bleu 2,11 en ratio,
-  voir PLAN §5) par un liseré de pigment plus foncé pour que chacune se détache.
+  jamais boueuses ni grises. Les teintes pâles (violet 1,55, jaune 1,56, bleu 2,11 en ratio,
+  voir PLAN §5) ont un bassin de pigment un peu plus marqué, sans trait gris.
 
 ### Fusion
 - Voisins orthogonaux de même couleur : **une seule tache continue**, les bords se mêlent comme de l'encre mouillée
   (léger fondu au point de contact, pas de ligne). Reprendre les pièces V8.
 - Couleurs différentes : toujours séparées par un fin filet de papier nu.
 - Diagonale seule (deux cases ne se touchant que par un coin) : un **trait de pinceau fin** de la même encre,
-  épaisseur `sqrt(32)` comme le trait Classique (V9), bouts légèrement effilés.
+  épaisseur `sqrt(32)` comme le trait Classique (V9), bouts légèrement effilés. Même pigment que les cases,
+  sans contour plus sombre qui le délimite.
 
 ### Brix (Priks)
 - Encre indigo profond, chiffre en lettrage pinceau **blanc net**, parfaitement lisible (lisibilité > style).
@@ -74,9 +75,9 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 
 - Pose d'un bloc : la tache « boit » le papier, petite expansion de 3 à 5 % puis retour (≈ 0,15 s).
 - Fusion qui se forme : fondu doux entre les cases et la pièce, pas de pop.
-- Chaîne de 5 : l'encre est absorbée, légère diffusion du bord + désaturation + fondu (≈ 0,35 s),
+- Chaîne de 5 : le centre de chaque case aspire la tache (×0,55, ×0,16, puis pincement avec le fondu, 0,50 s),
   sans changer la durée logique des résolutions (le gameplay et les timings de cascade ne bougent pas).
-- Magix et bombe : garder leurs effets actuels tant que leur version Encre n'est pas faite.
+- Magix et bombe : les effets, le halo, les orbites et les durées restent ceux du Classique. En Encre, le disque est un masque aquarelle (grain des Blox, couronne d’encre irrégulière) multiplié par la palette animée. Le glyphe reste noir.
 
 ## 5. Étapes proposées (un commit local par étape, CHANGELOG + PLAN mis à jour)
 
@@ -87,7 +88,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 | E2 | **Fait le 15/11/2026.** Blox de couleur en encre, cache, irrégularité stable | Plus aucun aplat dans la grille Encre au repos |
 | E3 | **Fait le 15/11/2026.** Fusion en taches continues + diagonale (géométrie V8/V9) | Pièces continues, aucun scintillement entre deux `drawGrid` |
 | E4 | **Fait le 15/11/2026.** Brix indigo, chute, file, gros aperçu, fantômes | Tous les blocs couleur/Brix en encre |
-| E5 | **Fait le 15/11/2026.** Pose : +4 % puis retour. Chaîne : désaturation + fondu, mêmes durées | Juice cohérent, 60 i/s |
+| E5 | **Fait le 15/11/2026.** Pose : +4 % puis retour. Chaîne : aspiration vers le centre, mêmes durées | Juice cohérent, 60 i/s |
 | E6 | (si validé par Lomig, D18) Habillage pinceau + hanko | Décision Lomig |
 
 Faire **E0 puis s'arrêter** pour le compte rendu ; ensuite une étape à la fois, sur demande de Lomig.

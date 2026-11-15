@@ -185,7 +185,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 **Délai post-bounce** : `landingBounceTotalDuration(for:)` (0,15 s blox / 0,12 s brix) avant `resolveChains()` ou effet Magix. Le coup de voisin n’allonge pas cette attente.
 
-**Ligne entrante** : stretch proportionnel par colonne via `flightStretchScales(for:)` ; bounce et délai post-ligne adaptés au type de chaque case.
+**Ligne entrante** : stretch proportionnel par colonne via `flightStretchScales(for:)` ; bounce et délai post-ligne adaptés au type de chaque case. Encre : Blox et Brix montent sans étirement, à vitesse constante (les colonnes courtes ne ralentissent plus avant la case). Le gonflement part en même temps sur les 8 cases. L’attente avant `resolveChains()` ne change pas.
 
 ### 1.2 Preview bloc courant
 
@@ -234,7 +234,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 | Élément | Paramètres |
 |---|---|
-| Forme | **Disque inscrit** (taille bombe : `cell − 4 pt`) + couronne noire (même recette shader que la bombe) |
+| Forme | **Disque inscrit** (taille bombe : `cell − 4 pt`) + couronne noire (même recette shader que la bombe). **Encre** : le shader de palette est le même ; la texture est un masque (grain des Blox, couronne d’encre à épaisseur variable). Classique reste le `smoothstep` circulaire. |
 | Shader | Dégradé 6 couleurs animé via `u_time` (GLSL) |
 | Halo (`magixGlow`) | Spread **16 pt**, α pulse 0,28↔0,55, cycle **1,2 s** |
 | Particules orbitales | Spawn **0,12 ± 0,06 s**, **2–3** grains/burst (~2/3 petits r 0,40–0,80, le reste 1,0–1,8). Naissance dans la **couronne colorée** (épaisseur = 2 liserés noirs, UV 0,38←0,50). Vol jusqu’au **bord du halo** (spread 16 pt) en **1,55 s** ; opaque pendant le disque + halo interne (fade in 0,25 / hold 0,80) ; fade out **0,50 s** au bout du halo. α 0,82, z 1. Même recette bombe (`SpecialOrbitJuice`). |
@@ -244,7 +244,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 ### 2.4 Bombe (sprite HUD + chute)
 
-- Disque + couronne noire (shader)
+- Disque + couronne noire (shader). **Encre** : même cycle noir → rouge → jaune, masque aquarelle partagé avec le Magix (autre graine). L’icône de stock est repeinte au gel du style, comme la bombe armée dans la file. Classique : couronne géométrique.
 - Shader noir → rouge → jaune (cycle 3 couleurs)
 - Halo + orbites : **même géométrie** que Magix (`SpecialOrbitJuice`) ; dots rouge / jaune / quasi-noir
 - Chiffre « nuke » si stage ≥ 2
@@ -265,7 +265,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | **Shake** | Vague 2 : intensity **1,4** au début de la dissolution. Vague 3+ : **2,0**. Vague 1 (y compris CONNECT seul) : rien. Pas un second shake avec le texte. **Réduire les animations** : pas de shake |
 | **Réf.** | `ChainClearFeedback.waveFeel` |
 
-**Par case (durée totale ≈ 0,50 s) :**
+**Par case, Classique (durée totale ≈ 0,50 s) :**
 
 | Étape | Durée | Détail |
 |---|---|---|
@@ -273,6 +273,8 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Pop dots | instant | `spawnChainPopDots` |
 | Scale down + brighten | 0,16 s | lerp blanc 30 %, `easeInEaseOut` |
 | Fade | 0,14 s | α → 0 |
+
+**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache.
 
 **Jonctions** : pas de `remove` à t = 0. Chaque barre H/V/D part avec le premier blox du couple (`dissolveBloxJunctionsWithChainCells`). H : `xScale` → 0,02 ; V : `yScale` → 0,02 ; D : les deux. Fade 0,20 s `easeOut`, z 25 pendant la fonte. Combo / cascade = le même path (le `drawGrid` inter-vague recoud le reste).
 
@@ -487,7 +489,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 
 | | |
 |---|---|
-| **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante ; **jonctions H/V/D retirées avant** le 1er overlay |
+| **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante ; **jonctions H/V/D retirées avant** le 1er overlay. **Encre** : chaque teinte est une tache (`applyJelly`), et le flash reprend le masque du blox. Classique : aplat. |
 | **Timing** | `[0,10, 0,15, 0,22, 0,30, 0,50]` s/étape ; pop scale ×1,25 |
 | **Fin du disque** | gerbe palette consommation + fade **0,18 s** (avant la dissolution des blox) |
 | **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30 (0,10 s) → paillettes HUD **et** +10 grains d’orbite Magix (linger scène) → 0,01 + fade 0,14 s ; max 8 pops audio |
@@ -545,12 +547,12 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 |---|---|
 | **Déclencheur** | `moveCount % 10 == 0` (Five : `% 5 == 0`) |
 | **Anticipation** | le plateau monte de **2 pt** (0,05 s ease-out) puis revient (0,08 s ease-in). Les sprites, leur traîne et la fin d’injection attendent **0,08 s**. **Réduire les animations** : pas de montée, pas d’attente. L’action est retirée avant `drawGrid` |
-| **Visuel** | 8 sprites montent depuis bas grille ; stretch proportionnel distance |
-| **Vitesse** | ≈ 1280 pts/s (identique chute blox) |
+| **Visuel** | 8 sprites montent depuis bas grille. Classique : stretch proportionnel à la distance, taille case − 4. Encre : Blox et Brix sans étirement, taille de la case |
+| **Vitesse** | Référence ≈ 1280 pts/s (identique chute blox). Classique : une durée commune (la plus longue, plancher 0,10 s) et `easeOut` (vitesse nulle à l’arrivée). Encre : chaque colonne dure `distance / 1280` (plancher une frame), interpolation linéaire jusqu’au centre, puis pose exacte. Les colonnes courtes attendent les longues déjà sur leur case. Une frame de plus est montrée posée avant `drawGrid` : le redessin ne fige pas l’image d’un cran trop bas |
 | **Strip fade** | **0,15 s** dès le départ (pendant la montée du plateau) |
 | **Son** | `line` + `hapticHeavy()` |
-| **Bounce** | `playLandingBounce(for:)` par case, stagger **0,018 s**/colonne ; délai post-ligne = max bounce selon types présents |
-| **Suite** | `resolveChains()` après durée bounce max + stagger |
+| **Bounce** | `playLandingBounce(for:)` par case, stagger **0,018 s**/colonne. Encre : gonflement simultané (le décalage se lisait comme un retard). Délai post-ligne = max bounce selon types présents **+ stagger**, aussi en Encre |
+| **Suite** | `resolveChains()` après durée bounce max + stagger. Encre : l’injection attend en plus une frame (1/60 s) après le vol le plus long |
 
 ---
 

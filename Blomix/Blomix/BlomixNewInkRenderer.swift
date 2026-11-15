@@ -17,7 +17,8 @@ enum BlomixNewInkRenderer {
 
     static func paperUIColor(light: Bool) -> UIColor {
         if light {
-            return UIColor(red: 0xF6 / 255, green: 0xF1 / 255, blue: 0xE7 / 255, alpha: 1)
+            // Un cran plus ocre que le premier essai (#F6F1E7), encore très clair.
+            return UIColor(red: 0xF3 / 255, green: 0xE8 / 255, blue: 0xD4 / 255, alpha: 1)
         }
         return UIColor(red: 0x26 / 255, green: 0x23 / 255, blue: 0x1F / 255, alpha: 1)
     }
@@ -43,7 +44,8 @@ enum BlomixNewInkRenderer {
     }
 
     /// Masque d'encre (gris). Le sprite le multiplie par la teinte du skin.
-    /// Centre plus clair, liseré plus sombre, bord tremblé stable, grain qui laisse voir le papier.
+    /// Granulation fine, pas de grandes flaques : deux cases d'une même pièce
+    /// ne portent pas le même motif. Pas de liseré.
     static func drawMask(
         in ctx: CGContext,
         paths: [CGPath],
@@ -56,11 +58,11 @@ enum BlomixNewInkRenderer {
 
         ctx.saveGState()
         ctx.setShadow(
-            offset: CGSize(width: 0.35, height: 0.5),
-            blur: 1.1,
-            color: UIColor(white: 0, alpha: 0.10).cgColor
+            offset: CGSize(width: 0.2, height: 0.3),
+            blur: 0.6,
+            color: UIColor(white: 0, alpha: 0.05).cgColor
         )
-        ctx.setFillColor(UIColor(white: 0.72, alpha: 1).cgColor)
+        ctx.setFillColor(UIColor(white: 0.96, alpha: 1).cgColor)
         for path in wobbled { ctx.addPath(path) }
         ctx.fillPath()
         ctx.restoreGState()
@@ -68,44 +70,270 @@ enum BlomixNewInkRenderer {
         ctx.saveGState()
         for path in wobbled { ctx.addPath(path) }
         ctx.clip(using: .winding)
-        let mid = CGPoint(x: canvas.width / 2, y: canvas.height / 2)
-        let reach = max(canvas.width, canvas.height) * 0.62
-        if let wash = CGGradient(
-            colorsSpace: CGColorSpaceCreateDeviceRGB(),
-            colors: [
-                UIColor(white: 1.0, alpha: 0.96).cgColor,
-                UIColor(white: 0.86, alpha: 1).cgColor,
-                UIColor(white: max(rim, 0.55), alpha: 1).cgColor,
-            ] as CFArray,
-            locations: [0, 0.55, 1]
-        ) {
-            ctx.drawRadialGradient(
-                wash,
-                startCenter: mid,
-                startRadius: 0,
-                endCenter: mid,
-                endRadius: reach,
-                options: []
-            )
-        }
-        ctx.setBlendMode(.destinationOut)
-        let area = canvas.width * canvas.height
-        let dots = min(160, max(18, Int(area / 90)))
-        for i in 0..<dots {
-            let x = unit(seed, i &* 3) * canvas.width
-            let y = unit(seed, i &* 3 &+ 1) * canvas.height
-            let radius = 0.25 + unit(seed, i &* 3 &+ 2) * 0.7
-            ctx.setFillColor(UIColor(white: 1, alpha: 0.16).cgColor)
-            ctx.fillEllipse(in: CGRect(x: x, y: y, width: radius, height: radius))
-        }
+        ctx.clear(CGRect(origin: .zero, size: canvas))
+        drawWatercolorField(in: ctx, seed: seed, canvas: canvas, rim: rim)
         ctx.restoreGState()
+    }
 
-        ctx.setStrokeColor(UIColor(white: rim, alpha: 1).cgColor)
-        ctx.setLineWidth(1.5)
-        ctx.setLineJoin(.round)
-        ctx.setLineCap(.round)
-        for path in wobbled { ctx.addPath(path) }
-        ctx.strokePath()
+    /// Trois octaves de bruit de valeur, en points (pas en fraction de la pièce).
+    /// Lente et discrète, moyenne = granulation, fine = grain du papier.
+    /// Les creux gardent un peu plus de pigment, les pointes laissent voir le washi.
+    private static func drawWatercolorField(
+        in ctx: CGContext,
+        seed: UInt64,
+        canvas: CGSize,
+        rim: CGFloat
+    ) {
+        let scale = max(1, hypot(ctx.ctm.a, ctx.ctm.c))
+        let width = max(1, Int((canvas.width * scale).rounded()))
+        let height = max(1, Int((canvas.height * scale).rounded()))
+        guard width * height <= 1_600_000 else { return }
+
+        let granulation = 0.9 + (1 - min(1, max(0, rim))) * 1.6
+        let phaseX = unit(seed, 3) * 4096
+        let phaseY = unit(seed, 5) * 4096
+
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        pixels.withUnsafeMutableBufferPointer { buffer in
+            for y in 0..<height {
+                let py = CGFloat(y) + phaseY
+                for x in 0..<width {
+                    let px = CGFloat(x) + phaseX
+                    let sample = pigment(seed: seed, px: px, py: py, scale: scale, granulation: granulation)
+                    let channel = UInt8((sample.gray * sample.alpha * 255).rounded())
+                    let a = UInt8((sample.alpha * 255).rounded())
+                    let i = (y * width + x) * 4
+                    buffer[i] = channel
+                    buffer[i + 1] = channel
+                    buffer[i + 2] = channel
+                    buffer[i + 3] = a
+                }
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let data = Data(pixels)
+        guard let provider = CGDataProvider(data: data as CFData),
+              let image = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: width * 4,
+                space: colorSpace,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent
+              ) else { return }
+        ctx.interpolationQuality = .low
+        ctx.draw(image, in: CGRect(origin: .zero, size: canvas))
+    }
+
+    /// Même granulation que le champ des Blox. `gray` 0,90…1, `alpha` = dent du papier.
+    private static func pigment(
+        seed: UInt64,
+        px: CGFloat,
+        py: CGFloat,
+        scale: CGFloat,
+        granulation: CGFloat
+    ) -> (gray: CGFloat, alpha: CGFloat) {
+        let low = valueNoise(seed, px, py, spacing: 18 * scale, salt: 11)
+        let mid = valueNoise(seed, px, py, spacing: 5.2 * scale, salt: 29)
+        let fine = valueNoise(seed, px, py, spacing: 1.55 * scale, salt: 47)
+        let valley = max(0, -mid) * 0.55 + max(0, -fine) * 0.45
+        var gray = 0.985
+            + low * 0.018
+            + mid * 0.018 * granulation
+            - valley * 0.038 * granulation
+        gray = min(1, max(0.90, gray))
+        let tooth = max(0, fine)
+        let alpha = max(0.72, 1 - tooth * 0.28 * granulation)
+        return (gray, alpha)
+    }
+
+    /// Disque Magix / bombe. Le centre a le grain des Blox. La couronne est de l’encre
+    /// dont l’épaisseur et la charge varient : pas un trait circulaire. `salt` sépare
+    /// le Magix de la bombe. Une taille = une texture.
+    @MainActor
+    static func discTexture(pointSize: CGSize, salt: Int) -> SKTexture {
+        let scale = max(1, UITraitCollection.current.displayScale)
+        let key = DiscKey(
+            pixelWidth: max(1, Int((pointSize.width * scale).rounded())),
+            pixelHeight: max(1, Int((pointSize.height * scale).rounded())),
+            salt: salt
+        )
+        return discCache.texture(for: key) {
+            bakeDisc(pointSize: pointSize, scale: scale, salt: salt)
+        }
+    }
+
+    private struct DiscKey: Hashable {
+        var pixelWidth: Int
+        var pixelHeight: Int
+        var salt: Int
+    }
+
+    private static let discCache = DiscCache()
+
+    private final class DiscCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var textures: [DiscKey: SKTexture] = [:]
+
+        func texture(for key: DiscKey, make: () -> SKTexture) -> SKTexture {
+            lock.lock()
+            if let hit = textures[key] {
+                lock.unlock()
+                return hit
+            }
+            lock.unlock()
+            let built = make()
+            lock.lock()
+            if let hit = textures[key] {
+                lock.unlock()
+                return hit
+            }
+            textures[key] = built
+            lock.unlock()
+            return built
+        }
+    }
+
+    private static func bakeDisc(pointSize: CGSize, scale: CGFloat, salt: Int) -> SKTexture {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = scale
+        let image = UIGraphicsImageRenderer(size: pointSize, format: format).image { context in
+            drawDiscMask(in: context.cgContext, canvas: pointSize, scale: scale, salt: salt)
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        return texture
+    }
+
+    /// Masque pré-multiplié. Le shader récupère la charge (`rgb / a`) puis la couverture.
+    private static func drawDiscMask(in ctx: CGContext, canvas: CGSize, scale: CGFloat, salt: Int) {
+        let width = max(1, Int((canvas.width * scale).rounded()))
+        let height = max(1, Int((canvas.height * scale).rounded()))
+        guard width * height <= 1_600_000, canvas.width > 1, canvas.height > 1 else { return }
+
+        let seed = 0xE5C1_5A17 &+ UInt64(bitPattern: Int64(salt)) &* 0x9E3779B97F4A7C15
+        let phaseX = unit(seed, 3) * 4096
+        let phaseY = unit(seed, 5) * 4096
+        let phase = unit(seed, 7) * 2 * .pi
+        let side = min(canvas.width, canvas.height)
+        let cx = canvas.width * 0.5
+        let cy = canvas.height * 0.5
+        let granulation: CGFloat = 1.05
+
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        pixels.withUnsafeMutableBufferPointer { buffer in
+            for y in 0..<height {
+                for x in 0..<width {
+                    let px = (CGFloat(x) + 0.5) / scale
+                    let py = (CGFloat(y) + 0.5) / scale
+                    let angle = atan2(py - cy, px - cx)
+                    let dist = hypot(px - cx, py - cy)
+                    let arc = angle * side * 0.5 * scale
+                    let lowN = valueNoise(seed, arc, 12, spacing: 16 * scale, salt: 83)
+                    let midN = valueNoise(seed, arc, 48, spacing: 5.2 * scale, salt: 89)
+                    // Le tour reste un disque (le glyphe tient au centre) mais l’encre
+                    // s’épaissit et se sèche : ce n’est plus un trait au compas.
+                    let outerR = side * 0.446
+                        + sin(angle * 3 + phase) * side * 0.022
+                        + lowN * side * 0.012
+                    var thickness = side * 0.056
+                        + sin(angle * 2 + phase) * side * 0.032
+                        + sin(angle * 5 + phase * 0.7) * side * 0.012
+                        + lowN * side * 0.014
+                        + midN * side * 0.008
+                    thickness = min(max(thickness, side * 0.026), side * 0.098)
+                    let innerR = outerR - thickness
+                    let cover = 1 - smoothstep(outerR - 0.25, outerR + 0.85, dist)
+                    let rim = smoothstep(innerR - 0.55, innerR + 0.18, dist) * cover
+                    let sample = pigment(
+                        seed: seed,
+                        px: CGFloat(x) + phaseX,
+                        py: CGFloat(y) + phaseY,
+                        scale: scale,
+                        granulation: granulation
+                    )
+                    let wash = 0.5 + 0.5 * midN
+                    // L’encre s’accumule là où le tour est large, et sèche là où il est fin.
+                    let pooled = min(1, max(0, (thickness / side - 0.026) / 0.072))
+                    let dark = 0.02 + 0.18 * (1 - pooled) + 0.04 * (1 - wash)
+                    let rimMix = rim * (0.72 + 0.28 * max(0, wash))
+                    let shade = min(1, sample.gray * (1 - rimMix) + dark * rimMix)
+                    let rimAlpha = max(sample.alpha * 0.5, 0.82)
+                    let alpha = max(0, min(1, cover * (sample.alpha * (1 - rim) + rimAlpha * rim)))
+                    let channel = UInt8((shade * alpha * 255).rounded())
+                    let a = UInt8((alpha * 255).rounded())
+                    let i = (y * width + x) * 4
+                    buffer[i] = channel
+                    buffer[i + 1] = channel
+                    buffer[i + 2] = channel
+                    buffer[i + 3] = a
+                }
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let data = Data(pixels)
+        guard let provider = CGDataProvider(data: data as CFData),
+              let image = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: width * 4,
+                space: colorSpace,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent
+              ) else { return }
+        ctx.interpolationQuality = .low
+        ctx.draw(image, in: CGRect(origin: .zero, size: canvas))
+    }
+
+    private static func smoothstep(_ edge0: CGFloat, _ edge1: CGFloat, _ x: CGFloat) -> CGFloat {
+        let span = edge1 - edge0
+        if span == 0 { return x < edge0 ? 0 : 1 }
+        let t = min(1, max(0, (x - edge0) / span))
+        return t * t * (3 - 2 * t)
+    }
+
+    /// Bruit de valeur lissé, dans −1…1. `spacing` est en pixels du bitmap.
+    private static func valueNoise(_ seed: UInt64, _ x: CGFloat, _ y: CGFloat, spacing: CGFloat, salt: Int) -> CGFloat {
+        let step = max(1, spacing)
+        let sx = x / step
+        let sy = y / step
+        let x0 = Int(floor(sx))
+        let y0 = Int(floor(sy))
+        let tx = sx - CGFloat(x0)
+        let ty = sy - CGFloat(y0)
+        let ux = tx * tx * (3 - 2 * tx)
+        let uy = ty * ty * (3 - 2 * ty)
+        let v00 = hashSigned(seed, x0, y0, salt)
+        let v10 = hashSigned(seed, x0 &+ 1, y0, salt)
+        let v01 = hashSigned(seed, x0, y0 &+ 1, salt)
+        let v11 = hashSigned(seed, x0 &+ 1, y0 &+ 1, salt)
+        let a = v00 + (v10 - v00) * ux
+        let b = v01 + (v11 - v01) * ux
+        return a + (b - a) * uy
+    }
+
+    private static func hashSigned(_ seed: UInt64, _ x: Int, _ y: Int, _ salt: Int) -> CGFloat {
+        var h = seed
+            &+ UInt64(bitPattern: Int64(x)) &* 0x9E3779B97F4A7C15
+            &+ UInt64(bitPattern: Int64(y)) &* 0xBF58476D1CE4E5B9
+            &+ UInt64(bitPattern: Int64(salt)) &* 0x94D049BB133111EB
+        h = (h ^ (h >> 30)) &* 0xBF58476D1CE4E5B9
+        h = (h ^ (h >> 27)) &* 0x94D049BB133111EB
+        h = h ^ (h >> 31)
+        return CGFloat(h & 0xFFFF) / 32767.5 - 1
     }
 
     static func seed(red: CGFloat, green: CGFloat, blue: CGFloat, salt: Int = 0) -> UInt64 {
@@ -170,20 +398,6 @@ enum BlomixNewInkRenderer {
                 let side = 0.4 + unit(seed, i &+ 3) * 0.8
                 ctx.fillEllipse(in: CGRect(x: x, y: y, width: side, height: side * 0.6))
             }
-
-            ctx.setStrokeColor(UIColor(white: light ? 0.35 : 0.82, alpha: light ? 0.10 : 0.12).cgColor)
-            ctx.setLineWidth(0.7)
-            ctx.setLineCap(.round)
-            for i in 0..<6 {
-                let y = unit(seed, 400 &+ i) * pointSize.height
-                let drift = (unit(seed, 500 &+ i) - 0.5) * pointSize.height * 0.08
-                ctx.move(to: CGPoint(x: 0, y: y))
-                ctx.addQuadCurve(
-                    to: CGPoint(x: pointSize.width, y: y + drift),
-                    control: CGPoint(x: pointSize.width * (0.3 + unit(seed, 600 &+ i) * 0.4), y: y - drift)
-                )
-            }
-            ctx.strokePath()
 
             let count = max(1, divisions)
             ctx.setStrokeColor(UIColor(white: light ? 0.28 : 0.78, alpha: light ? 0.14 : 0.16).cgColor)

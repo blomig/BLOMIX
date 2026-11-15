@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [9.0] — en cours (local, branche `9.0`, pas de bump `MARKETING_VERSION`)
 
-Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix indigo, Caveat Brush à la place de Changa One. Nunito inchangé. Magix et bombe restent Classique.
+Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix indigo, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One. Nunito inchangé.
 
 ### Ajouté
 
@@ -19,8 +19,15 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 ### Modifié
 
 - **Style visuel** : le segment « Nouveau (bêta) » s’appelle « Encre (bêta) » (EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). `.new` est la piste encre et washi. Pas de troisième style. Classique inchangé.
-- **Encre** : en partie, le fond et la grille sont un papier washi (Clair `#F6F1E7`, Sombre `#26231F`), fibres et traits de crayon très légers. Les Blox sont des taches d’aquarelle (bord tremblé stable, pigment plus dense au bord, grain). Même couleur voisine : une seule pièce, comme avant. Diagonale seule : le trait fin. Les Brix sont indigo, chiffre blanc. La pose s’étale un peu (4 %) puis revient. Une chaîne se désature et fond, sans changer les temps de résolution. Magix et bombe restent Classique. Réglages → Encre, puis une nouvelle partie.
-- **Caveat Brush** (Brian J. Bonislawsky, SIL OFL 1.1) remplace Changa One pour les titres, boutons, score et chiffres de grille **uniquement** quand le style est Encre. Nunito ne change pas. Classique garde Changa One. Crédits mis à jour (6 langues).
+- **Encre** : en partie, le fond et la grille sont un papier washi (Clair `#F3E8D4`, Sombre `#26231F`) et un filet de crayon très léger. Pas de fibres courbes. Les Blox sont des taches d’aquarelle (bord tremblé stable, granulation fine, sans grandes flaques répétées ni liseré gris). Le grain des Blox et des Brix est un cran plus discret. Même couleur voisine : une seule pièce. Diagonale seule : le même pigment, sans trait plus noir. Les Brix sont indigo, chiffre blanc, même bord doux. La pose s’étale un peu (4 %) puis revient. Une chaîne est aspirée vers le centre de chaque case, sans changer les temps de résolution. Réglages → Encre, puis une nouvelle partie.
+- **Chelsea Market** (Crystal Kluge, Font Diner, SIL OFL 1.1) remplace Changa One pour les titres, boutons, score et chiffres de grille **uniquement** quand le style est Encre. Nunito ne change pas. Classique garde Changa One. Crédits mis à jour (6 langues). Rubik Dirt, essayée entre-temps, est retirée.
+- **SCRUMBLX en Encre** : pendant le décalage, la pièce fusionnée est retirée et chaque case glisse, comme en Classique. La pièce se reforme à la fin. Avant, elle restait en place et les chiffres des Brix passaient dessus. Le décalage de la grille ne change pas.
+- **Remontée en Encre** : après une chaîne, un Magix ou une bombe, les taches qui montent sont les cases elles-mêmes (sans étirement). La pièce se reforme à l’atterrissage. L’explosion montre ces mêmes cases. Les durées ne changent pas.
+- **Magix et bombe en Encre** : le disque garde sa palette animée, son halo, ses orbites et son symbole. Le fond a le même grain que les Blox. Le tour noir n’est plus un cercle régulier : c’est une couronne d’encre, épaisseur et charge variables. Classique garde le trait géométrique. Les effets ne changent pas.
+- **COLORX en Encre** : pendant la roulette, le Magix devient la tache de la couleur tirée, pas un aplat. Le flash sur les blox de cette couleur suit leur tache. Le Classique reste le carré uni.
+- **Disparition d’une chaîne en Encre** : le centre de chaque case aspire la tache (×0,55, puis ×0,16, puis pincement ×0,02 avec le fondu). Mêmes 0,20 + 0,16 + 0,14 s, paillettes au même instant. La couleur reste saturée. Classique garde le pop ×1,30.
+- **Ligne entrante en Encre** : chaque Blox et chaque Brix vole à environ 1280 pts/s sur sa propre distance, sans étirement, et se pose sur le centre de sa case. Une image est affichée à l’arrivée avant le redessin de la grille. Avant, la durée était celle de la colonne la plus longue : les cases courtes rampaient, et le redessin gardait l’image d’un cran trop bas. Le gonflement reste simultané. La résolution des chaînes attend cette image en plus (1/60 s). Classique inchangé (ease-out, étirement, vague de gonflement).
+- **Stock de bombes en Encre** : l’icône du stock est le même disque aquarelle que la bombe armée dans la file. Elle était dessinée avant le gel du style, donc elle restait le cercle Classique.
 
 ---
 

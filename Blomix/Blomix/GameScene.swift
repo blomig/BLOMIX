@@ -917,6 +917,9 @@ final class GameScene: SKScene {
     private static let scrumblxHoleNodePrefix = "scrumblx_hole_"
     /// Génération d’animation SCRUMBLX : les callbacks différés d’une run précédente (ou en retard) s’ignorent.
     private var scrumblxAnimGeneration: Int = 0
+    /// Encre : ne pas recoller les pièces pendant un déplacement scripté
+    /// (SCRUMBLX, remontée après chaîne ou explosion). Les cases `cell_` bougent.
+    private var newFusionSyncSuspended = false
     private static let previewNodeName = "currentBlockPreview"
     private static let fallingSpriteName = "fallingBlockTemp"
     private static let previewPriksDigitName = "previewPriksDigit"
@@ -1954,7 +1957,7 @@ final class GameScene: SKScene {
     nonisolated(unsafe) private var skinChangeObserver: NSObjectProtocol?
     /// Recolore tout le chrome visible (Sombre / Clair), y compris depuis Réglages en partie.
     nonisolated(unsafe) private var appearanceChangeObserver: NSObjectProtocol?
-    /// 9.0 Ink: Caveat Brush à la place de Changa One quand le réglage passe en Encre.
+    /// 9.0 Ink: Chelsea Market à la place de Changa One quand le réglage passe en Encre.
     nonisolated(unsafe) private var visualStyleChangeObserver: NSObjectProtocol?
     /// Ancien observer picker de police (v6.1 : typo figée, plus de notification).
     nonisolated(unsafe) private var fontChangeObserver: NSObjectProtocol?
@@ -5282,7 +5285,7 @@ final class GameScene: SKScene {
         addTopTitle()
     }
 
-    /// Changa One ↔ Caveat Brush sur les libellés déjà posés. Nunito n'est pas touché.
+    /// Changa One ↔ Chelsea Market sur les libellés déjà posés. Nunito n'est pas touché.
     private func refreshDisplayFacesForVisualStyle() {
         let face = BlomixTypography.fontName(.display)
         func walk(_ node: SKNode) {
@@ -7617,6 +7620,7 @@ final class GameScene: SKScene {
     /// `restoreSave: true` → utilise `presentStartScreenOrRestoreSoloSave()` pour reprendre
     /// automatiquement une partie solo sauvegardée (fin de tutoriel ou de match PvP).
     private func unwindToStartScreen(restoreSave: Bool = false) {
+        cancelScrumblxVisualRun()
         // Bloque saveCurrentSoloGameState() pendant toute la phase de démontage/reset,
         // pour éviter qu'un willResignActiveNotification écrase la sauvegarde solo
         // avec un état transitoire (grille vide, modèle PvP, etc.).
@@ -8559,14 +8563,7 @@ final class GameScene: SKScene {
                 }
             }
 
-            // Classique : grossissement ×1.30. Encre : la tache boit le papier, sans pop.
-            let scaleUp = SKAction.scale(
-                to: Self.visualStyleForRun == .new ? 1.05 : 1.30,
-                duration: ChainClearFeedback.dissolveScaleUpDuration
-            )
-            scaleUp.timingMode = .easeOut
-
-            // Phase 2 : au pic → pop de paillettes de la couleur exacte du blox
+            // Paillettes au même instant qu’avant : fin des 0,20 s.
             let popDots = SKAction.run { [weak self] in
                 guard let self else { return }
                 let scenePoint = self.convert(sprite.position, from: container)
@@ -8576,31 +8573,43 @@ final class GameScene: SKScene {
                 }
             }
 
-            // Phase 2 (suite) : rétrécissement + éclaircissement simultanés
-            let inkFadeTarget = Self.visualStyleForRun == .new
-                ? Self.desaturated(baseColor, amount: 0.7)
-                : peakColor
-            let brighten = SKAction.customAction(
-                withDuration: ChainClearFeedback.dissolveScaleDownDuration
-            ) { node, elapsed in
-                guard let s = node as? SKSpriteNode else { return }
-                let t = CGFloat(elapsed / ChainClearFeedback.dissolveScaleDownDuration)
-                s.color = Self.skColorLerp(baseColor, inkFadeTarget, min(1, max(0, t)))
+            let dissolve: SKAction
+            if Self.visualStyleForRun == .new {
+                // Ancre 0,5 : le scale uniforme tire la tache vers le centre de la case.
+                // Mêmes 0,20 + 0,16 + 0,14 s. Couleur saturée, le retrait du bord est le signal.
+                let pull = SKAction.scale(to: 0.55, duration: ChainClearFeedback.dissolveScaleUpDuration)
+                pull.timingMode = .linear
+                let gather = SKAction.scale(to: 0.16, duration: ChainClearFeedback.dissolveScaleDownDuration)
+                gather.timingMode = .linear
+                let pinch = SKAction.scale(to: 0.02, duration: ChainClearFeedback.dissolveFadeDuration)
+                pinch.timingMode = .linear
+                let fade = SKAction.fadeAlpha(to: 0, duration: ChainClearFeedback.dissolveFadeDuration)
+                dissolve = SKAction.sequence([
+                    pull,
+                    popDots,
+                    gather,
+                    SKAction.group([pinch, fade]),
+                ])
+            } else {
+                let scaleUp = SKAction.scale(to: 1.30, duration: ChainClearFeedback.dissolveScaleUpDuration)
+                scaleUp.timingMode = .easeOut
+                let brighten = SKAction.customAction(
+                    withDuration: ChainClearFeedback.dissolveScaleDownDuration
+                ) { node, elapsed in
+                    guard let s = node as? SKSpriteNode else { return }
+                    let t = CGFloat(elapsed / ChainClearFeedback.dissolveScaleDownDuration)
+                    s.color = Self.skColorLerp(baseColor, peakColor, min(1, max(0, t)))
+                }
+                let scaleDown = SKAction.scale(to: 1.0, duration: ChainClearFeedback.dissolveScaleDownDuration)
+                scaleDown.timingMode = .easeInEaseOut
+                let fade = SKAction.fadeAlpha(to: 0, duration: ChainClearFeedback.dissolveFadeDuration)
+                dissolve = SKAction.sequence([
+                    scaleUp,
+                    popDots,
+                    SKAction.group([scaleDown, brighten]),
+                    fade,
+                ])
             }
-
-            let scaleDown = SKAction.scale(to: 1.0,
-                                           duration: ChainClearFeedback.dissolveScaleDownDuration)
-            scaleDown.timingMode = .easeInEaseOut
-
-            // Phase 3 : fondu (inchangé)
-            let fade = SKAction.fadeAlpha(to: 0, duration: ChainClearFeedback.dissolveFadeDuration)
-
-            let dissolve = SKAction.sequence([
-                scaleUp,
-                popDots,
-                SKAction.group([scaleDown, brighten]),
-                fade,
-            ])
 
             sprite.run(SKAction.sequence([wait, prep, dissolve]))
         }
@@ -8880,6 +8889,7 @@ final class GameScene: SKScene {
                     SKAction.run { [weak self] in
                         guard let self else { return }
                         self.remapPriksDigitSettlePending(riseMoves: riseMoves)
+                        self.resumeNewFusionSync()
                         self.drawGrid()
                         self.replayPriksDigitSettleAfterDrawGrid()
                         self.playCompactLandingJuice(riseMoves: riseMoves)
@@ -11169,7 +11179,9 @@ final class GameScene: SKScene {
         case gameOver
     }
 
-    /// Chaque bloc de `nextBottomLine` **monte** vers la case vide **la plus haute** de sa colonne (même durée / easeOut que `CompactRiseAnimation`), puis écrit la grille et relance `resolveChains()`.
+    /// Chaque bloc de `nextBottomLine` **monte** vers la case vide **la plus haute** de sa colonne, puis écrit la grille et relance `resolveChains()`.
+    /// Classique : durée commune (la plus longue, plancher 0,10 s), easeOut et étirement.
+    /// Encre : ~1280 pts/s par colonne, tache non étirée, une frame déjà posée avant `drawGrid`.
     private func addRandomLinePushingGridUp() -> RandomLinePushResult {
         guard nextBottomLine.count == GridLayout.columnCount else { return .didNotRun }
 
@@ -11233,41 +11245,63 @@ final class GameScene: SKScene {
         }
 
         let startY = sceneIncomingLineRiseStartY()
+        let inkLine = Self.visualStyleForRun == .new
 
-        // Vitesse constante : durée calée sur la colonne qui parcourt la plus grande distance.
-        let blockFallSpeed = GridLayout.cellPoints * CGFloat(GridLayout.rowCount) / 0.25  // ≈ 1280 pts/s
+        // Vitesse de référence ≈ 1280 pts/s. Classique : une seule durée (la plus longue)
+        // et un easeOut, donc une case courte ralentit jusqu’à l’arrêt.
+        let blockFallSpeed = GridLayout.cellPoints * CGFloat(GridLayout.rowCount) / 0.25
         let maxColumnDistance = placements.map {
             abs(scenePointCellCenter(row: $0.row, column: $0.column).y - startY)
         }.max() ?? GridLayout.cellPoints
-        let duration = max(0.10, TimeInterval(maxColumnDistance / blockFallSpeed))
+        let sharedDuration = max(0.10, TimeInterval(maxColumnDistance / blockFallSpeed))
+        // Encre : pas le plancher 0,10 s. Il rallongerait un saut court après l’arrivée.
+        var longestTravel: TimeInterval = inkLine ? 0 : sharedDuration
 
         for placement in placements {
             let col = placement.column
             let block = line[col]
             let sprite = makeFallingBlockNode(for: block)
             sprite.name = "\(Self.randomLineRisingSpritePrefix)\(col)"
-            sprite.position = CGPoint(x: scenePointCellCenter(row: GridLayout.bottomRowIndex, column: col).x, y: startY)
-            sprite.size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+            let startPoint = CGPoint(x: scenePointCellCenter(row: GridLayout.bottomRowIndex, column: col).x, y: startY)
+            sprite.position = startPoint
             sprite.zPosition = 22
 
+            // Encre : la tache reste à la taille de la case. La forcer à cell−4 la fait
+            // grossir d’un coup au moment où le sprite de vol est remplacé.
+            let inkPiece: Bool = {
+                guard inkLine else { return false }
+                switch block {
+                case .color, .priks: return true
+                case .magix, .empty: return false
+                }
+            }()
+            if !inkPiece {
+                sprite.size = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+            }
+
+            let endPoint = scenePointCellCenter(row: placement.row, column: col)
+            let colDistance = abs(endPoint.y - startY)
+            // Encre : chaque colonne garde 1280 pts/s. Partager la durée de la plus
+            // longue faisait ramper les cases proches juste avant leur slot.
+            let travelTime = inkLine
+                ? max(1.0 / 60.0, TimeInterval(colDistance / blockFallSpeed))
+                : sharedDuration
+            longestTravel = max(longestTravel, travelTime)
+
             // Stretch proportionnel à la vitesse relative de la colonne (plus loin = plus étiré).
-            let colDistance = abs(scenePointCellCenter(row: placement.row, column: col).y - startY)
+            // Encre : pas d’étirement, il déforme la tache et se rattrape dans la fin du vol.
             let stretchFactor = maxColumnDistance > 0 ? colDistance / maxColumnDistance : 0
             let flightStretch = Self.flightStretchScales(for: block)
-            sprite.xScale = 1.0 - (1.0 - flightStretch.xScale) * stretchFactor
-            sprite.yScale = 1.0 + (flightStretch.yScale - 1.0) * stretchFactor
+            if !inkPiece {
+                sprite.xScale = 1.0 - (1.0 - flightStretch.xScale) * stretchFactor
+                sprite.yScale = 1.0 + (flightStretch.yScale - 1.0) * stretchFactor
+            }
 
             addChild(sprite)
 
-            // De-stretch pendant le vol : revient exactement à (1.0, 1.0) à l’atterrissage.
-            let unstretchX = SKAction.scaleX(to: 1.0, duration: duration)
-            unstretchX.timingMode = .easeIn
-            let unstretchY = SKAction.scaleY(to: 1.0, duration: duration)
-            unstretchY.timingMode = .easeIn
-
             // Traîne de paillettes pour chaque colonne de la ligne entrante.
             // Même attente que le vol : pas de grains pendant que le sprite est encore immobile.
-            let trail = makeTrailSpawnAction(riseDuration: duration,
+            let trail = makeTrailSpawnAction(riseDuration: travelTime,
                                              pickColor: { Self.bloxTrailColor(for: block) },
                                              trackedSprite: sprite)
             if anticipate > 0 {
@@ -11276,10 +11310,31 @@ final class GameScene: SKScene {
                 run(trail)
             }
 
-            let endPoint = scenePointCellCenter(row: placement.row, column: col)
-            let move = SKAction.move(to: endPoint, duration: duration)
-            move.timingMode = .easeOut
-            let travel = SKAction.group([move, unstretchX, unstretchY])
+            let travel: SKAction
+            if inkPiece {
+                // Interpolation explicite : le timingMode d’un move dans une séquence
+                // ne garantit pas une vitesse constante jusqu’au dernier point.
+                let glide = SKAction.customAction(withDuration: travelTime) { node, elapsed in
+                    let span = CGFloat(travelTime)
+                    let t = span > 0 ? min(1, CGFloat(elapsed) / span) : 1
+                    node.position = CGPoint(
+                        x: startPoint.x + (endPoint.x - startPoint.x) * t,
+                        y: startPoint.y + (endPoint.y - startPoint.y) * t
+                    )
+                }
+                // Le dernier échantillon peut tomber une frame avant la durée.
+                // On plaque le centre, sinon la tache fige un cran trop bas.
+                let plant = SKAction.move(to: endPoint, duration: 0)
+                travel = SKAction.sequence([glide, plant])
+            } else {
+                let move = SKAction.move(to: endPoint, duration: travelTime)
+                move.timingMode = .easeOut
+                let unstretchX = SKAction.scaleX(to: 1.0, duration: travelTime)
+                unstretchX.timingMode = .easeIn
+                let unstretchY = SKAction.scaleY(to: 1.0, duration: travelTime)
+                unstretchY.timingMode = .easeIn
+                travel = SKAction.group([move, unstretchX, unstretchY])
+            }
             if anticipate > 0 {
                 sprite.run(SKAction.sequence([SKAction.wait(forDuration: anticipate), travel]))
             } else {
@@ -11319,19 +11374,33 @@ final class GameScene: SKScene {
             // Bounce sur chaque case nouvellement placée (effet vague colonne par colonne).
             // Après un tassage, la case d’arrivée n’est plus celle du placement : on ne bounce pas au mauvais endroit.
             if !didRepairHoles, let container = self.childNode(withName: Self.gridContainerName) {
+                let ink = Self.visualStyleForRun == .new
                 for (i, p) in placementsCopy.enumerated() {
                     if let cell = container.childNode(withName: "cell_\(p.row)_\(p.column)") as? SKSpriteNode {
-                        let delay = Double(i) * 0.018
                         let blockColor = Self.bloxTrailColor(for: lineCopy[p.column])
-                        cell.run(SKAction.sequence([
-                            SKAction.wait(forDuration: delay),
-                            SKAction.run { [weak self] in
-                                self?.playLandingBounce(on: cell,
-                                                          blockColor: blockColor,
-                                                          block: lineCopy[p.column])
-                            },
-                        ]))
+                        let block = lineCopy[p.column]
+                        // Classique : vague de squash, 0,018 s par colonne.
+                        // Encre : le gonflement est trop petit pour se lire en vague ;
+                        // le décalage ressemble à un temps mort une fois la case posée.
+                        if ink {
+                            self.playLandingBounce(on: cell, blockColor: blockColor, block: block)
+                        } else {
+                            let delay = Double(i) * 0.018
+                            cell.run(SKAction.sequence([
+                                SKAction.wait(forDuration: delay),
+                                SKAction.run { [weak self] in
+                                    self?.playLandingBounce(on: cell,
+                                                              blockColor: blockColor,
+                                                              block: block)
+                                },
+                            ]))
+                        }
                     }
+                }
+                // La pièce fusionnée vient d’être posée par drawGrid. Les cases ont déjà
+                // leur gonflement : on les montre tout de suite, sans attendre la frame suivante.
+                if ink {
+                    self.syncNewFusionToCellMotion()
                 }
             }
             let lineStaggerTotal = Double(GridLayout.columnCount - 1) * 0.018
@@ -11349,9 +11418,13 @@ final class GameScene: SKScene {
             ]))
         }
 
+        // Encre : une frame de plus, les taches déjà posées au centre. `drawGrid`
+        // reconstruit toutes les pièces sur la frame d’arrivée ; sans ce battement,
+        // l’écran garde l’image d’avant, un cran trop bas.
+        let presentArrivedFrame: TimeInterval = inkLine ? (1.0 / 60.0) : 0
         run(
             SKAction.sequence([
-                SKAction.wait(forDuration: duration + anticipate),
+                SKAction.wait(forDuration: longestTravel + anticipate + presentArrivedFrame),
                 SKAction.run { finishInjection() },
             ])
         )
@@ -11609,6 +11682,39 @@ final class GameScene: SKScene {
         sprite.setValue(SKAttributeValue(float: timeOffset), forAttribute: magixTimeOffsetAttributeName)
     }
 
+    /// Couronne géométrique. Le Classique ne lit pas la texture.
+    private static let classicDiscShaderTail = """
+            // Disque inscrit + couronne noire (même recette que la bombe).
+            float d=distance(uv,vec2(0.5,0.5));
+            float a=1.0-smoothstep(0.46,0.50,d);
+            float ring=1.0-smoothstep(0.38,0.43,d);
+            gl_FragColor=vec4(col*ring*a,a);
+        """
+
+    private static let classicBombDiscShaderTail = """
+            // Disque avec contour noir : ring masque la couleur dans la couronne externe (~2-3 pt).
+            float d=distance(uv,vec2(0.5,0.5));
+            float a=1.0-smoothstep(0.46,0.50,d);
+            float ring=1.0-smoothstep(0.38,0.43,d);
+            gl_FragColor=vec4(col*ring*a,a);
+        """
+
+    /// Masque Encre : grain au centre, encre irrégulière sur le tour.
+    private static let inkDiscShaderTail = """
+            vec4 inkTex=texture2D(u_texture,uv);
+            float a=inkTex.a;
+            float shade=a>0.02?clamp(inkTex.r/a,0.0,1.0):0.0;
+            col*=shade;
+            gl_FragColor=vec4(col*a,a);
+        """
+
+    /// Classique : pastille blanche, pour des UV définis. Encre : masque aquarelle.
+    /// `salt` 1 = Magix, 2 = bombe.
+    private static func specialDiscTexture(size: CGSize, salt: Int) -> SKTexture {
+        guard visualStyleForRun == .new else { return magixShaderBaseTexture }
+        return BlomixNewInkRenderer.discTexture(pointSize: size, salt: salt)
+    }
+
     private static func makeMagixPaletteShader(timeOffset: Float = 0.0) -> SKShader {
         _ = timeOffset
         // Les couleurs de la palette sont intégrées directement dans le source GLSL
@@ -11620,7 +11726,8 @@ final class GameScene: SKScene {
                SKColor.yellow, SKColor(red: 0.6, green: 0, blue: 0.9, alpha: 1), SKColor.orange]
             : uiColors
         let n = safeColors.count
-        let cacheKey = "\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)"
+        let ink = visualStyleForRun == .new
+        let cacheKey = "\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)|ink:\(ink ? 1 : 0)"
         if let cached = magixShaderCache[cacheKey] { return cached }
 
         // Convertit une SKColor en littéral vec3 GLSL.
@@ -11672,11 +11779,7 @@ final class GameScene: SKScene {
             // Fusion en deux étapes : c1↔c2 dominants, c3 subtile.
             vec3 ab=mix(c1,c2,wx);
             vec3 col=mix(ab,c3,wy*0.38);
-            // Disque inscrit + couronne noire (même recette que la bombe).
-            float d=distance(uv,vec2(0.5,0.5));
-            float a=1.0-smoothstep(0.46,0.50,d);
-            float ring=1.0-smoothstep(0.38,0.43,d);
-            gl_FragColor=vec4(col*ring*a,a);
+            \(ink ? Self.inkDiscShaderTail : Self.classicDiscShaderTail)
         }
         """
         let shader = SKShader(source: src)
@@ -11873,8 +11976,9 @@ final class GameScene: SKScene {
 
     private static func applyMagixShader(to sprite: SKSpriteNode, size: CGSize,
                                           kind: MagixKind, symbolLabelName: String) {
-        // La texture blanche garantit que v_tex_coord est correctement interpolé.
-        sprite.texture          = magixShaderBaseTexture
+        // Classique : texture blanche pour que v_tex_coord soit défini.
+        // Encre : masque grain + couronne, échantillonné par le shader.
+        sprite.texture          = specialDiscTexture(size: size, salt: 1)
         sprite.colorBlendFactor = 0   // le shader fournit 100 % de la couleur
         sprite.color            = .white
         sprite.size             = size
@@ -11973,11 +12077,7 @@ final class GameScene: SKScene {
             float wy=cos(uv.y*2.2-t*0.35)*0.5+0.5;
             vec3 ab=mix(c1,c2,wx);
             vec3 col=mix(ab,c3,wy*0.38);
-            // Disque avec contour noir : ring masque la couleur dans la couronne externe (~2-3 pt).
-            float d=distance(uv,vec2(0.5,0.5));
-            float a=1.0-smoothstep(0.46,0.50,d);
-            float ring=1.0-smoothstep(0.38,0.43,d);
-            gl_FragColor=vec4(col*ring*a,a);
+            \(visualStyleForRun == .new ? Self.inkDiscShaderTail : Self.classicBombDiscShaderTail)
         }
         """
         return SKShader(source: src)
@@ -11985,7 +12085,7 @@ final class GameScene: SKScene {
 
     /// Applique le look bombe MAGIX-style sur un sprite existant (réutilisable pour icône HUD).
     private static func applyBombShader(to sprite: SKSpriteNode, size: CGSize) {
-        sprite.texture          = magixShaderBaseTexture
+        sprite.texture          = specialDiscTexture(size: size, salt: 2)
         sprite.colorBlendFactor = 0
         sprite.color            = .white
         sprite.size             = size
@@ -12128,7 +12228,15 @@ final class GameScene: SKScene {
             for c in 0..<GridLayout.columnCount {
                 guard case .color(let name) = grid[r][c], name == colorName else { continue }
                 guard let cell = container.childNode(withName: "cell_\(r)_\(c)") as? SKSpriteNode else { continue }
-                let ov = SKSpriteNode(color: .white, size: cell.size)
+                let ov: SKSpriteNode
+                if Self.visualStyleForRun == .new, let texture = cell.texture {
+                    // Même tache que le blox : un carré blanc couperait la pièce.
+                    ov = SKSpriteNode(texture: texture, size: cell.size)
+                    ov.color = .white
+                    ov.colorBlendFactor = 1
+                } else {
+                    ov = SKSpriteNode(color: .white, size: cell.size)
+                }
                 ov.alpha = 0
                 ov.position = cell.position
                 ov.zPosition = 8   // au-dessus des cellules (z 1) et de toutes les jonctions (z 2.01+)
@@ -12214,9 +12322,12 @@ final class GameScene: SKScene {
             return
         }
         colorxSprite.name = "cell_colorx_spinning"
-        // Retirer shader et décorations Magix pour afficher une couleur unie.
-        colorxSprite.shader           = nil
-        colorxSprite.colorBlendFactor = 1
+        // Classique : couleur unie. Encre : le shader reste jusqu’à la première tache,
+        // sinon le disque s’aplatit en carré.
+        if Self.visualStyleForRun != .new {
+            colorxSprite.shader = nil
+            colorxSprite.colorBlendFactor = 1
+        }
         colorxSprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         colorxSprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
         colorxSprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
@@ -12230,7 +12341,14 @@ final class GameScene: SKScene {
             steps.append(SKAction.run { [weak self, weak colorxSprite] in
                 guard let self, let sprite = colorxSprite else { return }
                 BlomixProceduralSFX.shared.playColorxRouletteClick(step: capturedIdx)
-                sprite.color = Self.bloxSolidFillColor(colorName: captured) ?? SKColor(white: 0.5, alpha: 1)
+                let fill = Self.bloxSolidFillColor(colorName: captured) ?? SKColor(white: 0.5, alpha: 1)
+                if Self.visualStyleForRun == .new {
+                    sprite.shader = nil
+                    let fitted = Self.newStyleGridBlockPointSize(requested: Self.solidGameplayBloxPixelSize())
+                    BlomixNewBlockRenderer.applyJelly(to: sprite, fill: fill, pointSize: fitted)
+                } else {
+                    sprite.color = fill
+                }
                 let pop = SKAction.sequence([
                     SKAction.scale(to: 1.25, duration: duration * 0.35),
                     SKAction.scale(to: 1.00, duration: duration * 0.65),
@@ -13201,25 +13319,82 @@ final class GameScene: SKScene {
         }
     }
 
+    /// Enfant direct seulement. `childNode(withName:)` est une recherche et peut viser un autre nœud.
+    private func directNamedSprite(in container: SKNode, name: String) -> SKSpriteNode? {
+        for child in container.children {
+            if child.name == name { return child as? SKSpriteNode }
+        }
+        return nil
+    }
+
     /// Sprite animé lors du décalage horizontal : bloc réel (`cell_*`) ou trou visuel (`scrumblx_hole_*`).
     private func scrumblxShiftSprite(in container: SKNode, row: Int, column: Int) -> SKSpriteNode? {
-        if let block = container.childNode(withName: "cell_\(row)_\(column)") as? SKSpriteNode {
+        if let block = directGridCellSprite(in: container, row: row, column: column) {
             return block
         }
-        return container.childNode(withName: Self.scrumblxHoleNodeName(row: row, column: column)) as? SKSpriteNode
+        return directNamedSprite(in: container, name: Self.scrumblxHoleNodeName(row: row, column: column))
+    }
+
+    /// Retire les pièces qui couvrent ces cases et montre leurs taches.
+    /// La synchro ne les recolle pas tant que le déplacement n’a pas fini.
+    private func suspendNewFusionTouching(_ cells: Set<GridAddress>, in container: SKNode) {
+        guard Self.visualStyleForRun == .new, !cells.isEmpty else { return }
+        newFusionSyncSuspended = true
+        for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
+            let piece = fusionCells(on: child)
+            guard piece.contains(where: { cells.contains($0) }) else { continue }
+            child.removeFromParent()
+            for cell in piece {
+                guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
+                sprite.isHidden = false
+                sprite.zPosition = max(sprite.zPosition, 2)
+            }
+        }
+        for cell in cells {
+            guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
+            sprite.isHidden = false
+            sprite.zPosition = max(sprite.zPosition, 2)
+        }
+    }
+
+    /// La pièce fusionnée reste en place pendant que les cases cachées glissent.
+    /// On la retire pour que le décalage montre les mêmes sprites qu’en Classique.
+    private func suspendNewFusionForScramble(in container: SKNode) {
+        guard Self.visualStyleForRun == .new else { return }
+        newFusionSyncSuspended = true
+        for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
+            child.removeFromParent()
+        }
+        for child in container.children {
+            guard let sprite = child as? SKSpriteNode,
+                  let name = sprite.name,
+                  Self.gridAddressFromCellNodeName(name) != nil else { continue }
+            sprite.isHidden = false
+        }
+    }
+
+    /// Fin ou annulation d’un déplacement scripté. Les callbacks SCRUMBLX encore en file se taisent.
+    private func cancelScrumblxVisualRun() {
+        scrumblxAnimGeneration &+= 1
+        newFusionSyncSuspended = false
+    }
+
+    /// La prochaine `drawGrid` peut reformer les pièces. N’invalide pas un SCRUMBLX en cours.
+    private func resumeNewFusionSync() {
+        newFusionSyncSuspended = false
     }
 
     private func renameScrumblxShiftRowSprites(in container: SKNode, row: Int, delta: Int) {
         let cols = GridLayout.columnCount
         let holeTmpPrefix = "\(Self.scrumblxHoleNodePrefix)tmp_"
         for c in 0..<cols {
-            container.childNode(withName: "cell_\(row)_\(c)")?.name = "cell_tmp_\(row)_\(c)"
-            container.childNode(withName: Self.scrumblxHoleNodeName(row: row, column: c))?.name = "\(holeTmpPrefix)\(row)_\(c)"
+            directGridCellSprite(in: container, row: row, column: c)?.name = "cell_tmp_\(row)_\(c)"
+            directNamedSprite(in: container, name: Self.scrumblxHoleNodeName(row: row, column: c))?.name = "\(holeTmpPrefix)\(row)_\(c)"
         }
         for c in 0..<cols {
             let origC = ((c - delta) % cols + cols) % cols
-            container.childNode(withName: "cell_tmp_\(row)_\(origC)")?.name = "cell_\(row)_\(c)"
-            container.childNode(withName: "\(holeTmpPrefix)\(row)_\(origC)")?.name =
+            directNamedSprite(in: container, name: "cell_tmp_\(row)_\(origC)")?.name = "cell_\(row)_\(c)"
+            directNamedSprite(in: container, name: "\(holeTmpPrefix)\(row)_\(origC)")?.name =
                 Self.scrumblxHoleNodeName(row: row, column: c)
         }
     }
@@ -13282,6 +13457,7 @@ final class GameScene: SKScene {
 
         // ── 4. Flash blanc sur le sprite SCRUMBLX uniquement, puis il disparaît.
         guard let container = childNode(withName: Self.gridContainerName) else {
+            cancelScrumblxVisualRun()
             // Fallback sans container : décalage instantané, compaction, puis resolveChains.
             let colHad: [Bool] = (0..<GridLayout.columnCount).map { col in
                 (GridLayout.topRowIndex..<GridLayout.rowCount).contains { self.grid[$0][col] != .empty }
@@ -13291,6 +13467,11 @@ final class GameScene: SKScene {
             applyMagixCompactionAndContinue(columnHadBlockBefore: colHad)
             return
         }
+
+        // Encre : les Blox visibles sont la pièce fusionnée, pas les `cell_` cachés.
+        // On l'enlève avant le décalage, sinon elle reste en place et les chiffres
+        // des Brix (z 3, ignoresSiblingOrder) glissent par-dessus.
+        suspendNewFusionForScramble(in: container)
 
         // Mise à jour visuelle des Brix dans le container existant (avant le décalage).
         // Brix disparus : trou visuel gris (préfixe scrumblx_hole_, pas cell_).
@@ -13313,9 +13494,8 @@ final class GameScene: SKScene {
         for r in GridLayout.topRowIndex..<GridLayout.rowCount {
             for c in 0..<GridLayout.columnCount {
                 let addr = GridAddress(row: r, col: c)
-                let nodeName = "cell_\(r)_\(c)"
                 if vanishedBrixAddrs.contains(addr) {
-                    if let sprite = container.childNode(withName: nodeName) {
+                    if let sprite = directGridCellSprite(in: container, row: r, column: c) {
                         let pos = sprite.position
                         sprite.removeFromParent()
                         let slot = Self.makeScrumblxHolePlaceholderSprite()
@@ -13359,7 +13539,7 @@ final class GameScene: SKScene {
         let flashDur: TimeInterval = 0.18
         // Le mélange attend le dernier swap de chiffre (et au moins le flash SCRUMBLX).
         let preShiftHold = max(flashDur, priksDigitGrowWaveDuration())
-        if let scrumblxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
+        if let scrumblxSprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) {
             let landingPos = scrumblxSprite.position
             // Renommer immédiatement pour que le loop de décalage de ligne ne le trouve pas
             // et ne tente pas de l'animer en même temps que le fondu de disparition.
@@ -13544,6 +13724,7 @@ final class GameScene: SKScene {
                     }
                 }
                 self.remapPriksDigitSettlePending(digitDest)
+                self.resumeNewFusionSync()
                 // Rebuild propre depuis la grille logique finale (positions exactes pré-compaction).
                 self.drawGrid()
                 self.replayPriksDigitSettleAfterDrawGrid()
@@ -13617,6 +13798,7 @@ final class GameScene: SKScene {
             SKAction.wait(forDuration: CompactRiseAnimation.duration),
             SKAction.run { [weak self] in
                 guard let self else { return }
+                self.resumeNewFusionSync()
                 self.drawGrid()
                 self.replayPriksDigitSettleAfterDrawGrid()
                 self.playCompactLandingJuice(riseMoves: riseMoves)
@@ -14286,6 +14468,8 @@ final class GameScene: SKScene {
 
         let blastCells = Set(bombBlastGridAddresses(centerRow: centerRow, centerCol: centerCol))
         removeBloxJunctionElementsTouching(blastCells)
+        // Les cases visées sont sous la pièce. On les montre pour le même éclatement qu’en Classique.
+        suspendNewFusionTouching(Set(occupiedSorted), in: container)
 
         let bombLocal = convert(centerScenePoint, to: container)
 
@@ -14294,8 +14478,7 @@ final class GameScene: SKScene {
         let zBoost = BombExplosionFeedback.blockAnimZ
 
         for (index, address) in occupiedSorted.enumerated() {
-            let name = "cell_\(address.row)_\(address.col)"
-            guard let sprite = container.childNode(withName: name) as? SKSpriteNode else { continue }
+            guard let sprite = directGridCellSprite(in: container, row: address.row, column: address.col) else { continue }
 
             let cellLocal = Self.gridContainerLocalCellCenter(row: address.row, column: address.col)
             var vx = cellLocal.x - bombLocal.x
@@ -14321,8 +14504,9 @@ final class GameScene: SKScene {
             let slotSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
             let prep = SKAction.run {
                 sprite.zPosition = zBoost
-                // Placeholder gris derrière le blox animé : évite le fond noir pendant le fondu.
-                let bg = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: slotSize)
+                // Placeholder derrière le blox animé. Encre : le papier, pas un carré gris.
+                let hole = Self.visualStyleForRun == .new ? SKColor.clear : BlomixAppearance.emptyCellSK
+                let bg = SKSpriteNode(color: hole, size: slotSize)
                 bg.anchorPoint = CGPoint(x: 0.5, y: 0.5)
                 bg.position    = sprite.position
                 bg.zPosition   = 0
@@ -14433,6 +14617,7 @@ final class GameScene: SKScene {
 
                 let finish: () -> Void = { [weak self] in
                     guard let self else { return }
+                    self.resumeNewFusionSync()
                     self.drawGrid()
                     self.playCompactLandingJuice(riseMoves: riseMoves)
                     self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
@@ -14562,6 +14747,7 @@ final class GameScene: SKScene {
 
                 let finishBombDrop: () -> Void = { [weak self] in
                     guard let self else { return }
+                    self.resumeNewFusionSync()
                     self.drawGrid()
                     self.playCompactLandingJuice(riseMoves: riseMoves)
                     self.awardFullyClearedColumnBonuses(columnHadBlockBefore: columnHadBlockBefore)
@@ -14996,20 +15182,6 @@ final class GameScene: SKScene {
         )
     }
 
-    /// 9.0 Ink: la chaîne se désature avant de s'effacer. `amount` 0 = couleur, 1 = gris.
-    private static func desaturated(_ color: SKColor, amount: CGFloat) -> SKColor {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1
-        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
-        let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
-        let t = min(1, max(0, amount))
-        return SKColor(
-            red: r + (y - r) * t,
-            green: g + (y - g) * t,
-            blue: b + (y - b) * t,
-            alpha: a
-        )
-    }
-
     /// Remplissage des blox couleur (skin actif dans `color_skins.json` + `BlomixSkinCatalog`).
     private static func bloxSolidFillColor(forNormalizedKey key: String) -> SKColor? {
         BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: key)
@@ -15070,6 +15242,11 @@ final class GameScene: SKScene {
     }
 
     private func animateCompactRiseMoves(_ riseMoves: [CompactRiseMove], in container: SKNode) {
+        // Encre : la pièce dessinée au repos ne suit pas le vol. On montre les taches, sans les étirer.
+        suspendNewFusionTouching(
+            Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) }),
+            in: container
+        )
         var byColumn: [[CompactRiseMove]] = Array(repeating: [], count: GridLayout.columnCount)
         for move in riseMoves {
             guard move.column >= 0, move.column < GridLayout.columnCount,
@@ -15090,7 +15267,14 @@ final class GameScene: SKScene {
                 sprite.xScale = 1
                 sprite.yScale = 1
                 let block = grid[move.toRow][move.column]
-                let (sx, sy) = Self.flightStretchScales(for: block)
+                // L'étirement de vol écrase la tache. Encre : la forme reste, seul le trajet bouge.
+                let (sx, sy): (CGFloat, CGFloat) = {
+                    if Self.visualStyleForRun == .new {
+                        if case .magix = block { return Self.flightStretchScales(for: block) }
+                        return (1, 1)
+                    }
+                    return Self.flightStretchScales(for: block)
+                }()
                 let targetLocal = Self.gridContainerLocalCellCenter(row: move.toRow, column: move.column)
                 let moveAction = SKAction.move(to: targetLocal, duration: travel)
                 moveAction.timingMode = .easeOut
@@ -15126,8 +15310,7 @@ final class GameScene: SKScene {
         for move in riseMoves {
             let block = grid[move.toRow][move.column]
             guard block != .empty else { continue }
-            let nodeName = "cell_\(move.toRow)_\(move.column)"
-            guard let sprite = container.childNode(withName: nodeName) as? SKSpriteNode else { continue }
+            guard let sprite = directGridCellSprite(in: container, row: move.toRow, column: move.column) else { continue }
             arrivals.insert(GridAddress(row: move.toRow, col: move.column))
             playLandingBounce(
                 on: sprite,
@@ -15450,7 +15633,8 @@ final class GameScene: SKScene {
         let scenePoint = convert(sprite.position, from: container)
         spawnMagixConsumeBurst(at: scenePoint)
         let slotSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
-        let bg = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: slotSize)
+        let hole = Self.visualStyleForRun == .new ? SKColor.clear : BlomixAppearance.emptyCellSK
+        let bg = SKSpriteNode(color: hole, size: slotSize)
         bg.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         bg.position = sprite.position
         bg.zPosition = 0
@@ -15739,15 +15923,19 @@ final class GameScene: SKScene {
 
     /// 9.0 New: une lecture, au démarrage ou à la reprise, avant le premier `drawGrid`.
     private func captureVisualStyleForRun() {
+        cancelScrumblxVisualRun()
         Self.visualStyleForRun = BlomixVisualStyle.current
-        // setupBombHUD peint la file avant ce gel. On la repeint avec le style de la partie.
+        // setupBombHUD peint la file et l’icône de stock avant ce gel.
+        // Sans ce second passage, le stock reste le disque Classique.
         refreshUpcomingQueueSlots()
+        refreshBombHudIcon()
         refreshFullscreenBackgroundColor()
         refreshDisplayFacesForVisualStyle()
     }
 
     /// 9.0 New: entre deux parties, ne pas laisser un plateau masqué en New.
     private func resetVisualStyleForHome() {
+        cancelScrumblxVisualRun()
         Self.visualStyleForRun = .old
         refreshFullscreenBackgroundColor()
         refreshDisplayFacesForVisualStyle()
@@ -16039,8 +16227,8 @@ final class GameScene: SKScene {
             line.lineCap = .round
             line.position = CGPoint(x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2)
             if Self.visualStyleForRun == .new {
-                // 9.0 New: trait dans la matière, sous les Blox — visible dans la fente, pas en barre plate par-dessus.
-                line.strokeColor = BlomixNewBlockRenderer.materialColor(junctionColor)
+                // Même encre que les cases. Un trait assombri découpait la diagonale.
+                line.strokeColor = junctionColor
                 line.zPosition = 0.55
             } else {
                 line.zPosition = nextBloxJunctionZ()
@@ -16132,7 +16320,7 @@ final class GameScene: SKScene {
 
     /// Au repos, la pièce fusionnée couvre les Blox. Dès qu'une case s'anime, son groupe redevient des sprites.
     private func syncNewFusionToCellMotion() {
-        guard Self.visualStyleForRun == .new, !isStartScreen else { return }
+        guard Self.visualStyleForRun == .new, !isStartScreen, !newFusionSyncSuspended else { return }
         guard let container = childNode(withName: Self.gridContainerName) else { return }
 
         var busy = Set<GridAddress>()
@@ -16789,6 +16977,7 @@ final class GameScene: SKScene {
     /// Toujours termine par un compactage (évite de sauver des trous mid-vague clear / Magix).
     private func stabilizeLogicalStateForSoloSave() {
         if isProcessing {
+            cancelScrumblxVisualRun()
             removeAllActions()
             childNode(withName: Self.fallingSpriteName)?.removeFromParent()
             for col in 0..<GridLayout.columnCount {
@@ -19731,6 +19920,7 @@ final class GameScene: SKScene {
         pvpDecadePreviewQueuedAheadOfAttacks = false
         pvpBottomPreviewToken = nil
         didFinalizePvPEloForCurrentMatch = false
+        cancelScrumblxVisualRun()
         removeAllActions()
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()
@@ -20778,6 +20968,7 @@ final class GameScene: SKScene {
 
         // Préparer l'accueil (ou la reprise solo) **sous** les modales UIKit encore visibles,
         // puis retirer toute la pile d'un coup — plus de flash grille entre résultat / série / menu.
+        cancelScrumblxVisualRun()
         removeAllActions()
         childNode(withName: Self.gameOverOverlayName)?.removeFromParent()
         childNode(withName: Self.fallingSpriteName)?.removeFromParent()

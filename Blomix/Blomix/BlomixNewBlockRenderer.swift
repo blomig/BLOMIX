@@ -224,17 +224,6 @@ enum BlomixNewBlockRenderer {
         return (span, thickness)
     }
 
-    /// Teinte de la matière (milieu du volume), pour un trait qui ne doit pas être plus clair que la gelée.
-    static func materialColor(_ fill: SKColor) -> SKColor {
-        var r: CGFloat = 0
-        var g: CGFloat = 0
-        var b: CGFloat = 0
-        var a: CGFloat = 1
-        guard fill.getRed(&r, green: &g, blue: &b, alpha: &a) else { return fill }
-        let k: CGFloat = 0.78
-        return SKColor(red: r * k, green: g * k, blue: b * k, alpha: a)
-    }
-
     /// Barre de jonction en gelée. `color` = teinte, `colorBlendFactor` = 1.
     @MainActor
     static func makeJunctionSprite(fill: SKColor, size: CGSize, axis: JunctionAxis) -> SKSpriteNode {
@@ -267,14 +256,14 @@ enum BlomixNewBlockRenderer {
         return sprite
     }
 
-    /// Anneau plus sombre que la teinte. Plus la teinte est claire, plus l'anneau descend,
-    /// surtout sur le crème (violet / jaune / bleu).
+    /// Bassin de pigment, très léger. Les teintes claires descendent un peu plus
+    /// pour rester lisibles sur le washi, sans liseré gris.
     private static func edgeMultiplier(red: CGFloat, green: CGFloat, blue: CGFloat, light: Bool) -> CGFloat {
         let lum = 0.2126 * red + 0.7152 * green + 0.0722 * blue
         if light {
-            return max(0.38, 0.62 - 0.20 * lum)
+            return max(0.84, 0.98 - 0.10 * lum)
         }
-        return max(0.46, 0.70 - 0.14 * lum)
+        return max(0.90, 0.99 - 0.05 * lum)
     }
 
     // MARK: - Cuisson

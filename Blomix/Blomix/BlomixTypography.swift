@@ -3,7 +3,7 @@
 //  Blomix
 //
 //  Typo figée v6.1 — deux visages, plus de picker joueur.
-//    display / grille : Changa One, ou Caveat Brush si le style visuel est Encre
+//    display / grille : Changa One, ou Chelsea Market si le style visuel est Encre
 //    chrome           : Nunito
 //      Regular   — micro-captions (< 13 pt)
 //      Medium    — corps (réglages, HUD, lobby)
@@ -19,9 +19,9 @@ enum BlomixTypeRole: Sendable {
     case chrome
     case grid
 
-    /// Changa One. Encre : Caveat Brush, enregistrée à la main (`CaveatBrush-Regular`).
+    /// Changa One. Encre : Chelsea Market, enregistrée à la main (`ChelseaMarket-Regular`).
     static let changaPostScriptName = "ChangaOne"
-    static let inkPostScriptName = "CaveatBrush-Regular"
+    static let inkPostScriptName = "ChelseaMarket-Regular"
 
     var postScriptName: String {
         switch self {

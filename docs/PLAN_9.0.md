@@ -2,14 +2,14 @@
 
 > À lire en premier par tout agent (Grok Build) qui travaille sur la branche `9.0`.
 > Worktree : `~/Developer/BLOMIX-9.0`. Ne jamais toucher `~/Documents/GIT/BLOMIX` (iCloud).
-> Le 15/11/2026, la piste Encre **remplace** la gelée comme mode New ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), `docs/design/9.0/encre-washi-rendu1.png`). E1–E5 : papier washi, taches, pièces fusionnées, Brix indigo, pose et chaîne. Caveat Brush remplace Changa One en Encre seulement. Magix et bombe restent Old. Classique ne bouge pas.
+> Le 15/11/2026, la piste Encre **remplace** la gelée comme mode New ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), `docs/design/9.0/encre-washi-rendu1.png`). E1–E5 : papier washi, taches, pièces fusionnées, Brix indigo, pose et chaîne. Chelsea Market remplace Changa One en Encre seulement. Magix et bombe en Encre : même disque et mêmes effets, matière aquarelle (grain + couronne irrégulière). Classique ne bouge pas.
 
 ## 1. Objectif
 
 La 9.0 introduit un nouveau rendu visuel, **New**. Depuis le 15/11/2026 la cible est la piste Encre
 (`docs/design/9.0/encre-washi-rendu1.png`, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)).
-La gelée (`docs/design/9.0/maquette-new-cible.jpg`) est le rendu encore affiché par `.new`
-et la géométrie à réutiliser. `maquette-1-exploration.jpg` n'est qu'une exploration.
+La géométrie des pièces vient de la gelée (`docs/design/9.0/maquette-new-cible.jpg`).
+Le rendu affiché par `.new` est l'Encre. `maquette-1-exploration.jpg` n'est qu'une exploration.
 
 Le rendu actuel s'appelle **Old**. Un réglage dans l'onglet **Réglages** permet de basculer Old ↔ New
 pour prototyper et tester sans rien casser.
@@ -44,7 +44,7 @@ pour prototyper et tester sans rien casser.
 - Les blocs de grille passent par `GameScene.makeSolidGameplayBlockSprite(block:pixelSize:priksDigitFontSize:)`.
   En New, `.color` et `.priks` délèguent à `BlomixNewBlockRenderer` (sprite de grille `cell − 1`).
   La file et le gros aperçu (couleur / Brix) passent par `applyJelly`, à leur taille d’origine.
-  En Old, le carré uni est inchangé. Magix et bombe ne sont pas branchés.
+  En Old, le carré uni est inchangé. En Encre, Magix et bombe gardent leur shader de palette ; la texture du disque est un masque aquarelle (`BlomixNewInkRenderer.discTexture`).
 - Autres fabriques à inventorier avant d'y toucher : `makeBlockCell`, `makeFallingBlockNode`,
   `makeBottomLinePreviewCellNode`, aperçu « prochains blox », Magix (`makeMagixShaderSprite`).
 - Grille vide (cellules), cadre de grille, HUD : étapes ultérieures.
@@ -193,4 +193,7 @@ La suite du look New est la piste Encre ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) 
 | V8 | Au repos, en New, un groupe de Blox de même couleur (8-connexité, comme les chaînes) est une texture : dégradé unique, un reflet, un contour. L’orthogonal a des congés extérieurs et intérieurs. Une barre diagonale dont les deux cases sont déjà dans cette pièce n’est pas dessinée : elle est dans la matière. Une diagonale entre deux pièces qui ne se touchent que par un coin est un trait de la même gelée, unionné au contour (V9). Les sprites `cell_` restent pour les animations ; ils sont cachés au repos. Dès qu’une case bouge, fond ou change d’échelle, son groupe redevient des cases le temps du geste, puis la pièce se reforme. Le coup de voisin (2 pt) ne sépare pas. Classique : barres 4×36 et traits diagonaux inchangés. Le préfixe du nœud est `blomixNewFusion` (la fin de partie retire `junction_`, pas les pièces). | 14/11/2026 |
 | V9 | La diagonale seule n’est plus un disque au coin partagé : la bulle était trop grosse. C’est une capsule de centre à centre, épaisseur `sqrt(32)` comme le trait Classique, bouts ronds, dans la même matière. Elle ne dépasse de la pièce que dans la fente entre les deux coins. | 15/11/2026 |
 | E0 | `.new` est la piste Encre. Pas de `case ink`, pas de segment Gelée. Réglages : « Classique / Encre (bêta) », 6 langues (FR Encre, EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). Classique inchangé. Référence : `docs/design/9.0/encre-washi-rendu1.png`. | 15/11/2026 |
-| E1–E5 | Papier washi (fond de partie et grille, Clair et Sombre). Blox en taches d’encre, pièces V8/V9 conservées, Brix indigo chiffre blanc, file et aperçu compris. Pose +4 % / 0,15 s. Chaîne désaturée, mêmes durées. Caveat Brush à la place de Changa One en Encre seulement (Nunito inchangé). | 15/11/2026 |
+| E1–E5 | Papier washi (fond de partie et grille, Clair et Sombre). Blox en taches d’encre, pièces V8/V9 conservées, Brix indigo chiffre blanc, file et aperçu compris. Pose +4 % / 0,15 s. Chaîne aspirée vers le centre de chaque case, mêmes durées. Chelsea Market à la place de Changa One en Encre seulement (Nunito inchangé). Caveat Brush, puis Rubik Dirt, essayées d’abord, sont retirées. Le grain des Blox et des Brix est un cran plus discret. | 15/11/2026 |
+| E5b | Papier clair `#F3E8D4` (plus ocre que `#F6F1E7`). Plus de liseré gris sur les Blox et les Brix : le bord est un léger bassin de pigment. La diagonale est la même encre, pas un trait plus noir. | 15/11/2026 |
+| E5c | Les six fibres courbes du papier sont retirées (elles traversaient le filet). Les taches ont des bassins, des flaques et du grain stables, sans trait gris. | 15/11/2026 |
+| E5d | La variation n’est plus quelques grosses flaques (elles se répétaient sur une pièce). Granulation en trois octaves, taille fixe en points : grain plus présent, variation lente très légère. | 15/11/2026 |

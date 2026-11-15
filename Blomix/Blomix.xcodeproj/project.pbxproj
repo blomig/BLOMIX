@@ -127,8 +127,8 @@
 		E3C896152FFC2EBA003991E8 /* scrumblx.wav in Resources */ = {isa = PBXBuildFile; fileRef = E3C896132FFC2EBA003991E8 /* scrumblx.wav */; };
 		E3C896172FFC301E003991E8 /* BlomixProceduralSFX.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3C896162FFC301E003991E8 /* BlomixProceduralSFX.swift */; };
 		E3C896192FFCC1AD003991E8 /* ChangaOne-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E3C896182FFCC1AD003991E8 /* ChangaOne-Regular.ttf */; };
-		C4A7E0022FFCE001003991E1 /* CaveatBrush-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C4A7E0012FFCE001003991E1 /* CaveatBrush-Regular.ttf */; };
-		C4A7E0042FFCE001003991E1 /* CaveatBrush-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = C4A7E0032FFCE001003991E1 /* CaveatBrush-OFL.txt */; };
+		C4A7E0022FFCE001003991E1 /* ChelseaMarket-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C4A7E0012FFCE001003991E1 /* ChelseaMarket-Regular.ttf */; };
+		C4A7E0042FFCE001003991E1 /* ChelseaMarket-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = C4A7E0032FFCE001003991E1 /* ChelseaMarket-OFL.txt */; };
 		C4A7E0062FFCE001003991E1 /* BlomixNewInkRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A7E0052FFCE001003991E1 /* BlomixNewInkRenderer.swift */; };
 		E3C8961B2FFCC2EF003991E8 /* ChangaOne-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E3C8961A2FFCC2EF003991E8 /* ChangaOne-Italic.ttf */; };
 /* End PBXBuildFile section */
@@ -265,8 +265,8 @@
 		E3C896132FFC2EBA003991E8 /* scrumblx.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = scrumblx.wav; sourceTree = "<group>"; };
 		E3C896162FFC301E003991E8 /* BlomixProceduralSFX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixProceduralSFX.swift; sourceTree = "<group>"; };
 		E3C896182FFCC1AD003991E8 /* ChangaOne-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChangaOne-Regular.ttf"; sourceTree = "<group>"; };
-		C4A7E0012FFCE001003991E1 /* CaveatBrush-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "CaveatBrush-Regular.ttf"; sourceTree = "<group>"; };
-		C4A7E0032FFCE001003991E1 /* CaveatBrush-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "CaveatBrush-OFL.txt"; sourceTree = "<group>"; };
+		C4A7E0012FFCE001003991E1 /* ChelseaMarket-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChelseaMarket-Regular.ttf"; sourceTree = "<group>"; };
+		C4A7E0032FFCE001003991E1 /* ChelseaMarket-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "ChelseaMarket-OFL.txt"; sourceTree = "<group>"; };
 		C4A7E0052FFCE001003991E1 /* BlomixNewInkRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlomixNewInkRenderer.swift; sourceTree = "<group>"; };
 		E3C8961A2FFCC2EF003991E8 /* ChangaOne-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChangaOne-Italic.ttf"; sourceTree = "<group>"; };
 
@@ -356,8 +356,8 @@
 			children = (
 				E3C8961A2FFCC2EF003991E8 /* ChangaOne-Italic.ttf */,
 				E3C896182FFCC1AD003991E8 /* ChangaOne-Regular.ttf */,
-				C4A7E0012FFCE001003991E1 /* CaveatBrush-Regular.ttf */,
-				C4A7E0032FFCE001003991E1 /* CaveatBrush-OFL.txt */,
+				C4A7E0012FFCE001003991E1 /* ChelseaMarket-Regular.ttf */,
+				C4A7E0032FFCE001003991E1 /* ChelseaMarket-OFL.txt */,
 				C4A7E0052FFCE001003991E1 /* BlomixNewInkRenderer.swift */,
 				E3C896162FFC301E003991E8 /* BlomixProceduralSFX.swift */,
 				100000000000000000000001 /* AppDelegate.swift */,
@@ -736,8 +736,8 @@
 				100000000000000000000157 /* end.wav in Resources */,
 				100000000000000000000158 /* end_new.wav in Resources */,
 				E3C896192FFCC1AD003991E8 /* ChangaOne-Regular.ttf in Resources */,
-				C4A7E0022FFCE001003991E1 /* CaveatBrush-Regular.ttf in Resources */,
-				C4A7E0042FFCE001003991E1 /* CaveatBrush-OFL.txt in Resources */,
+				C4A7E0022FFCE001003991E1 /* ChelseaMarket-Regular.ttf in Resources */,
+				C4A7E0042FFCE001003991E1 /* ChelseaMarket-OFL.txt in Resources */,
 				100000000000000000000159 /* line.mp3 in Resources */,
 				10000000000000000000015A /* line.wav in Resources */,
 				10000000000000000000015B /* line_new.mp3 in Resources */,

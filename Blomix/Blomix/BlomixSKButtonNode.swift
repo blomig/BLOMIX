@@ -180,8 +180,8 @@ final class BlomixSKButtonNode: SKNode {
             label.horizontalAlignmentMode = .center
             label.verticalAlignmentMode = .center
             // Changa One : le centre optique est un cran bas.
-            // Caveat Brush (Encre) : le corps est plus haut, on le redescend un peu.
-            let opticalY: CGFloat = BlomixVisualStyle.current == .new ? -2 : 1
+            // Chelsea Market (Encre) : les capitales portent un peu haut, on les descend d’1 pt.
+            let opticalY: CGFloat = BlomixVisualStyle.current == .new ? -1 : 1
             label.position = CGPoint(x: 0, y: opticalY)
             label.zPosition = 1
             inner.addChild(label)

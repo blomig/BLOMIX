@@ -957,7 +957,14 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         content.secondaryTextProperties.color = row.isLocalPlayer
             ? BlomixAppearance.primaryText
             : BlomixAppearance.secondaryText
-        content.textProperties.font = FontTheme.gameFont(size: 16, fallbackWeight: row.isLocalPlayer ? .bold : .regular)
+        // Podium : même visage que le classement du jour (Changa, ou Chelsea en Encre), taille décroissante.
+        switch row.rank {
+        case 1: content.textProperties.font = BlomixTypography.displayFont(size: 24)
+        case 2: content.textProperties.font = BlomixTypography.displayFont(size: 21)
+        case 3: content.textProperties.font = BlomixTypography.displayFont(size: 18)
+        default:
+            content.textProperties.font = FontTheme.gameFont(size: 16, fallbackWeight: row.isLocalPlayer ? .bold : .regular)
+        }
         content.secondaryTextProperties.font = FontTheme.gameFont(size: 13, fallbackWeight: .medium)
         cell.contentConfiguration = content
 

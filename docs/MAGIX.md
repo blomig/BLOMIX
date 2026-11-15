@@ -11,7 +11,7 @@ Noms Magix **non traduits** (UI, doc, ASC). Code : `MagixKind` / `MagixRules` da
 ## Commun à toutes les variantes
 
 - Effet au **atterrissage** (colonne choisie, première case vide depuis le haut).
-- **Forme** : disque inscrit (même taille que la bombe, `cell − 4 pt`) + couronne noire. Halo, respiration et particules inchangés. Après l’effet, blox / Brix restants restent **carrés**.
+- **Forme** : disque inscrit (même taille que la bombe, `cell − 4 pt`) + couronne noire. Halo, respiration et particules inchangés. Après l’effet, blox / Brix restants restent **carrés**. En **Encre**, le fond du disque a le grain des Blox et la couronne est une encre irrégulière ; la palette, le halo et les effets ne changent pas. Classique garde le trait circulaire.
 - **Jamais** dans les lignes entrantes du bas, **jamais** en **Duel**.
 - Cumul de spawn ≈ **2,9 %** du tirage file (pondéré par variante).
 - Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix.

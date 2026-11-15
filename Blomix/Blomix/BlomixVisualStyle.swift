@@ -2,13 +2,14 @@
 //  BlomixVisualStyle.swift
 //  Blomix
 //
-//  Style de rendu Old / New (9.0). Orthogonal au thème chrome (`BlomixAppearance`)
-//  et aux skins de couleurs. Défaut = Old.
+//  Style de rendu Classique / Encre (9.0). Orthogonal au thème chrome (`BlomixAppearance`)
+//  et aux skins de couleurs. Défaut = Classique (`.old`).
 //
-//  Étape 0 : le réglage est persisté. Aucune scène n’écoute la notification.
-//  Étape 1 : `GameScene` fige `current` au début de partie (`visualStyleForRun`).
-//  New ne change que les Blox couleur de la fabrique principale.
-//  Voir docs/PLAN_9.0.md, décisions V3 et V5.
+//  `.new` est la piste Encre (Lomig, 15/11/2026) : elle remplace la gelée comme mode New.
+//  Pas de troisième cas. E0 ne change que le libellé. Le rendu de `.new` reste la gelée
+//  jusqu’aux étapes E1+ de docs/DA_ENCRE_WASHI.md.
+//  `GameScene` fige `current` au début de partie (`visualStyleForRun`).
+//  Voir docs/PLAN_9.0.md, décisions V3, V5 et E0.
 //
 
 import Foundation

@@ -158,7 +158,7 @@
 "settings.appearance.light" = "Light";
 "settings.visual_style" = "Visual style";
 "settings.visual_style.old" = "Classic";
-"settings.visual_style.new" = "New (beta)";
+"settings.visual_style.new" = "Ink (beta)";
 "settings.section_font" = "Font";
 "settings.section_colors" = "Colors";
 "settings.adjust_sounds" = "Adjust Sounds";

@@ -1760,7 +1760,8 @@ private final class BlomixMasterVolumeRowView: UIView {
     }
 }
 
-/// Ligne « Style visuel » (9.0) : Classique / Nouveau (bêta).
+/// Ligne « Style visuel » (9.0) : Classique / Encre (bêta).
+/// `.new` est la piste Encre. E0 : le rendu reste la gelée.
 /// Écrit `BlomixVisualStyle` seulement. Ne reconstruit pas la partie.
 @MainActor
 private final class BlomixVisualStyleRowView: UIView {
@@ -1783,7 +1784,7 @@ private final class BlomixVisualStyleRowView: UIView {
         titleLabel.font = BlomixTypography.displayFont(size: 15)
         titleLabel.textColor = BlomixAppearance.primaryText
 
-        // 0 = Old, 1 = New. L’ordre est fixe.
+        // 0 = Classique, 1 = Encre (`.new`). L’ordre est fixe.
         control.selectedSegmentIndex = BlomixVisualStyle.isNew ? 1 : 0
         control.apportionsSegmentWidthsByContent = true
         control.accessibilityLabel = BlomixL10n.settingsVisualStyle
@@ -1834,7 +1835,7 @@ private final class BlomixVisualStyleRowView: UIView {
         control.setTitleTextAttributes(selected, for: .selected)
     }
 
-    /// Persiste le segment. Aucun redraw : New rend encore Old (PLAN_9.0, V3).
+    /// Persiste le segment. Aucun redraw de la partie en cours (PLAN_9.0, V3).
     private func commitSelection() {
         let style: BlomixVisualStyle = control.selectedSegmentIndex == 1 ? .new : .old
         BlomixVisualStyle.current = style
@@ -1863,7 +1864,7 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     private let appearanceSectionLabel = UILabel()
     private let colorsSectionLabel = UILabel()
     private let appearanceStack = UIStackView()
-    // 9.0 New: ligne Old/New. Le rendu ne branche pas encore ce réglage.
+    // 9.0 : ligne Classique / Encre. Le style est lu au début de la partie suivante.
     private let visualStyleRow = BlomixVisualStyleRowView()
     private let skinsStack = UIStackView()
     private var persoPickerSlot: BlomixPersoColorSlot?

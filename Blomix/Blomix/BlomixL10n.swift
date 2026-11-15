@@ -260,9 +260,9 @@ enum BlomixL10n {
     static var settingsAppearanceSection: String     { tr("settings.section_appearance",  comment: "Settings section heading — chrome theme") }
     static var settingsAppearanceDark: String        { tr("settings.appearance.dark",     comment: "Dark chrome theme") }
     static var settingsAppearanceLight: String       { tr("settings.appearance.light",    comment: "Light chrome theme") }
-    static var settingsVisualStyle: String           { tr("settings.visual_style",        comment: "Settings row — Old or New block render") }
+    static var settingsVisualStyle: String           { tr("settings.visual_style",        comment: "Settings row — Classic or Ink block render") }
     static var settingsVisualStyleOld: String        { tr("settings.visual_style.old",    comment: "Classic render, the current look") }
-    static var settingsVisualStyleNew: String        { tr("settings.visual_style.new",    comment: "New render, beta. Same pixels as Classic until a later 9.0 step") }
+    static var settingsVisualStyleNew: String        { tr("settings.visual_style.new",    comment: "Ink render, beta. Still the jelly pixels until a later Encre step") }
     static var settingsFontSection: String           { tr("settings.section_font",        comment: "Settings section heading (legacy)") }
     static var settingsColorsSection: String         { tr("settings.section_colors",      comment: "Settings section heading") }
     static var settingsAdjustSounds: String          { tr("settings.adjust_sounds",       comment: "Settings button to open sound mix screen") }

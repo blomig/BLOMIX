@@ -9,12 +9,16 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [9.0] — en cours (local, branche `9.0`, pas de bump `MARKETING_VERSION`)
 
-Prototype de look. Pas de fiche ASC. En Nouveau, les Blox couleur sont en gelée. Priks, Magix, bombe, file et aperçu restent Classique.
+Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). E0 : le segment s’appelle Encre, le rendu est encore la gelée (pièces fusionnées, Brix, file, gros aperçu). Magix et bombe restent Classique.
 
 ### Ajouté
 
-- **Style visuel** (Réglages, section Apparence) : segment Classique / Nouveau (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle`. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. Il est figé au début de la partie suivante. [PLAN_9.0.md](PLAN_9.0.md).
-- **Blox gelée** (Nouveau seulement) : coins arrondis, volume (clair en haut, profond en bas), reflet blanc en haut à gauche, liseré intérieur, ombre courte en bas à droite, contour un peu plus sombre que la teinte. La couleur vient du skin. Classique reste le carré uni. Une partie typique garde 6 textures gelée en cache, plus un reflet partagé.
+- **Style visuel** (Réglages, section Apparence) : segment Classique / Encre (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle` (`.old` / `.new`). `.new` est la piste Encre. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. Il est figé au début de la partie suivante. [PLAN_9.0.md](PLAN_9.0.md), [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md).
+- **Blox gelée** (Nouveau seulement, matière provisoire de l’Encre) : coins arrondis, volume (clair en haut, profond en bas), reflet blanc en haut à gauche, liseré intérieur, ombre courte en bas à droite, contour un peu plus sombre que la teinte. La couleur vient du skin. Au repos, chaque groupe de même couleur est une seule pièce : coins extérieurs et intérieurs arrondis, un dégradé, un reflet. Une diagonale déjà dans la pièce n’est plus un trait. Deux cases qui ne se touchent que par un coin sont reliées par un trait fin de la même matière, de la largeur du trait Classique. Pendant un déplacement ou une disparition, la pièce se sépare en cases, puis se reforme. Les Brix, les deux prochains blocs et le gros bloc courant (couleur ou Brix) ont la même matière. Classique reste le carré de 36 pt et les barres plates.
+
+### Modifié
+
+- **Style visuel** : le segment « Nouveau (bêta) » s’appelle « Encre (bêta) » (EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). `.new` est la piste encre et washi. Pas de troisième style : la gelée n’est plus un choix. Son rendu reste à l’écran jusqu’aux étapes de matière. Classique inchangé.
 
 ---
 

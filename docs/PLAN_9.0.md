@@ -2,12 +2,14 @@
 
 > À lire en premier par tout agent (Grok Build) qui travaille sur la branche `9.0`.
 > Worktree : `~/Developer/BLOMIX-9.0`. Ne jamais toucher `~/Documents/GIT/BLOMIX` (iCloud).
-> Étape 1 faite le 14/11/2026. Prochaine : étape 2. En New, les Blox couleur sont en gelée. Priks, Magix, bombe, file et aperçu restent Old.
+> Gelée (étapes 1 et 4) faite le 14–15/11/2026. Le 15/11/2026, Lomig décide que la piste Encre **remplace** la gelée comme mode New (E0, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), référence `docs/design/9.0/encre-washi-rendu1.png`). `.new` garde pour l’instant le rendu gelée : pièces fusionnées, Brix, file et gros aperçu. Magix et bombe restent Old. Les étapes E1+ changent la matière de `.new`. Classique ne bouge pas.
 
 ## 1. Objectif
 
-La 9.0 introduit un nouveau rendu visuel, **New**, inspiré de `docs/design/9.0/maquette-new-cible.jpg`
-(la maquette 1 `maquette-1-exploration.jpg` n'est qu'une exploration, **pas** la cible).
+La 9.0 introduit un nouveau rendu visuel, **New**. Depuis le 15/11/2026 la cible est la piste Encre
+(`docs/design/9.0/encre-washi-rendu1.png`, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)).
+La gelée (`docs/design/9.0/maquette-new-cible.jpg`) est le rendu encore affiché par `.new`
+et la géométrie à réutiliser. `maquette-1-exploration.jpg` n'est qu'une exploration.
 
 Le rendu actuel s'appelle **Old**. Un réglage dans l'onglet **Réglages** permet de basculer Old ↔ New
 pour prototyper et tester sans rien casser.
@@ -27,9 +29,10 @@ pour prototyper et tester sans rien casser.
 
 - `enum BlomixVisualStyle: String { case old, new }` dans `BlomixVisualStyle.swift`,
   sur le modèle de `BlomixAppearance` (UserDefaults, clé `BlomixVisualStyle`, défaut `.old`).
+  Depuis E0 (15/11/2026), `.new` est la piste Encre. Pas de troisième cas.
 - Notification `blomixVisualStyleDidChange` postée au changement.
 - Ligne dans `SettingsViewController` (`LeaderboardViewController.swift`) : libellé « Style visuel »,
-  segment « Classique / Nouveau (bêta) ». Chaînes localisées dans les 6 langues (voir `LOCALIZATION.md`).
+  segment « Classique / Encre (bêta) ». Chaînes localisées dans les 6 langues (voir `LOCALIZATION.md`).
 - Bascule visible dans Réglages (accueil et menu de partie). **Décision V3** : le segment
   écrit tout de suite UserDefaults et poste la notification. Il ne reconstruit pas la grille.
   Le style sera lu à la **prochaine partie** (étape 1+), jamais au milieu d’une résolution.
@@ -38,9 +41,10 @@ pour prototyper et tester sans rien casser.
 
 ## 4. Point de branchement du rendu
 
-- Les blocs de grille passent par `GameScene.makeSolidGameplayBlockSprite(block:pixelSize:priksDigitFontSize:)`
-  (11 appels, §4.1) : c'est le point d'entrée principal. Étape 1 : seul le cas `.color` délègue à
-  `BlomixNewBlockRenderer` quand `visualStyleForRun == .new`. En Old, le carré uni est inchangé.
+- Les blocs de grille passent par `GameScene.makeSolidGameplayBlockSprite(block:pixelSize:priksDigitFontSize:)`.
+  En New, `.color` et `.priks` délèguent à `BlomixNewBlockRenderer` (sprite de grille `cell − 1`).
+  La file et le gros aperçu (couleur / Brix) passent par `applyJelly`, à leur taille d’origine.
+  En Old, le carré uni est inchangé. Magix et bombe ne sont pas branchés.
 - Autres fabriques à inventorier avant d'y toucher : `makeBlockCell`, `makeFallingBlockNode`,
   `makeBottomLinePreviewCellNode`, aperçu « prochains blox », Magix (`makeMagixShaderSprite`).
 - Grille vide (cellules), cadre de grille, HUD : étapes ultérieures.
@@ -102,7 +106,7 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 | `BlomixAmbientBlocksView.spawnBlock` | `BlomixAmbientBlocksView.swift` | Même idée, fond UIKit des modaux |
 | `triggerPvPAttackSentVisuals` | 19704 | Mini-blocs qui s’envolent quand une attaque part |
 | `buildChainImageNode` | 18334 | Cinq carrés bleus du tutoriel (`SKShapeNode`) |
-| `settleBlock` / `rebuildBloxJunctionShapes` | 15637 / 15755 | Barres entre Blox de même couleur. Étape 4 (fusion) : les remplacer ou les masquer. Pas des blocs |
+| `settleBlock` / `rebuildBloxJunctionShapes` | 15637 / 15755 | Barres entre Blox de même couleur. En New, `rebuildBloxJunctionShapes` s’arrête avant et pose une pièce `blomixNewFusion` par groupe. Classique : barres inchangées |
 | Grains d’air | ~16719 | Pas des blocs |
 | Cadre `gridFrameOutlineName` | 16023, dans `drawGrid` | Étape 3 |
 
@@ -116,13 +120,17 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 
 Étape 1 : seulement la fabrique principale, et seulement les Blox couleur, en lisant le style figé au début de partie (V3). Les 11 appels suivront tous. Étape 2 : Brix, Magix, bombe, chute, file, preview, guide, partage, overlay pire coup. Les mutateurs de la même ligne du tableau vont avec.
 
-## 5. Direction visuelle New (d'après la maquette cible)
+## 5. Direction visuelle New (gelée encore à l'écran)
+
+> **Cible du mode New depuis le 15/11/2026 : Encre** ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md),
+> `docs/design/9.0/encre-washi-rendu1.png`). Le texte ci-dessous décrit la gelée encore affichée
+> par `.new` après E0. Il ne décrit plus la cible. Les étapes 2, 3, 5 et 6 de la gelée sont en pause.
 
 - **Matière gelée / bonbon translucide** : volume doux, reflet spéculaire en haut à gauche,
   ombre portée courte, léger biseau. Lumière venant du haut-gauche, **cohérente partout**.
 - **Fusion des blocs de même couleur adjacents** : sur la maquette, des cellules voisines de même
-  couleur forment une seule pièce continue (coins intérieurs arrondis). C'est un marqueur fort du look,
-  mais coûteux : à traiter en étape dédiée (calcul de voisinage, pas de logique de jeu modifiée).
+  couleur forment une seule pièce continue (coins intérieurs arrondis). Fait au repos en New (V8) :
+  une texture par groupe 8-connexe, sans changer la logique de jeu.
 - **Priks** : bloc violet profond avec chiffre blanc en relief, lisible avant tout.
 - **Grille** : plateau de verre dépoli, cellules vides en creux légers.
 - **Fond** clair crème ; titre BLOMIX et score en relief (étape habillage).
@@ -133,8 +141,10 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 
 - **Contraste sur fond clair** : ratios calculés sur le crème — violet 1,55, jaune 1,56, bleu 2,11.
   Prévoir contour ou ombre pour que chaque couleur se détache, et vérifier en mode daltonien si existant.
-- **Les diagonales doivent rester lisibles** : les chaînes sont en 8-connexité ; la fusion visuelle ne
-  doit relier que l'orthogonal, sans faire croire que deux blocs en diagonale ne comptent pas.
+- **Les diagonales font partie de la pièce** (V8, demandé par Lomig, au-delà du « orthogonal seulement ») :
+  une diagonale déjà dans le polyomino orthogonal n’est pas redessinée. Deux cases qui ne se touchent
+  que par un coin sont reliées par un trait de la même gelée, de la largeur du trait Classique
+  (`sqrt(32)`), dans le même contour. Le L de la maquette garde son coin intérieur creux.
 - L'habillage complet (titre, HUD, boutons) obligerait à rouvrir la décision D18 : **hors périmètre**
   tant que Lomig ne l'a pas validé.
 - Apple Watch : **non concernée**.
@@ -147,11 +157,13 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 | 1 | **Fait le 14/11/2026.** Blox couleur en gelée (`BlomixNewBlockRenderer`), cache par couleur / pixels / Clair-Sombre. Style figé au début de partie (V5). | Grille New : Blox gelée. Old identique. Priks, Magix, bombe, file et aperçu encore Old. |
 | 2 | Priks + Magix + bombe + bloc qui tombe + aperçu prochains blox en New | Tous les types de blocs rendus en New |
 | 3 | Grille de verre et cellules vides | Plateau conforme à la maquette |
-| 4 | Fusion des blocs adjacents de même couleur | Formes continues, diagonales lisibles |
+| 4 | **Fait au repos, le 14/11/2026.** Une texture par groupe 8-connexe de même couleur. Orthogonal : une pièce, congés intérieurs. Diagonale interne : englobée, plus de trait. Diagonale seule : trait fin de la même matière, largeur Classique. Pendant une animation la pièce se sépare en cases, puis se reforme. | Grille New au repos : formes continues. Classique inchangé. |
 | 5 | Animations (pose, chaîne, cascade) adaptées à la matière | Juice cohérent, perf 60 i/s |
 | 6 | (si validé, D18) Habillage : titre, score, HUD, boutons | Décision Lomig |
 
 Chaque étape = un commit local, `CHANGELOG.md` + ce plan mis à jour (cocher, noter les décisions).
+
+La suite du look New est la piste Encre, une étape à la fois ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) §5). E0 est faite : le segment dit Encre, le rendu de `.new` est encore cette gelée.
 
 ## 7. Interdits pour les agents
 
@@ -163,8 +175,9 @@ Chaque étape = un commit local, `CHANGELOG.md` + ce plan mis à jour (cocher, n
 ## 8. Vérification à chaque étape
 
 - `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` ; build simulateur iPhone + tests existants.
-- Captures simulateur **Old et New** (clair + sombre) jointes au compte rendu, pour comparer Old
-  avant/après (doit être identique).
+- Captures simulateur **Classique et Encre** (clair + sombre) jointes au compte rendu.
+  Classique doit rester identique. Tant que la matière Encre n'est pas en place, la capture
+  Encre doit rester la gelée d'avant l'étape.
 
 ## 9. Décisions
 
@@ -175,3 +188,8 @@ Chaque étape = un commit local, `CHANGELOG.md` + ce plan mis à jour (cocher, n
 | V3 | Le segment persiste tout de suite (`UserDefaults` `BlomixVisualStyle`, notification `blomixVisualStyleDidChange`, `object` = le nouveau style). Il ne reconstruit pas la partie, même ouverte depuis le menu en cours. Étape 0 : aucun abonné, New et Old sont le même code de rendu. Étapes 1+ : lire le style **au début de partie** (nouvelle partie ou reprise), pas pendant une résolution. | 14/11/2026 |
 | V4 | `makeSolidGameplayBlockSprite` a 11 appels. La file « prochains blox », le gros bloc courant, la chute Magix, la bombe, l’overlay pire coup, le guide, le partage et la Watch sont d’autres points (§4.1). | 14/11/2026 |
 | V5 | Le style de la partie est le snapshot statique `GameScene.visualStyleForRun` (la fabrique est `static`). Il est lu dans `BlomixVisualStyle.current` une fois, avant le premier `drawGrid`, pour : Arcade neuve (le tutoriel passe par là), Zen, Five, Défi neuf, reprise (`restoreFromSoloSave`, y compris Défi repris), et chaque manche PvP au handshake. Remis à `.old` au retour accueil (grille masquée). `didChangeSize` et les résolutions ne relisent pas UserDefaults. La texture gelée est un masque d’éclairage multiplié par `sprite.color` (`colorBlendFactor` 1) : dissolution et cycle SAINTX continuent d’écrire la couleur. Le reflet blanc est un sprite enfant. Une partie typique : **6** textures gelée (6 couleurs du skin, taille `cell − 4`, une apparence, une échelle) **+ 1** reflet partagé. Changer Clair/Sombre en cours de partie ajoute jusqu’à 6 entrées, pas un rendu par bloc. `morphMagixSprite` vers un Blox couleur reste un aplat jusqu’au prochain `drawGrid` (mutateur, étape 2). La chute couleur passe déjà par la fabrique : elle est gelée dès cette étape. | 14/11/2026 |
+| V6 | Le corps gelée remplit le sprite (`cell − 4`), coins ≈ 0,12 du côté : carré arrondi, presque toute la case. Les jonctions orthogonales New sont des sprites du même dégradé, sur le plat du contact, assez épais pour couvrir le liseré face au voisin. Les diagonales New gardent le trait, en teinte matière, sous les Blox (z 0,55) pour ne rester visibles que dans la fente. Classique : rectangle 4×36 / 36×4 et diagonale inchangés. La fusion en une seule pièce (coins intérieurs) reste l’étape 4. | 14/11/2026 |
+| V7 | Le filet de la maquette : en New le sprite de grille passe à `cell − 1` (39 pt) et la marge de texture à ~1 % du côté, soit environ 2 pt entre les corps. Classique reste 36 pt. Les Brix (fabrique, chute, fantômes, SAINTX, mue) sont la même gelée ; le chiffre est au-dessus du reflet (z 3). Les deux minis de la file et le gros aperçu courant (couleur et Brix seulement) aussi, sans changer leur taille — l’alignement de la file reste sur `cell − 4`. La file est repeinte juste après le gel du style (`setupBombHUD` la peint avant). Flash BRIXED et disparition Brix New reviennent à une teinte pleine, pour ne pas laisser le masque gris. Magix, bombe, guide, partage : inchangés. | 14/11/2026 |
+| V8 | Au repos, en New, un groupe de Blox de même couleur (8-connexité, comme les chaînes) est une texture : dégradé unique, un reflet, un contour. L’orthogonal a des congés extérieurs et intérieurs. Une barre diagonale dont les deux cases sont déjà dans cette pièce n’est pas dessinée : elle est dans la matière. Une diagonale entre deux pièces qui ne se touchent que par un coin est un trait de la même gelée, unionné au contour (V9). Les sprites `cell_` restent pour les animations ; ils sont cachés au repos. Dès qu’une case bouge, fond ou change d’échelle, son groupe redevient des cases le temps du geste, puis la pièce se reforme. Le coup de voisin (2 pt) ne sépare pas. Classique : barres 4×36 et traits diagonaux inchangés. Le préfixe du nœud est `blomixNewFusion` (la fin de partie retire `junction_`, pas les pièces). | 14/11/2026 |
+| V9 | La diagonale seule n’est plus un disque au coin partagé : la bulle était trop grosse. C’est une capsule de centre à centre, épaisseur `sqrt(32)` comme le trait Classique, bouts ronds, dans la même matière. Elle ne dépasse de la pièce que dans la fente entre les deux coins. | 15/11/2026 |
+| E0 | `.new` est la piste Encre. Pas de `case ink`, pas de segment Gelée. Réglages : « Classique / Encre (bêta) », 6 langues (FR Encre, EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). Le rendu de `.new` reste la gelée, pixel pour pixel, jusqu’à E1. Classique inchangé. Référence : `docs/design/9.0/encre-washi-rendu1.png`. | 15/11/2026 |

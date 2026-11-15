@@ -909,6 +909,10 @@ final class GameScene: SKScene {
     private static let gridFrameOutlineName = "gridFrameOutline"
     /// Préfixe des `SKShapeNode` de jonction (retirés / reconstruits avec `drawGrid`).
     private static let junctionNodeNamePrefix = "junction_"
+    /// 9.0 New: pièce fusionnée. Pas le préfixe `junction_` : la fin de partie retire les barres, pas les Blox.
+    private static let newFusionNodePrefix = "blomixNewFusion"
+    /// 9.0 Ink: papier washi sous la grille. Pas un `cell_` : `drawGrid` le repose lui-même.
+    private static let inkPaperNodeName = "inkPaper"
     /// Placeholders visuels des cases vides pendant l'animation SCRUMBLX (hors `cell_*` pour ne pas perturber la compaction).
     private static let scrumblxHoleNodePrefix = "scrumblx_hole_"
     /// Génération d’animation SCRUMBLX : les callbacks différés d’une run précédente (ou en retard) s’ignorent.
@@ -1936,9 +1940,10 @@ final class GameScene: SKScene {
     private var updateBannerDismissedThisSession = false
 
     /// Jonction Blox — arêtes horizontales / verticales (`H_ligne_colGauche`, `V_ligneHaute_colonne`).
-    private var borderConnections: [String: SKShapeNode] = [:]
+    /// Classique : `SKShapeNode`. Nouveau : sprite gelée (`SKSpriteNode`).
+    private var borderConnections: [String: SKNode] = [:]
     /// Jonction Blox — diagonales (`D_r1_c1_r2_c2` lexicographique).
-    private var diagonalConnections: [String: SKShapeNode] = [:]
+    private var diagonalConnections: [String: SKNode] = [:]
     /// Incrémenté à chaque nouveau trait pour garder un ordre de superposition stable.
     private var bloxJunctionZCounter: CGFloat = 0
 
@@ -1949,6 +1954,8 @@ final class GameScene: SKScene {
     nonisolated(unsafe) private var skinChangeObserver: NSObjectProtocol?
     /// Recolore tout le chrome visible (Sombre / Clair), y compris depuis Réglages en partie.
     nonisolated(unsafe) private var appearanceChangeObserver: NSObjectProtocol?
+    /// 9.0 Ink: Caveat Brush à la place de Changa One quand le réglage passe en Encre.
+    nonisolated(unsafe) private var visualStyleChangeObserver: NSObjectProtocol?
     /// Ancien observer picker de police (v6.1 : typo figée, plus de notification).
     nonisolated(unsafe) private var fontChangeObserver: NSObjectProtocol?
     /// Son de tap pour les boutons UIKit (`BlomixUIButton`).
@@ -1972,6 +1979,9 @@ final class GameScene: SKScene {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = appearanceChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = visualStyleChangeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
         if let observer = fontChangeObserver {
@@ -2095,6 +2105,7 @@ final class GameScene: SKScene {
         registerGameCenterAuthObserverIfNeeded()
         registerSkinChangeObserverIfNeeded()
         registerAppearanceChangeObserverIfNeeded()
+        registerVisualStyleChangeObserverIfNeeded()
         registerFontChangeObserverIfNeeded()
         registerTrophyChangeObserverIfNeeded()
 
@@ -5248,6 +5259,45 @@ final class GameScene: SKScene {
         }
     }
 
+    private func registerVisualStyleChangeObserverIfNeeded() {
+        guard visualStyleChangeObserver == nil else { return }
+        visualStyleChangeObserver = NotificationCenter.default.addObserver(
+            forName: .blomixVisualStyleDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.applyVisualStyleToVisibleChrome()
+            }
+        }
+    }
+
+    /// Le plateau en cours ne se redessine pas (V3). L'accueil, lui, reprend le visage display.
+    private func applyVisualStyleToVisibleChrome() {
+        if isStartScreen {
+            presentStartScreen(playIntro: false)
+            return
+        }
+        refreshDisplayFacesForVisualStyle()
+        addTopTitle()
+    }
+
+    /// Changa One ↔ Caveat Brush sur les libellés déjà posés. Nunito n'est pas touché.
+    private func refreshDisplayFacesForVisualStyle() {
+        let face = BlomixTypography.fontName(.display)
+        func walk(_ node: SKNode) {
+            if let label = node as? SKLabelNode,
+               label.fontName == BlomixTypeRole.changaPostScriptName
+                || label.fontName == BlomixTypeRole.inkPostScriptName {
+                label.fontName = face
+            }
+            for child in node.children {
+                walk(child)
+            }
+        }
+        walk(self)
+    }
+
     private func registerFontChangeObserverIfNeeded() {
         // v6.1 : plus de picker police, plus de `.blomixFontDidChange`.
     }
@@ -5274,6 +5324,10 @@ final class GameScene: SKScene {
         } else {
             view?.backgroundColor = BlomixAppearance.sceneBackground
             view?.superview?.backgroundColor = BlomixAppearance.sceneBackground
+        }
+        // Le chrome UIKit remet le fond de scène. Encre, en partie, le papier reprend le dessus.
+        if Self.visualStyleForRun == .new, !isStartScreen {
+            refreshFullscreenBackgroundColor()
         }
 
         if isStartScreen {
@@ -7374,6 +7428,9 @@ final class GameScene: SKScene {
         best?.zPosition = GameOverFocusFeedback.fatalCellZ
         gameOverFatalCell = best.flatMap { Self.gridAddressFromCellNodeName($0.name ?? "") }
         parkGameOverJunctions(in: container)
+        if Self.visualStyleForRun == .new, let fatal = gameOverFatalCell {
+            elevateNewFusion(containing: fatal, in: container)
+        }
     }
 
     /// `cell_row_col` seulement. Les noms `cell_dissolve_*` / `cell_connect_*` ne passent pas ici.
@@ -8149,8 +8206,12 @@ final class GameScene: SKScene {
             let wobble = SKAction.rotate(byAngle: BrixVanishFeedback.wobbleAngle * wobbleSign,
                                          duration: BrixVanishFeedback.implodeDuration)
             wobble.timingMode = .easeIn
-            let uncolorize = SKAction.colorize(with: .white, colorBlendFactor: 0,
-                                               duration: BrixVanishFeedback.implodeDuration)
+            // 9.0 New: blend 0 montrerait le masque gris. On fond vers le blanc, teinte pleine.
+            let uncolorize = Self.visualStyleForRun == .new
+                ? SKAction.colorize(with: .white, colorBlendFactor: 1,
+                                    duration: BrixVanishFeedback.implodeDuration)
+                : SKAction.colorize(with: .white, colorBlendFactor: 0,
+                                    duration: BrixVanishFeedback.implodeDuration)
 
             let fadeDigits = SKAction.run { [weak sprite] in
                 guard let sprite else { return }
@@ -8480,9 +8541,10 @@ final class GameScene: SKScene {
                 sprite.zPosition = zDuringDissolve
                 // Sprite de fond vide inséré juste avant la dissolution :
                 // pendant le fondu du blox (alpha 1→0), ce placeholder gris empêche
-                // le fond noir de la scène de transparaître. drawGrid() le supprimera
-                // automatiquement (préfixe "cell_").
-                let bg = SKSpriteNode(color: BlomixAppearance.emptyCellSK, size: slotSize)
+                // le fond noir de la scène de transparaître. Encre : le papier reste visible.
+                // drawGrid() le supprimera automatiquement (préfixe "cell_").
+                let hole = Self.visualStyleForRun == .new ? SKColor.clear : BlomixAppearance.emptyCellSK
+                let bg = SKSpriteNode(color: hole, size: slotSize)
                 bg.anchorPoint = CGPoint(x: 0.5, y: 0.5)
                 bg.position    = sprite.position
                 bg.zPosition   = 0
@@ -8497,9 +8559,11 @@ final class GameScene: SKScene {
                 }
             }
 
-            // Phase 1 : grossissement ×1.30, pas d'éclaircissement
-            let scaleUp = SKAction.scale(to: 1.30,
-                                         duration: ChainClearFeedback.dissolveScaleUpDuration)
+            // Classique : grossissement ×1.30. Encre : la tache boit le papier, sans pop.
+            let scaleUp = SKAction.scale(
+                to: Self.visualStyleForRun == .new ? 1.05 : 1.30,
+                duration: ChainClearFeedback.dissolveScaleUpDuration
+            )
             scaleUp.timingMode = .easeOut
 
             // Phase 2 : au pic → pop de paillettes de la couleur exacte du blox
@@ -8513,12 +8577,15 @@ final class GameScene: SKScene {
             }
 
             // Phase 2 (suite) : rétrécissement + éclaircissement simultanés
+            let inkFadeTarget = Self.visualStyleForRun == .new
+                ? Self.desaturated(baseColor, amount: 0.7)
+                : peakColor
             let brighten = SKAction.customAction(
                 withDuration: ChainClearFeedback.dissolveScaleDownDuration
             ) { node, elapsed in
                 guard let s = node as? SKSpriteNode else { return }
                 let t = CGFloat(elapsed / ChainClearFeedback.dissolveScaleDownDuration)
-                s.color = Self.skColorLerp(baseColor, peakColor, min(1, max(0, t)))
+                s.color = Self.skColorLerp(baseColor, inkFadeTarget, min(1, max(0, t)))
             }
 
             let scaleDown = SKAction.scale(to: 1.0,
@@ -12285,9 +12352,7 @@ final class GameScene: SKScene {
     @discardableResult
     private func convertCleanxSpriteToCountingBrix(_ sprite: SKSpriteNode, startingDigit: Int) -> SKLabelNode {
         stripMagixAura(from: sprite)
-        sprite.texture = nil
-        sprite.color = Self.priksSolidFillColor()
-        sprite.colorBlendFactor = 1
+        sprite.childNode(withName: BlomixNewBlockRenderer.specularNodeName)?.removeFromParent()
         let digitNode = SKLabelNode(text: "\(startingDigit)")
         digitNode.name = "saintxCountDigit"
         digitNode.fontName = Self.gridFontName
@@ -12296,7 +12361,16 @@ final class GameScene: SKScene {
         digitNode.horizontalAlignmentMode = .center
         digitNode.verticalAlignmentMode = .center
         digitNode.position = .zero
-        digitNode.zPosition = 2
+        if Self.visualStyleForRun == .new {
+            let fitted = Self.newStyleGridBlockPointSize(requested: Self.solidGameplayBloxPixelSize())
+            BlomixNewBlockRenderer.applyJelly(to: sprite, fill: Self.priksSolidFillColor(), pointSize: fitted)
+            digitNode.zPosition = 3
+        } else {
+            sprite.texture = nil
+            sprite.color = Self.priksSolidFillColor()
+            sprite.colorBlendFactor = 1
+            digitNode.zPosition = 2
+        }
         sprite.addChild(digitNode)
         return digitNode
     }
@@ -12708,10 +12782,18 @@ final class GameScene: SKScene {
         allPriksAddrs.append(cell)
         for addr in allPriksAddrs {
             guard let sprite = container.childNode(withName: "cell_\(addr.row)_\(addr.col)") as? SKSpriteNode else { continue }
-            sprite.run(SKAction.sequence([
-                SKAction.colorize(with: .white, colorBlendFactor: 0.85, duration: flashDuration * 0.35),
-                SKAction.colorize(with: .white, colorBlendFactor: 0.0,  duration: flashDuration * 0.65),
-            ]))
+            if Self.visualStyleForRun == .new {
+                // Retour à la teinte Priks : blend 0 laisserait le masque gris jusqu'au drawGrid.
+                sprite.run(SKAction.sequence([
+                    SKAction.colorize(with: .white, colorBlendFactor: 0.85, duration: flashDuration * 0.35),
+                    SKAction.colorize(with: Self.priksSolidFillColor(), colorBlendFactor: 1, duration: flashDuration * 0.65),
+                ]))
+            } else {
+                sprite.run(SKAction.sequence([
+                    SKAction.colorize(with: .white, colorBlendFactor: 0.85, duration: flashDuration * 0.35),
+                    SKAction.colorize(with: .white, colorBlendFactor: 0.0,  duration: flashDuration * 0.65),
+                ]))
+            }
         }
 
         // ── 5. Après le flash, décrement + gravité ────────────────────────────
@@ -13635,6 +13717,7 @@ final class GameScene: SKScene {
         let priksFont = max(6, priksDigitRef * (slotCellPoints / UpcomingQueueLayout.cellPoints))
         // Nettoyer les anciens enfants (Priks digit + biseau) — le sprite est réutilisé entre les appels.
         sprite.childNode(withName: Self.queueSlotPriksDigitName)?.removeFromParent()
+        sprite.childNode(withName: BlomixNewBlockRenderer.specularNodeName)?.removeFromParent()
         // Supprimer le shader, le halo et les particules Magix si le slot change de type.
         sprite.shader = nil
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
@@ -13643,15 +13726,17 @@ final class GameScene: SKScene {
         sprite.color = .white
         switch block {
         case .color(let colorName):
-            sprite.texture = nil
-            sprite.color = Self.bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
-            sprite.colorBlendFactor = 1
-            sprite.size = innerSize
+            let fill = Self.bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
+            // 9.0 New: même gelée que la grille, à la taille de la miniature.
+            if visualStyleForRun == .new {
+                BlomixNewBlockRenderer.applyJelly(to: sprite, fill: fill, pointSize: innerSize)
+            } else {
+                sprite.texture = nil
+                sprite.color = fill
+                sprite.colorBlendFactor = 1
+                sprite.size = innerSize
+            }
         case .priks(let value):
-            sprite.texture = nil
-            sprite.color = Self.priksSolidFillColor()
-            sprite.colorBlendFactor = 1
-            sprite.size = innerSize
             let digit = SKLabelNode(text: "\(value)")
             digit.name = Self.queueSlotPriksDigitName
             digit.fontName = Self.gridFontName
@@ -13660,7 +13745,16 @@ final class GameScene: SKScene {
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
-            digit.zPosition = 2
+            if visualStyleForRun == .new {
+                BlomixNewBlockRenderer.applyJelly(to: sprite, fill: Self.priksSolidFillColor(), pointSize: innerSize)
+                digit.zPosition = 3
+            } else {
+                sprite.texture = nil
+                sprite.color = Self.priksSolidFillColor()
+                sprite.colorBlendFactor = 1
+                sprite.size = innerSize
+                digit.zPosition = 2
+            }
             sprite.addChild(digit)
         case .magix(let kind):
             // Shader dégradé mouvant — piloté par u_time ; symbole centré via queueSlotPriksDigitName
@@ -14634,6 +14728,7 @@ final class GameScene: SKScene {
 
         preview.childNode(withName: Self.previewPriksDigitName)?.removeFromParent()
         preview.childNode(withName: Self.bombNukeDigitName)?.removeFromParent()
+        preview.childNode(withName: BlomixNewBlockRenderer.specularNodeName)?.removeFromParent()
         preview.colorBlendFactor = 0
         preview.color = .white
 
@@ -14657,15 +14752,19 @@ final class GameScene: SKScene {
         preview.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         preview.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
 
+        let previewBlockSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
         switch currentBlock {
         case .color(let colorName):
-            preview.texture = nil
-            preview.colorBlendFactor = 1
-            preview.color = Self.bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
+            let fill = Self.bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
+            // 9.0 New: même matière que la grille. Taille inchangée (alignement de la file).
+            if Self.visualStyleForRun == .new {
+                BlomixNewBlockRenderer.applyJelly(to: preview, fill: fill, pointSize: previewBlockSize)
+            } else {
+                preview.texture = nil
+                preview.colorBlendFactor = 1
+                preview.color = fill
+            }
         case .priks(let value):
-            preview.texture = nil
-            preview.colorBlendFactor = 1
-            preview.color = Self.priksSolidFillColor()
             let digit = SKLabelNode(text: "\(value)")
             digit.name = Self.previewPriksDigitName
             digit.fontName = Self.gridFontName
@@ -14674,7 +14773,15 @@ final class GameScene: SKScene {
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
-            digit.zPosition = 2
+            if Self.visualStyleForRun == .new {
+                BlomixNewBlockRenderer.applyJelly(to: preview, fill: Self.priksSolidFillColor(), pointSize: previewBlockSize)
+                digit.zPosition = 3
+            } else {
+                preview.texture = nil
+                preview.colorBlendFactor = 1
+                preview.color = Self.priksSolidFillColor()
+                digit.zPosition = 2
+            }
             preview.addChild(digit)
         case .magix(let kind):
             // Shader dégradé mouvant — piloté par u_time ; symbole centré via previewPriksDigitName
@@ -14690,7 +14797,6 @@ final class GameScene: SKScene {
             preview.color = SKColor(white: 0.2, alpha: 1)
         }
 
-        let previewBlockSize = CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
         preview.size = previewBlockSize
         preview.position = scenePointPreviewRow(column: selectedColumn)
 
@@ -14814,8 +14920,15 @@ final class GameScene: SKScene {
     }
 
     /// Met à jour la couleur du fond racine sans le reconstruire (ex. après toggle d'apparence).
+    /// Encre, en partie : papier washi. Accueil et Classique : thème chrome.
     private func refreshFullscreenBackgroundColor() {
-        (childNode(withName: Self.backgroundNodeName) as? SKSpriteNode)?.color = BlomixAppearance.sceneBackgroundSK
+        let inkPaper = Self.visualStyleForRun == .new && !isStartScreen
+        let sk: SKColor = inkPaper ? BlomixNewInkRenderer.paperSKColor : BlomixAppearance.sceneBackgroundSK
+        (childNode(withName: Self.backgroundNodeName) as? SKSpriteNode)?.color = sk
+        guard inkPaper else { return }
+        let ui = BlomixNewInkRenderer.paperUIColor(light: BlomixAppearance.isLight)
+        view?.backgroundColor = ui
+        view?.superview?.backgroundColor = ui
     }
 
     /// Titre + sous-titre en haut (hors décalage « jeu » : le reste suit `gridAreaCenter`).
@@ -14883,6 +14996,20 @@ final class GameScene: SKScene {
         )
     }
 
+    /// 9.0 Ink: la chaîne se désature avant de s'effacer. `amount` 0 = couleur, 1 = gris.
+    private static func desaturated(_ color: SKColor, amount: CGFloat) -> SKColor {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &a) else { return color }
+        let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        let t = min(1, max(0, amount))
+        return SKColor(
+            red: r + (y - r) * t,
+            green: g + (y - g) * t,
+            blue: b + (y - b) * t,
+            alpha: a
+        )
+    }
+
     /// Remplissage des blox couleur (skin actif dans `color_skins.json` + `BlomixSkinCatalog`).
     private static func bloxSolidFillColor(forNormalizedKey key: String) -> SKColor? {
         BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: key)
@@ -14892,18 +15019,37 @@ final class GameScene: SKScene {
         bloxSolidFillColor(forNormalizedKey: colorName)
     }
 
-    /// Teinte unie Priks (skin actif).
+    /// Teinte unie Priks (skin actif). Encre : indigo fixe, lisible sur le washi.
     private static func priksSolidFillColor() -> SKColor {
-        BlomixSkinCatalog.shared.priksSKColor()
+        if visualStyleForRun == .new {
+            return BlomixNewInkRenderer.priksFill
+        }
+        return BlomixSkinCatalog.shared.priksSKColor()
     }
 
     /// n ≥ 5 : `prikstext` plein. En dessous, mix 20 %/cran vers le fond `priks`.
+    /// Encre : blanc net, le chiffre passe avant le style.
     private static func priksDigitColor(remainingHits n: Int) -> SKColor {
-        BlomixSkinCatalog.shared.priksDigitSKColor(remainingHits: n)
+        if visualStyleForRun == .new {
+            return .white
+        }
+        return BlomixSkinCatalog.shared.priksDigitSKColor(remainingHits: n)
     }
 
     private static func solidGameplayBloxPixelSize() -> CGSize {
         CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
+    }
+
+    /// 9.0 New: sprite de grille collé à la case (`cell − 1`). Classique reste `cell − 4`.
+    /// Une autre taille (file, gros aperçu) n'est pas agrandie.
+    private static func newStyleGridBlockPointSize(requested: CGSize) -> CGSize {
+        let standard = solidGameplayBloxPixelSize()
+        guard abs(requested.width - standard.width) < 0.5,
+              abs(requested.height - standard.height) < 0.5 else {
+            return requested
+        }
+        let side = GridLayout.cellPoints - 1
+        return CGSize(width: side, height: side)
     }
 
     // MARK: - Bounce d'atterrissage
@@ -15108,6 +15254,22 @@ final class GameScene: SKScene {
         let isBrix: Bool
         if case .priks = block { isBrix = true } else { isBrix = false }
 
+        // 9.0 Ink: la tache s'étale un peu puis revient. Magix garde le rebond Classique.
+        if Self.visualStyleForRun == .new, case .magix = block {} else if Self.visualStyleForRun == .new {
+            let swell = SKAction.scale(to: 1.04, duration: 0.07)
+            swell.timingMode = .easeOut
+            let back = SKAction.scale(to: 1.0, duration: 0.08)
+            back.timingMode = .easeIn
+            let soak = SKAction.sequence([swell, back])
+            if let actionKey {
+                sprite.run(soak, withKey: actionKey)
+            } else {
+                sprite.run(soak)
+            }
+            spawnLandingImpactSparkles(at: sprite.parent.map { convert(sprite.position, from: $0) } ?? sprite.position, color: blockColor, isBrix: isBrix)
+            return
+        }
+
         let squashDur  = isBrix ? BrixLandingBounce.squashDuration  : LandingBounce.squashDuration
         let stretchDur = isBrix ? BrixLandingBounce.stretchDuration : LandingBounce.stretchDuration
         let settleDur  = isBrix ? BrixLandingBounce.settleDuration  : LandingBounce.settleDuration
@@ -15304,19 +15466,25 @@ final class GameScene: SKScene {
     /// Mue Magix → blox / Brix sur le même sprite (modèle SAINTX). Pas un spawn 0,5.
     private func morphMagixSprite(_ sprite: SKSpriteNode, into block: BlockType) {
         stripMagixAura(from: sprite)
-        sprite.texture = nil
-        sprite.colorBlendFactor = 1
+        sprite.childNode(withName: BlomixNewBlockRenderer.specularNodeName)?.removeFromParent()
         sprite.blendMode = .alpha
         sprite.setScale(1)
         sprite.alpha = 1
         for child in sprite.children where child is SKLabelNode {
             child.removeFromParent()
         }
+        let fitted = Self.newStyleGridBlockPointSize(requested: Self.solidGameplayBloxPixelSize())
         switch block {
         case .color(let name):
-            sprite.color = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+            let fill = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+            if Self.visualStyleForRun == .new {
+                BlomixNewBlockRenderer.applyJelly(to: sprite, fill: fill, pointSize: fitted)
+            } else {
+                sprite.texture = nil
+                sprite.colorBlendFactor = 1
+                sprite.color = fill
+            }
         case .priks(let value):
-            sprite.color = Self.priksSolidFillColor()
             let digit = SKLabelNode(text: "\(value)")
             digit.fontName = Self.gridFontName
             digit.fontSize = value >= 10 ? 13 : 18
@@ -15324,10 +15492,19 @@ final class GameScene: SKScene {
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
-            digit.zPosition = 2
+            if Self.visualStyleForRun == .new {
+                BlomixNewBlockRenderer.applyJelly(to: sprite, fill: Self.priksSolidFillColor(), pointSize: fitted)
+                digit.zPosition = 3
+            } else {
+                sprite.texture = nil
+                sprite.colorBlendFactor = 1
+                sprite.color = Self.priksSolidFillColor()
+                digit.zPosition = 2
+            }
             sprite.addChild(digit)
         default:
-            break
+            sprite.texture = nil
+            sprite.colorBlendFactor = 1
         }
         let up = SKAction.scale(to: MagixLandingBurstFeedback.morphPeakScale,
                                 duration: MagixLandingBurstFeedback.morphScaleUpDuration)
@@ -15563,11 +15740,33 @@ final class GameScene: SKScene {
     /// 9.0 New: une lecture, au démarrage ou à la reprise, avant le premier `drawGrid`.
     private func captureVisualStyleForRun() {
         Self.visualStyleForRun = BlomixVisualStyle.current
+        // setupBombHUD peint la file avant ce gel. On la repeint avec le style de la partie.
+        refreshUpcomingQueueSlots()
+        refreshFullscreenBackgroundColor()
+        refreshDisplayFacesForVisualStyle()
     }
 
     /// 9.0 New: entre deux parties, ne pas laisser un plateau masqué en New.
     private func resetVisualStyleForHome() {
         Self.visualStyleForRun = .old
+        refreshFullscreenBackgroundColor()
+        refreshDisplayFacesForVisualStyle()
+    }
+
+    /// 9.0 Ink: feuille washi sous les cases. Les traits de crayon sont dans la texture.
+    private func syncInkPaper(in container: SKNode) {
+        container.childNode(withName: Self.inkPaperNodeName)?.removeFromParent()
+        guard Self.visualStyleForRun == .new else { return }
+        let side = GridLayout.spanPoints
+        let size = CGSize(width: side, height: side)
+        let paper = SKSpriteNode(
+            texture: BlomixNewInkRenderer.paperTexture(pointSize: size, divisions: GridLayout.columnCount),
+            size: size
+        )
+        paper.name = Self.inkPaperNodeName
+        paper.zPosition = -1
+        paper.position = .zero
+        container.addChild(paper)
     }
 
     /// Blox / Brix : carré couleur unie. Magix : disque shader (même taille `cell − 4` que la bombe).
@@ -15580,16 +15779,17 @@ final class GameScene: SKScene {
         switch block {
         case .color(let colorName):
             let c = bloxSolidFillColor(colorName: colorName) ?? SKColor(white: 0.45, alpha: 1)
-            // 9.0 New: gelée seulement pour le style figé au début de cette partie.
+            // 9.0 New: gelée, sprite collé à la case. Classique : carré `cell − 4`.
             if visualStyleForRun == .new {
-                return BlomixNewBlockRenderer.makeColorSprite(fill: c, pointSize: size)
+                return BlomixNewBlockRenderer.makeColorSprite(
+                    fill: c,
+                    pointSize: newStyleGridBlockPointSize(requested: size)
+                )
             }
             let s = SKSpriteNode(color: c, size: size)
             s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             return s
         case .priks(let value):
-            let s = SKSpriteNode(color: priksSolidFillColor(), size: size)
-            s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             let digit = SKLabelNode(text: "\(value)")
             digit.fontName = gridFontName
             // Réduction automatique de la taille de police pour les valeurs à 2 chiffres (≥10).
@@ -15598,6 +15798,17 @@ final class GameScene: SKScene {
             digit.horizontalAlignmentMode = .center
             digit.verticalAlignmentMode = .center
             digit.position = .zero
+            if visualStyleForRun == .new {
+                let s = BlomixNewBlockRenderer.makeColorSprite(
+                    fill: priksSolidFillColor(),
+                    pointSize: newStyleGridBlockPointSize(requested: size)
+                )
+                digit.zPosition = 3
+                s.addChild(digit)
+                return s
+            }
+            let s = SKSpriteNode(color: priksSolidFillColor(), size: size)
+            s.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             digit.zPosition = 2
             s.addChild(digit)
             return s
@@ -15648,16 +15859,32 @@ final class GameScene: SKScene {
         return bloxJunctionZCounter
     }
 
-    private func registerBorderShape(_ key: String, node: SKShapeNode, in container: SKNode) {
+    private func registerBorderShape(_ key: String, node: SKNode, in container: SKNode) {
         borderConnections[key]?.removeFromParent()
         borderConnections[key] = node
         container.addChild(node)
     }
 
-    private func registerDiagonalShape(_ key: String, node: SKShapeNode, in container: SKNode) {
+    private func registerDiagonalShape(_ key: String, node: SKNode, in container: SKNode) {
         diagonalConnections[key]?.removeFromParent()
         diagonalConnections[key] = node
         container.addChild(node)
+    }
+
+    /// 9.0 New: pont gelée entre deux Blox de même couleur. `horizontal` = voisins gauche/droite.
+    private func makeNewJellyJunction(fill: SKColor, horizontal: Bool) -> SKSpriteNode {
+        let bridge = BlomixNewBlockRenderer.orthogonalBridgeSize(
+            blockPointSize: Self.newStyleGridBlockPointSize(requested: Self.solidGameplayBloxPixelSize()),
+            cellPitch: GridLayout.cellPoints
+        )
+        let size = horizontal
+            ? CGSize(width: bridge.thickness, height: bridge.span)
+            : CGSize(width: bridge.span, height: bridge.thickness)
+        return BlomixNewBlockRenderer.makeJunctionSprite(
+            fill: fill,
+            size: size,
+            axis: horizontal ? .horizontal : .vertical
+        )
     }
 
     /// Pose les connexions visuelles pour le blox **déjà** présent en `position` (même couleur que `textureName` / grille).
@@ -15680,15 +15907,24 @@ final class GameScene: SKScene {
                 let x0 = -half + (CGFloat(c) + 0.5) * GridLayout.cellPoints
                 let y = half - (CGFloat(r) + 0.5) * GridLayout.cellPoints
                 let midX = x0 + GridLayout.cellPoints / 2
-                let rect = CGRect(x: -2, y: -18, width: 4, height: 36)
-                let shape = SKShapeNode(rect: rect)
-                shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
-                shape.fillColor = junctionColor
-                shape.strokeColor = .clear
-                shape.lineWidth = 0
-                shape.position = CGPoint(x: midX, y: y)
-                shape.zPosition = nextBloxJunctionZ()
-                registerBorderShape(key, node: shape, in: container)
+                // 9.0 New: pont gelée, même dégradé que les Blox, à la place du rectangle plat.
+                if Self.visualStyleForRun == .new {
+                    let sprite = makeNewJellyJunction(fill: junctionColor, horizontal: true)
+                    sprite.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    sprite.position = CGPoint(x: midX, y: y)
+                    sprite.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: sprite, in: container)
+                } else {
+                    let rect = CGRect(x: -2, y: -18, width: 4, height: 36)
+                    let shape = SKShapeNode(rect: rect)
+                    shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    shape.fillColor = junctionColor
+                    shape.strokeColor = .clear
+                    shape.lineWidth = 0
+                    shape.position = CGPoint(x: midX, y: y)
+                    shape.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: shape, in: container)
+                }
             }
         }
 
@@ -15699,15 +15935,24 @@ final class GameScene: SKScene {
                 let x0 = -half + (CGFloat(c - 1) + 0.5) * GridLayout.cellPoints
                 let y = half - (CGFloat(r) + 0.5) * GridLayout.cellPoints
                 let midX = x0 + GridLayout.cellPoints / 2
-                let rect = CGRect(x: -2, y: -18, width: 4, height: 36)
-                let shape = SKShapeNode(rect: rect)
-                shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
-                shape.fillColor = junctionColor
-                shape.strokeColor = .clear
-                shape.lineWidth = 0
-                shape.position = CGPoint(x: midX, y: y)
-                shape.zPosition = nextBloxJunctionZ()
-                registerBorderShape(key, node: shape, in: container)
+                // 9.0 New: pont gelée, même dégradé que les Blox, à la place du rectangle plat.
+                if Self.visualStyleForRun == .new {
+                    let sprite = makeNewJellyJunction(fill: junctionColor, horizontal: true)
+                    sprite.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    sprite.position = CGPoint(x: midX, y: y)
+                    sprite.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: sprite, in: container)
+                } else {
+                    let rect = CGRect(x: -2, y: -18, width: 4, height: 36)
+                    let shape = SKShapeNode(rect: rect)
+                    shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    shape.fillColor = junctionColor
+                    shape.strokeColor = .clear
+                    shape.lineWidth = 0
+                    shape.position = CGPoint(x: midX, y: y)
+                    shape.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: shape, in: container)
+                }
             }
         }
 
@@ -15718,15 +15963,24 @@ final class GameScene: SKScene {
                 let x = -half + (CGFloat(c) + 0.5) * GridLayout.cellPoints
                 let y0 = half - (CGFloat(r) + 0.5) * GridLayout.cellPoints
                 let midY = y0 - GridLayout.cellPoints / 2
-                let rect = CGRect(x: -18, y: -2, width: 36, height: 4)
-                let shape = SKShapeNode(rect: rect)
-                shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
-                shape.fillColor = junctionColor
-                shape.strokeColor = .clear
-                shape.lineWidth = 0
-                shape.position = CGPoint(x: x, y: midY)
-                shape.zPosition = nextBloxJunctionZ()
-                registerBorderShape(key, node: shape, in: container)
+                // 9.0 New: pont gelée entre le bas (sombre) du bloc du dessus et le haut (clair) du dessous.
+                if Self.visualStyleForRun == .new {
+                    let sprite = makeNewJellyJunction(fill: junctionColor, horizontal: false)
+                    sprite.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    sprite.position = CGPoint(x: x, y: midY)
+                    sprite.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: sprite, in: container)
+                } else {
+                    let rect = CGRect(x: -18, y: -2, width: 36, height: 4)
+                    let shape = SKShapeNode(rect: rect)
+                    shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    shape.fillColor = junctionColor
+                    shape.strokeColor = .clear
+                    shape.lineWidth = 0
+                    shape.position = CGPoint(x: x, y: midY)
+                    shape.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: shape, in: container)
+                }
             }
         }
 
@@ -15737,15 +15991,24 @@ final class GameScene: SKScene {
                 let x = -half + (CGFloat(c) + 0.5) * GridLayout.cellPoints
                 let y0 = half - (CGFloat(r - 1) + 0.5) * GridLayout.cellPoints
                 let midY = y0 - GridLayout.cellPoints / 2
-                let rect = CGRect(x: -18, y: -2, width: 36, height: 4)
-                let shape = SKShapeNode(rect: rect)
-                shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
-                shape.fillColor = junctionColor
-                shape.strokeColor = .clear
-                shape.lineWidth = 0
-                shape.position = CGPoint(x: x, y: midY)
-                shape.zPosition = nextBloxJunctionZ()
-                registerBorderShape(key, node: shape, in: container)
+                // 9.0 New: pont gelée entre le bas (sombre) du bloc du dessus et le haut (clair) du dessous.
+                if Self.visualStyleForRun == .new {
+                    let sprite = makeNewJellyJunction(fill: junctionColor, horizontal: false)
+                    sprite.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    sprite.position = CGPoint(x: x, y: midY)
+                    sprite.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: sprite, in: container)
+                } else {
+                    let rect = CGRect(x: -18, y: -2, width: 36, height: 4)
+                    let shape = SKShapeNode(rect: rect)
+                    shape.name = "\(Self.junctionNodeNamePrefix)\(key)"
+                    shape.fillColor = junctionColor
+                    shape.strokeColor = .clear
+                    shape.lineWidth = 0
+                    shape.position = CGPoint(x: x, y: midY)
+                    shape.zPosition = nextBloxJunctionZ()
+                    registerBorderShape(key, node: shape, in: container)
+                }
             }
         }
 
@@ -15775,12 +16038,150 @@ final class GameScene: SKScene {
             line.lineWidth = CGFloat(sqrt(32.0))
             line.lineCap = .round
             line.position = CGPoint(x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2)
-            line.zPosition = nextBloxJunctionZ()
+            if Self.visualStyleForRun == .new {
+                // 9.0 New: trait dans la matière, sous les Blox — visible dans la fente, pas en barre plate par-dessus.
+                line.strokeColor = BlomixNewBlockRenderer.materialColor(junctionColor)
+                line.zPosition = 0.55
+            } else {
+                line.zPosition = nextBloxJunctionZ()
+            }
             registerDiagonalShape(key, node: line, in: container)
         }
     }
 
+    /// 9.0 New: une pièce par groupe de même couleur. Les sprites `cell_` restent (animations), cachés au repos.
+    private func rebuildNewFusionShapes(in container: SKNode) {
+        for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
+            child.removeFromParent()
+        }
+        var seen = Set<GridAddress>()
+        let neighbors = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        var index = 0
+        for row in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for col in 0..<GridLayout.columnCount {
+                guard case .color(let name) = grid[row][col] else { continue }
+                let start = GridAddress(row: row, col: col)
+                guard seen.insert(start).inserted else { continue }
+                var component: [(Int, Int)] = []
+                var stack = [start]
+                while let cell = stack.popLast() {
+                    component.append((cell.row, cell.col))
+                    for delta in neighbors {
+                        let nextRow = cell.row + delta.0
+                        let nextCol = cell.col + delta.1
+                        guard nextRow >= GridLayout.topRowIndex, nextRow < GridLayout.rowCount,
+                              nextCol >= 0, nextCol < GridLayout.columnCount,
+                              case .color(let other) = grid[nextRow][nextCol], other == name else { continue }
+                        let next = GridAddress(row: nextRow, col: nextCol)
+                        guard seen.insert(next).inserted else { continue }
+                        stack.append(next)
+                    }
+                }
+                let fill = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                let piece = BlomixNewBlockRenderer.makeFusionSprite(
+                    cells: component,
+                    fill: fill,
+                    cellPitch: GridLayout.cellPoints,
+                    cellCenter: { row, col in Self.cellCenterLocal(row: row, col: col) }
+                )
+                piece.name = "\(Self.newFusionNodePrefix)\(index)"
+                let info = NSMutableDictionary()
+                info["cells"] = component.map { "\($0.0)_\($0.1)" }.joined(separator: ",")
+                piece.userData = info
+                let coversFatal = isGameOver && component.contains {
+                    gameOverFatalCell == GridAddress(row: $0.0, col: $0.1)
+                }
+                piece.zPosition = coversFatal ? GameOverFocusFeedback.fatalCellZ : 1.15
+                container.addChild(piece)
+                index += 1
+                for (cellRow, cellCol) in component {
+                    directGridCellSprite(in: container, row: cellRow, column: cellCol)?.isHidden = true
+                }
+            }
+        }
+    }
+
+    private func fusionCells(on node: SKNode) -> [GridAddress] {
+        guard let raw = node.userData?["cells"] as? String else { return [] }
+        return raw.split(separator: ",").compactMap { part in
+            let bits = part.split(separator: "_")
+            guard bits.count == 2, let row = Int(bits[0]), let col = Int(bits[1]) else { return nil }
+            return GridAddress(row: row, col: col)
+        }
+    }
+
+    private func elevateNewFusion(containing address: GridAddress, in container: SKNode) {
+        for child in container.children where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
+            guard fusionCells(on: child).contains(address) else { continue }
+            child.zPosition = GameOverFocusFeedback.fatalCellZ
+        }
+    }
+
+    /// Vrai si ce Blox couleur bouge, fond, ou change d'échelle. Le coup de voisin (2 pt) ne compte pas.
+    private func newColorCellNeedsItsOwnSprite(_ sprite: SKSpriteNode, row: Int, col: Int) -> Bool {
+        if sprite.alpha < 0.98 { return true }
+        let home = Self.cellCenterLocal(row: row, col: col)
+        if hypot(sprite.position.x - home.x, sprite.position.y - home.y) > 3 { return true }
+        if abs(sprite.xScale - 1) > 0.03 || abs(sprite.yScale - 1) > 0.03 { return true }
+        if sprite.hasActions() {
+            if sprite.action(forKey: Self.neighborNudgeKey) != nil { return false }
+            return true
+        }
+        return false
+    }
+
+    /// Au repos, la pièce fusionnée couvre les Blox. Dès qu'une case s'anime, son groupe redevient des sprites.
+    private func syncNewFusionToCellMotion() {
+        guard Self.visualStyleForRun == .new, !isStartScreen else { return }
+        guard let container = childNode(withName: Self.gridContainerName) else { return }
+
+        var busy = Set<GridAddress>()
+        var holdsClear = false
+        for row in GridLayout.topRowIndex..<GridLayout.rowCount {
+            for col in 0..<GridLayout.columnCount {
+                guard case .color = grid[row][col],
+                      let sprite = directGridCellSprite(in: container, row: row, column: col) else { continue }
+                if sprite.alpha < 0.98 { holdsClear = true }
+                if newColorCellNeedsItsOwnSprite(sprite, row: row, col: col) {
+                    busy.insert(GridAddress(row: row, col: col))
+                }
+            }
+        }
+
+        if !busy.isEmpty {
+            for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
+                let cells = fusionCells(on: child)
+                guard cells.contains(where: { busy.contains($0) }) else { continue }
+                child.removeFromParent()
+                for cell in cells {
+                    guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
+                    sprite.isHidden = false
+                    sprite.zPosition = max(sprite.zPosition, 2)
+                }
+            }
+            return
+        }
+
+        guard !holdsClear else { return }
+        let naked = (GridLayout.topRowIndex..<GridLayout.rowCount).contains { row in
+            (0..<GridLayout.columnCount).contains { col in
+                guard case .color = grid[row][col],
+                      let sprite = directGridCellSprite(in: container, row: row, column: col) else { return false }
+                return !sprite.isHidden && sprite.alpha > 0.98
+            }
+        }
+        if naked {
+            rebuildNewFusionShapes(in: container)
+        }
+    }
+
     private func rebuildBloxJunctionShapes(in container: SKNode) {
+        if Self.visualStyleForRun == .new {
+            borderConnections.removeAll()
+            diagonalConnections.removeAll()
+            rebuildNewFusionShapes(in: container)
+            return
+        }
         borderConnections.removeAll()
         diagonalConnections.removeAll()
         // Fin de partie : le focus a déjà tout retiré. Un refresh ne les remet pas,
@@ -15902,7 +16303,7 @@ final class GameScene: SKScene {
     }
 
     private func runJunctionDissolve(
-        _ node: SKShapeNode,
+        _ node: SKNode,
         delay: TimeInterval,
         squashX: Bool,
         squashY: Bool
@@ -15975,6 +16376,7 @@ final class GameScene: SKScene {
             guard let name = child.name else { continue }
             // `gravityAirGrain*` reste : air lent dans les trous, pas une case.
             if name.hasPrefix("cell_") || name.hasPrefix(Self.junctionNodeNamePrefix)
+                || name.hasPrefix(Self.newFusionNodePrefix)
                 || name == Self.colorxOverlayContainerName {
                 child.removeFromParent()
             }
@@ -15988,6 +16390,7 @@ final class GameScene: SKScene {
         borderConnections.removeAll()
         diagonalConnections.removeAll()
         container.position = gridAreaCenter
+        syncInkPaper(in: container)
 
         let half = GridLayout.spanPoints / 2
 
@@ -15999,15 +16402,18 @@ final class GameScene: SKScene {
 
                 switch block {
                 case .empty:
+                    let ink = Self.visualStyleForRun == .new
                     let slot = SKSpriteNode(
-                        color: BlomixAppearance.emptyCellSK,
+                        color: ink ? .clear : BlomixAppearance.emptyCellSK,
                         size: CGSize(width: GridLayout.cellPoints - 4, height: GridLayout.cellPoints - 4)
                     )
                     slot.name = "cell_\(row)_\(col)"
                     slot.position = CGPoint(x: x, y: y)
                     slot.zPosition = 0
                     container.addChild(slot)
-                    attachLightEmptyCellInset(to: slot)
+                    if !ink {
+                        attachLightEmptyCellInset(to: slot)
+                    }
 
                 case .color(let colorName):
                     let sprite = Self.makeSolidGameplayBlockSprite(block: .color(colorName))
@@ -16040,6 +16446,9 @@ final class GameScene: SKScene {
         if isGameOver, let fatal = gameOverFatalCell {
             container.childNode(withName: "cell_\(fatal.row)_\(fatal.col)")?
                 .zPosition = GameOverFocusFeedback.fatalCellZ
+            if Self.visualStyleForRun == .new {
+                elevateNewFusion(containing: fatal, in: container)
+            }
         }
 
         container.childNode(withName: Self.gridFrameOutlineName)?.removeFromParent()
@@ -16050,9 +16459,16 @@ final class GameScene: SKScene {
         let outlineRect = CGRect(x: originXY, y: originXY, width: outerSide, height: outerSide)
         let outline = SKShapeNode(rect: outlineRect)
         outline.name = Self.gridFrameOutlineName
-        outline.strokeColor = ProgressHUD.segmentFilled
+        if Self.visualStyleForRun == .new {
+            outline.strokeColor = BlomixAppearance.isDark
+                ? SKColor(white: 0.78, alpha: 0.28)
+                : SKColor(white: 0.22, alpha: 0.28)
+            outline.lineWidth = 0.8
+        } else {
+            outline.strokeColor = ProgressHUD.segmentFilled
+            outline.lineWidth = strokeW
+        }
         outline.fillColor = .clear
-        outline.lineWidth = strokeW
         outline.lineJoin = .miter
         outline.zPosition = 50
         container.addChild(outline)
@@ -16652,6 +17068,7 @@ final class GameScene: SKScene {
     /// Une fois par frame — physique, timers, logique dépendante du delta temps.
     override func update(_ currentTime: TimeInterval) {
         syncGravityAir()
+        syncNewFusionToCellMotion()
     }
 
     /// Quelques grains très lents qui montent dans les trous. Ils ne scorent pas.

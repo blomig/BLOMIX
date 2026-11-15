@@ -892,6 +892,18 @@ final class BlomixCutoutTitleView: UIView {
                 self?.setNeedsLayout()
             }
         }
+        // 9.0 Ink: Caveat Brush change la largeur du titre. On redessine le masque.
+        _ = NotificationCenter.default.addObserver(
+            forName: .blomixVisualStyleDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.lastSize = .zero
+                self?.invalidateIntrinsicContentSize()
+                self?.setNeedsLayout()
+            }
+        }
     }
 
     @available(*, unavailable)

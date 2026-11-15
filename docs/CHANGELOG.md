@@ -9,16 +9,18 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [9.0] — en cours (local, branche `9.0`, pas de bump `MARKETING_VERSION`)
 
-Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). E0 : le segment s’appelle Encre, le rendu est encore la gelée (pièces fusionnées, Brix, file, gros aperçu). Magix et bombe restent Classique.
+Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix indigo, Caveat Brush à la place de Changa One. Nunito inchangé. Magix et bombe restent Classique.
 
 ### Ajouté
 
 - **Style visuel** (Réglages, section Apparence) : segment Classique / Encre (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle` (`.old` / `.new`). `.new` est la piste Encre. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. Il est figé au début de la partie suivante. [PLAN_9.0.md](PLAN_9.0.md), [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md).
-- **Blox gelée** (Nouveau seulement, matière provisoire de l’Encre) : coins arrondis, volume (clair en haut, profond en bas), reflet blanc en haut à gauche, liseré intérieur, ombre courte en bas à droite, contour un peu plus sombre que la teinte. La couleur vient du skin. Au repos, chaque groupe de même couleur est une seule pièce : coins extérieurs et intérieurs arrondis, un dégradé, un reflet. Une diagonale déjà dans la pièce n’est plus un trait. Deux cases qui ne se touchent que par un coin sont reliées par un trait fin de la même matière, de la largeur du trait Classique. Pendant un déplacement ou une disparition, la pièce se sépare en cases, puis se reforme. Les Brix, les deux prochains blocs et le gros bloc courant (couleur ou Brix) ont la même matière. Classique reste le carré de 36 pt et les barres plates.
+- **Pièces fusionnées** (Nouveau seulement) : au repos, chaque groupe de même couleur est une seule pièce. Coins extérieurs et intérieurs arrondis. Une diagonale déjà dans la pièce n’est plus un trait. Deux cases qui ne se touchent que par un coin sont reliées par un trait fin, de la largeur du trait Classique. Pendant un déplacement ou une disparition, la pièce se sépare en cases, puis se reforme. Les Brix, les deux prochains blocs et le gros bloc courant (couleur ou Brix) suivent. Classique reste le carré de 36 pt et les barres plates. La matière est l’encre (voir Modifié).
 
 ### Modifié
 
-- **Style visuel** : le segment « Nouveau (bêta) » s’appelle « Encre (bêta) » (EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). `.new` est la piste encre et washi. Pas de troisième style : la gelée n’est plus un choix. Son rendu reste à l’écran jusqu’aux étapes de matière. Classique inchangé.
+- **Style visuel** : le segment « Nouveau (bêta) » s’appelle « Encre (bêta) » (EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). `.new` est la piste encre et washi. Pas de troisième style. Classique inchangé.
+- **Encre** : en partie, le fond et la grille sont un papier washi (Clair `#F6F1E7`, Sombre `#26231F`), fibres et traits de crayon très légers. Les Blox sont des taches d’aquarelle (bord tremblé stable, pigment plus dense au bord, grain). Même couleur voisine : une seule pièce, comme avant. Diagonale seule : le trait fin. Les Brix sont indigo, chiffre blanc. La pose s’étale un peu (4 %) puis revient. Une chaîne se désature et fond, sans changer les temps de résolution. Magix et bombe restent Classique. Réglages → Encre, puis une nouvelle partie.
+- **Caveat Brush** (Brian J. Bonislawsky, SIL OFL 1.1) remplace Changa One pour les titres, boutons, score et chiffres de grille **uniquement** quand le style est Encre. Nunito ne change pas. Classique garde Changa One. Crédits mis à jour (6 langues).
 
 ---
 

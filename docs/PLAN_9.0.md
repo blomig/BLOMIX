@@ -2,7 +2,7 @@
 
 > À lire en premier par tout agent (Grok Build) qui travaille sur la branche `9.0`.
 > Worktree : `~/Developer/BLOMIX-9.0`. Ne jamais toucher `~/Documents/GIT/BLOMIX` (iCloud).
-> Gelée (étapes 1 et 4) faite le 14–15/11/2026. Le 15/11/2026, Lomig décide que la piste Encre **remplace** la gelée comme mode New (E0, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), référence `docs/design/9.0/encre-washi-rendu1.png`). `.new` garde pour l’instant le rendu gelée : pièces fusionnées, Brix, file et gros aperçu. Magix et bombe restent Old. Les étapes E1+ changent la matière de `.new`. Classique ne bouge pas.
+> Le 15/11/2026, la piste Encre **remplace** la gelée comme mode New ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), `docs/design/9.0/encre-washi-rendu1.png`). E1–E5 : papier washi, taches, pièces fusionnées, Brix indigo, pose et chaîne. Caveat Brush remplace Changa One en Encre seulement. Magix et bombe restent Old. Classique ne bouge pas.
 
 ## 1. Objectif
 
@@ -122,9 +122,9 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 
 ## 5. Direction visuelle New (gelée encore à l'écran)
 
-> **Cible du mode New depuis le 15/11/2026 : Encre** ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md),
-> `docs/design/9.0/encre-washi-rendu1.png`). Le texte ci-dessous décrit la gelée encore affichée
-> par `.new` après E0. Il ne décrit plus la cible. Les étapes 2, 3, 5 et 6 de la gelée sont en pause.
+> **Cible du mode New : Encre**, en place depuis le 15/11/2026 ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)).
+> Le texte ci-dessous décrit l’ancienne gelée, dont la géométrie (pièces, congés, diagonale) est réutilisée.
+> Les étapes 2, 3, 5 et 6 de la gelée restent en pause.
 
 - **Matière gelée / bonbon translucide** : volume doux, reflet spéculaire en haut à gauche,
   ombre portée courte, léger biseau. Lumière venant du haut-gauche, **cohérente partout**.
@@ -163,7 +163,7 @@ Blox et Brix : `SKSpriteNode` couleur unie. Magix : délègue à `makeMagixShade
 
 Chaque étape = un commit local, `CHANGELOG.md` + ce plan mis à jour (cocher, noter les décisions).
 
-La suite du look New est la piste Encre, une étape à la fois ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) §5). E0 est faite : le segment dit Encre, le rendu de `.new` est encore cette gelée.
+La suite du look New est la piste Encre ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) §5). E0 à E5 sont faites. E6 (habillage pinceau et hanko) attend Lomig.
 
 ## 7. Interdits pour les agents
 
@@ -192,4 +192,5 @@ La suite du look New est la piste Encre, une étape à la fois ([DA_ENCRE_WASHI.
 | V7 | Le filet de la maquette : en New le sprite de grille passe à `cell − 1` (39 pt) et la marge de texture à ~1 % du côté, soit environ 2 pt entre les corps. Classique reste 36 pt. Les Brix (fabrique, chute, fantômes, SAINTX, mue) sont la même gelée ; le chiffre est au-dessus du reflet (z 3). Les deux minis de la file et le gros aperçu courant (couleur et Brix seulement) aussi, sans changer leur taille — l’alignement de la file reste sur `cell − 4`. La file est repeinte juste après le gel du style (`setupBombHUD` la peint avant). Flash BRIXED et disparition Brix New reviennent à une teinte pleine, pour ne pas laisser le masque gris. Magix, bombe, guide, partage : inchangés. | 14/11/2026 |
 | V8 | Au repos, en New, un groupe de Blox de même couleur (8-connexité, comme les chaînes) est une texture : dégradé unique, un reflet, un contour. L’orthogonal a des congés extérieurs et intérieurs. Une barre diagonale dont les deux cases sont déjà dans cette pièce n’est pas dessinée : elle est dans la matière. Une diagonale entre deux pièces qui ne se touchent que par un coin est un trait de la même gelée, unionné au contour (V9). Les sprites `cell_` restent pour les animations ; ils sont cachés au repos. Dès qu’une case bouge, fond ou change d’échelle, son groupe redevient des cases le temps du geste, puis la pièce se reforme. Le coup de voisin (2 pt) ne sépare pas. Classique : barres 4×36 et traits diagonaux inchangés. Le préfixe du nœud est `blomixNewFusion` (la fin de partie retire `junction_`, pas les pièces). | 14/11/2026 |
 | V9 | La diagonale seule n’est plus un disque au coin partagé : la bulle était trop grosse. C’est une capsule de centre à centre, épaisseur `sqrt(32)` comme le trait Classique, bouts ronds, dans la même matière. Elle ne dépasse de la pièce que dans la fente entre les deux coins. | 15/11/2026 |
-| E0 | `.new` est la piste Encre. Pas de `case ink`, pas de segment Gelée. Réglages : « Classique / Encre (bêta) », 6 langues (FR Encre, EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). Le rendu de `.new` reste la gelée, pixel pour pixel, jusqu’à E1. Classique inchangé. Référence : `docs/design/9.0/encre-washi-rendu1.png`. | 15/11/2026 |
+| E0 | `.new` est la piste Encre. Pas de `case ink`, pas de segment Gelée. Réglages : « Classique / Encre (bêta) », 6 langues (FR Encre, EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). Classique inchangé. Référence : `docs/design/9.0/encre-washi-rendu1.png`. | 15/11/2026 |
+| E1–E5 | Papier washi (fond de partie et grille, Clair et Sombre). Blox en taches d’encre, pièces V8/V9 conservées, Brix indigo chiffre blanc, file et aperçu compris. Pose +4 % / 0,15 s. Chaîne désaturée, mêmes durées. Caveat Brush à la place de Changa One en Encre seulement (Nunito inchangé). | 15/11/2026 |

@@ -3,12 +3,12 @@
 //  Blomix
 //
 //  Typo figée v6.1 — deux visages, plus de picker joueur.
-//    display / grille : Changa One
+//    display / grille : Changa One, ou Caveat Brush si le style visuel est Encre
 //    chrome           : Nunito
 //      Regular   — micro-captions (< 13 pt)
 //      Medium    — corps (réglages, HUD, lobby)
 //      SemiBold  — chrome hors boutons
-//    boutons       : Changa One (display) — puits + capsule 6.7
+//    boutons       : même visage que display — puits + capsule 6.7
 //
 
 import Foundation
@@ -19,11 +19,16 @@ enum BlomixTypeRole: Sendable {
     case chrome
     case grid
 
+    /// Changa One. Encre : Caveat Brush, enregistrée à la main (`CaveatBrush-Regular`).
+    static let changaPostScriptName = "ChangaOne"
+    static let inkPostScriptName = "CaveatBrush-Regular"
+
     var postScriptName: String {
         switch self {
-        case .display: return "ChangaOne"
-        case .chrome:  return "Nunito-Medium"
-        case .grid:    return "ChangaOne"
+        case .display, .grid:
+            return BlomixVisualStyle.current == .new ? Self.inkPostScriptName : Self.changaPostScriptName
+        case .chrome:
+            return "Nunito-Medium"
         }
     }
 }

@@ -98,7 +98,7 @@ Persistance : `UserDefaults` `blomix_trophy_magix_b_v1`, à part de `blomix_trop
 
 Verrouillée **cachée** : caption **???**, tap = « Réalisation secrète », anneaux sans fill, **pas** de 0 au centre.
 
-Nouveau palier : **toast overlay** au moment du palier (même Y qu’à l’accueil, chip actuel, apparence plus tard). Pas de changement de layout grille. Souffle 2 cycles (disques accueil) : **pas encore**.
+Nouveau palier : **toast overlay** au moment du palier (même Y qu’à l’accueil). Petit puits skin + capsule, anneau, point orange et libellé Nunito. Pas de changement de layout grille. Souffle 2 cycles (disques accueil) : **pas encore**.
 
 ### Fiche (tap)
 
@@ -529,7 +529,7 @@ rang = III si valeur ≥ s3
 
 Store JSON `blomix_trophies_v1` : `{ id: { value, firstAt, iiAt, iiiAt, seen } }`. Monotone. Pas de reset joueur. (`iiAt` / `iiiAt` = dates des paliers ; pas Brix/Magix.)
 
-Toast **au palier** (overlay scène, z 220) : même position Y que l’ancien chip accueil (`safeTop + 92` sous le haut). Fade 0,22 / 3,6 / 0,28 — capsule **et** gouttière shader ensemble (`v_color_mix.a` + fade du fill). Tap → Salon (sans focus fiche). Pas de popup bloquante, pas de toast au retour accueil si déjà montré. File : le dernier palier remplace le chip en cours. Retrofit hiscores : pas de toast. Apparence du chip : **plus tard**.
+Toast **au palier** (overlay scène, z 220) : même position Y que l’ancien chip accueil (`safeTop + 92` sous le haut). Petit cadre : puits skin + capsule chrome, puis anneau, point orange et libellé Nunito. Fade 0,22 / 3,6 / 0,28 — capsule **et** gouttière shader ensemble (`v_color_mix.a` du puits + fade du fill). Tap → Salon (sans focus fiche). Pas de popup bloquante, pas de toast au retour accueil si déjà montré. File : le dernier palier remplace le chip en cours. Retrofit hiscores : pas de toast.
 
 ---
 

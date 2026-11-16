@@ -158,7 +158,7 @@
 "settings.appearance.light" = "Hell";
 "settings.visual_style" = "Visueller Stil";
 "settings.visual_style.old" = "Klassisch";
-"settings.visual_style.new" = "Tinte (Beta)";
+"settings.visual_style.new" = "Tinte";
 "settings.section_font" = "Schrift";
 "settings.section_colors" = "Farben";
 "settings.adjust_sounds" = "Sounds anpassen";

@@ -158,7 +158,7 @@
 "settings.appearance.light" = "Clair";
 "settings.visual_style" = "Style visuel";
 "settings.visual_style.old" = "Classique";
-"settings.visual_style.new" = "Encre (bêta)";
+"settings.visual_style.new" = "Encre";
 "settings.section_font" = "Police";
 "settings.section_colors" = "Couleurs";
 "settings.adjust_sounds" = "Régler les sons";

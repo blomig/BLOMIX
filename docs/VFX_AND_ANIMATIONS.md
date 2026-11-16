@@ -274,7 +274,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Scale down + brighten | 0,16 s | lerp blanc 30 %, `easeInEaseOut` |
 | Fade | 0,14 s | α → 0 |
 
-**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache.
+**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. Pendant ces 0,36 s de retrait, le contour passe du carré au cercle inscrit (les côtés restent, les coins rentrent, ease smoothstep). Le pincement est déjà rond. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache.
 
 **Jonctions** : pas de `remove` à t = 0. Chaque barre H/V/D part avec le premier blox du couple (`dissolveBloxJunctionsWithChainCells`). H : `xScale` → 0,02 ; V : `yScale` → 0,02 ; D : les deux. Fade 0,20 s `easeOut`, z 25 pendant la fonte. Combo / cascade = le même path (le `drawGrid` inter-vague recoud le reste).
 
@@ -368,9 +368,11 @@ Commentaire, pas la monnaie. Le `+N` (62 pt, grow 0,58 s) reste devant. Le shake
 | Implosion | 0,13 s | scale → 0,55, fade α→0, wobble ±54° (`π×0,3`), `easeIn` |
 | Chiffre | 0,10 s | fade du label en parallèle de l'implosion |
 
-**Paillettes carrées** (même vol HUD que les blox, forme carrée) :
-- 11–15 carrés principaux (côté 4–7 pt) + 15 micro-carrés (3 pt)
-- Spawn au pic du pop (t = **0,07 s**), dans la case
+**Encre** : pas de pop, pas de flash blanc, pas de rotation. Même aspiration que la chaîne (§3.1), y compris le passage du carré au cercle : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis ×0,02 et fondu sur 0,14 s (0,50 s). Le chiffre rétrécit avec la tache. Paillettes, étoiles et grains d’orbite partent à 0,20 s. Les paillettes sont des ronds dont le diamètre est le côté du carré Classique (4–7 pt, micro 3 pt), même nombre, même vol. L’attente avant le redessin est 0,50 s, et le `+N` part à 0,20 s. Le tableau ci-dessus reste celui du Classique.
+
+**Paillettes carrées** (même vol HUD que les blox, forme carrée en Classique, ronds en Encre) :
+- 11–15 pièces principales (côté ou diamètre 4–7 pt) + 15 micro (3 pt). Carrés en Classique, ronds en Encre
+- Spawn au pic du pop (t = **0,07 s**) en Classique, à **0,20 s** en Encre, dans la case
 - Vol vers le gros score à **~824 pt/s**, `easeIn`, plancher **0,12 s** (pas de chute / fondu)
 - Couleur = teinte brix du skin (`priksSolidFillColor()`)
 
@@ -385,7 +387,7 @@ Commentaire, pas la monnaie. Le `+N` (62 pt, grow 0,58 s) reste devant. Le shake
 
 **Score** : `+20` pts / Brix, un `+N` au centroïde (couleur Brix, shatter comme les chaînes), **au pic du pop** (même t que les carrés). Roulement HUD **linéaire** : **première** paillette → **dernière** (+ **0,08 s** de marge). Compactage / cascade **n’attendent pas**.
 
-SCRUMBLX : carrés + étoiles + `+N` au trou (pas de pop/implosion, le slide suit). **Bombe** : mêmes étoiles dans chaque case Brix au pic ×1,25 (explosion inchangée).
+SCRUMBLX : paillettes + étoiles + `+N` au trou (pas d’aspiration : le slide suit). **Bombe** : mêmes étoiles dans chaque case Brix au pic ×1,25 (explosion inchangée). En Encre, ces paillettes Brix sont des ronds du même diamètre ; le geste SCRUMBLX et le geste de la bombe ne changent pas.
 
 **Magix** : si le Brix → 0 est causé par un Magix (BRIXED, SCRUMBLX, ou décrément adjacent d’une chaîne Magix), **+10 grains d’orbite** Magix au pic du pop (en plus des carrés HUD / étoiles). Chaîne joueur / bombe : pas de linger Magix.
 
@@ -415,7 +417,7 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 | Ondes de choc | 5 anneaux, stagger **0,09 s**, durée **0,52 s**/anneau, scale 1→3,5 ; 2 premiers **jaunes**, 3 suivants blancs |
 | Particules radiales | 50 dots blancs, v 60–200 pts/s, flight 0,30–0,65 s |
 | Blocs 3×3 | stagger **0,02 s**/case ; push radial 12–20 pt (**0,18 s**) ; scale up ×1,25 (**0,12 s**) ; rotation 15–30° (**0,2 s**) ; collapse scale→0,01 + fade (**0,22 s**) |
-| Paillettes score | au pic ×1,25 : ronds blox (`spawnChainPopDots`) / carrés Brix (`spawnBrixVanishSquareDots`) → HUD ~824 pt/s. Anim des blocs **inchangée**. 50 dots blancs **restent** (pas HUD) |
+| Paillettes score | au pic ×1,25 : ronds blox (`spawnChainPopDots`) / carrés Brix (`spawnBrixVanishSquareDots`, ronds du même diamètre en Encre) → HUD ~824 pt/s. Anim des blocs **inchangée**. 50 dots blancs **restent** (pas HUD) |
 | Grains d’orbite | **+10** / case occupée, même recette idle (`SpecialOrbitJuice`), palette bombe, vol local ~16 pt **1,55 s**, z 37, nœuds scène. **Pas** vers le score. Compactage n’attend pas. `spawnSpecialOrbitLingerSparks` |
 
 **Emitters SKEmitterNode** (option `spawnEmitter: true`, non utilisé en solo actuel) :
@@ -492,7 +494,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | **Visuel** | Roulette 5 étapes sur sprite ; overlays blancs α 0,70 **taille blox** (`cell.size`) sur la couleur courante ; **jonctions H/V/D retirées avant** le 1er overlay. **Encre** : chaque teinte est une tache (`applyJelly`), et le flash reprend le masque du blox. Classique : aplat. |
 | **Timing** | `[0,10, 0,15, 0,22, 0,30, 0,50]` s/étape ; pop scale ×1,25 |
 | **Fin du disque** | gerbe palette consommation + fade **0,18 s** (avant la dissolution des blox) |
-| **Dissolution** | stagger **0,025 s**/bloc ; scale 1,30 (0,10 s) → paillettes HUD **et** +10 grains d’orbite Magix (linger scène) → 0,01 + fade 0,14 s ; max 8 pops audio |
+| **Dissolution** | stagger **0,025 s**/bloc ; max 8 pops audio au départ. Classique : scale 1,30 (0,10 s) → paillettes HUD **et** +10 grains d’orbite Magix → 0,01 + fade 0,14 s ; attente **0,26 s** après le dernier départ. Encre : aspiration §3.1 (0,50 s), paillettes à 0,20 s ; le redessin attend ces 0,50 s. Le voile blanc suit la même fenêtre. |
 | **Audio** | `playColorxRouletteClick` + `playColorxDissolvePop` |
 | **Score** | Formule chaîne sur le nombre de blocs effacés |
 | **Suite** | compaction + `resolveChains()` — cascades suivantes : même linger |
@@ -502,7 +504,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | | |
 |---|---|
 | **Visuel** | Overlay blanc 0,1→1,0 sur toutes les cases, **2,0 s** ; cycle couleurs 0,40 s/bloc |
-| **Dissolution** | Fade overlay 0,20 s ; pop particules HUD **et** +10 grains d’orbite Magix / case ; scale 1,30→0,01 |
+| **Dissolution** | Fade overlay 0,20 s. Classique : paillettes et grains d’orbite tout de suite, puis scale 1,30→0,01 ; redessin à 0,30 s. Encre : aspiration §3.1 à la place de ce scale, paillettes à 0,20 s, redessin à 0,50 s. Le pop ×1,25 du Brix déposé et le lavage de 2 s ne changent pas. |
 | **Transform** | Dès l’atterrissage : SAINTX → Brix visuel **0** ; le chiffre défile linéairement jusqu’à **N** pile à l’explosion (2,2 s) |
 | **Audio** | `cleanx` |
 | **Score** | +200 pts + Brix(N) sur grille |
@@ -907,6 +909,7 @@ MagixLandingBurst      40–48 dots palette | r 1,0–1,8 | +24–52 pt | 0,34 s
 Magix consume / morph  18–24 dots +12–28 pt / 0,22 s ; fade 0,18 ; mue pulse ×1,18
 BrixFlightStretch      x 0,88 | y 1,16
 BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s | 3 étoiles présence 0,64 s
+Encre Brix/COLORX/SAINTX  même aspiration que la chaîne (×0,55, ×0,16, ×0,02+fondu, 0,50 s) | carré → cercle inscrit sur 0,36 s | paillettes Brix rondes, même diamètre | étoiles inchangées
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
 NeighborNudge          pose 2 pt | compact 1 pt | 0,04 + 0,06 s | 8 voisins | même couleur vers l’arrivée, le reste loin | pas le sprite qui bounce
 FeelHaptic             place / connect 2–4 / magix / refus / chaîne 2× à 40 ms

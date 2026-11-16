@@ -158,7 +158,7 @@
 "settings.appearance.light" = "Claro";
 "settings.visual_style" = "Estilo visual";
 "settings.visual_style.old" = "Clássico";
-"settings.visual_style.new" = "Tinta (beta)";
+"settings.visual_style.new" = "Tinta";
 "settings.section_font" = "Fonte";
 "settings.section_colors" = "Cores";
 "settings.adjust_sounds" = "Ajustar sons";

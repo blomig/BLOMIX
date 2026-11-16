@@ -2,7 +2,7 @@
 
 > À lire en premier par tout agent (Grok Build) qui travaille sur la branche `9.0`.
 > Worktree : `~/Developer/BLOMIX-9.0`. Ne jamais toucher `~/Documents/GIT/BLOMIX` (iCloud).
-> Le 15/11/2026, la piste Encre **remplace** la gelée comme mode New ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), `docs/design/9.0/encre-washi-rendu1.png`). E1–E5 : papier washi, taches, pièces fusionnées, Brix indigo, pose et chaîne. Chelsea Market remplace Changa One en Encre seulement. Magix et bombe en Encre : même disque et mêmes effets, matière aquarelle (grain + couronne irrégulière). Classique ne bouge pas.
+> Le 15/11/2026, la piste Encre **remplace** la gelée comme mode New ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md), `docs/design/9.0/encre-washi-rendu1.png`). E1–E5 : papier washi, taches, pièces fusionnées, pose et chaîne. Les Brix Encre prennent les deux couleurs du skin (fond et chiffre, même mélange qu’en Classique). La feuille de grille Clair est `#F0E6D2` (cases vides Classique), avec un grain très fin. Chelsea Market remplace Changa One en Encre seulement. Magix et bombe en Encre : même disque et mêmes effets, matière aquarelle (grain + couronne irrégulière). Classique ne bouge pas, sauf le léger abaissement de la grille (tous modes) qui égalise l’air sous le score et l’air au-dessus du bloc à lancer.
 
 ## 1. Objectif
 
@@ -32,12 +32,12 @@ pour prototyper et tester sans rien casser.
   Depuis E0 (15/11/2026), `.new` est la piste Encre. Pas de troisième cas.
 - Notification `blomixVisualStyleDidChange` postée au changement.
 - Ligne dans `SettingsViewController` (`LeaderboardViewController.swift`) : libellé « Style visuel »,
-  segment « Classique / Encre (bêta) ». Chaînes localisées dans les 6 langues (voir `LOCALIZATION.md`).
-- Bascule visible dans Réglages (accueil et menu de partie). **Décision V3** : le segment
-  écrit tout de suite UserDefaults et poste la notification. Il ne reconstruit pas la grille.
+  deux pastilles « Classique / Encre », le même puits que Sombre / Clair. Chaînes localisées dans les 6 langues (voir `LOCALIZATION.md`).
+- Bascule visible dans Réglages (accueil et menu de partie). **Décision V3** : la pastille
+  écrit tout de suite UserDefaults et poste la notification. Elle ne reconstruit pas la grille.
   Le style sera lu à la **prochaine partie** (étape 1+), jamais au milieu d’une résolution.
 - Compatible avec Sombre / Clair : New doit fonctionner dans les deux, même si la maquette est en clair.
-  Les deux thèmes affichent le segment. Étape 1 : la texture gelée est mise en cache pour les deux apparences.
+  Les deux thèmes affichent les pastilles. Étape 1 : la texture gelée est mise en cache pour les deux apparences.
 
 ## 4. Point de branchement du rendu
 
@@ -191,9 +191,10 @@ La suite du look New est la piste Encre ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) 
 | V6 | Le corps gelée remplit le sprite (`cell − 4`), coins ≈ 0,12 du côté : carré arrondi, presque toute la case. Les jonctions orthogonales New sont des sprites du même dégradé, sur le plat du contact, assez épais pour couvrir le liseré face au voisin. Les diagonales New gardent le trait, en teinte matière, sous les Blox (z 0,55) pour ne rester visibles que dans la fente. Classique : rectangle 4×36 / 36×4 et diagonale inchangés. La fusion en une seule pièce (coins intérieurs) reste l’étape 4. | 14/11/2026 |
 | V7 | Le filet de la maquette : en New le sprite de grille passe à `cell − 1` (39 pt) et la marge de texture à ~1 % du côté, soit environ 2 pt entre les corps. Classique reste 36 pt. Les Brix (fabrique, chute, fantômes, SAINTX, mue) sont la même gelée ; le chiffre est au-dessus du reflet (z 3). Les deux minis de la file et le gros aperçu courant (couleur et Brix seulement) aussi, sans changer leur taille — l’alignement de la file reste sur `cell − 4`. La file est repeinte juste après le gel du style (`setupBombHUD` la peint avant). Flash BRIXED et disparition Brix New reviennent à une teinte pleine, pour ne pas laisser le masque gris. Magix, bombe, guide, partage : inchangés. | 14/11/2026 |
 | V8 | Au repos, en New, un groupe de Blox de même couleur (8-connexité, comme les chaînes) est une texture : dégradé unique, un reflet, un contour. L’orthogonal a des congés extérieurs et intérieurs. Une barre diagonale dont les deux cases sont déjà dans cette pièce n’est pas dessinée : elle est dans la matière. Une diagonale entre deux pièces qui ne se touchent que par un coin est un trait de la même gelée, unionné au contour (V9). Les sprites `cell_` restent pour les animations ; ils sont cachés au repos. Dès qu’une case bouge, fond ou change d’échelle, son groupe redevient des cases le temps du geste, puis la pièce se reforme. Le coup de voisin (2 pt) ne sépare pas. Classique : barres 4×36 et traits diagonaux inchangés. Le préfixe du nœud est `blomixNewFusion` (la fin de partie retire `junction_`, pas les pièces). | 14/11/2026 |
-| V9 | La diagonale seule n’est plus un disque au coin partagé : la bulle était trop grosse. C’est une capsule de centre à centre, épaisseur `sqrt(32)` comme le trait Classique, bouts ronds, dans la même matière. Elle ne dépasse de la pièce que dans la fente entre les deux coins. | 15/11/2026 |
+| V9 | La diagonale seule n’est plus un disque au coin partagé. Même épaisseur que le trait Classique (`sqrt(32)`), même matière. En Encre, seul le tronçon entre les deux contours est dessiné : le trait ne traverse pas les blox. | 15/11/2026 |
 | E0 | `.new` est la piste Encre. Pas de `case ink`, pas de segment Gelée. Réglages : « Classique / Encre (bêta) », 6 langues (FR Encre, EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). Classique inchangé. Référence : `docs/design/9.0/encre-washi-rendu1.png`. | 15/11/2026 |
 | E1–E5 | Papier washi (fond de partie et grille, Clair et Sombre). Blox en taches d’encre, pièces V8/V9 conservées, Brix indigo chiffre blanc, file et aperçu compris. Pose +4 % / 0,15 s. Chaîne aspirée vers le centre de chaque case, mêmes durées. Chelsea Market à la place de Changa One en Encre seulement (Nunito inchangé). Caveat Brush, puis Rubik Dirt, essayées d’abord, sont retirées. Le grain des Blox et des Brix est un cran plus discret. | 15/11/2026 |
 | E5b | Papier clair `#F3E8D4` (plus ocre que `#F6F1E7`). Plus de liseré gris sur les Blox et les Brix : le bord est un léger bassin de pigment. La diagonale est la même encre, pas un trait plus noir. | 15/11/2026 |
 | E5c | Les six fibres courbes du papier sont retirées (elles traversaient le filet). Les taches ont des bassins, des flaques et du grain stables, sans trait gris. | 15/11/2026 |
 | E5d | La variation n’est plus quelques grosses flaques (elles se répétaient sur une pièce). Granulation en trois octaves, taille fixe en points : grain plus présent, variation lente très légère. | 15/11/2026 |
+| E5e | Brix Encre : les deux couleurs du skin (fond `priks`, chiffre `prikstext`, même mélange qu’en Classique). Plus d’indigo, plus de chiffre blanc forcé. Gros score : lavis dans les glyphes seulement, gris au repos, teinté par les paillettes, sans plaque. | 16/11/2026 |

@@ -13,8 +13,8 @@
 //  Grille New : une texture par groupe de Blox de même couleur (8-connexité).
 //  L'orthogonal est une seule pièce (coins extérieurs et intérieurs arrondis).
 //  Une diagonale déjà dans cette pièce n'est pas redessinée. Une diagonale seule
-//  est un trait de la même matière, largeur du trait Classique (sqrt(32)), dans
-//  le même contour. Pas un disque au coin.
+//  est le tronçon du trait Classique qui reste entre les deux blox (sqrt(32)),
+//  pas le trait centre à centre. Pas un disque au coin.
 //
 
 import SpriteKit
@@ -107,6 +107,7 @@ enum BlomixNewBlockRenderer {
         private var jellies: [CacheKey: SKTexture] = [:]
         private var junctions: [JunctionKey: SKTexture] = [:]
         private var fusions: [FusionKey: SKTexture] = [:]
+        private var fusionWaiters: [FusionKey: [() -> Void]] = [:]
 
         func jellyTexture(for key: CacheKey, make: () -> SKTexture) -> SKTexture {
             lock.lock()
@@ -144,22 +145,34 @@ enum BlomixNewBlockRenderer {
             return built
         }
 
-        func fusionTexture(for key: FusionKey, make: () -> SKTexture) -> SKTexture {
+        func fusionTextureIfPresent(_ key: FusionKey) -> SKTexture? {
             lock.lock()
-            if let hit = fusions[key] {
-                lock.unlock()
-                return hit
-            }
-            lock.unlock()
-            let built = make()
+            defer { lock.unlock() }
+            return fusions[key]
+        }
+
+        /// `true` si cet appel doit lancer la peinture. Les suivants s'ajoutent à l'attente.
+        func claimFusionBake(_ key: FusionKey, waiter: @escaping () -> Void) -> Bool {
             lock.lock()
-            if let hit = fusions[key] {
-                lock.unlock()
-                return hit
+            defer { lock.unlock() }
+            if fusions[key] != nil {
+                return false
             }
-            fusions[key] = built
-            lock.unlock()
-            return built
+            if fusionWaiters[key] != nil {
+                fusionWaiters[key]?.append(waiter)
+                return false
+            }
+            fusionWaiters[key] = [waiter]
+            return true
+        }
+
+        func finishFusionBake(_ key: FusionKey, texture: SKTexture) -> [() -> Void] {
+            lock.lock()
+            defer { lock.unlock() }
+            if fusions[key] == nil {
+                fusions[key] = texture
+            }
+            return fusionWaiters.removeValue(forKey: key) ?? []
         }
     }
 
@@ -383,9 +396,37 @@ enum BlomixNewBlockRenderer {
         var scale: Int
     }
 
-    private struct FusionRC: Hashable {
+    struct FusionRC: Hashable, Sendable {
         var row: Int
         var col: Int
+    }
+
+    /// Tout ce qu'il faut pour peindre hors du fil du jeu. Pas de nœud SpriteKit.
+    private struct FusionBakeJob: Sendable {
+        var cells: [FusionRC]
+        var minRow: Int
+        var minCol: Int
+        var width: CGFloat
+        var height: CGFloat
+        var cellPitch: CGFloat
+        var red: CGFloat
+        var green: CGFloat
+        var blue: CGFloat
+        var light: Bool
+        var displayScale: CGFloat
+    }
+
+    private struct FusionPlan {
+        var key: FusionKey
+        var job: FusionBakeJob
+        var size: CGSize
+        var center: CGPoint
+        var fill: SKColor
+    }
+
+    private final class ImageBox: @unchecked Sendable {
+        let image: UIImage
+        init(_ image: UIImage) { self.image = image }
     }
 
     /// Marge autour du groupe pour l'ombre. Le corps, lui, s'arrête à 1 pt du bord de case.
@@ -395,25 +436,76 @@ enum BlomixNewBlockRenderer {
     /// Demi-largeur du trait diagonal Classique (`lineWidth = sqrt(32)`).
     private static let fusionDiagonalHalfWidth: CGFloat = 2.82842712475
 
-    /// Une pièce gelée pour tout le groupe. `cellCenter` est dans le repère du conteneur (y vers le haut).
-    /// Le masque suit la même règle que les Blox isolés : `color` = teinte, `colorBlendFactor` = 1.
+    /// Pièce déjà en cache. `nil` si elle n'est pas peinte : l'appelant laisse les cases
+    /// visibles et lance `preloadFusion`. Le fil du jeu ne peint pas.
     @MainActor
-    static func makeFusionSprite(
+    static func makeCachedFusionSprite(
         cells: [(row: Int, col: Int)],
         fill: SKColor,
         cellPitch: CGFloat,
         cellCenter: (Int, Int) -> CGPoint
-    ) -> SKSpriteNode {
+    ) -> SKSpriteNode? {
+        guard let plan = fusionPlan(cells: cells, fill: fill, cellPitch: cellPitch, cellCenter: cellCenter),
+              let texture = cache.fusionTextureIfPresent(plan.key) else { return nil }
+        return fusionSprite(plan: plan, texture: texture)
+    }
+
+    /// Peint la pièce hors du fil du jeu. `completion` est sur le fil principal,
+    /// une fois la texture en cache. Plusieurs demandes de la même pièce n'en peignent qu'une.
+    @MainActor
+    static func preloadFusion(
+        cells: [(row: Int, col: Int)],
+        fill: SKColor,
+        cellPitch: CGFloat,
+        completion: @escaping @MainActor () -> Void
+    ) {
+        guard let plan = fusionPlan(
+            cells: cells,
+            fill: fill,
+            cellPitch: cellPitch,
+            cellCenter: { _, _ in .zero }
+        ) else {
+            DispatchQueue.main.async { completion() }
+            return
+        }
+        if cache.fusionTextureIfPresent(plan.key) != nil {
+            DispatchQueue.main.async { completion() }
+            return
+        }
+        let job = plan.job
+        let key = plan.key
+        let start = cache.claimFusionBake(key) { completion() }
+        if !start, cache.fusionTextureIfPresent(key) != nil {
+            DispatchQueue.main.async { completion() }
+            return
+        }
+        guard start else { return }
+        DispatchQueue.global(qos: .userInteractive).async {
+            let box = ImageBox(renderFusionImage(job))
+            DispatchQueue.main.async {
+                let texture = SKTexture(image: box.image)
+                texture.filteringMode = .linear
+                let waiters = cache.finishFusionBake(key, texture: texture)
+                for waiter in waiters {
+                    waiter()
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private static func fusionPlan(
+        cells: [(row: Int, col: Int)],
+        fill: SKColor,
+        cellPitch: CGFloat,
+        cellCenter: (Int, Int) -> CGPoint
+    ) -> FusionPlan? {
         let points = cells.map { FusionRC(row: $0.row, col: $0.col) }
         guard let minR = points.map(\.row).min(),
               let maxR = points.map(\.row).max(),
               let minC = points.map(\.col).min(),
               let maxC = points.map(\.col).max(),
-              cellPitch > 1 else {
-            let empty = SKSpriteNode(color: fill, size: CGSize(width: 1, height: 1))
-            empty.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            return empty
-        }
+              cellPitch > 1 else { return nil }
         let cols = maxC - minC + 1
         let rows = maxR - minR + 1
         let size = CGSize(
@@ -425,7 +517,6 @@ enum BlomixNewBlockRenderer {
             x: anchor.x - cellPitch / 2 + CGFloat(cols) * cellPitch / 2,
             y: anchor.y + cellPitch / 2 - CGFloat(rows) * cellPitch / 2
         )
-
         let channels = rgba(of: fill)
         let light = BlomixAppearance.isLight
         let scale = max(1, UITraitCollection.current.displayScale)
@@ -439,74 +530,95 @@ enum BlomixNewBlockRenderer {
             light: light,
             scale: Int(scale.rounded())
         )
-        let texture = cache.fusionTexture(for: key) {
-            bakeFusionMask(
-                cells: Set(points),
-                minRow: minR,
-                minCol: minC,
-                pointSize: size,
-                cellPitch: cellPitch,
-                red: CGFloat(channels.r) / 255,
-                green: CGFloat(channels.g) / 255,
-                blue: CGFloat(channels.b) / 255,
-                light: light,
-                scale: scale
-            )
-        }
+        let job = FusionBakeJob(
+            cells: points,
+            minRow: minR,
+            minCol: minC,
+            width: size.width,
+            height: size.height,
+            cellPitch: cellPitch,
+            red: CGFloat(channels.r) / 255,
+            green: CGFloat(channels.g) / 255,
+            blue: CGFloat(channels.b) / 255,
+            light: light,
+            displayScale: scale
+        )
+        return FusionPlan(key: key, job: job, size: size, center: center, fill: fill)
+    }
 
-        let sprite = SKSpriteNode(texture: texture, size: size)
+    @MainActor
+    private static func fusionSprite(plan: FusionPlan, texture: SKTexture) -> SKSpriteNode {
+        let sprite = SKSpriteNode(texture: texture, size: plan.size)
         sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        sprite.position = center
-        sprite.color = fill
+        sprite.position = plan.center
+        sprite.color = plan.fill
         sprite.colorBlendFactor = 1
         return sprite
     }
 
-    private static func bakeFusionMask(
-        cells: Set<FusionRC>,
-        minRow: Int,
-        minCol: Int,
-        pointSize: CGSize,
-        cellPitch: CGFloat,
-        red: CGFloat,
-        green: CGFloat,
-        blue: CGFloat,
-        light: Bool,
-        scale: CGFloat
-    ) -> SKTexture {
-        let format = UIGraphicsImageRendererFormat()
-        format.opaque = false
-        format.scale = scale
-        let renderer = UIGraphicsImageRenderer(size: pointSize, format: format)
-        let edge = edgeMultiplier(red: red, green: green, blue: blue, light: light)
-        let paths = fusionPaths(cells: cells, minRow: minRow, minCol: minCol, cellPitch: cellPitch)
-        let salt = cells.reduce(0) { $0 &+ $1.row &* 17 &+ $1.col }
-        let image = renderer.image { context in
-            BlomixNewInkRenderer.drawMask(
-                in: context.cgContext,
-                paths: paths,
-                seed: BlomixNewInkRenderer.seed(red: red, green: green, blue: blue, salt: salt),
-                canvas: pointSize,
-                rim: edge
-            )
-        }
-        let texture = SKTexture(image: image)
-        texture.filteringMode = .linear
-        return texture
+    /// Plafond de pixels du lavis. Au-delà, on baisse l'échelle : la pièce reste
+    /// lisible (filtre linéaire) et la peinture ne dure pas un temps de chaîne.
+    private static func fusionRasterScale(pointSize: CGSize, displayScale: CGFloat) -> CGFloat {
+        let display = max(1, displayScale)
+        let area = max(1, pointSize.width * pointSize.height)
+        let budget: CGFloat = 64_000
+        let full = area * display * display
+        guard full > budget else { return display }
+        return max(0.75, display * sqrt(budget / full))
     }
 
-    /// Contours arrondis des pièces orthogonales, plus un trait (capsule) pour chaque
-    /// diagonale qui relie deux pièces distinctes. Même largeur que le trait Classique.
-    /// L'ensemble est une seule silhouette.
-    private static func fusionPaths(
+    private static func renderFusionImage(_ job: FusionBakeJob) -> UIImage {
+        let pointSize = CGSize(width: job.width, height: job.height)
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = fusionRasterScale(pointSize: pointSize, displayScale: job.displayScale)
+        let renderer = UIGraphicsImageRenderer(size: pointSize, format: format)
+        let edge = edgeMultiplier(red: job.red, green: job.green, blue: job.blue, light: job.light)
+        let cells = Set(job.cells)
+        let silhouette = fusionSilhouette(cells: cells, minRow: job.minRow, minCol: job.minCol, cellPitch: job.cellPitch)
+        let salt = job.cells.reduce(0) { $0 &+ $1.row &* 17 &+ $1.col }
+        return renderer.image { context in
+            BlomixNewInkRenderer.drawMask(
+                in: context.cgContext,
+                paths: silhouette.bodies + silhouette.bridges,
+                seed: BlomixNewInkRenderer.seed(red: job.red, green: job.green, blue: job.blue, salt: salt),
+                canvas: pointSize,
+                rim: edge,
+                bodyPaths: silhouette.bodies,
+                bridgePaths: silhouette.bridges
+            )
+        }
+    }
+
+    struct FusionSilhouette {
+        var bodies: [CGPath]
+        var bridges: [CGPath]
+    }
+
+    /// Cases arrondies, plus le tronçon de diagonale qui reste entre deux pièces
+    /// distinctes. Même largeur que le trait Classique, coupé au bord des blox.
+    /// L'ensemble est une seule silhouette. Le lavis des cases ne dépend pas du pont.
+    static func fusionSilhouette(
         cells: Set<FusionRC>,
         minRow: Int,
         minCol: Int,
         cellPitch: CGFloat
-    ) -> [CGPath] {
-        var paths: [CGPath] = []
+    ) -> FusionSilhouette {
+        var bodies: [CGPath] = []
+        var bridges: [CGPath] = []
         for loop in orthogonalLoops(cells: cells, minRow: minRow, minCol: minCol, cellPitch: cellPitch) where loop.count >= 3 {
-            paths.append(roundedOrthogonalPath(loop))
+            bodies.append(roundedOrthogonalPath(loop))
+        }
+        if bodies.isEmpty {
+            for cell in cells {
+                let rect = CGRect(
+                    x: fusionPad + CGFloat(cell.col - minCol) * cellPitch + fusionInset,
+                    y: fusionPad + CGFloat(cell.row - minRow) * cellPitch + fusionInset,
+                    width: cellPitch - 2 * fusionInset,
+                    height: cellPitch - 2 * fusionInset
+                )
+                bodies.append(CGPath(roundedRect: rect, cornerWidth: fusionCornerRadius, cornerHeight: fusionCornerRadius, transform: nil))
+            }
         }
         let ids = orthogonalComponentIDs(cells)
         var seen = Set<String>()
@@ -527,21 +639,76 @@ enum BlomixNewBlockRenderer {
                     x: fusionPad + (CGFloat(other.col - minCol) + 0.5) * cellPitch,
                     y: fusionPad + (CGFloat(other.row - minRow) + 0.5) * cellPitch
                 )
-                paths.append(diagonalBarPath(from: a, to: b, halfWidth: fusionDiagonalHalfWidth))
+                if let gap = diagonalBetweenPath(from: a, to: b, halfWidth: fusionDiagonalHalfWidth, bodies: bodies) {
+                    bridges.append(gap)
+                }
             }
         }
-        if paths.isEmpty {
-            for cell in cells {
-                let rect = CGRect(
-                    x: fusionPad + CGFloat(cell.col - minCol) * cellPitch + fusionInset,
-                    y: fusionPad + CGFloat(cell.row - minRow) * cellPitch + fusionInset,
-                    width: cellPitch - 2 * fusionInset,
-                    height: cellPitch - 2 * fusionInset
-                )
-                paths.append(CGPath(roundedRect: rect, cornerWidth: fusionCornerRadius, cornerHeight: fusionCornerRadius, transform: nil))
-            }
+        return FusionSilhouette(bodies: bodies, bridges: bridges)
+    }
+
+    /// Tronçon du trait diagonal qui n'est pas sous un blox. Les bouts s'arrêtent
+    /// au contour. Un léger recouvrement évite un filet de papier au raccord.
+    private static func diagonalBetweenPath(
+        from a: CGPoint,
+        to b: CGPoint,
+        halfWidth: CGFloat,
+        bodies: [CGPath]
+    ) -> CGPath? {
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let length = hypot(dx, dy)
+        guard length > 0.01 else { return nil }
+        func point(_ t: CGFloat) -> CGPoint {
+            CGPoint(x: a.x + dx * t, y: a.y + dy * t)
         }
-        return paths
+        func inside(_ t: CGFloat) -> Bool {
+            let p = point(t)
+            return bodies.contains { $0.contains(p) }
+        }
+        guard inside(0), inside(1) else {
+            return diagonalBarPath(from: a, to: b, halfWidth: halfWidth)
+        }
+        // Déjà reliées par le contour orthogonal : rien entre les deux.
+        guard !inside(0.5) else { return nil }
+        func crossing(from low: CGFloat, to high: CGFloat, insideAtLow: Bool) -> CGFloat {
+            var lo = low
+            var hi = high
+            for _ in 0..<18 {
+                let mid = (lo + hi) / 2
+                if inside(mid) == insideAtLow { lo = mid } else { hi = mid }
+            }
+            return (lo + hi) / 2
+        }
+        let leave = crossing(from: 0, to: 0.5, insideAtLow: true)
+        let enter = crossing(from: 0.5, to: 1, insideAtLow: false)
+        let overlap = 1.2 / length
+        let t0 = max(0, leave - overlap)
+        let t1 = min(1, enter + overlap)
+        guard t1 - t0 > 0.5 / length else { return nil }
+        return flatBarPath(from: point(t0), to: point(t1), halfWidth: halfWidth)
+    }
+
+    /// Même sens de parcours que la capsule : le remplissage ajoute le joint.
+    private static func flatBarPath(from a: CGPoint, to b: CGPoint, halfWidth: CGFloat) -> CGPath {
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let length = hypot(dx, dy)
+        guard length > 0.01 else {
+            return CGPath(
+                ellipseIn: CGRect(x: a.x - halfWidth, y: a.y - halfWidth, width: halfWidth * 2, height: halfWidth * 2),
+                transform: nil
+            )
+        }
+        let px = -dy / length * halfWidth
+        let py = dx / length * halfWidth
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: a.x - px, y: a.y - py))
+        path.addLine(to: CGPoint(x: b.x - px, y: b.y - py))
+        path.addLine(to: CGPoint(x: b.x + px, y: b.y + py))
+        path.addLine(to: CGPoint(x: a.x + px, y: a.y + py))
+        path.closeSubpath()
+        return path
     }
 
     /// Trait diagonal : capsule centre à centre, bouts ronds, même épaisseur que Classique.

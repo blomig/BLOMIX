@@ -31,13 +31,12 @@ pour prototyper et tester sans rien casser.
   sur le modèle de `BlomixAppearance` (UserDefaults, clé `BlomixVisualStyle`, défaut `.old`).
   Depuis E0 (15/11/2026), `.new` est la piste Encre. Pas de troisième cas.
 - Notification `blomixVisualStyleDidChange` postée au changement.
-- Ligne dans `SettingsViewController` (`LeaderboardViewController.swift`) : libellé « Style visuel »,
-  deux pastilles « Classique / Encre », le même puits que Sombre / Clair. Chaînes localisées dans les 6 langues (voir `LOCALIZATION.md`).
-- Bascule visible dans Réglages (accueil et menu de partie). **Décision V3** : la pastille
-  écrit tout de suite UserDefaults et poste la notification. Elle ne reconstruit pas la grille.
-  Le style sera lu à la **prochaine partie** (étape 1+), jamais au milieu d’une résolution.
-- Compatible avec Sombre / Clair : New doit fonctionner dans les deux, même si la maquette est en clair.
-  Les deux thèmes affichent les pastilles. Étape 1 : la texture gelée est mise en cache pour les deux apparences.
+- Réglages : une ligne « Apparence », trois boutons Sombre / Clair / Encre. Sombre = Classique sombre,
+  Clair = Classique clair, Encre = style `.new` et clair. Pas d’Encre sombre. Le soleil / lune de l’accueil est retiré.
+  Chaînes déjà présentes dans les 6 langues (`settings.appearance.dark`, `.light`, `settings.visual_style.new`).
+- **Décision V3** : le bouton écrit tout de suite UserDefaults. Il ne reconstruit pas la grille de la partie en cours.
+  Le style est lu à la **prochaine partie**. Une partie Encre déjà lancée reste en clair jusqu’au retour accueil,
+  même si le joueur choisit Sombre entre-temps.
 
 ## 4. Point de branchement du rendu
 

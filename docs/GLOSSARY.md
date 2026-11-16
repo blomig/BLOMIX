@@ -120,7 +120,7 @@
 | **Lookahead** | `BlomixMoveAnalyzer` | Exploration 3 niveaux (P0→P1→P2) |
 | **Solo save v8** | `BlomixSoloSaveManager` | Arcade `blomix_solo_save_v2` + Zen `blomix_zen_save_v1` + Five `blomix_five_save_v1` (`isFiveMode`). `minReadableVersion` **7**. |
 | **Skin** | `BlomixSkinCatalog` / `color_skins.json` | Palette de couleurs des blox (indépendant du thème chrome) |
-| **Thème chrome** | `BlomixAppearance` | Mode **Sombre** / **Clair** de l’UI (fonds, textes, chips) |
+| **Apparence** | `BlomixLook` | Les trois choix du joueur : **Sombre** et **Clair** (Classique) et **Encre** (toujours le clair). Le thème chrome (`BlomixAppearance`) et le style (`.old` / `.new`) restent en dessous. |
 | **Puits / capsule** | `BlomixSKButtonNode`, `BlomixUIButton` | Bouton 6.7 : creux dégradé skin + face chrome |
 | **Juice / VFX** | `GameScene.swift` | Particules, animations, sons de feedback |
 | **SFX procédural** | `BlomixProceduralSFX` | Sons générés en code (Magix, UI) |

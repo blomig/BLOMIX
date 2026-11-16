@@ -1767,71 +1767,6 @@ private final class BlomixMasterVolumeRowView: UIView {
     }
 }
 
-/// Deux pastilles Classique / Encre, même puits que Sombre / Clair.
-/// Écrit `BlomixVisualStyle` seulement. Ne reconstruit pas la partie.
-@MainActor
-private final class BlomixVisualStyleRowView: UIView {
-    private let stack = UIStackView()
-    /// Réglages rafraîchit le libellé et les pastilles Sombre / Clair (police display).
-    var onStyleChange: (() -> Void)?
-
-    override init(frame: CGRect) {
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        backgroundColor = .clear
-
-        stack.axis = .horizontal
-        stack.spacing = 10
-        stack.distribution = .fillEqually
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-        ])
-        rebuild()
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:)") }
-
-    func refreshChrome() {
-        rebuild()
-    }
-
-    private func rebuild() {
-        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        stack.addArrangedSubview(makeChip(
-            title: BlomixL10n.settingsVisualStyleOld,
-            selected: !BlomixVisualStyle.isNew,
-            style: .old
-        ))
-        stack.addArrangedSubview(makeChip(
-            title: BlomixL10n.settingsVisualStyleNew,
-            selected: BlomixVisualStyle.isNew,
-            style: .new
-        ))
-    }
-
-    private func makeChip(title: String, selected: Bool, style: BlomixVisualStyle) -> UIButton {
-        let btn = BlomixUIButton()
-        btn.setTitle(title, for: .normal)
-        BlomixUIDestinationButtonStyle.apply(to: btn, fontSize: 16, weight: .medium)
-        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16), to: btn)
-        BlomixUIDestinationButtonStyle.applySelectionChrome(to: btn, selected: selected)
-        btn.titleLabel?.adjustsFontSizeToFitWidth = true
-        btn.titleLabel?.minimumScaleFactor = 0.7
-        btn.accessibilityLabel = title
-        btn.addAction(UIAction { [weak self] _ in
-            guard BlomixVisualStyle.current != style else { return }
-            BlomixVisualStyle.current = style
-            self?.onStyleChange?()
-        }, for: .touchUpInside)
-        return btn
-    }
-}
-
 // MARK: -
 
 @MainActor
@@ -1852,11 +1787,8 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
     private let musicVolumeRow    = BlomixMasterVolumeRowView()
     private let soundSectionLabel = UILabel()
     private let appearanceSectionLabel = UILabel()
-    private let visualStyleLabel = UILabel()
     private let colorsSectionLabel = UILabel()
     private let appearanceStack = UIStackView()
-    // 9.0 : pastilles Classique / Encre. Le style est lu au début de la partie suivante.
-    private let visualStyleRow = BlomixVisualStyleRowView()
     private let skinsStack = UIStackView()
     private var persoPickerSlot: BlomixPersoColorSlot?
     private var persoPickerSkinId: String = BlomixSkinCatalog.persoSkinId
@@ -1914,14 +1846,6 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         contentStack.addArrangedSubview(appearanceStack)
         rebuildAppearanceRow()
 
-        configureSectionHeading(visualStyleLabel, text: BlomixL10n.settingsVisualStyle)
-        contentStack.addArrangedSubview(visualStyleLabel)
-        visualStyleRow.onStyleChange = { [weak self] in
-            self?.refreshTypography()
-            self?.rebuildAppearanceRow()
-        }
-        contentStack.addArrangedSubview(visualStyleRow)
-
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         contentStack.addArrangedSubview(colorsSectionLabel)
 
@@ -1962,53 +1886,58 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         view.backgroundColor = BlomixAppearance.sceneBackground
         configureSectionHeading(soundSectionLabel, text: BlomixL10n.settingsSoundSection)
         configureSectionHeading(appearanceSectionLabel, text: BlomixL10n.settingsAppearanceSection)
-        configureSectionHeading(visualStyleLabel, text: BlomixL10n.settingsVisualStyle)
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
-        visualStyleRow.refreshChrome()
     }
 
+    /// Une ligne : Sombre (Classique sombre), Clair (Classique clair), Encre (Encre clair).
     private func rebuildAppearanceRow() {
         appearanceStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let look = BlomixLook.current
         appearanceStack.addArrangedSubview(makeAppearanceChip(
             title: BlomixL10n.settingsAppearanceDark,
-            selected: BlomixAppearance.isDark,
-            action: #selector(selectDarkAppearance)
+            selected: look == .classicDark,
+            look: .classicDark
         ))
         appearanceStack.addArrangedSubview(makeAppearanceChip(
             title: BlomixL10n.settingsAppearanceLight,
-            selected: BlomixAppearance.isLight,
-            action: #selector(selectLightAppearance)
+            selected: look == .classicLight,
+            look: .classicLight
+        ))
+        appearanceStack.addArrangedSubview(makeAppearanceChip(
+            title: BlomixL10n.settingsVisualStyleNew,
+            selected: look == .ink,
+            look: .ink
         ))
     }
 
-    private func makeAppearanceChip(title: String, selected: Bool, action: Selector) -> UIButton {
+    private func makeAppearanceChip(title: String, selected: Bool, look: BlomixLook) -> UIButton {
         let btn = BlomixUIButton()
         btn.setTitle(title, for: .normal)
         BlomixUIDestinationButtonStyle.apply(to: btn, fontSize: 16, weight: .medium)
         BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16), to: btn)
         BlomixUIDestinationButtonStyle.applySelectionChrome(to: btn, selected: selected)
-        btn.addTarget(self, action: action, for: .touchUpInside)
+        btn.titleLabel?.adjustsFontSizeToFitWidth = true
+        btn.titleLabel?.minimumScaleFactor = 0.7
+        btn.accessibilityLabel = title
+        btn.addAction(UIAction { [weak self] _ in
+            self?.applyLook(look)
+        }, for: .touchUpInside)
         return btn
     }
 
-    @objc private func selectDarkAppearance() {
-        applyAppearanceMode(.dark)
-    }
-
-    @objc private func selectLightAppearance() {
-        applyAppearanceMode(.light)
-    }
-
-    private func applyAppearanceMode(_ mode: BlomixAppearanceMode) {
-        guard BlomixAppearance.mode != mode else { return }
-        BlomixAppearance.mode = mode
+    private func applyLook(_ look: BlomixLook) {
+        guard BlomixLook.current != look else { return }
+        let wasLight = BlomixAppearance.mode == .light
+        BlomixLook.apply(look)
+        if !wasLight, BlomixAppearance.mode == .light {
+            BlomixTrophyHooks.noteThemeLight()
+        }
         refreshTypography()
         rebuildAppearanceRow()
         rebuildSkinRows()
         soundsVolumeRow.refreshChrome()
         musicVolumeRow.refreshChrome()
-        visualStyleRow.refreshChrome()
         if let gameVC = presentingViewController as? GameViewController {
             gameVC.applyBlomixAppearanceChrome()
         } else {

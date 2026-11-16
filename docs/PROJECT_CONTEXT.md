@@ -126,7 +126,7 @@ Bonus cascade : `+ chainSeriesLevel × 10`.
 | Décrément | −1 par vague si 8-adjacent à une case effacée (max 1/vague) |
 | Disparition | +20 pts, son `priksVanish` |
 | Bombe | destruction instantanée (+20 pts), pas de décrément |
-| Rendu chiffre | Mix `prikstext` → fond `priks` : 100/80/60/40/20 % pour n = 5/4/3/2/1 ; n > 5 = 100 % |
+| Rendu chiffre | Mix `prikstext` → fond `priks` : n ≥ 4 = 100 % glyphe ; 3 = 80 % ; 2 = 60 % ; 1 = 40 % |
 
 BRIXED (Magix) : crée un Brix(9), **détruit** tous les autres Brix (+20 chacun).  
 SAINTX : laisse un Brix valant le nombre de cases effacées.
@@ -332,7 +332,7 @@ Voir [EVAL.md](EVAL.md).
 
 ### Thème chrome Sombre / Clair (`BlomixAppearance`)
 
-Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAppearanceMode`) ; notification `.blomixAppearanceDidChange`.
+Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAppearanceMode`) ; notification `.blomixAppearanceDidChange`. Le joueur ne choisit pas ce thème seul : Réglages montre `BlomixLook` (Sombre, Clair, Encre). Sombre et Clair écrivent le Classique plus ce thème. Encre écrit le clair plus le style `.new`.
 
 | | Sombre *(défaut)* | Clair |
 |---|---|---|
@@ -344,7 +344,7 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 | Transitions (contour) | Blanc | Gris foncé |
 | Game over / pire coup | Voile noir + textes clairs | Voile `#F5EEDF` @ 0,94 + textes foncés |
 
-- Toggle **uniquement sur l’accueil** (icône soleil / lune) ; pas de suivi du mode système iOS
+- Apparence dans **Réglages** : trois boutons Sombre, Clair, Encre. Pas de soleil / lune à l’accueil. Pas de suivi du mode système iOS. Une partie Encre déjà lancée reste claire jusqu’au retour accueil, même si Sombre est choisi entre-temps.
 - Splash studio : toujours noir ; thème appliqué après
 - Boutons : puits (dégradé skin) + capsule chrome (`BlomixSKButtonNode`, `BlomixUIButton`) — voir [SPEC_6.7.md](SPEC_6.7.md)
 - Transitions stage / Zen / PvP / tutoriel : fill **orange skin** inchangé ; **contour seul** via `transitionOutlineColor` (pas de halo)
@@ -357,7 +357,6 @@ Rangée d’**icônes** sous les disques de rang (`makeStartScreenChromeIcon`) �
 |---|---|
 | **Réglages** | `gearshape.fill` → `SettingsViewController` |
 | **Tutoriel** | `book.fill` → partie guidée (tuto interactif grille, pas l’overlay paginé UIKit) |
-| **Thème** | soleil / lune |
 | **Partager** | `paperplane.fill` |
 | **Salon** | `trophy.fill` → `BlomixTrophySalonViewController` (1ʳᵉ version test). Toast palier : overlay scène (même Y qu’accueil), tap → Salon. Étoiles post-III sous la cible (1× / 2× / 3× s3, fill gouttière). |
 | **Crédits** | `info.circle.fill` → `BlomixCreditsViewController` |
@@ -431,7 +430,7 @@ Skin **Alea** (`BlomixSkinCatalog.writeRandomAleaColorsToDefaults`, bouton ↺) 
   - Arcade / Zen / Five : **RECORD** perso à gauche, **N°1** all-time à droite. Vert live (`#33D959`) + chiffre = run si `score > baseline`. N°1 battu : jaune `#ffb200` jusqu’à la fin.
   - **Défi du jour** : **À BATTRE** centré = leader CloudKit du jour ; suit la run en jaune si en tête
   - Masqué en **tutoriel** et **Duel** (Duel : caption **attaque** + nom adverse au même Y que l’ancien titre RECORD)
-- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Autres scores encore devant = ticks verticaux 1×4 pt (Sombre blanc 48 %, Clair blanc 36 %) ; déjà dépassés masqués. Prochain devant le curseur = rose `#FF5A9A` (rayon 2,4). Sillage = gouttière 3 pt, même matière (shader peau) que le wordmark BLOMIX, de 0 au curseur ; ligne grise restante 1 pt. Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : le chiffre gonfle et défile ±1 jusqu’à la nouvelle place, plus paillettes rose / chrome. Pas en tuto / Duel.
+- **Jauge 0→N°1** (`scoreRaceSnapshot`, figée au lancement, zéro réseau en jeu) : ligne largeur de grille entre BLOMIX et les titres RECORD / N°1. Autres scores encore devant = ticks verticaux 1×4 pt (Sombre blanc 48 %, Clair blanc 36 %) ; déjà dépassés masqués. Prochain devant le curseur = rose `#FF5A9A`. Losange, rose, vert et jaune ont le même rayon **5**. En Encre ces quatre repères sont des taches d’aquarelle ; Sombre et Clair restent des aplats. Sillage = gouttière 3 pt, même matière (shader peau) que le wordmark BLOMIX, de 0 au curseur ; ligne grise restante 1 pt. Vert = RECORD (absent au Défi sans score du jour). Jaune = N°1 à droite. Losange = run (couleur du gros score) ; fusion au RECORD (cercle vert) puis au N°1 (jaune calé). Rang live au-dessus du curseur. Passage d’un rang : le chiffre gonfle et défile ±1 jusqu’à la nouvelle place, plus paillettes rose / chrome. Pas en tuto / Duel.
 - Compteur LIGNE x/10 (gauche)
 - Duel : barre continue 0…50 à **droite** du gros score (puits fixe, gouttière peau clipée depuis le bas, même shader que BLOMIX) ; le chiffre HUD est `score % 50` (flash couleur des `+N` sur le chiffre seulement)
 - Timer stage ou PvP (droite)

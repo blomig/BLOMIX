@@ -405,12 +405,13 @@ final class BlomixSkinCatalog: @unchecked Sendable {
         return c
     }
 
-    /// Mix `prikstext` → fond `priks` : n ≥ 5 = 100 % glyphe ; 4=80 % ; 3=60 % ; 2=40 % ; 1=20 %.
+    /// Mix `prikstext` → fond `priks`. 4 et au-dessus : glyphe plein.
+    /// Puis le même cran : 3 = 80 %, 2 = 60 %, 1 = 40 % (l’ancien rendu du 2).
     func priksDigitSKColor(remainingHits n: Int) -> SKColor {
         let glyph = priksDigitSKColor()
         let full = PriksRules.initialHitsRemaining
-        guard n < full else { return glyph }
-        let t = CGFloat(max(0, n)) / CGFloat(full)
+        guard n < full - 1 else { return glyph }
+        let t = CGFloat(max(0, n) + 1) / CGFloat(full)
         return Self.skColorLerp(priksSKColor(), glyph, t)
     }
 
@@ -1086,7 +1087,6 @@ final class GameScene: SKScene {
     private static let startScreenSettingsLinkName = "startScreenSettingsLink"
     private static let startScreenTutorialLinkName = "startScreenTutorialLink"
     private static let startScreenCreditsLinkName = "startScreenCreditsLink"
-    private static let startScreenAppearanceToggleName = "startScreenAppearanceToggle"
     private static let startScreenIconRowName = "startScreenIconRow"
     private static let startScreenHeroSubtitleName = "startScreenHeroSubtitle"
     private static let startScreenShareChipName = "startScreenShareChip"
@@ -2431,14 +2431,6 @@ final class GameScene: SKScene {
         container.addChild(lbl)
     }
 
-    /// Icône soleil / lune pour basculer Sombre ↔ Clair.
-    private func makeStartScreenAppearanceToggleNode() -> SKNode {
-        makeStartScreenChromeIcon(
-            name: Self.startScreenAppearanceToggleName,
-            systemName: BlomixAppearance.isDark ? "sun.max.fill" : "moon.fill"
-        )
-    }
-
     /// Chip « Partager » : icône avion en papier custom + libellé (secondaire, pas hero).
     private func makeStartScreenShareChip() -> BlomixSKButtonNode {
         let text = BlomixL10n.shareButton
@@ -3020,15 +3012,13 @@ final class GameScene: SKScene {
         attachStartScreenIconCaption(to: settingsIcon, text: BlomixL10n.homeIconSettings)
         let tutorialIcon = makeStartScreenChromeIcon(name: Self.startScreenTutorialLinkName, systemName: "book.fill")
         attachStartScreenIconCaption(to: tutorialIcon, text: BlomixL10n.homeIconTutorial)
-        let appearanceToggle = makeStartScreenAppearanceToggleNode()
-        attachStartScreenIconCaption(to: appearanceToggle, text: BlomixL10n.homeIconTheme)
         let shareIcon = makeStartScreenChromeIcon(name: Self.startScreenShareChipName, systemName: "paperplane.fill")
         attachStartScreenIconCaption(to: shareIcon, text: BlomixL10n.homeIconShare)
         let trophyIcon = makeStartScreenChromeIcon(name: Self.startScreenTrophyLinkName, systemName: "trophy.fill")
         attachStartScreenIconCaption(to: trophyIcon, text: BlomixL10n.homeIconSalon)
         let creditsIcon = makeStartScreenChromeIcon(name: Self.startScreenCreditsLinkName, systemName: "info.circle.fill")
         attachStartScreenIconCaption(to: creditsIcon, text: BlomixL10n.homeIconCredits)
-        let iconItems = [settingsIcon, tutorialIcon, appearanceToggle, shareIcon, trophyIcon, creditsIcon]
+        let iconItems = [settingsIcon, tutorialIcon, shareIcon, trophyIcon, creditsIcon]
         let iconStep: CGFloat = 50
         let iconRowWidth = CGFloat(iconItems.count - 1) * iconStep
         for (i, icon) in iconItems.enumerated() {
@@ -4078,10 +4068,6 @@ final class GameScene: SKScene {
         touchHitsStartScreenUtilityLink(named: Self.startScreenCreditsLinkName, scenePoint: scenePoint)
     }
 
-    private func touchHitsStartScreenAppearanceToggle(_ scenePoint: CGPoint) -> Bool {
-        touchHitsStartScreenUtilityLink(named: Self.startScreenAppearanceToggleName, scenePoint: scenePoint)
-    }
-
     private func touchHitsStartScreenShareButton(_ scenePoint: CGPoint) -> Bool {
         touchHitsStartScreenUtilityLink(named: Self.startScreenShareChipName, scenePoint: scenePoint)
     }
@@ -4093,24 +4079,6 @@ final class GameScene: SKScene {
     private func touchHitsTrophyToast(_ scenePoint: CGPoint) -> Bool {
         guard let toast = childNode(withName: Self.startScreenTrophyToastName) else { return false }
         return toast.calculateAccumulatedFrame().insetBy(dx: -8, dy: -8).contains(scenePoint)
-    }
-
-    private func toggleAppearanceFromStartScreen() {
-        BlomixAppearance.toggle()
-        if BlomixAppearance.isLight {
-            BlomixTrophyHooks.noteThemeLight()
-        }
-        // Recréer le ☰ (puits + capsule) au prochain layout.
-        childNode(withName: Self.bottomMenuContainerName)?.removeFromParent()
-        refreshFullscreenBackgroundColor()
-        presentStartScreen()
-        if let vc = view?.window?.rootViewController as? GameViewController {
-            vc.applyBlomixAppearanceChrome()
-        } else {
-            view?.window?.rootViewController?.setNeedsStatusBarAppearanceUpdate()
-            view?.superview?.backgroundColor = BlomixAppearance.sceneBackground
-            view?.backgroundColor = BlomixAppearance.sceneBackground
-        }
     }
 
     private func touchHitsStartScreenUtilityLink(named linkName: String, scenePoint: CGPoint) -> Bool {
@@ -4441,10 +4409,12 @@ final class GameScene: SKScene {
     /// Tick des autres scores encore devant (pas le rose).
     private static let scoreRaceGrayTickWidth: CGFloat = 1.0
     private static let scoreRaceGrayTickHeight: CGFloat = 4.0
-    private static let scoreRaceNextGrayRadius: CGFloat = 2.4
-    private static let scoreRaceGreenRadius: CGFloat = 3.5
-    private static let scoreRaceYellowRadius: CGFloat = 5
-    private static let scoreRaceDiamondHalf: CGFloat = 3.6
+    /// Losange, rose, vert et jaune : même encombrement que le point N°1.
+    private static let scoreRaceMarkRadius: CGFloat = 5
+    private static let scoreRaceNextGrayRadius: CGFloat = scoreRaceMarkRadius
+    private static let scoreRaceGreenRadius: CGFloat = scoreRaceMarkRadius
+    private static let scoreRaceYellowRadius: CGFloat = scoreRaceMarkRadius
+    private static let scoreRaceDiamondHalf: CGFloat = scoreRaceMarkRadius
     private static let scoreRaceTrackHeight: CGFloat = 1.0
     /// Gouttière parcourue : un peu plus haute que la ligne grise restante.
     private static let scoreRaceWakeHeight: CGFloat = 3.0
@@ -4611,8 +4581,13 @@ final class GameScene: SKScene {
         }
 
         if let yellow = container.childNode(withName: Self.scoreRaceYellowName) {
-            yellow.position = CGPoint(x: width, y: 0)
-            yellow.isHidden = false
+            let mark = reconcileScoreRaceMark(
+                yellow,
+                shape: .circle(Self.scoreRaceYellowRadius),
+                color: Self.hudRaceN1Color
+            )
+            mark.position = CGPoint(x: width, y: 0)
+            mark.isHidden = false
         }
 
         updateScoreRaceMarker(liveScore: displayedScore)
@@ -4699,22 +4674,112 @@ final class GameScene: SKScene {
         wake.isHidden = w < 0.5
     }
 
+    /// `nil` = tick gris, toujours à plat. Cercle et losange passent en aquarelle en Encre.
+    private enum ScoreRaceMarkShape {
+        case circle(CGFloat)
+        case diamond(CGFloat)
+    }
+
+    private func paintScoreRaceMark(_ node: SKNode, color: SKColor) {
+        if let shape = node as? SKShapeNode {
+            shape.fillColor = color
+        } else if let sprite = node as? SKSpriteNode {
+            sprite.color = color
+            sprite.colorBlendFactor = 1
+        }
+    }
+
+    /// Remplace le nœud si la matière (aplat ou aquarelle) ou la forme a changé.
+    /// La teinte seule ne repeint pas la tache.
+    private func reconcileScoreRaceMark(_ node: SKNode, shape: ScoreRaceMarkShape?, color: SKColor) -> SKNode {
+        let ink = Self.visualStyleForRun == .new && shape != nil
+        let token: String
+        switch shape {
+        case .circle: token = ink ? "ink-circle" : "flat-circle"
+        case .diamond: token = ink ? "ink-diamond" : "flat-diamond"
+        case nil: token = "tick"
+        }
+        if (node.userData?["mark"] as? String) == token {
+            paintScoreRaceMark(node, color: color)
+            return node
+        }
+
+        let replacement: SKNode
+        if ink, let shape {
+            let diamond: Bool
+            let radius: CGFloat
+            switch shape {
+            case .circle(let r):
+                diamond = false
+                radius = r
+            case .diamond(let half):
+                diamond = true
+                radius = half
+            }
+            let side = BlomixNewInkRenderer.raceMarkCanvasSide(radius: radius)
+            let sprite = SKSpriteNode(
+                texture: BlomixNewInkRenderer.raceMarkTexture(diamond: diamond, radius: radius),
+                size: CGSize(width: side, height: side)
+            )
+            sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            sprite.color = color
+            sprite.colorBlendFactor = 1
+            replacement = sprite
+        } else {
+            let path: CGPath
+            switch shape {
+            case .circle(let radius):
+                path = Self.scoreRaceCirclePath(radius: radius)
+            case .diamond(let half):
+                path = Self.scoreRaceDiamondPath(half: half)
+            case nil:
+                path = Self.scoreRaceGrayTickPath()
+            }
+            let flat = SKShapeNode(path: path)
+            flat.fillColor = color
+            flat.strokeColor = .clear
+            flat.lineWidth = 0
+            flat.glowWidth = 0
+            replacement = flat
+        }
+
+        replacement.name = node.name
+        replacement.zPosition = node.zPosition
+        replacement.position = node.position
+        replacement.isHidden = node.isHidden
+        let data = (node.userData as? NSMutableDictionary) ?? NSMutableDictionary()
+        data["mark"] = token
+        replacement.userData = data
+        if let parent = node.parent {
+            let index = parent.children.firstIndex(where: { $0 === node }) ?? parent.children.count
+            node.removeFromParent()
+            if index >= parent.children.count {
+                parent.addChild(replacement)
+            } else {
+                parent.insertChild(replacement, at: index)
+            }
+        }
+        return replacement
+    }
+
     private func updateScoreRaceGrayDots(live: Int, snap: ScoreRaceSnapshot, in container: SKNode) {
         guard let grays = container.childNode(withName: Self.scoreRaceGraysName) else { return }
         let next = Self.scoreRaceNextGrayScore(live: live, snap: snap)
         let aheadFill = Self.scoreRaceAheadGrayFill
-        for case let dot as SKShapeNode in grays.children {
+        for dot in grays.children {
             let value = (dot.userData?["score"] as? NSNumber)?.intValue ?? 0
             if let next, value == next {
-                dot.isHidden = false
-                dot.path = Self.scoreRaceCirclePath(radius: Self.scoreRaceNextGrayRadius)
-                dot.fillColor = Self.hudRaceNextGrayColor
+                let mark = reconcileScoreRaceMark(
+                    dot,
+                    shape: .circle(Self.scoreRaceNextGrayRadius),
+                    color: Self.hudRaceNextGrayColor
+                )
+                mark.isHidden = false
             } else if value <= live {
                 dot.isHidden = true
             } else {
-                dot.isHidden = false
-                dot.path = Self.scoreRaceGrayTickPath()
-                dot.fillColor = aheadFill
+                let mark = reconcileScoreRaceMark(dot, shape: nil, color: aheadFill)
+                mark.isHidden = false
             }
         }
     }
@@ -4736,9 +4801,14 @@ final class GameScene: SKScene {
             && snap.personalRecord < snap.topScore
             && live < snap.personalRecord
         if let green = container.childNode(withName: Self.scoreRaceGreenName) {
-            green.isHidden = !showFixedGreen
+            let mark = reconcileScoreRaceMark(
+                green,
+                shape: .circle(Self.scoreRaceGreenRadius),
+                color: Self.hudGhostLiveBeatColor
+            )
+            mark.isHidden = !showFixedGreen
             if showFixedGreen {
-                green.position = CGPoint(
+                mark.position = CGPoint(
                     x: Self.scoreRaceX(score: snap.personalRecord, top: snap.topScore, width: width),
                     y: 0
                 )
@@ -4747,7 +4817,7 @@ final class GameScene: SKScene {
 
         updateScoreRaceGrayDots(live: live, snap: snap, in: container)
 
-        guard let cursor = container.childNode(withName: Self.scoreRaceCursorName) as? SKShapeNode,
+        guard let cursor = container.childNode(withName: Self.scoreRaceCursorName),
               let rank = container.childNode(withName: Self.scoreRaceRankName) as? SKLabelNode
         else { return }
 
@@ -4761,18 +4831,20 @@ final class GameScene: SKScene {
         switch style {
         case .diamond:
             scoreRaceCursorFollowsScoreAccent = true
-            cursor.isHidden = false
-            cursor.path = Self.scoreRaceDiamondPath(half: Self.scoreRaceDiamondHalf)
-            cursor.fillColor = scoreColor
-            cursor.position = CGPoint(x: x, y: 0)
+            let mark = reconcileScoreRaceMark(cursor, shape: .diamond(Self.scoreRaceDiamondHalf), color: scoreColor)
+            mark.isHidden = false
+            mark.position = CGPoint(x: x, y: 0)
             markerColor = scoreColor
             markerHalf = Self.scoreRaceDiamondHalf
         case .green:
             scoreRaceCursorFollowsScoreAccent = false
-            cursor.isHidden = false
-            cursor.path = Self.scoreRaceCirclePath(radius: Self.scoreRaceGreenRadius)
-            cursor.fillColor = Self.hudGhostLiveBeatColor
-            cursor.position = CGPoint(x: x, y: 0)
+            let mark = reconcileScoreRaceMark(
+                cursor,
+                shape: .circle(Self.scoreRaceGreenRadius),
+                color: Self.hudGhostLiveBeatColor
+            )
+            mark.isHidden = false
+            mark.position = CGPoint(x: x, y: 0)
             markerColor = Self.hudGhostLiveBeatColor
             markerHalf = Self.scoreRaceGreenRadius
         case .yellow:
@@ -4891,10 +4963,10 @@ final class GameScene: SKScene {
         guard scoreRaceCursorFollowsScoreAccent,
               let container = childNode(withName: Self.scoreRaceContainerName),
               !container.isHidden,
-              let cursor = container.childNode(withName: Self.scoreRaceCursorName) as? SKShapeNode,
+              let cursor = container.childNode(withName: Self.scoreRaceCursorName),
               !cursor.isHidden
         else { return }
-        cursor.fillColor = color
+        paintScoreRaceMark(cursor, color: color)
         if let rank = container.childNode(withName: Self.scoreRaceRankName) as? SKLabelNode {
             rank.fontColor = color
         }
@@ -12107,7 +12179,7 @@ final class GameScene: SKScene {
     private static var rankDiscHaloTextureCache: [BlomixAppearanceMode: SKTexture] = [:]
 
     private static func rankDiscHaloTextureCached() -> SKTexture {
-        let mode = BlomixAppearance.mode
+        let mode: BlomixAppearanceMode = BlomixAppearance.isLight ? .light : .dark
         if let cached = rankDiscHaloTextureCache[mode] { return cached }
         let tex = makeRankDiscHaloTexture(discRadius: 30, spread: 12)
         rankDiscHaloTextureCache[mode] = tex
@@ -15583,7 +15655,7 @@ final class GameScene: SKScene {
         BlomixSkinCatalog.shared.priksSKColor()
     }
 
-    /// n ≥ 5 : `prikstext` plein. En dessous, mix 20 %/cran vers le fond `priks`.
+    /// n ≥ 4 : `prikstext` plein. En dessous, un cran de retard : 3 = 80 %, 2 = 60 %, 1 = 40 %.
     /// Classique et Encre : les deux couleurs du skin.
     private static func priksDigitColor(remainingHits n: Int) -> SKColor {
         BlomixSkinCatalog.shared.priksDigitSKColor(remainingHits: n)
@@ -16305,7 +16377,11 @@ final class GameScene: SKScene {
     /// 9.0 New: une lecture, au démarrage ou à la reprise, avant le premier `drawGrid`.
     private func captureVisualStyleForRun() {
         cancelScrumblxVisualRun()
+        if BlomixVisualStyle.current == .new {
+            BlomixLook.reconcile()
+        }
         Self.visualStyleForRun = BlomixVisualStyle.current
+        BlomixVisualStyle.activeRunIsInk = Self.visualStyleForRun == .new
         // setupBombHUD peint la file et l’icône de stock avant ce gel.
         // Sans ce second passage, le stock reste le disque Classique.
         refreshUpcomingQueueSlots()
@@ -16319,9 +16395,14 @@ final class GameScene: SKScene {
     private func resetVisualStyleForHome() {
         cancelScrumblxVisualRun()
         Self.visualStyleForRun = .old
+        BlomixVisualStyle.activeRunIsInk = false
         refreshFullscreenBackgroundColor()
         refreshDisplayFacesForVisualStyle()
         refreshScoreWashPlate()
+        // Le Sombre choisi pendant une partie Encre s’applique en quittant.
+        if let vc = view?.window?.rootViewController as? GameViewController {
+            vc.applyBlomixAppearanceChrome()
+        }
     }
 
     /// 9.0 Ink: feuille washi sous les cases. Les traits de crayon sont dans la texture.
@@ -19722,10 +19803,6 @@ final class GameScene: SKScene {
             }
             if touchHitsStartScreenTutorialLink(location) {
                 pendingButtonAction = { [weak self] in self?.showRulesGuide() }
-                return
-            }
-            if touchHitsStartScreenAppearanceToggle(location) {
-                pendingButtonAction = { [weak self] in self?.toggleAppearanceFromStartScreen() }
                 return
             }
             if touchHitsStartScreenShareButton(location) {

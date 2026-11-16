@@ -210,7 +210,7 @@ Citations affichées à la fin de partie. Même structure que les tips.
 | Game Center | Statut connexion GC |
 | Skins | Noms des palettes couleur |
 | Règles / crédits | Titres modals, bouton avis App Store (`credits.review_*`) |
-| Paramètres | Audio, police, langue, style visuel Classique / Encre (`settings.visual_style`, `.old`, `.new` — FR Encre, EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta) |
+| Paramètres | Audio, police, langue, apparence en trois boutons (`settings.appearance.dark` / `.light` / `settings.visual_style.new` — FR Sombre, Clair, Encre ; EN Dark, Light, Ink ; DE Dunkel, Hell, Tinte ; ES Oscuro, Claro, Tinta ; IT Scuro, Chiaro, Inchiostro ; PT Escuro, Claro, Tinta) |
 | PvP | Lobby, invitations, résultats, Elo |
 | Partage | Bouton, a11y, messages accueil/GO, badge record (`share.*`) |
 | Tutoriel | Étapes guidées |

@@ -44,7 +44,6 @@ enum BlomixL10n {
     static var fiveButton: String { tr("start.five", comment: "Five mode button — untranslated brand name") }
     static var homeIconSettings: String { tr("home.icon.settings", comment: "8pt caption under home settings icon") }
     static var homeIconTutorial: String { tr("home.icon.tutorial", comment: "8pt caption under home tutorial icon") }
-    static var homeIconTheme: String { tr("home.icon.theme", comment: "8pt caption under home theme toggle") }
     static var homeIconShare: String { tr("home.icon.share", comment: "8pt caption under home share icon") }
     static var homeIconCredits: String { tr("home.icon.credits", comment: "8pt caption under home credits icon") }
     static var homeIconSalon: String { tr("home.icon.salon", comment: "8pt caption under home trophy salon icon") }

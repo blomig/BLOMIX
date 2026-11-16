@@ -227,7 +227,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 - Fond couleur `priks` du skin
 - Chiffre centré, police joueur ; taille ×0,72 si valeur ≥ 10
-- Teinte du glyphe : mix `prikstext` → fond `priks` selon le compteur (`priksDigitSKColor(remainingHits:)`). n ≥ 5 = 100 % glyphe ; 4 = 80 % ; 3 = 60 % ; 2 = 40 % ; 1 = 20 % (presque le fond). Swap au pic du −1, même cran que le texte.
+- Teinte du glyphe : mix `prikstext` → fond `priks` selon le compteur (`priksDigitSKColor(remainingHits:)`). n ≥ 4 = 100 % glyphe ; 3 = 80 % ; 2 = 60 % ; 1 = 40 %. Swap au pic du −1, même cran que le texte.
 - Pas d'animation idle
 
 ### 2.3 Blocs Magix (rendu continu)
@@ -346,7 +346,7 @@ Commentaire, pas la monnaie. Le `+N` (62 pt, grow 0,58 s) reste devant. Le shake
 ### 4.1 Décrément (compteur > 0)
 
 - Le **bloc** ne bouge pas (pas de scale / colorize).
-- Le **chiffre** : ×1,0 → ×**1,3** en **0,12 s** (`easeOut`) ; **au pic** le texte **et** la teinte passent à n−1 (palier 20 % vers le fond) ; retour ×1,0 en **0,60 s** (`easeInEaseOut`). Pas de SFX.
+- Le **chiffre** : ×1,0 → ×**1,3** en **0,12 s** (`easeOut`) ; **au pic** le texte **et** la teinte passent à n−1 (4 reste le glyphe plein, puis −20 % de glyphe par cran) ; retour ×1,0 en **0,60 s** (`easeInEaseOut`). Pas de SFX.
 - Plusieurs Brix dans la même vague : stagger **0,04 s**/chiffre, ordre `(ligne, colonne)` (même famille que la dissolution). Le compactage attend le dernier swap.
 - **SCRUMBLX** : même anim, **avant** le décalage des lignes (`max(flash 0,18 s, dernier swap)`). Le settle peut continuer pendant le slide.
 
@@ -610,7 +610,7 @@ Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
 
 Sillage : `SKCropNode` `hudScoreRaceWake` — gouttière **3 pt** de 0 au curseur, **même shader peau** que le wordmark BLOMIX (`timeOffset` 0,08). Fenêtre qui s’ouvre sur la matière du titre (le fill reste largeur de grille). Ligne grise non parcourue : **1 pt**. Points gris déjà dépassés **masqués** (plus de voile sous les dots).
 
-Prochain gris (`min` des `grayScores` strictement > live) : rose `#FF5A9A`, rayon **2,4**. Les autres encore devant : ticks **1×4 pt** centrés sur la ligne, opaque (Sombre blanc **0,48** / `#7A7A7A` ; Clair blanc **0,36** / `#5C5C5C`). Déjà dépassés : masqués. Pas de respiration. RECORD vert et N°1 jaune inchangés.
+Prochain gris (`min` des `grayScores` strictement > live) : rose `#FF5A9A`, rayon **5**. RECORD vert, losange et N°1 jaune : même rayon **5** (le losange va de sommet à sommet sur 10 pt). Les autres encore devant : ticks **1×4 pt** centrés sur la ligne, opaque (Sombre blanc **0,48** / `#7A7A7A` ; Clair blanc **0,36** / `#5C5C5C`). Déjà dépassés : masqués. Pas de respiration. En Encre, losange, rose, vert et jaune sont une tache d’aquarelle teintée (la couleur du score ne repeint pas la tache). Sombre et Clair restent un aplat.
 
 Quand le rang logique change (on dépasse un autre score de la ligne figée) :
 

@@ -17,8 +17,8 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 
 - **L'Encre remplace la gelée comme mode New.** Décision de Lomig, 15/11/2026 (E0).
   Pas de `case ink` et pas de troisième segment : `BlomixVisualStyle` reste `.old` / `.new`.
-  `.new` est la piste Encre. Pastilles Réglages : « Classique / Encre », 6 langues
-  (`LOCALIZATION.md`). Classique reste le défaut et reste identique au pixel près.
+  `.new` est la piste Encre. Réglages : une ligne Apparence, trois boutons Sombre / Clair / Encre
+  (`LOCALIZATION.md`). Encre est toujours le clair. Classique reste le défaut et reste identique au pixel près.
 - **E0** a renommé le segment. **E1 à E5** (15/11/2026) dessinent l'encre.
   Le papier, le masque et le grain vivent dans `BlomixNewInkRenderer.swift`
   (commentaires `// 9.0 Ink:`). La géométrie des pièces reste dans `BlomixNewBlockRenderer`.
@@ -41,7 +41,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 - Mode Clair : le pourtour de la partie reste un washi blanc cassé ocre (`#F3E8D4`, un cran plus chaud que le premier `#F6F1E7`). La feuille de la grille est `#F0E6D2`, la même teinte que les cases vides du Classique clair.
 - Cette feuille porte un grain continu très léger (deux octaves, environ ±1,5 %), Clair et Sombre. Pas de points isolés, pas de fibres courbes : elles se lisaient comme des traits par-dessus le filet. Le filet de crayon passe après le grain.
 - Texture générée **une fois** (bruit procédural), à la taille de la grille, mise en cache.
-- Mode Sombre : papier sumi anthracite chaud (`#26231F`) pour le pourtour et la feuille, même grain ; l'encre y devient de la gouache claire et saturée. Il doit marcher, même si le Clair est la référence.
+- Le joueur ne choisit plus le papier sombre. Encre est toujours ce clair. Le sombre (`#26231F`) reste dans le rendu, mais l’apparence Encre ne l’allume pas.
 
 ### Blocs (Blox de couleur)
 - Chaque case garde la silhouette arrondie d'avant (rayon ~0,12). Le lavis est le pigment, clippé sur les cases posées : il ne peut pas peindre la case d'à côté.
@@ -60,7 +60,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
   ne s'élargit pas. Le groupement ne change pas.
 
 ### Brix (Priks)
-- Même lavis que les Blox (flaques, charge au bord des formes épaisses). La teinte du fond est `priks` du skin, comme en Classique. Le chiffre est `prikstext`, et il se mélange au fond au fil des coups (5 = couleur du chiffre, puis 20 % de fond par cran). Le plancher d'opacité (0,58) garde un fond sous le chiffre.
+- Même lavis que les Blox (flaques, charge au bord des formes épaisses). La teinte du fond est `priks` du skin, comme en Classique. Le chiffre est `prikstext`, et il se mélange au fond au fil des coups (5 et 4 = couleur du chiffre, 3 = 80 %, 2 = 60 %, 1 = 40 %). Le plancher d'opacité (0,58) garde un fond sous le chiffre.
 
 ### Gros score
 - Encre seulement : le même lavis que les pièces, **dans** les chiffres. Pas de plaque, rien qui dépasse l’encre. Les contreformes (0, 4, 6, 8, 9) restent des trous. Au repos le chiffre est gris pour que les flaques se voient : gris foncé (blanc 0,30) sur le papier clair, gris moyen (blanc 0,58) sur le papier sombre. Quand les paillettes arrivent, les glyphes prennent leur couleur le temps du roll, puis le gris revient (0,30 s). Cette couleur est une teinte du sprite, pas une nouvelle peinture. Les dix chiffres (trois variantes chacun) sont peints une fois, hors du fil du jeu ; le roll ne fait que les réassembler. La course suit toujours la couleur du texte. Classique : chiffre plein, couleur du texte, sans lavis. RECORD, LIGNE et TEMPS ne sont pas lavés. Pas de tampon hanko (D18 toujours en attente).

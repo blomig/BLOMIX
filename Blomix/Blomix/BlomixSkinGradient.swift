@@ -202,7 +202,7 @@ enum BlomixButtonRelief {
         let h = (size.height * 10).rounded() / 10
         let r = (corner * 10).rounded() / 10
         if appearance {
-            return "\(prefix)|\(w)x\(h)|r\(r)|\(BlomixAppearance.mode.rawValue)"
+            return "\(prefix)|\(w)x\(h)|r\(r)|\(BlomixAppearance.isLight ? "light" : "dark")"
         }
         return "\(prefix)|\(w)x\(h)|r\(r)"
     }

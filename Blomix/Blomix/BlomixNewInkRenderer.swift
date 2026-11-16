@@ -139,6 +139,28 @@ enum BlomixNewInkRenderer {
         ctx.restoreGState()
     }
 
+    /// Marge autour du corps (rayon 5) pour le bord qui s’efface.
+    static let raceMarkEdgePad: CGFloat = 1.6
+
+    static func raceMarkCanvasSide(radius: CGFloat) -> CGFloat {
+        (radius + raceMarkEdgePad) * 2
+    }
+
+    /// Tache des repères de la ligne de course. Gris pré-multiplié : le sprite
+    /// porte la teinte (`color`, `colorBlendFactor` 1). Une forme = une texture.
+    @MainActor
+    static func raceMarkTexture(diamond: Bool, radius: CGFloat) -> SKTexture {
+        let scale = max(1, UITraitCollection.current.displayScale)
+        let key = RaceMarkKey(
+            diamond: diamond,
+            pixelRadius: max(1, Int((radius * scale).rounded())),
+            scaleHundredths: Int((scale * 100).rounded())
+        )
+        return raceMarkCache.texture(for: key) {
+            bakeRaceMark(diamond: diamond, radius: radius, scale: scale)
+        }
+    }
+
     /// Image du gros score. Le canvas est la boîte typographique du label
     /// (ascender / descender), centrée comme un `SKLabelNode` en `.center`.
     /// Marge horizontale transparente de 1 pt : rien n’est peint hors des glyphes.
@@ -692,6 +714,137 @@ enum BlomixNewInkRenderer {
         var pixelWidth: Int
         var pixelHeight: Int
         var salt: Int
+    }
+
+    private struct RaceMarkKey: Hashable {
+        var diamond: Bool
+        var pixelRadius: Int
+        var scaleHundredths: Int
+    }
+
+    private static let raceMarkCache = RaceMarkCache()
+
+    private final class RaceMarkCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var textures: [RaceMarkKey: SKTexture] = [:]
+
+        func texture(for key: RaceMarkKey, make: () -> SKTexture) -> SKTexture {
+            lock.lock()
+            if let hit = textures[key] {
+                lock.unlock()
+                return hit
+            }
+            lock.unlock()
+            let built = make()
+            lock.lock()
+            if let hit = textures[key] {
+                lock.unlock()
+                return hit
+            }
+            textures[key] = built
+            lock.unlock()
+            return built
+        }
+    }
+
+    /// Goutte de 10 pt. Les flaques sont plus serrées que sur un Blox, sinon
+    /// le point entier serait un seul creux. Le bord s’efface sur ~1 pt.
+    private static func bakeRaceMark(diamond: Bool, radius: CGFloat, scale: CGFloat) -> SKTexture {
+        let side = raceMarkCanvasSide(radius: radius)
+        let canvas = CGSize(width: side, height: side)
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = scale
+        let image = UIGraphicsImageRenderer(size: canvas, format: format).image { context in
+            drawRaceMark(
+                in: context.cgContext,
+                canvas: canvas,
+                scale: scale,
+                diamond: diamond,
+                radius: radius
+            )
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        return texture
+    }
+
+    private static func drawRaceMark(
+        in ctx: CGContext,
+        canvas: CGSize,
+        scale: CGFloat,
+        diamond: Bool,
+        radius: CGFloat
+    ) {
+        let width = max(1, Int((canvas.width * scale).rounded()))
+        let height = max(1, Int((canvas.height * scale).rounded()))
+        let seed: UInt64 = diamond ? 0xD1A0_5EED : 0xC1A0_1E01
+        let phaseX = unit(seed, 3) * 4096
+        let phaseY = unit(seed, 5) * 4096
+        let cx = canvas.width * 0.5
+        let cy = canvas.height * 0.5
+        let pixelScale = CGFloat(width) / max(canvas.width, 0.001)
+        // Espacement ~0,42 : deux ou trois creux tiennent dans le point.
+        let pigmentScale = pixelScale * 0.42
+
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        pixels.withUnsafeMutableBufferPointer { buffer in
+            guard let base = buffer.baseAddress else { return }
+            for y in 0..<height {
+                for x in 0..<width {
+                    let px = (CGFloat(x) + 0.5) / scale
+                    let py = (CGFloat(y) + 0.5) / scale
+                    let dx = px - cx
+                    let dy = py - cy
+                    let angle = atan2(dy, dx)
+                    let wobble = valueNoise(seed, angle * 8 + 20, 4, spacing: 3.2, salt: 17) * 0.40
+                    let dist = diamond ? abs(dx) + abs(dy) : hypot(dx, dy)
+                    let cover = 1 - smoothstep(radius - 0.15, radius + 0.9, dist - wobble)
+                    if cover <= 0.004 { continue }
+                    var sample = pigment(
+                        seed: seed,
+                        px: CGFloat(x) + phaseX,
+                        py: CGFloat(y) + phaseY,
+                        scale: pigmentScale,
+                        granulation: 1,
+                        wash: true
+                    )
+                    // Le creux éclaircit. Il ne perce pas le repère.
+                    sample.alpha = min(1, (0.62 + 0.38 * sample.alpha) * cover)
+                    let channel = UInt8((sample.gray * sample.alpha * 255).rounded())
+                    let a = UInt8((sample.alpha * 255).rounded())
+                    let o = (y * width + x) * 4
+                    base[o] = channel
+                    base[o + 1] = channel
+                    base[o + 2] = channel
+                    base[o + 3] = a
+                }
+            }
+        }
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let data = Data(pixels)
+        guard let provider = CGDataProvider(data: data as CFData),
+              let image = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: width * 4,
+                space: colorSpace,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: false,
+                intent: .defaultIntent
+              ) else { return }
+        ctx.saveGState()
+        ctx.translateBy(x: 0, y: canvas.height)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.interpolationQuality = .low
+        ctx.setBlendMode(.copy)
+        ctx.draw(image, in: CGRect(origin: .zero, size: canvas))
+        ctx.restoreGState()
     }
 
     private static let discCache = DiscCache()

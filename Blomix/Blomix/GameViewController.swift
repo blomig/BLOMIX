@@ -110,6 +110,9 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // Encre est toujours le clair. Un réglage ancien Encre + Sombre est ramené au clair
+        // avant le premier écran.
+        BlomixLook.reconcile()
 
         // Enregistrement manuel de ChangaOne-Regular : UIAppFonts ne charge pas ce fichier
         // automatiquement (PostScript name "ChangaOne" sans suffixe de style, comportement iOS).

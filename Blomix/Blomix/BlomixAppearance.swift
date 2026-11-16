@@ -55,8 +55,13 @@ enum BlomixAppearance {
         }
     }
 
-    static var isDark: Bool { mode.isDark }
-    static var isLight: Bool { mode.isLight }
+    /// Clair effectif. Une partie Encre ignore un Sombre déjà choisi pour la suivante :
+    /// le joueur ne joue pas l’Encre sur le papier sombre.
+    static var isLight: Bool {
+        if BlomixVisualStyle.activeRunIsInk { return true }
+        return mode.isLight
+    }
+    static var isDark: Bool { !isLight }
 
     static func toggle() {
         var m = mode

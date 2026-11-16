@@ -34,13 +34,60 @@ enum BlomixVisualStyle: String {
         }
         set {
             let old = current
-            guard newValue != old else { return }
-            UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey)
-            NotificationCenter.default.post(name: .blomixVisualStyleDidChange, object: newValue)
+            let changed = newValue != old
+            if changed {
+                UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey)
+            }
+            // Encre ne se joue qu’en clair. Le sombre enregistré à côté est effacé.
+            if newValue == .new, BlomixAppearance.mode != .light {
+                BlomixAppearance.mode = .light
+            }
+            if changed {
+                NotificationCenter.default.post(name: .blomixVisualStyleDidChange, object: newValue)
+            }
         }
     }
 
     static var isNew: Bool { current == .new }
+
+    /// Partie Encre en cours. Le chrome reste clair jusqu’au retour accueil,
+    /// même si le joueur a déjà choisi Sombre pour la partie suivante.
+    nonisolated(unsafe) static var activeRunIsInk = false
+}
+
+/// Les trois apparences proposées au joueur. Pas un troisième style de rendu :
+/// Sombre et Clair sont le Classique, Encre est le Classique clair + le style `.new`.
+enum BlomixLook {
+    case classicDark
+    case classicLight
+    case ink
+
+    /// Préférence enregistrée. Une partie Encre en cours ne change pas ce choix.
+    static var current: BlomixLook {
+        if BlomixVisualStyle.isNew { return .ink }
+        return BlomixAppearance.mode == .dark ? .classicDark : .classicLight
+    }
+
+    /// Un ancien « Encre + Sombre » devient l’Encre clair.
+    static func reconcile() {
+        guard BlomixVisualStyle.isNew, BlomixAppearance.mode != .light else { return }
+        BlomixAppearance.mode = .light
+    }
+
+    static func apply(_ look: BlomixLook) {
+        switch look {
+        case .classicDark:
+            // Classique d’abord, pour ne pas peindre l’Encre avec le papier sombre.
+            BlomixVisualStyle.current = .old
+            BlomixAppearance.mode = .dark
+        case .classicLight:
+            BlomixVisualStyle.current = .old
+            BlomixAppearance.mode = .light
+        case .ink:
+            BlomixAppearance.mode = .light
+            BlomixVisualStyle.current = .new
+        }
+    }
 }
 
 // MARK: - Notification

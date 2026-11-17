@@ -9,7 +9,7 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ## [9.0] — en cours (local, branche `9.0`, pas de bump `MARKETING_VERSION`)
 
-Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One. Nunito inchangé.
+Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One, Pangolin à la place de Nunito.
 
 ### Ajouté
 
@@ -18,10 +18,15 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Modifié
 
+- **Encre, retour au premier plan** : après un swipe vers le haut (l’app reste en mémoire), les masques aquarelle sont repeints. Avant, la pièce fusionnée devenait un rectangle plein : des blox apparaissaient dans les trous, et un Brix sous ce rectangle se lisait blox + chiffre.
+- **Ligne Encre** : à la pose, le jeu ne repeint plus un lavis par case. Ce repeint, sur le fil du jeu, figeait l’image juste avant que les blox se posent. Le vol et le gonflement ne changent pas.
+- **Chaîne Encre** : à la séparation, chaque case garde le morceau du lavis de la pièce, à l’endroit qu’elle occupait. Avant, la séparation posait le même tampon sur toutes les cases. Le geste d’aspiration ne change pas. Classique inchangé.
+- **Étoiles Brix** : à la disparition, les 3 étoiles tournantes prennent la couleur de fond du Brix (`priks` du skin), en Classique et en Encre. Le geste ne change pas.
 - **Brix** : le chiffre reste `prikstext` plein à 5 et à 4. La descente vers le fond commence ensuite, un cran plus tard : 3 = 80 %, 2 = 60 %, 1 = 40 % (l’ancien rendu du 2). Classique et Encre.
 - **Style visuel** : le segment « Nouveau (bêta) » s’appelle « Encre (bêta) » (EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). `.new` est la piste encre et washi. Pas de troisième style. Classique inchangé.
 - **Encre** : en partie, le fond et la grille sont un papier washi (Clair `#F3E8D4`, Sombre `#26231F`) et un filet de crayon très léger. Pas de fibres courbes. Les Blox sont des taches d’aquarelle (bord tremblé stable, granulation fine, sans grandes flaques répétées ni liseré gris). Le grain des Blox et des Brix est un cran plus discret. Même couleur voisine : une seule pièce. Diagonale seule : le même pigment, sans trait plus noir. Les Brix prennent les deux couleurs du skin, comme en Classique : fond `priks`, chiffre `prikstext` (5 et 4 pleins, puis 80 / 60 / 40 % pour 3 / 2 / 1). La pose s’étale un peu (4 %) puis revient. Une chaîne est aspirée vers le centre de chaque case, sans changer les temps de résolution. Réglages → Encre, puis une nouvelle partie.
-- **Chelsea Market** (Crystal Kluge, Font Diner, SIL OFL 1.1) remplace Changa One pour les titres, boutons, score et chiffres de grille **uniquement** quand le style est Encre. Nunito ne change pas. Classique garde Changa One. Crédits mis à jour (6 langues). Rubik Dirt, essayée entre-temps, est retirée.
+- **Chelsea Market** (Crystal Kluge, Font Diner, SIL OFL 1.1) remplace Changa One pour les titres, boutons, score et chiffres de grille **uniquement** quand le style est Encre. Classique garde Changa One. Crédits mis à jour (6 langues). Rubik Dirt, essayée entre-temps, est retirée.
+- **Pangolin** (Kevin Burke, SIL OFL 1.1) remplace Nunito pour le chrome **uniquement** en Encre. Un seul Regular : légendes, corps et semi-gras. Classique garde Nunito Regular / Medium / SemiBold.
 - **SCRUMBLX en Encre** : pendant le décalage, la pièce fusionnée est retirée et chaque case glisse, comme en Classique. La pièce se reforme à la fin. Avant, elle restait en place et les chiffres des Brix passaient dessus. Le décalage de la grille ne change pas.
 - **Remontée en Encre** : après une chaîne, un Magix ou une bombe, les taches qui montent sont les cases elles-mêmes (sans étirement). La pièce se reforme à l’atterrissage. L’explosion montre ces mêmes cases. Les durées ne changent pas.
 - **Magix et bombe en Encre** : le disque garde sa palette animée, son halo, ses orbites et son symbole. Le fond a le même grain que les Blox. Le tour noir n’est plus un cercle régulier : c’est une couronne d’encre, épaisseur et charge variables. Classique garde le trait géométrique. Les effets ne changent pas.

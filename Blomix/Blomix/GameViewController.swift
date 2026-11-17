@@ -120,9 +120,12 @@ final class GameViewController: UIViewController, @preconcurrency GKLocalPlayerL
         if let url = Bundle.main.url(forResource: "ChangaOne-Regular", withExtension: "ttf") {
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
-        // 9.0 Ink: Chelsea Market remplace Changa One quand le style visuel est Encre.
-        // Nunito (chrome) ne change pas. Classique continue de lire Changa One.
+        // 9.0 Ink: Chelsea Market remplace Changa One, Pangolin remplace Nunito.
+        // Classique continue de lire Changa One et Nunito.
         if let url = Bundle.main.url(forResource: "ChelseaMarket-Regular", withExtension: "ttf") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
+        if let url = Bundle.main.url(forResource: "Pangolin-Regular", withExtension: "ttf") {
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
 

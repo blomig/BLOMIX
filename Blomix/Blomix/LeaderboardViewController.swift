@@ -1758,7 +1758,9 @@ private final class BlomixMasterVolumeRowView: UIView {
         backgroundColor = BlomixAppearance.panelFill
         layer.borderColor = BlomixAppearance.chipBorder.cgColor
         titleLabel.textColor = BlomixAppearance.primaryText
+        titleLabel.font = BlomixTypography.displayFont(size: 15)
         percentLabel.textColor = BlomixAppearance.secondaryText
+        percentLabel.font = BlomixTypography.uiFont(size: 13, weight: .regular)
         slider.refreshChrome()
     }
 

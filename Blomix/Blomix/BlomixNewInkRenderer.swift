@@ -745,6 +745,12 @@ enum BlomixNewInkRenderer {
             lock.unlock()
             return built
         }
+
+        func discard() {
+            lock.lock()
+            textures.removeAll()
+            lock.unlock()
+        }
     }
 
     /// Goutte de 10 pt. Les flaques sont plus serrées que sur un Blox, sinon
@@ -869,6 +875,12 @@ enum BlomixNewInkRenderer {
             textures[key] = built
             lock.unlock()
             return built
+        }
+
+        func discard() {
+            lock.lock()
+            textures.removeAll()
+            lock.unlock()
         }
     }
 
@@ -1111,6 +1123,14 @@ enum BlomixNewInkRenderer {
             warmed.insert(key)
             return true
         }
+
+        func discard() {
+            lock.lock()
+            entries.removeAll()
+            order.removeAll()
+            warmed.removeAll()
+            lock.unlock()
+        }
     }
 
     // MARK: - Papier
@@ -1145,6 +1165,22 @@ enum BlomixNewInkRenderer {
             lock.unlock()
             return built
         }
+
+        func discard() {
+            lock.lock()
+            textures.removeAll()
+            lock.unlock()
+        }
+    }
+
+    /// Vide papier, disques, repères et chiffres. Ces textures UIGraphics restent
+    /// mortes après un aller-retour en arrière-plan tant que le processus vit.
+    @MainActor
+    static func discardCachedTextures() {
+        paperCache.discard()
+        discCache.discard()
+        raceMarkCache.discard()
+        glyphCache.discard()
     }
 
     private static func bakePaper(pointSize: CGSize, scale: CGFloat, light: Bool, divisions: Int) -> SKTexture {

@@ -25,7 +25,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
   Les points d'entrée sont les mêmes (`makeSolidGameplayBlockSprite`, `applyJelly`, pièces au repos).
   Pas de `switch` supplémentaire : `.new` suffit.
 - **Chelsea Market** remplace Changa One (display et grille) quand `BlomixVisualStyle.current` est `.new`.
-  Nunito reste le chrome. Classique garde Changa One.
+  **Pangolin** remplace Nunito (chrome) dans le même cas. Classique garde Changa One et Nunito.
 - **Réutiliser la géométrie existante** de `BlomixNewBlockRenderer` : groupes 8-connexes (V8),
   contours orthogonaux avec congés, diagonale seule limitée à l'écart entre les blox (V9), cases séparées pendant les
   animations puis pièce reformée. Factoriser les chemins si besoin. La gelée n'est plus un style
@@ -34,6 +34,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 - Style figé au début de partie (V3/V5), comme la gelée.
 - Textures pré-cuites en Core Graphics → `SKTexture`, en cache. Pas de shader par bloc. 60 i/s sur iPhone 12.
 - La pièce fusionnée se peint hors du fil du jeu. Tant qu’elle n’est pas prête, les cases restent visibles. Une chaîne n’attend pas la peinture pour disparaître. Au-delà de 64 000 pixels, l’échelle baisse (filtre linéaire) : une grande tache reste souple, le fil du jeu ne s’arrête pas.
+- Ces textures meurent au passage en arrière-plan (swipe vers le haut, l’app reste en mémoire). Au retour, le cache est vidé et la grille est repeinte. Sinon le rectangle de la pièce s’aplatit : blox dans les trous, Brix et blox sur la même case.
 
 ## 3. Direction visuelle détaillée
 
@@ -77,8 +78,8 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 
 - Pose d'un bloc : la tache « boit » le papier, petite expansion de 3 à 5 % puis retour (≈ 0,15 s).
 - Fusion qui se forme : fondu doux entre les cases et la pièce, pas de pop.
-- Chaîne de 5, Brix à 0, blox effacés par COLORX et blox effacés par SAINTX : le centre de chaque case aspire la tache (×0,55, ×0,16, puis pincement avec le fondu, 0,50 s). Pendant le retrait, le carré devient le cercle inscrit. La chaîne gardait déjà cette attente. Pour les trois autres, le redessin attend la fin du geste. Le pop ×1,25 du Brix déposé par SAINTX reste. Le lavage SAINTX de 2 s ne change pas.
-- Paillettes : inchangées, elles lisent comme des gouttes. Les paillettes carrées de la mort d’un Brix deviennent des ronds du même diamètre (aussi au trou SCRUMBLX et dans le blast). Les étoiles de présence restent.
+- Chaîne de 5, Brix à 0, blox effacés par COLORX et blox effacés par SAINTX : le centre de chaque case aspire la tache (×0,55, ×0,16, puis pincement avec le fondu, 0,50 s). Pendant le retrait, le carré devient le cercle inscrit. À la séparation de la chaîne, chaque case garde le morceau du lavis de la pièce qu’elle occupait, pas un tampon répété. La chaîne gardait déjà cette attente. Pour les trois autres, le redessin attend la fin du geste. Le pop ×1,25 du Brix déposé par SAINTX reste. Le lavage SAINTX de 2 s ne change pas.
+- Paillettes : inchangées, elles lisent comme des gouttes. Les paillettes carrées de la mort d’un Brix deviennent des ronds du même diamètre (aussi au trou SCRUMBLX et dans le blast). Les étoiles de présence gardent leur geste et prennent la couleur de fond du Brix (`priks`).
 - Magix et bombe : le halo, les orbites, le glyphe et l’explosion (poussée, rotation, effondrement) restent ceux du Classique. En Encre, le disque garde le grain serré (pas le lavis des Blox) et une couronne d’encre irrégulière, multipliés par la palette animée. Le glyphe reste noir. La chute depuis la file (le bloc qui quitte l’aperçu) reste le vol Classique.
 
 ## 5. Étapes proposées (un commit local par étape, CHANGELOG + PLAN mis à jour)

@@ -274,7 +274,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Scale down + brighten | 0,16 s | lerp blanc 30 %, `easeInEaseOut` |
 | Fade | 0,14 s | α → 0 |
 
-**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. Pendant ces 0,36 s de retrait, le contour passe du carré au cercle inscrit (les côtés restent, les coins rentrent, ease smoothstep). Le pincement est déjà rond. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache.
+**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. Pendant ces 0,36 s de retrait, le contour passe du carré au cercle inscrit (les côtés restent, les coins rentrent, ease smoothstep). Le pincement est déjà rond. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache. Dès la séparation, chaque case garde le morceau du lavis de la pièce qu’elle occupait, pas un tampon recuit. Cette découpe ne repeint rien : la pose d’une ligne ne s’arrête plus pour ça.
 
 **Jonctions** : pas de `remove` à t = 0. Chaque barre H/V/D part avec le premier blox du couple (`dissolveBloxJunctionsWithChainCells`). H : `xScale` → 0,02 ; V : `yScale` → 0,02 ; D : les deux. Fade 0,20 s `easeOut`, z 25 pendant la fonte. Combo / cascade = le même path (le `drawGrid` inter-vague recoud le reste).
 
@@ -380,7 +380,7 @@ Commentaire, pas la monnaie. Le `+N` (62 pt, grow 0,58 s) reste devant. Le shake
 - **3** étoiles 4 branches, rayon 5–7 pt, spread `±0,42 × case`
 - Spawn au pic du pop (même t que les carrés)
 - Rotation continue, sens et période tirés au sort (0,55–1,10 s / tour)
-- Blanc en Sombre, noir en Clair (`BlomixAppearance.isDark`)
+- Couleur = fond Brix du skin (`priksSolidFillColor()`), Classique et Encre
 - Hold 0,41 s puis fade 0,23 s. Compactage **n’attend pas**. Nœuds scène, pas enfants du sprite.
 
 **Son** : `priksVanish` ; stagger **0,07 s** si plusieurs Brix disparaissent ensemble.
@@ -909,7 +909,7 @@ MagixLandingBurst      40–48 dots palette | r 1,0–1,8 | +24–52 pt | 0,34 s
 Magix consume / morph  18–24 dots +12–28 pt / 0,22 s ; fade 0,18 ; mue pulse ×1,18
 BrixFlightStretch      x 0,88 | y 1,16
 BrixVanishFeedback     pop 0,07 + implode 0,13 | carrés 11–15 + 15 micro → score ~824 pt/s | 3 étoiles présence 0,64 s
-Encre Brix/COLORX/SAINTX  même aspiration que la chaîne (×0,55, ×0,16, ×0,02+fondu, 0,50 s) | carré → cercle inscrit sur 0,36 s | paillettes Brix rondes, même diamètre | étoiles inchangées
+Encre Brix/COLORX/SAINTX  même aspiration que la chaîne (×0,55, ×0,16, ×0,02+fondu, 0,50 s) | carré → cercle inscrit sur 0,36 s | paillettes Brix rondes, même diamètre | étoiles couleur du fond Brix
 CompactRiseAnimation   duration 0,20 | stagger 0,018 / col (budget 0,06, vol min 0,14)
 NeighborNudge          pose 2 pt | compact 1 pt | 0,04 + 0,06 s | 8 voisins | même couleur vers l’arrivée, le reste loin | pas le sprite qui bounce
 FeelHaptic             place / connect 2–4 / magix / refus / chaîne 2× à 40 ms

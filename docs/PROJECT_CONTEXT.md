@@ -265,6 +265,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - `activePlaySeconds` (optionnel, défaut 0, pas de bump) : temps de jeu actif déjà accumulé, pour la télémétrie. Voir [TELEMETRY.md](TELEMETRY.md)
 - Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero **Arcade** + caption Continuer si slot Arcade, chips Zen / Five + Continuer si save, puces Défi selon l’état du jour
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
+- Encre : au retour au premier plan, les textures UIGraphics (pièces, cases, papier, disques, score, repères) sont jetées et repeintes. SpriteKit ne réuploade pas un masque mis en cache : le rectangle de la pièce redevient opaque (trous peints, Brix couvert par le blox). Même famille que la visée fantôme (texture blanche jusqu’au prochain lancement).
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
 ### PvP
@@ -400,8 +401,8 @@ Deux visages figés (plus de picker joueur) :
 
 | Rôle | Police | Usage |
 |---|---|---|
-| Display / grille | Changa One, ou Chelsea Market si le style visuel est Encre | Titres, gros score, overlays, record, Brix, Magix, COMBO, `+N`. Nunito ne bouge pas. |
-| Chrome | Nunito Regular / Medium / SemiBold | Micro-captions / corps / chips |
+| Display / grille | Changa One, ou Chelsea Market si le style visuel est Encre | Titres, gros score, overlays, record, Brix, Magix, COMBO, `+N` |
+| Chrome | Nunito Regular / Medium / SemiBold, ou Pangolin Regular si le style est Encre | Micro-captions / corps / chips |
 
 Licences lues dans la table `name` des fichiers (13 nov. 2026), pas d’un catalogue externe :
 
@@ -412,6 +413,7 @@ Licences lues dans la table `name` des fichiers (13 nov. 2026), pas d’un catal
 | `Nunito-Regular.ttf`, `Nunito-Medium.ttf`, `Nunito-SemiBold.ttf` | `UIAppFonts`. Corps : Regular sous 13 pt, SemiBold si graisse ≥ semibold, sinon Medium | SIL OFL 1.1. Copyright 2014 The Nunito Project Authors. Vernon Adams. |
 | `GoogleSans-Regular.ttf` | `UIAppFonts` seulement. `BlomixTypography` ne demande pas ce visage (le chrome est Nunito) | SIL OFL 1.1. Copyright 2025 The Google Sans Project Authors (`github.com/googlefonts/googlesans`). |
 | `ChelseaMarket-Regular.ttf` | PostScript `ChelseaMarket-Regular`, enregistré à la main (`GameViewController`). Display et grille **seulement** si `BlomixVisualStyle.current == .new` | SIL OFL 1.1. Copyright 2011 Font Diner (Tart Workshop). Crystal Kluge. Nom réservé « Chelsea Market ». Licence copiée : `ChelseaMarket-OFL.txt`. |
+| `Pangolin-Regular.ttf` | PostScript `Pangolin-Regular`, enregistré à la main. Chrome **seulement** en Encre (les trois graisses Nunito). Un seul Regular | SIL OFL 1.1. Copyright 2016 The Pangolin Project Authors. Kevin Burke. Licence copiée : `Pangolin-OFL.txt`. |
 
 Retirés du target et du dépôt, parce qu’aucun code, aucun `UIAppFonts` et aucun `BlomixTypography` ne les chargeait : Alfa Slab One, Bitcount Grid Single Ink, DynaPuff (ils étaient encore copiés dans le bundle), Londrina Shadow et Early GameBoy (`gameboy.ttf`, absents du projet Xcode). L’archive `old_web_code/priks.html` cite encore `gameboy.ttf` à côté d’elle ; ce fichier n’y est pas. Les clés `settings.font.*` restent : plus aucun écran ne les lit.
 

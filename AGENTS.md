@@ -116,7 +116,7 @@ La logique gameplay est concentrée dans :
 | `BlomixAppearance.swift` | Thème chrome Sombre / Clair |
 | `BlomixSkinGradient.swift` | Dégradé skin des puits de boutons |
 | `BlomixSKButtonNode.swift` | Boutons SpriteKit (puits + capsule) |
-| `BlomixTypography.swift` | Typo 2 visages (Changa display/grille, Nunito chrome) |
+| `BlomixTypography.swift` | Typo : Classique Changa One + Nunito, Encre Chelsea Market + Pangolin |
 | `BlomixProceduralSFX.swift` | SFX Magix procéduraux |
 | `BlomixMusicPlayer.swift` | Musique par stage |
 | `GameViewController.swift` | Root UIKit, invitations, tutoriel |

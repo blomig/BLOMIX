@@ -921,6 +921,8 @@ final class GameScene: SKScene {
     /// Encre : ne pas recoller les pièces pendant un déplacement scripté
     /// (SCRUMBLX, remontée après chaîne ou explosion). Les cases `cell_` bougent.
     private var newFusionSyncSuspended = false
+    /// Textures Encre à repeindre après un arrière-plan (masques UIGraphics morts).
+    private var encreTexturesNeedRedraw = false
     /// Peintures de pièces en cours. Tant qu'il en reste, on ne relance pas
     /// `rebuildNewFusionShapes` à chaque frame : les cases restent visibles.
     private var fusionBakeEpoch = 0
@@ -1358,7 +1360,7 @@ final class GameScene: SKScene {
         static let sparkleMainCountRange: ClosedRange<Int> = 11...15
         static let sparkleMicroCount: Int = 15
         static let sparkleMicroSide: CGFloat = 3.0
-        /// Présence dans la case (ne va pas au HUD). Blanc / noir selon le thème chrome.
+        /// Présence dans la case (ne va pas au HUD). Couleur = fond Brix du skin.
         static let vanishStarCount = 3
         static let vanishStarRadiusRange: ClosedRange<CGFloat> = 5.0...7.0
         static let vanishStarInnerRatio: CGFloat = 0.40
@@ -5364,14 +5366,24 @@ final class GameScene: SKScene {
         addTopTitle()
     }
 
-    /// Changa One ↔ Chelsea Market sur les libellés déjà posés. Nunito n'est pas touché.
+    /// Changa One ↔ Chelsea Market, et Nunito ↔ Pangolin, sur les libellés déjà posés.
     private func refreshDisplayFacesForVisualStyle() {
-        let face = BlomixTypography.fontName(.display)
+        let display = BlomixTypography.fontName(.display)
+        let chrome = BlomixTypography.fontName(.chrome)
+        let nunito: Set<String> = [
+            BlomixTypeRole.nunitoRegularPostScriptName,
+            BlomixTypeRole.nunitoMediumPostScriptName,
+            BlomixTypeRole.nunitoSemiBoldPostScriptName,
+        ]
         func walk(_ node: SKNode) {
-            if let label = node as? SKLabelNode,
-               label.fontName == BlomixTypeRole.changaPostScriptName
-                || label.fontName == BlomixTypeRole.inkPostScriptName {
-                label.fontName = face
+            if let label = node as? SKLabelNode {
+                if label.fontName == BlomixTypeRole.changaPostScriptName
+                    || label.fontName == BlomixTypeRole.inkPostScriptName {
+                    label.fontName = display
+                } else if label.fontName == BlomixTypeRole.inkChromePostScriptName
+                    || nunito.contains(label.fontName ?? "") {
+                    label.fontName = chrome
+                }
             }
             for child in node.children {
                 walk(child)
@@ -8324,7 +8336,7 @@ final class GameScene: SKScene {
                 guard let self, let sprite else { return }
                 let scenePoint = self.convert(sprite.position, from: container)
                 self.spawnBrixVanishSquareDots(at: scenePoint, color: blockColor)
-                self.spawnBrixVanishPresenceStars(at: scenePoint)
+                self.spawnBrixVanishPresenceStars(at: scenePoint, color: blockColor)
                 if specialOrbitLinger || self.magixCausedDisappearLinger {
                     self.spawnSpecialOrbitLingerSparks(at: scenePoint, pickColor: Self.pickMagixOrbitColor)
                 }
@@ -8982,10 +8994,9 @@ final class GameScene: SKScene {
         }
     }
 
-    /// 3 étoiles dans la case de mort : présence chrome, rotation, pas de vol HUD.
-    private func spawnBrixVanishPresenceStars(at scenePoint: CGPoint) {
+    /// 3 étoiles dans la case de mort : couleur du fond Brix, rotation, pas de vol HUD.
+    private func spawnBrixVanishPresenceStars(at scenePoint: CGPoint, color: SKColor) {
         let cellHalf = GridLayout.cellPoints * 0.42
-        let color: SKColor = BlomixAppearance.isDark ? .white : .black
         for _ in 0..<BrixVanishFeedback.vanishStarCount {
             let radius = CGFloat.random(in: BrixVanishFeedback.vanishStarRadiusRange)
             let star = Self.makeFourPointStarNode(
@@ -13757,16 +13768,7 @@ final class GameScene: SKScene {
     private func suspendNewFusionTouching(_ cells: Set<GridAddress>, in container: SKNode) {
         guard Self.visualStyleForRun == .new, !cells.isEmpty else { return }
         newFusionSyncSuspended = true
-        for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
-            let piece = fusionCells(on: child)
-            guard piece.contains(where: { cells.contains($0) }) else { continue }
-            child.removeFromParent()
-            for cell in piece {
-                guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
-                sprite.isHidden = false
-                sprite.zPosition = max(sprite.zPosition, 2)
-            }
-        }
+        revealSeparatedInkCells(in: container, touching: cells)
         for cell in cells {
             guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
             sprite.isHidden = false
@@ -13779,9 +13781,7 @@ final class GameScene: SKScene {
     private func suspendNewFusionForScramble(in container: SKNode) {
         guard Self.visualStyleForRun == .new else { return }
         newFusionSyncSuspended = true
-        for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
-            child.removeFromParent()
-        }
+        revealSeparatedInkCells(in: container)
         for child in container.children {
             guard let sprite = child as? SKSpriteNode,
                   let name = sprite.name,
@@ -13845,7 +13845,7 @@ final class GameScene: SKScene {
             for addr in vanishedBrixAddrs {
                 let point = scenePointCellCenter(row: addr.row, column: addr.col)
                 spawnBrixVanishSquareDots(at: point, color: priksColor)
-                spawnBrixVanishPresenceStars(at: point)
+                spawnBrixVanishPresenceStars(at: point, color: priksColor)
                 spawnSpecialOrbitLingerSparks(at: point, pickColor: Self.pickMagixOrbitColor)
             }
             let window = brixSparkleArrivalWindow(cells: Array(vanishedBrixAddrs), spawnAt: 0)
@@ -14781,7 +14781,7 @@ final class GameScene: SKScene {
                 SKAction.wait(forDuration: Double(index) * stagger + scaleUp),
                 SKAction.run { [weak self] in
                     self?.spawnBrixVanishSquareDots(at: point, color: priksColor)
-                    self?.spawnBrixVanishPresenceStars(at: point)
+                    self?.spawnBrixVanishPresenceStars(at: point, color: priksColor)
                     self?.spawnSpecialOrbitLingerSparks(at: point, pickColor: Self.pickBombOrbitColor)
                 },
             ]))
@@ -16799,6 +16799,32 @@ final class GameScene: SKScene {
         return false
     }
 
+    /// Retire les pièces qui couvrent `only` (toutes, si `only` est nil) et montre leurs cases.
+    /// Chaque case garde le morceau de lavis de la pièce. Pas de peinture ici.
+    private func revealSeparatedInkCells(in container: SKNode, touching only: Set<GridAddress>? = nil) {
+        for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
+            let cells = fusionCells(on: child)
+            if let only, !cells.contains(where: { only.contains($0) }) { continue }
+            if let piece = child as? SKSpriteNode {
+                let tuples = cells.map { (row: $0.row, col: $0.col) }
+                for cell in cells {
+                    guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
+                    sprite.isHidden = false
+                    sprite.zPosition = max(sprite.zPosition, 2)
+                    BlomixNewBlockRenderer.applySeparatedCellWash(
+                        from: piece,
+                        to: sprite,
+                        row: cell.row,
+                        col: cell.col,
+                        cells: tuples,
+                        cellPitch: GridLayout.cellPoints
+                    )
+                }
+            }
+            child.removeFromParent()
+        }
+    }
+
     /// Au repos, la pièce fusionnée couvre les Blox. Dès qu'une case s'anime, son groupe redevient des sprites.
     private func syncNewFusionToCellMotion() {
         guard Self.visualStyleForRun == .new, !isStartScreen, !newFusionSyncSuspended else { return }
@@ -16818,16 +16844,7 @@ final class GameScene: SKScene {
         }
 
         if !busy.isEmpty {
-            for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
-                let cells = fusionCells(on: child)
-                guard cells.contains(where: { busy.contains($0) }) else { continue }
-                child.removeFromParent()
-                for cell in cells {
-                    guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
-                    sprite.isHidden = false
-                    sprite.zPosition = max(sprite.zPosition, 2)
-                }
-            }
+            revealSeparatedInkCells(in: container, touching: busy)
             return
         }
 
@@ -17562,10 +17579,46 @@ final class GameScene: SKScene {
                 }
                 self.view?.isPaused = false
                 self.isPaused = false
+                self.noteEncreTexturesPurgedByBackground()
+                self.redrawEncreAfterTexturePurgeIfIdle()
                 self.healGravityHolesIfIdle()
                 self.refreshDropGhostAfterLayoutChange()
             }
         }
+    }
+
+    /// Les masques Encre (pièces, cases, papier, Magix, score) sont des `SKTexture`
+    /// UIGraphics. Après un swipe vers le haut, le GPU les jette et ne les réuploade pas :
+    /// le rectangle de la pièce devient un aplat, par-dessus les trous et les Brix.
+    /// On jette le cache ici. Le redessin attend la fin d’une animation en cours.
+    private func noteEncreTexturesPurgedByBackground() {
+        guard Self.visualStyleForRun == .new, !isStartScreen else { return }
+        BlomixNewBlockRenderer.discardCachedTextures()
+        BlomixNewInkRenderer.discardCachedTextures()
+        encreTexturesNeedRedraw = true
+    }
+
+    private func redrawEncreAfterTexturePurgeIfIdle() {
+        guard encreTexturesNeedRedraw else { return }
+        guard !isProcessing, !isInjectingBottomRandomLine else { return }
+        guard childNode(withName: "transitionOverlay") == nil else { return }
+        encreTexturesNeedRedraw = false
+        for name in [Self.scoreRaceYellowName, Self.scoreRaceGreenName, Self.scoreRaceCursorName] {
+            childNode(withName: Self.scoreRaceContainerName)?
+                .childNode(withName: name)?
+                .userData?.removeObject(forKey: "mark")
+        }
+        if let grays = childNode(withName: Self.scoreRaceContainerName)?
+            .childNode(withName: Self.scoreRaceGraysName) {
+            for dot in grays.children {
+                dot.userData?.removeObject(forKey: "mark")
+            }
+        }
+        drawGrid()
+        updatePreviewSprite()
+        refreshBombHudIcon()
+        childNode(withName: Self.scoreHudWashName)?.userData?.removeObject(forKey: "washKey")
+        refreshScoreWashPlate()
     }
 
     /// Filet au retour au premier plan : tasse un trou resté visible, sans toucher une anim en cours.
@@ -17758,6 +17811,7 @@ final class GameScene: SKScene {
 
     /// Une fois par frame — physique, timers, logique dépendante du delta temps.
     override func update(_ currentTime: TimeInterval) {
+        redrawEncreAfterTexturePurgeIfIdle()
         syncGravityAir()
         syncNewFusionToCellMotion()
     }

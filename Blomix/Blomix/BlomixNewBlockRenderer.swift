@@ -32,9 +32,15 @@ enum BlomixNewBlockRenderer {
         return sprite
     }
 
+    /// Graine d’une case. Une pièce somme celles de ses cases.
+    static func cellPigmentSalt(row: Int, col: Int) -> Int {
+        row &* 17 &+ col
+    }
+
     /// Même matière sur un sprite déjà en place (file, aperçu, mue). Retire un vieux reflet.
+    /// `salt` 0 : un masque par couleur (file, aperçu, Brix). Une case de grille passe son adresse.
     @MainActor
-    static func applyJelly(to sprite: SKSpriteNode, fill: SKColor, pointSize: CGSize) {
+    static func applyJelly(to sprite: SKSpriteNode, fill: SKColor, pointSize: CGSize, salt: Int = 0) {
         sprite.childNode(withName: specularNodeName)?.removeFromParent()
         guard pointSize.width > 1, pointSize.height > 1 else {
             sprite.texture = nil
@@ -54,7 +60,8 @@ enum BlomixNewBlockRenderer {
             a: channels.a,
             pixelWidth: max(1, Int((pointSize.width * scale).rounded())),
             pixelHeight: max(1, Int((pointSize.height * scale).rounded())),
-            light: light
+            light: light,
+            salt: salt
         )
         let texture = cache.jellyTexture(for: key) {
             bakeJellyMask(
@@ -63,7 +70,8 @@ enum BlomixNewBlockRenderer {
                 red: CGFloat(channels.r) / 255,
                 green: CGFloat(channels.g) / 255,
                 blue: CGFloat(channels.b) / 255,
-                light: light
+                light: light,
+                salt: salt
             )
         }
 
@@ -77,6 +85,13 @@ enum BlomixNewBlockRenderer {
     /// Nom de l'enfant-reflet. N'est pas un chiffre Priks ni un halo Magix.
     static let specularNodeName = "blomixNewSpecular"
 
+    /// Vide les textures UIGraphics. Après un passage en arrière-plan, SpriteKit
+    /// ne réuploade pas ces masques : le rectangle de la pièce redevient opaque.
+    @MainActor
+    static func discardCachedTextures() {
+        cache.discardAll()
+    }
+
     // MARK: - Cache
 
     private struct CacheKey: Hashable {
@@ -87,6 +102,8 @@ enum BlomixNewBlockRenderer {
         var pixelWidth: Int
         var pixelHeight: Int
         var light: Bool
+        /// 0 pour la file et l’aperçu. L’adresse de la case pour un blox séparé.
+        var salt: Int
     }
 
     private struct JunctionKey: Hashable {
@@ -104,10 +121,21 @@ enum BlomixNewBlockRenderer {
 
     private final class TextureCache: @unchecked Sendable {
         private let lock = NSLock()
+        private var generation: UInt64 = 0
         private var jellies: [CacheKey: SKTexture] = [:]
         private var junctions: [JunctionKey: SKTexture] = [:]
         private var fusions: [FusionKey: SKTexture] = [:]
         private var fusionWaiters: [FusionKey: [() -> Void]] = [:]
+
+        func discardAll() {
+            lock.lock()
+            generation &+= 1
+            jellies.removeAll()
+            junctions.removeAll()
+            fusions.removeAll()
+            fusionWaiters.removeAll()
+            lock.unlock()
+        }
 
         func jellyTexture(for key: CacheKey, make: () -> SKTexture) -> SKTexture {
             lock.lock()
@@ -151,24 +179,28 @@ enum BlomixNewBlockRenderer {
             return fusions[key]
         }
 
-        /// `true` si cet appel doit lancer la peinture. Les suivants s'ajoutent à l'attente.
-        func claimFusionBake(_ key: FusionKey, waiter: @escaping () -> Void) -> Bool {
+        /// Jeton de génération si cet appel peint. `nil` si la pièce est déjà en cache
+        /// ou si une peinture est déjà en cours (le waiter est alors enregistré).
+        func claimFusionBake(_ key: FusionKey, waiter: @escaping () -> Void) -> UInt64? {
             lock.lock()
             defer { lock.unlock() }
             if fusions[key] != nil {
-                return false
+                return nil
             }
             if fusionWaiters[key] != nil {
                 fusionWaiters[key]?.append(waiter)
-                return false
+                return nil
             }
             fusionWaiters[key] = [waiter]
-            return true
+            return generation
         }
 
-        func finishFusionBake(_ key: FusionKey, texture: SKTexture) -> [() -> Void] {
+        /// Ignore une peinture lancée avant `discardAll` : sa texture GPU est morte,
+        /// et ses waiters ne sont plus ceux de la pièce en cours.
+        func finishFusionBake(_ key: FusionKey, texture: SKTexture, token: UInt64) -> [() -> Void] {
             lock.lock()
             defer { lock.unlock() }
+            guard token == generation else { return [] }
             if fusions[key] == nil {
                 fusions[key] = texture
             }
@@ -281,32 +313,112 @@ enum BlomixNewBlockRenderer {
 
     // MARK: - Cuisson
 
+    /// Rectangle unitaire de la case dans la texture de la pièce.
+    /// Origine en bas à gauche. La pièce est peinte y vers le bas : la ligne minimale est en haut.
+    static func separatedCellTextureRect(
+        row: Int,
+        col: Int,
+        minRow: Int,
+        minCol: Int,
+        cellPitch: CGFloat,
+        pieceSize: CGSize
+    ) -> CGRect? {
+        guard cellPitch > 1, pieceSize.width > 1, pieceSize.height > 1 else { return nil }
+        let side = cellPitch - 1
+        let slotX = fusionPad + CGFloat(col - minCol) * cellPitch
+        let slotY = fusionPad + CGFloat(row - minRow) * cellPitch
+        let originX = slotX + (cellPitch - side) / 2
+        let originY = slotY + (cellPitch - side) / 2
+        let u = originX / pieceSize.width
+        let v = (pieceSize.height - originY - side) / pieceSize.height
+        let w = side / pieceSize.width
+        let h = side / pieceSize.height
+        guard w > 0, h > 0 else { return nil }
+        let x = min(max(0, u), 1)
+        let y = min(max(0, v), 1)
+        return CGRect(x: x, y: y, width: min(w, 1 - x), height: min(h, 1 - y))
+    }
+
+    /// La case séparée montre le morceau de la pièce qu’elle occupait.
+    /// Pas de nouvelle peinture : le fil du jeu ne s’arrête pas à la pose ni à la chaîne.
+    @MainActor
+    static func applySeparatedCellWash(
+        from piece: SKSpriteNode,
+        to sprite: SKSpriteNode,
+        row: Int,
+        col: Int,
+        cells: [(row: Int, col: Int)],
+        cellPitch: CGFloat
+    ) {
+        guard let texture = piece.texture,
+              let minRow = cells.map(\.row).min(),
+              let minCol = cells.map(\.col).min(),
+              let rect = separatedCellTextureRect(
+                row: row,
+                col: col,
+                minRow: minRow,
+                minCol: minCol,
+                cellPitch: cellPitch,
+                pieceSize: piece.size
+              ),
+              rect.width > 0.001, rect.height > 0.001 else { return }
+        let slice = SKTexture(rect: rect, in: texture)
+        slice.filteringMode = .linear
+        let side = cellPitch - 1
+        sprite.texture = slice
+        sprite.size = CGSize(width: side, height: side)
+        sprite.color = piece.color
+        sprite.colorBlendFactor = 1
+    }
+
     private static func bakeJellyMask(
         pointSize: CGSize,
         scale: CGFloat,
         red: CGFloat,
         green: CGFloat,
         blue: CGFloat,
-        light: Bool
+        light: Bool,
+        salt: Int
     ) -> SKTexture {
+        let image = renderJellyImage(
+            pointSize: pointSize,
+            scale: scale,
+            red: red,
+            green: green,
+            blue: blue,
+            light: light,
+            salt: salt
+        )
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        return texture
+    }
+
+    private static func renderJellyImage(
+        pointSize: CGSize,
+        scale: CGFloat,
+        red: CGFloat,
+        green: CGFloat,
+        blue: CGFloat,
+        light: Bool,
+        salt: Int
+    ) -> UIImage {
         let format = UIGraphicsImageRendererFormat()
         format.opaque = false
         format.scale = scale
         let renderer = UIGraphicsImageRenderer(size: pointSize, format: format)
         let edge = edgeMultiplier(red: red, green: green, blue: blue, light: light)
-        let image = renderer.image { context in
+        return renderer.image { context in
             drawJellyMask(
                 in: context.cgContext,
                 pointSize: pointSize,
                 edge: edge,
                 red: red,
                 green: green,
-                blue: blue
+                blue: blue,
+                salt: salt
             )
         }
-        let texture = SKTexture(image: image)
-        texture.filteringMode = .linear
-        return texture
     }
 
     private static func drawJellyMask(
@@ -315,7 +427,8 @@ enum BlomixNewBlockRenderer {
         edge: CGFloat,
         red: CGFloat,
         green: CGFloat,
-        blue: CGFloat
+        blue: CGFloat,
+        salt: Int
     ) {
         let face = faceLayout(for: pointSize)
         let bodyPath = CGPath(
@@ -327,7 +440,7 @@ enum BlomixNewBlockRenderer {
         BlomixNewInkRenderer.drawMask(
             in: ctx,
             paths: [bodyPath],
-            seed: BlomixNewInkRenderer.seed(red: red, green: green, blue: blue),
+            seed: BlomixNewInkRenderer.seed(red: red, green: green, blue: blue, salt: salt),
             canvas: pointSize,
             rim: edge
         )
@@ -474,18 +587,18 @@ enum BlomixNewBlockRenderer {
         }
         let job = plan.job
         let key = plan.key
-        let start = cache.claimFusionBake(key) { completion() }
-        if !start, cache.fusionTextureIfPresent(key) != nil {
+        let token = cache.claimFusionBake(key) { completion() }
+        if token == nil, cache.fusionTextureIfPresent(key) != nil {
             DispatchQueue.main.async { completion() }
             return
         }
-        guard start else { return }
+        guard let token else { return }
         DispatchQueue.global(qos: .userInteractive).async {
             let box = ImageBox(renderFusionImage(job))
             DispatchQueue.main.async {
                 let texture = SKTexture(image: box.image)
                 texture.filteringMode = .linear
-                let waiters = cache.finishFusionBake(key, texture: texture)
+                let waiters = cache.finishFusionBake(key, texture: texture, token: token)
                 for waiter in waiters {
                     waiter()
                 }
@@ -576,7 +689,7 @@ enum BlomixNewBlockRenderer {
         let edge = edgeMultiplier(red: job.red, green: job.green, blue: job.blue, light: job.light)
         let cells = Set(job.cells)
         let silhouette = fusionSilhouette(cells: cells, minRow: job.minRow, minCol: job.minCol, cellPitch: job.cellPitch)
-        let salt = job.cells.reduce(0) { $0 &+ $1.row &* 17 &+ $1.col }
+        let salt = job.cells.reduce(0) { $0 &+ cellPigmentSalt(row: $1.row, col: $1.col) }
         return renderer.image { context in
             BlomixNewInkRenderer.drawMask(
                 in: context.cgContext,

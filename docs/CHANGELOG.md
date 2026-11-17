@@ -20,7 +20,8 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 - **Encre, retour au premier plan** : après un swipe vers le haut (l’app reste en mémoire), les masques aquarelle sont repeints. Avant, la pièce fusionnée devenait un rectangle plein : des blox apparaissaient dans les trous, et un Brix sous ce rectangle se lisait blox + chiffre.
 - **Ligne Encre** : à la pose, le jeu ne repeint plus un lavis par case. Ce repeint, sur le fil du jeu, figeait l’image juste avant que les blox se posent. Le vol et le gonflement ne changent pas.
-- **Chaîne Encre** : à la séparation, chaque case garde le morceau du lavis de la pièce, à l’endroit qu’elle occupait. Avant, la séparation posait le même tampon sur toutes les cases. Le geste d’aspiration ne change pas. Classique inchangé.
+- **Chaîne Encre** : à la séparation, chaque case a son propre lavis, selon son adresse. Avant, toutes les cases séparées montraient le même tampon. Ces lavis sont peints à l’avance, hors du fil du jeu. Le geste d’aspiration ne change pas. Classique inchangé.
+- **Taille des cases Encre** : poser un masque pendant un scale ne multiplie plus la case par 3 ou 4. Le pop Magix reste celui du Classique (environ ×1,4). L’aspiration vers le centre ne change pas.
 - **Étoiles Brix** : à la disparition, les 3 étoiles tournantes prennent la couleur de fond du Brix (`priks` du skin), en Classique et en Encre. Le geste ne change pas.
 - **Brix** : le chiffre reste `prikstext` plein à 5 et à 4. La descente vers le fond commence ensuite, un cran plus tard : 3 = 80 %, 2 = 60 %, 1 = 40 % (l’ancien rendu du 2). Classique et Encre.
 - **Style visuel** : le segment « Nouveau (bêta) » s’appelle « Encre (bêta) » (EN Ink, DE Tinte, ES Tinta, IT Inchiostro, PT Tinta). `.new` est la piste encre et washi. Pas de troisième style. Classique inchangé.

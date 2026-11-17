@@ -274,7 +274,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Scale down + brighten | 0,16 s | lerp blanc 30 %, `easeInEaseOut` |
 | Fade | 0,14 s | α → 0 |
 
-**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. Pendant ces 0,36 s de retrait, le contour passe du carré au cercle inscrit (les côtés restent, les coins rentrent, ease smoothstep). Le pincement est déjà rond. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache. Dès la séparation, chaque case garde le morceau du lavis de la pièce qu’elle occupait, pas un tampon recuit. Cette découpe ne repeint rien : la pose d’une ligne ne s’arrête plus pour ça.
+**Encre** : mêmes durées, même instant de paillettes. Pas de pop ni d’éclaircissement. La tache se contracte vers le centre de la case (ancre 0,5) : ×0,55 en 0,20 s, ×0,16 en 0,16 s, puis pincement ×0,02 et fondu ensemble sur 0,14 s. Pendant ces 0,36 s de retrait, le contour passe du carré au cercle inscrit (les côtés restent, les coins rentrent, ease smoothstep). Le pincement est déjà rond. La couleur reste saturée. Le placeholder sous le fondu est transparent : le papier apparaît autour de la tache. Dès la séparation, chaque case a son propre lavis (graine = couleur + adresse), pas le même tampon. Ces lavis sont peints à l’avance, un par un, hors du fil du jeu : la pose et la chaîne n’attendent pas la peinture.
 
 **Jonctions** : pas de `remove` à t = 0. Chaque barre H/V/D part avec le premier blox du couple (`dissolveBloxJunctionsWithChainCells`). H : `xScale` → 0,02 ; V : `yScale` → 0,02 ; D : les deux. Fade 0,20 s `easeOut`, z 25 pendant la fonte. Combo / cascade = le même path (le `drawGrid` inter-vague recoud le reste).
 
@@ -433,6 +433,8 @@ Zone logique : **3×3** (Zen / Duel / tuto / Arcade L1) ; en Arcade L2+ : 3×3 +
 ---
 
 ## 6. Blocs Magix — effets à l'atterrissage
+
+**Encre — ne pas réécrire le geste.** CHROMAX, CROSSX, SLASHX, BOMBX, TWISTX, BRIXED, la roulette COLORX et SCRUMBLX jouent comme en Classique, pop compris (0,5 → environ ×1,35 ou ×1,40 → 1, puis retour). On ne retire pas ce pop, et on ne le remplace pas par une case à l’échelle 1. Une case ne devient jamais ×3 ou ×4 : poser un masque aquarelle ne change pas `sprite.size` pendant un scale. **Seule la disparition** des blox et des Brix diffère : aspiration vers le centre (`inkCenterSuckAction` — chaîne, Brix à 0, COLORX, SAINTX). Pas le blast bombe, pas le trou SCRUMBLX.
 
 **Pose commune** (avant l’effet) : bounce blox **0,15 s** + gerbe palette §1.1 (`spawnMagixLandingBurst`). Popup nom : `spawnMagixNamePopup` — texte 22 pt, montée **44 pt** en **0,85 s**, fade après **0,38 s**.
 

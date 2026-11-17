@@ -34,7 +34,8 @@ enum BlomixNewBlockRenderer {
 
     /// Graine d’une case. Une pièce somme celles de ses cases.
     static func cellPigmentSalt(row: Int, col: Int) -> Int {
-        row &* 17 &+ col
+        // +1 : la case (0, 0) ne reprend pas le tampon partagé de la file (sel 0).
+        (row &* 17 &+ col) &+ 1
     }
 
     /// Même matière sur un sprite déjà en place (file, aperçu, mue). Retire un vieux reflet.
@@ -75,8 +76,16 @@ enum BlomixNewBlockRenderer {
             )
         }
 
+        // La texture @3x fait ~3 cases si on la pose pendant un scale.
+        // On fige l’échelle, on impose la taille de la case, puis on rend l’échelle.
+        let scaleX = sprite.xScale
+        let scaleY = sprite.yScale
+        sprite.xScale = 1
+        sprite.yScale = 1
         sprite.texture = texture
         sprite.size = pointSize
+        sprite.xScale = scaleX
+        sprite.yScale = scaleY
         sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
         sprite.color = fill
         sprite.colorBlendFactor = 1
@@ -126,6 +135,7 @@ enum BlomixNewBlockRenderer {
         private var junctions: [JunctionKey: SKTexture] = [:]
         private var fusions: [FusionKey: SKTexture] = [:]
         private var fusionWaiters: [FusionKey: [() -> Void]] = [:]
+        private var jellyWaiters: [CacheKey: [() -> Void]] = [:]
 
         func discardAll() {
             lock.lock()
@@ -134,7 +144,39 @@ enum BlomixNewBlockRenderer {
             junctions.removeAll()
             fusions.removeAll()
             fusionWaiters.removeAll()
+            jellyWaiters.removeAll()
             lock.unlock()
+        }
+
+        func jellyTextureIfPresent(_ key: CacheKey) -> SKTexture? {
+            lock.lock()
+            defer { lock.unlock() }
+            return jellies[key]
+        }
+
+        /// `nil` si le lavis est déjà en cache ou déjà en peinture (le waiter est alors noté).
+        func claimJellyBake(_ key: CacheKey, waiter: @escaping () -> Void) -> UInt64? {
+            lock.lock()
+            defer { lock.unlock() }
+            if jellies[key] != nil {
+                return nil
+            }
+            if jellyWaiters[key] != nil {
+                jellyWaiters[key]?.append(waiter)
+                return nil
+            }
+            jellyWaiters[key] = [waiter]
+            return generation
+        }
+
+        func finishJellyBake(_ key: CacheKey, texture: SKTexture, token: UInt64) -> [() -> Void] {
+            lock.lock()
+            defer { lock.unlock() }
+            guard token == generation else { return [] }
+            if jellies[key] == nil {
+                jellies[key] = texture
+            }
+            return jellyWaiters.removeValue(forKey: key) ?? []
         }
 
         func jellyTexture(for key: CacheKey, make: () -> SKTexture) -> SKTexture {
@@ -313,61 +355,139 @@ enum BlomixNewBlockRenderer {
 
     // MARK: - Cuisson
 
-    /// Rectangle unitaire de la case dans la texture de la pièce.
-    /// Origine en bas à gauche. La pièce est peinte y vers le bas : la ligne minimale est en haut.
-    static func separatedCellTextureRect(
-        row: Int,
-        col: Int,
-        minRow: Int,
-        minCol: Int,
-        cellPitch: CGFloat,
-        pieceSize: CGSize
-    ) -> CGRect? {
-        guard cellPitch > 1, pieceSize.width > 1, pieceSize.height > 1 else { return nil }
-        let side = cellPitch - 1
-        let slotX = fusionPad + CGFloat(col - minCol) * cellPitch
-        let slotY = fusionPad + CGFloat(row - minRow) * cellPitch
-        let originX = slotX + (cellPitch - side) / 2
-        let originY = slotY + (cellPitch - side) / 2
-        let u = originX / pieceSize.width
-        let v = (pieceSize.height - originY - side) / pieceSize.height
-        let w = side / pieceSize.width
-        let h = side / pieceSize.height
-        guard w > 0, h > 0 else { return nil }
-        let x = min(max(0, u), 1)
-        let y = min(max(0, v), 1)
-        return CGRect(x: x, y: y, width: min(w, 1 - x), height: min(h, 1 - y))
+    /// Une peinture à la fois, priorité basse. Le fil du jeu ne peint pas.
+    private static let cellWashQueue: OperationQueue = {
+        let queue = OperationQueue()
+        queue.name = "blomix.ink.cellwash"
+        queue.qualityOfService = .utility
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
+
+    /// Peint ces cases hors du fil du jeu. `soon` passe devant le stock.
+    /// Plusieurs demandes du même lavis n’en peignent qu’un.
+    @MainActor
+    static func prewarmCellStains(
+        cells: [(row: Int, col: Int)],
+        fill: SKColor,
+        pointSize: CGSize,
+        soon: Bool = false
+    ) {
+        guard pointSize.width > 1, pointSize.height > 1 else { return }
+        for cell in cells {
+            let salt = cellPigmentSalt(row: cell.row, col: cell.col)
+            let key = jellyCacheKey(fill: fill, pointSize: pointSize, salt: salt)
+            if cache.jellyTextureIfPresent(key) != nil { continue }
+            let token = cache.claimJellyBake(key) {}
+            if cache.jellyTextureIfPresent(key) != nil { continue }
+            guard let token else { continue }
+            enqueueCellWash(key: key, fill: fill, pointSize: pointSize, salt: salt, token: token, soon: soon)
+        }
     }
 
-    /// La case séparée montre le morceau de la pièce qu’elle occupait.
-    /// Pas de nouvelle peinture : le fil du jeu ne s’arrête pas à la pose ni à la chaîne.
+    /// Pose le lavis de cette case s’il est prêt. Sinon le peint hors du fil, puis le pose.
+    /// Ne bloque pas : une chaîne ne repeint rien sur le fil du jeu.
     @MainActor
-    static func applySeparatedCellWash(
-        from piece: SKSpriteNode,
+    static func applyCellWashWhenReady(
         to sprite: SKSpriteNode,
+        fill: SKColor,
+        pointSize: CGSize,
         row: Int,
-        col: Int,
-        cells: [(row: Int, col: Int)],
-        cellPitch: CGFloat
+        col: Int
     ) {
-        guard let texture = piece.texture,
-              let minRow = cells.map(\.row).min(),
-              let minCol = cells.map(\.col).min(),
-              let rect = separatedCellTextureRect(
-                row: row,
-                col: col,
-                minRow: minRow,
-                minCol: minCol,
-                cellPitch: cellPitch,
-                pieceSize: piece.size
-              ),
-              rect.width > 0.001, rect.height > 0.001 else { return }
-        let slice = SKTexture(rect: rect, in: texture)
-        slice.filteringMode = .linear
-        let side = cellPitch - 1
-        sprite.texture = slice
-        sprite.size = CGSize(width: side, height: side)
-        sprite.color = piece.color
+        guard pointSize.width > 1, pointSize.height > 1 else { return }
+        let salt = cellPigmentSalt(row: row, col: col)
+        let key = jellyCacheKey(fill: fill, pointSize: pointSize, salt: salt)
+        if let texture = cache.jellyTextureIfPresent(key) {
+            assignCellWash(sprite, texture: texture, fill: fill, pointSize: pointSize)
+            return
+        }
+        let token = cache.claimJellyBake(key) { [weak sprite] in
+            guard let sprite, sprite.parent != nil,
+                  let texture = cache.jellyTextureIfPresent(key) else { return }
+            assignCellWash(sprite, texture: texture, fill: fill, pointSize: pointSize)
+        }
+        if let texture = cache.jellyTextureIfPresent(key) {
+            assignCellWash(sprite, texture: texture, fill: fill, pointSize: pointSize)
+            return
+        }
+        guard let token else { return }
+        enqueueCellWash(key: key, fill: fill, pointSize: pointSize, salt: salt, token: token, soon: true)
+    }
+
+    @MainActor
+    private static func jellyCacheKey(fill: SKColor, pointSize: CGSize, salt: Int) -> CacheKey {
+        let channels = rgba(of: fill)
+        let scale = max(1, UITraitCollection.current.displayScale)
+        return CacheKey(
+            r: channels.r,
+            g: channels.g,
+            b: channels.b,
+            a: channels.a,
+            pixelWidth: max(1, Int((pointSize.width * scale).rounded())),
+            pixelHeight: max(1, Int((pointSize.height * scale).rounded())),
+            light: BlomixAppearance.isLight,
+            salt: salt
+        )
+    }
+
+    @MainActor
+    private static func enqueueCellWash(
+        key: CacheKey,
+        fill: SKColor,
+        pointSize: CGSize,
+        salt: Int,
+        token: UInt64,
+        soon: Bool
+    ) {
+        let channels = rgba(of: fill)
+        let scale = max(1, UITraitCollection.current.displayScale)
+        let red = CGFloat(channels.r) / 255
+        let green = CGFloat(channels.g) / 255
+        let blue = CGFloat(channels.b) / 255
+        let light = BlomixAppearance.isLight
+        let operation = BlockOperation {
+            let image = renderJellyImage(
+                pointSize: pointSize,
+                scale: scale,
+                red: red,
+                green: green,
+                blue: blue,
+                light: light,
+                salt: salt
+            )
+            let box = ImageBox(image)
+            DispatchQueue.main.async {
+                let texture = SKTexture(image: box.image)
+                texture.filteringMode = .linear
+                let waiters = cache.finishJellyBake(key, texture: texture, token: token)
+                for waiter in waiters {
+                    waiter()
+                }
+            }
+        }
+        operation.queuePriority = soon ? .veryHigh : .normal
+        cellWashQueue.addOperation(operation)
+    }
+
+    @MainActor
+    private static func assignCellWash(
+        _ sprite: SKSpriteNode,
+        texture: SKTexture,
+        fill: SKColor,
+        pointSize: CGSize
+    ) {
+        // Même précaution : ne pas laisser la taille pixel remplacer la case
+        // pendant le pop (×1,4) ou l’aspiration.
+        let scaleX = sprite.xScale
+        let scaleY = sprite.yScale
+        sprite.xScale = 1
+        sprite.yScale = 1
+        sprite.texture = texture
+        sprite.size = pointSize
+        sprite.xScale = scaleX
+        sprite.yScale = scaleY
+        sprite.color = fill
         sprite.colorBlendFactor = 1
     }
 

@@ -11495,6 +11495,8 @@ final class GameScene: SKScene {
             if !isProcessing { childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent() }
             return
         }
+        // Les cases possibles de la ligne sont peintes avant qu’elle parte.
+        prewarmPossibleLineWashes(previewLine)
 
         // Même 1ʳᵉ ligne : ne pas reconstruire (une attaque derrière ne remplace pas la bande).
         if pvpBottomPreviewToken == previewToken,
@@ -11603,6 +11605,10 @@ final class GameScene: SKScene {
 
         let line = nextBottomLine
         nextBottomLine = nextBottomLineRowForSession()
+        for placement in placements {
+            guard case .color(let name) = line[placement.column] else { continue }
+            prewarmInkCells([(row: placement.row, col: placement.column)], colorName: name, soon: true)
+        }
 
         // Le strip s’éteint tout de suite. Le plateau frémit, puis les sprites montent
         // (le fondu donne l’impression que la bande part avec eux).
@@ -11896,6 +11902,9 @@ final class GameScene: SKScene {
             return
         }
         guard let row = highestEmptyRow(inColumn: columnIndex) else { return }
+        if case .color(let name) = placedKind {
+            prewarmInkCells([(row: row, col: columnIndex)], colorName: name, soon: true)
+        }
 
         if !isTutorialMode {
             switch placedKind {
@@ -16735,6 +16744,11 @@ final class GameScene: SKScene {
                     }
                 }
                 let fill = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                prewarmInkCells(
+                    component.map { (row: $0.0, col: $0.1) },
+                    colorName: name,
+                    soon: false
+                )
                 if let piece = BlomixNewBlockRenderer.makeCachedFusionSprite(
                     cells: component,
                     fill: fill,
@@ -16799,27 +16813,73 @@ final class GameScene: SKScene {
         return false
     }
 
+    /// Une texture @3x posée pendant un scale laissait la case à 3 ou 4 fois sa taille.
+    /// On ramène la taille au carré de la case. Le scale du geste (pop, aspiration) reste.
+    private func correctInkCellSizeIfInflated(_ sprite: SKSpriteNode) {
+        guard Self.visualStyleForRun == .new else { return }
+        let side = Self.inkCellPointSize()
+        guard sprite.size.width > side.width * 1.5 || sprite.size.height > side.height * 1.5 else { return }
+        let scaleX = sprite.xScale
+        let scaleY = sprite.yScale
+        sprite.xScale = 1
+        sprite.yScale = 1
+        sprite.size = side
+        sprite.xScale = scaleX
+        sprite.yScale = scaleY
+    }
+
+    /// Taille du sprite de case montré quand une pièce Encre se sépare.
+    private static func inkCellPointSize() -> CGSize {
+        newStyleGridBlockPointSize(requested: solidGameplayBloxPixelSize())
+    }
+
+    /// Lavis propre à la case, déjà peint ou lancé hors du fil. Le scale du geste n’est pas touché.
+    private func giveSeparatedInkCellItsOwnWash(_ sprite: SKSpriteNode, row: Int, col: Int) {
+        guard Self.visualStyleForRun == .new else { return }
+        guard case .color(let name) = grid[row][col],
+              let fill = Self.bloxSolidFillColor(colorName: name) else { return }
+        BlomixNewBlockRenderer.applyCellWashWhenReady(
+            to: sprite,
+            fill: fill,
+            pointSize: Self.inkCellPointSize(),
+            row: row,
+            col: col
+        )
+    }
+
+    private func prewarmInkCells(_ cells: [(row: Int, col: Int)], colorName: String, soon: Bool) {
+        guard Self.visualStyleForRun == .new, !cells.isEmpty else { return }
+        guard let fill = Self.bloxSolidFillColor(colorName: colorName) else { return }
+        BlomixNewBlockRenderer.prewarmCellStains(
+            cells: cells,
+            fill: fill,
+            pointSize: Self.inkCellPointSize(),
+            soon: soon
+        )
+    }
+
+    /// Chaque colonne de la ligne peut atterrir sur n’importe quelle rangée.
+    /// On peint ces lavis pendant que la ligne attend, pas pendant le vol.
+    private func prewarmPossibleLineWashes(_ line: [BlockType]) {
+        guard line.count == GridLayout.columnCount else { return }
+        for col in 0..<GridLayout.columnCount {
+            guard case .color(let name) = line[col] else { continue }
+            let cells = (GridLayout.topRowIndex..<GridLayout.rowCount).map { (row: $0, col: col) }
+            prewarmInkCells(cells, colorName: name, soon: false)
+        }
+    }
+
     /// Retire les pièces qui couvrent `only` (toutes, si `only` est nil) et montre leurs cases.
-    /// Chaque case garde le morceau de lavis de la pièce. Pas de peinture ici.
+    /// Chaque case prend son lavis. S’il n’est pas prêt, il arrive sans bloquer l’image.
     private func revealSeparatedInkCells(in container: SKNode, touching only: Set<GridAddress>? = nil) {
         for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
             let cells = fusionCells(on: child)
             if let only, !cells.contains(where: { only.contains($0) }) { continue }
-            if let piece = child as? SKSpriteNode {
-                let tuples = cells.map { (row: $0.row, col: $0.col) }
-                for cell in cells {
-                    guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
-                    sprite.isHidden = false
-                    sprite.zPosition = max(sprite.zPosition, 2)
-                    BlomixNewBlockRenderer.applySeparatedCellWash(
-                        from: piece,
-                        to: sprite,
-                        row: cell.row,
-                        col: cell.col,
-                        cells: tuples,
-                        cellPitch: GridLayout.cellPoints
-                    )
-                }
+            for cell in cells {
+                guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
+                sprite.isHidden = false
+                sprite.zPosition = max(sprite.zPosition, 2)
+                giveSeparatedInkCellItsOwnWash(sprite, row: cell.row, col: cell.col)
             }
             child.removeFromParent()
         }
@@ -16837,6 +16897,7 @@ final class GameScene: SKScene {
                 guard case .color = grid[row][col],
                       let sprite = directGridCellSprite(in: container, row: row, column: col) else { continue }
                 if sprite.alpha < 0.98 { holdsClear = true }
+                correctInkCellSizeIfInflated(sprite)
                 if newColorCellNeedsItsOwnSprite(sprite, row: row, col: col) {
                     busy.insert(GridAddress(row: row, col: col))
                 }

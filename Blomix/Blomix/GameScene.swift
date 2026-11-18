@@ -927,6 +927,8 @@ final class GameScene: SKScene {
     /// `rebuildNewFusionShapes` à chaque frame : les cases restent visibles.
     private var fusionBakeEpoch = 0
     private var fusionBakesLeft = 0
+    /// Une case seule a reçu son lavis : on remplace le tampon partagé, une fois.
+    private var inkSinglesNeedRebuild = false
     private static let previewNodeName = "currentBlockPreview"
     private static let fallingSpriteName = "fallingBlockTemp"
     private static let previewPriksDigitName = "previewPriksDigit"
@@ -8772,6 +8774,9 @@ final class GameScene: SKScene {
                 sprite.yScale = 1
                 sprite.position = Self.gridContainerLocalCellCenter(row: address.row, column: address.col)
                 sprite.zPosition = zDuringDissolve
+                if Self.visualStyleForRun == .new {
+                    self?.giveSeparatedInkCellItsOwnWash(sprite, row: address.row, col: address.col)
+                }
                 // Sprite de fond vide inséré juste avant la dissolution :
                 // pendant le fondu du blox (alpha 1→0), ce placeholder gris empêche
                 // le fond noir de la scène de transparaître. Encre : le papier reste visible.
@@ -11495,8 +11500,7 @@ final class GameScene: SKScene {
             if !isProcessing { childNode(withName: Self.bottomLinePreviewStripName)?.removeFromParent() }
             return
         }
-        // Les cases possibles de la ligne sont peintes avant qu’elle parte.
-        prewarmPossibleLineWashes(previewLine)
+
 
         // Même 1ʳᵉ ligne : ne pas reconstruire (une attaque derrière ne remplace pas la bande).
         if pvpBottomPreviewToken == previewToken,
@@ -11605,10 +11609,6 @@ final class GameScene: SKScene {
 
         let line = nextBottomLine
         nextBottomLine = nextBottomLineRowForSession()
-        for placement in placements {
-            guard case .color(let name) = line[placement.column] else { continue }
-            prewarmInkCells([(row: placement.row, col: placement.column)], colorName: name, soon: true)
-        }
 
         // Le strip s’éteint tout de suite. Le plateau frémit, puis les sprites montent
         // (le fondu donne l’impression que la bande part avec eux).
@@ -11902,9 +11902,6 @@ final class GameScene: SKScene {
             return
         }
         guard let row = highestEmptyRow(inColumn: columnIndex) else { return }
-        if case .color(let name) = placedKind {
-            prewarmInkCells([(row: row, col: columnIndex)], colorName: name, soon: true)
-        }
 
         if !isTutorialMode {
             switch placedKind {
@@ -16391,6 +16388,15 @@ final class GameScene: SKScene {
         }
         Self.visualStyleForRun = BlomixVisualStyle.current
         BlomixVisualStyle.activeRunIsInk = Self.visualStyleForRun == .new
+        if Self.visualStyleForRun == .new {
+            // Avant le premier drawGrid : les 64 tampons partent hors du fil.
+            // Une chaîne ne peint rien, elle pose le masque déjà prêt.
+            BlomixNewBlockRenderer.prepareAddressStamps(
+                rows: GridLayout.rowCount,
+                columns: GridLayout.columnCount,
+                pointSize: Self.inkCellPointSize()
+            )
+        }
         // setupBombHUD peint la file et l’icône de stock avant ce gel.
         // Sans ce second passage, le stock reste le disque Classique.
         refreshUpcomingQueueSlots()
@@ -16711,14 +16717,20 @@ final class GameScene: SKScene {
     }
 
     /// 9.0 New: une pièce par groupe de même couleur. Les sprites `cell_` restent (animations), cachés au repos.
-    /// La peinture manque : les cases restent affichées et le lavis part hors du fil du jeu.
-    /// Une chaîne ou un Magix n'attend pas cette peinture pour disparaître.
+    /// Une case seule montre son tampon d’adresse, pas la pièce « 0_0 » commune à la couleur.
+    /// La peinture d’une pièce groupée manque : les cases restent affichées, le lavis part hors du fil.
+    /// Une chaîne n’attend pas : elle pose le tampon d’adresse déjà en cache.
     private func rebuildNewFusionShapes(in container: SKNode) {
         fusionBakeEpoch += 1
         let epoch = fusionBakeEpoch
         for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
             child.removeFromParent()
         }
+        BlomixNewBlockRenderer.prepareAddressStamps(
+            rows: GridLayout.rowCount,
+            columns: GridLayout.columnCount,
+            pointSize: Self.inkCellPointSize()
+        )
         var seen = Set<GridAddress>()
         let neighbors = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
         var index = 0
@@ -16744,11 +16756,41 @@ final class GameScene: SKScene {
                     }
                 }
                 let fill = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
-                prewarmInkCells(
-                    component.map { (row: $0.0, col: $0.1) },
-                    colorName: name,
-                    soon: false
-                )
+                let addresses = component.map { (row: $0.0, col: $0.1) }
+                // Le tampon d’adresse est posé sur la case cachée. À la séparation,
+                // c’est déjà lui : pas le tampon de la file, pas une peinture.
+                for (cellRow, cellCol) in addresses {
+                    guard let sprite = directGridCellSprite(in: container, row: cellRow, column: cellCol) else { continue }
+                    let alone = addresses.count == 1
+                    giveSeparatedInkCellItsOwnWash(sprite, row: cellRow, col: cellCol) { [weak self] in
+                        if alone { self?.inkSinglesNeedRebuild = true }
+                    }
+                }
+                if addresses.count == 1, let only = addresses.first {
+                    // Jamais la pièce « 0_0 » : sa clé ignore l’adresse, donc toutes les
+                    // cases seules d’une couleur réutilisent le premier tampon cuit.
+                    let texture = BlomixNewBlockRenderer.cachedAddressStamp(
+                        pointSize: Self.inkCellPointSize(),
+                        row: only.row,
+                        col: only.col
+                    ) ?? directGridCellSprite(in: container, row: only.row, column: only.col)?.texture
+                    if let texture {
+                        let piece = SKSpriteNode(texture: texture, size: Self.inkCellPointSize())
+                        piece.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+                        piece.position = Self.cellCenterLocal(row: only.row, col: only.col)
+                        piece.color = fill
+                        piece.colorBlendFactor = 1
+                        piece.name = "\(Self.newFusionNodePrefix)\(index)"
+                        let info = NSMutableDictionary()
+                        info["cells"] = "\(only.row)_\(only.col)"
+                        piece.userData = info
+                        piece.zPosition = 1.15
+                        container.addChild(piece)
+                        index += 1
+                        directGridCellSprite(in: container, row: only.row, column: only.col)?.isHidden = true
+                    }
+                    continue
+                }
                 if let piece = BlomixNewBlockRenderer.makeCachedFusionSprite(
                     cells: component,
                     fill: fill,
@@ -16833,40 +16875,24 @@ final class GameScene: SKScene {
         newStyleGridBlockPointSize(requested: solidGameplayBloxPixelSize())
     }
 
-    /// Lavis propre à la case, déjà peint ou lancé hors du fil. Le scale du geste n’est pas touché.
-    private func giveSeparatedInkCellItsOwnWash(_ sprite: SKSpriteNode, row: Int, col: Int) {
+    /// Tampon d’adresse, déjà peint. Poser la texture ne peint pas. Le scale du geste reste.
+    private func giveSeparatedInkCellItsOwnWash(
+        _ sprite: SKSpriteNode,
+        row: Int,
+        col: Int,
+        onReady: (@MainActor () -> Void)? = nil
+    ) {
         guard Self.visualStyleForRun == .new else { return }
         guard case .color(let name) = grid[row][col],
               let fill = Self.bloxSolidFillColor(colorName: name) else { return }
-        BlomixNewBlockRenderer.applyCellWashWhenReady(
+        BlomixNewBlockRenderer.applyAddressStampWhenReady(
             to: sprite,
             fill: fill,
             pointSize: Self.inkCellPointSize(),
             row: row,
-            col: col
+            col: col,
+            onReady: onReady
         )
-    }
-
-    private func prewarmInkCells(_ cells: [(row: Int, col: Int)], colorName: String, soon: Bool) {
-        guard Self.visualStyleForRun == .new, !cells.isEmpty else { return }
-        guard let fill = Self.bloxSolidFillColor(colorName: colorName) else { return }
-        BlomixNewBlockRenderer.prewarmCellStains(
-            cells: cells,
-            fill: fill,
-            pointSize: Self.inkCellPointSize(),
-            soon: soon
-        )
-    }
-
-    /// Chaque colonne de la ligne peut atterrir sur n’importe quelle rangée.
-    /// On peint ces lavis pendant que la ligne attend, pas pendant le vol.
-    private func prewarmPossibleLineWashes(_ line: [BlockType]) {
-        guard line.count == GridLayout.columnCount else { return }
-        for col in 0..<GridLayout.columnCount {
-            guard case .color(let name) = line[col] else { continue }
-            let cells = (GridLayout.topRowIndex..<GridLayout.rowCount).map { (row: $0, col: col) }
-            prewarmInkCells(cells, colorName: name, soon: false)
-        }
     }
 
     /// Retire les pièces qui couvrent `only` (toutes, si `only` est nil) et montre leurs cases.
@@ -16906,6 +16932,12 @@ final class GameScene: SKScene {
 
         if !busy.isEmpty {
             revealSeparatedInkCells(in: container, touching: busy)
+            return
+        }
+
+        if inkSinglesNeedRebuild && fusionBakesLeft == 0 && !holdsClear {
+            inkSinglesNeedRebuild = false
+            rebuildNewFusionShapes(in: container)
             return
         }
 
@@ -17656,6 +17688,11 @@ final class GameScene: SKScene {
         guard Self.visualStyleForRun == .new, !isStartScreen else { return }
         BlomixNewBlockRenderer.discardCachedTextures()
         BlomixNewInkRenderer.discardCachedTextures()
+        BlomixNewBlockRenderer.prepareAddressStamps(
+            rows: GridLayout.rowCount,
+            columns: GridLayout.columnCount,
+            pointSize: Self.inkCellPointSize()
+        )
         encreTexturesNeedRedraw = true
     }
 

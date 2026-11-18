@@ -10,7 +10,8 @@
 //  Le sprite porte `color` = teinte et `colorBlendFactor` = 1, donc les
 //  animations qui écrivent `sprite.color` (dissolution, SAINTX) restent valables.
 //
-//  Grille New : une texture par groupe de Blox de même couleur (8-connexité).
+//  Grille New : une texture par groupe de Blox de même couleur (8-connexité),
+//  sauf une case seule : son tampon d'adresse, pas le tampon « 0_0 » partagé.
 //  L'orthogonal est une seule pièce (coins extérieurs et intérieurs arrondis).
 //  Une diagonale déjà dans cette pièce n'est pas redessinée. Une diagonale seule
 //  est le tronçon du trait Classique qui reste entre les deux blox (sqrt(32)),
@@ -33,10 +34,16 @@ enum BlomixNewBlockRenderer {
     }
 
     /// Graine d’une case. Une pièce somme celles de ses cases.
+    /// Sur la grille 8×8, chaque adresse a un sel distinct, toujours ≥ 1.
+    /// Le sel 0 est le tampon partagé de la file, de l’aperçu et des Brix.
     static func cellPigmentSalt(row: Int, col: Int) -> Int {
         // +1 : la case (0, 0) ne reprend pas le tampon partagé de la file (sel 0).
         (row &* 17 &+ col) &+ 1
     }
+
+    /// Masque d’adresse. Le motif ne dépend que du sel. La teinte est `sprite.color`,
+    /// donc un jeu de 64 masques sert toutes les couleurs, sans repeindre en partie.
+    private static let addressStampNeutral = SKColor(white: 0.55, alpha: 1)
 
     /// Même matière sur un sprite déjà en place (file, aperçu, mue). Retire un vieux reflet.
     /// `salt` 0 : un masque par couleur (file, aperçu, Brix). Une case de grille passe son adresse.
@@ -355,64 +362,96 @@ enum BlomixNewBlockRenderer {
 
     // MARK: - Cuisson
 
-    /// Une peinture à la fois, priorité basse. Le fil du jeu ne peint pas.
+    /// Les 64 tampons d’adresse, deux par deux. Le fil du jeu ne peint pas.
+    /// Vide pendant la partie : tout est déjà en cache avant la première chaîne.
     private static let cellWashQueue: OperationQueue = {
         let queue = OperationQueue()
         queue.name = "blomix.ink.cellwash"
-        queue.qualityOfService = .utility
-        queue.maxConcurrentOperationCount = 1
+        queue.qualityOfService = .userInitiated
+        queue.maxConcurrentOperationCount = 2
         return queue
     }()
 
-    /// Peint ces cases hors du fil du jeu. `soon` passe devant le stock.
-    /// Plusieurs demandes du même lavis n’en peignent qu’un.
+    /// Peint un masque par adresse, une fois. Les couleurs ne font que le teindre.
+    /// Un second appel ne repeint pas ce qui est déjà en cache ou en cours.
     @MainActor
-    static func prewarmCellStains(
-        cells: [(row: Int, col: Int)],
-        fill: SKColor,
-        pointSize: CGSize,
-        soon: Bool = false
-    ) {
-        guard pointSize.width > 1, pointSize.height > 1 else { return }
-        for cell in cells {
-            let salt = cellPigmentSalt(row: cell.row, col: cell.col)
-            let key = jellyCacheKey(fill: fill, pointSize: pointSize, salt: salt)
-            if cache.jellyTextureIfPresent(key) != nil { continue }
-            let token = cache.claimJellyBake(key) {}
-            if cache.jellyTextureIfPresent(key) != nil { continue }
-            guard let token else { continue }
-            enqueueCellWash(key: key, fill: fill, pointSize: pointSize, salt: salt, token: token, soon: soon)
+    static func prepareAddressStamps(rows: Int, columns: Int, pointSize: CGSize) {
+        guard rows > 0, columns > 0, pointSize.width > 1, pointSize.height > 1 else { return }
+        for row in 0..<rows {
+            for col in 0..<columns {
+                let key = addressStampKey(pointSize: pointSize, row: row, col: col)
+                if cache.jellyTextureIfPresent(key) != nil { continue }
+                let token = cache.claimJellyBake(key) {}
+                if cache.jellyTextureIfPresent(key) != nil { continue }
+                guard let token else { continue }
+                enqueueCellWash(
+                    key: key,
+                    fill: addressStampNeutral,
+                    pointSize: pointSize,
+                    salt: cellPigmentSalt(row: row, col: col),
+                    token: token,
+                    soon: true
+                )
+            }
         }
     }
 
-    /// Pose le lavis de cette case s’il est prêt. Sinon le peint hors du fil, puis le pose.
-    /// Ne bloque pas : une chaîne ne repeint rien sur le fil du jeu.
+    /// Pose le tampon de cette adresse s’il est prêt. Sinon il est déjà en peinture
+    /// (ou lancé ici), et il arrive sans bloquer. `true` si la texture est en place.
+    /// `fill` est la teinte du skin, pas la graine du masque.
     @MainActor
-    static func applyCellWashWhenReady(
+    @discardableResult
+    static func applyAddressStampWhenReady(
         to sprite: SKSpriteNode,
         fill: SKColor,
         pointSize: CGSize,
         row: Int,
-        col: Int
-    ) {
-        guard pointSize.width > 1, pointSize.height > 1 else { return }
-        let salt = cellPigmentSalt(row: row, col: col)
-        let key = jellyCacheKey(fill: fill, pointSize: pointSize, salt: salt)
+        col: Int,
+        onReady: (@MainActor () -> Void)? = nil
+    ) -> Bool {
+        guard pointSize.width > 1, pointSize.height > 1 else { return false }
+        let key = addressStampKey(pointSize: pointSize, row: row, col: col)
         if let texture = cache.jellyTextureIfPresent(key) {
-            assignCellWash(sprite, texture: texture, fill: fill, pointSize: pointSize)
-            return
+            assignAddressStamp(sprite, texture: texture, fill: fill, pointSize: pointSize)
+            return true
         }
         let token = cache.claimJellyBake(key) { [weak sprite] in
-            guard let sprite, sprite.parent != nil,
-                  let texture = cache.jellyTextureIfPresent(key) else { return }
-            assignCellWash(sprite, texture: texture, fill: fill, pointSize: pointSize)
+            guard let texture = cache.jellyTextureIfPresent(key) else { return }
+            if let sprite, sprite.parent != nil {
+                assignAddressStamp(sprite, texture: texture, fill: fill, pointSize: pointSize)
+            }
+            onReady?()
         }
         if let texture = cache.jellyTextureIfPresent(key) {
-            assignCellWash(sprite, texture: texture, fill: fill, pointSize: pointSize)
-            return
+            assignAddressStamp(sprite, texture: texture, fill: fill, pointSize: pointSize)
+            return true
         }
-        guard let token else { return }
-        enqueueCellWash(key: key, fill: fill, pointSize: pointSize, salt: salt, token: token, soon: true)
+        guard let token else { return false }
+        enqueueCellWash(
+            key: key,
+            fill: addressStampNeutral,
+            pointSize: pointSize,
+            salt: cellPigmentSalt(row: row, col: col),
+            token: token,
+            soon: true
+        )
+        return false
+    }
+
+    /// Tampon d’adresse déjà peint, sans le poser.
+    @MainActor
+    static func cachedAddressStamp(pointSize: CGSize, row: Int, col: Int) -> SKTexture? {
+        guard pointSize.width > 1, pointSize.height > 1 else { return nil }
+        return cache.jellyTextureIfPresent(addressStampKey(pointSize: pointSize, row: row, col: col))
+    }
+
+    @MainActor
+    private static func addressStampKey(pointSize: CGSize, row: Int, col: Int) -> CacheKey {
+        jellyCacheKey(
+            fill: addressStampNeutral,
+            pointSize: pointSize,
+            salt: cellPigmentSalt(row: row, col: col)
+        )
     }
 
     @MainActor
@@ -471,14 +510,21 @@ enum BlomixNewBlockRenderer {
     }
 
     @MainActor
-    private static func assignCellWash(
+    private static func assignAddressStamp(
         _ sprite: SKSpriteNode,
         texture: SKTexture,
         fill: SKColor,
         pointSize: CGSize
     ) {
-        // Même précaution : ne pas laisser la taille pixel remplacer la case
-        // pendant le pop (×1,4) ou l’aspiration.
+        // Déjà ce tampon, à la taille de la case : ne pas toucher au scale du geste.
+        if sprite.texture === texture,
+           abs(sprite.size.width - pointSize.width) < 0.5,
+           abs(sprite.size.height - pointSize.height) < 0.5 {
+            sprite.color = fill
+            sprite.colorBlendFactor = 1
+            return
+        }
+        // La texture @3x fait ~3 cases si on la pose pendant un scale.
         let scaleX = sprite.xScale
         let scaleY = sprite.yScale
         sprite.xScale = 1

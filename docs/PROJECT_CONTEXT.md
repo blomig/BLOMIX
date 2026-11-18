@@ -265,7 +265,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - `activePlaySeconds` (optionnel, défaut 0, pas de bump) : temps de jeu actif déjà accumulé, pour la télémétrie. Voir [TELEMETRY.md](TELEMETRY.md)
 - Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : hero **Arcade** + caption Continuer si slot Arcade, chips Zen / Five + Continuer si save, puces Défi selon l’état du jour
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
-- Encre : au retour au premier plan, les textures UIGraphics (pièces, cases, papier, disques, score, repères) sont jetées et repeintes. SpriteKit ne réuploade pas un masque mis en cache : le rectangle de la pièce redevient opaque (trous peints, Brix couvert par le blox). Même famille que la visée fantôme (texture blanche jusqu’au prochain lancement).
+- Encre : au retour au premier plan, les textures UIGraphics (pièces, cases, papier, disques, score, repères, 64 tampons d’adresse) sont jetées et repeintes. SpriteKit ne réuploade pas un masque mis en cache : le rectangle de la pièce redevient opaque (trous peints, Brix couvert par le blox). Même famille que la visée fantôme (texture blanche jusqu’au prochain lancement). Les tampons d’adresse repartent hors du fil ; les poser ensuite ne peint rien.
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)
 
 ### PvP

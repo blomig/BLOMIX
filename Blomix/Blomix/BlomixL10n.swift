@@ -36,6 +36,8 @@ enum BlomixL10n {
 
     static var gameTagline: String { tr("game.tagline", comment: "Subtitle under BLOMIX title") }
     static var startButton: String { tr("start.button", comment: "Start game on welcome screen") }
+    static var startPlay: String { tr("start.play", comment: "Home — launches Arcade, Five or Zen, whichever pill is selected") }
+    static var startChallenges: String { tr("start.challenges", comment: "Home — launches the Arcade or Five daily, whichever pill is selected") }
     static var startContinue: String { tr("start.continue", comment: "Home — caption under Arcade / Zen when a save exists") }
     static var startDiscover: String { tr("start.discover", comment: "Home hero — first launch tutorial") }
     static var startDaily: String { tr("start.daily", comment: "Home chip title — Daily Challenge (Défi)") }

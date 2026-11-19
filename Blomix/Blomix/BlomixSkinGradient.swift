@@ -153,10 +153,11 @@ enum BlomixSkinGradient {
     }
 
     static func refreshWellNode(_ root: SKNode, timeOffset: Float = 0) {
-        if let fill = root.childNode(withName: "//blomixWellFill") as? SKSpriteNode {
+        // `.//` part de ce nœud. `//` repart de la scène et repeint toujours le premier puits.
+        if let fill = root.childNode(withName: ".//blomixWellFill") as? SKSpriteNode {
             applyShader(to: fill, timeOffset: timeOffset)
         }
-        if let crop = (root as? SKCropNode) ?? root.childNode(withName: "//blomixWell") as? SKCropNode {
+        if let crop = (root as? SKCropNode) ?? root.childNode(withName: ".//blomixWell") as? SKCropNode {
             crop.userData?["timeOffset"] = timeOffset
             if let mask = crop.maskNode as? SKSpriteNode, mask.size.width > 1 {
                 let stored = (crop.userData?["cornerRadius"] as? CGFloat)
@@ -167,7 +168,7 @@ enum BlomixSkinGradient {
                 )
             }
         }
-        if let lip = root.childNode(withName: "//blomixWellInnerShadow") as? SKSpriteNode {
+        if let lip = root.childNode(withName: ".//blomixWellInnerShadow") as? SKSpriteNode {
             let size = lip.size
             let stored = (lip.parent?.userData?["cornerRadius"] as? CGFloat)
                 ?? BlomixUIDestinationButtonStyle.cornerRadius

@@ -1073,6 +1073,11 @@ final class GameScene: SKScene {
     private static let startScreenFiveDailyLabelName = "startScreenFiveDailyLabel"
     private static let startScreenFiveDailySubtitleName = "startScreenFiveDailySubtitle"
     private static let startScreenFiveChipName = "startScreenFiveChip"
+    private static let startScreenPlayPillArcadeName = "startScreenPlayPillArcade"
+    private static let startScreenDailyPillArcadeName = "startScreenDailyPillArcade"
+    /// Mot Pangolin à droite de la pastille ronde.
+    private static let homePillCaptionName = "homePillCaption"
+    private static let homePillCaptionFontSize: CGFloat = 13
     private static let startScreenFiveLabelName = "startScreenFiveLabel"
     private static let startScreenFiveSubtitleName = "startScreenFiveSubtitle"
     private static let gameOverDailyRankLabelName = "gameOverDailyRankLabel"
@@ -1633,13 +1638,14 @@ final class GameScene: SKScene {
 
     /// `true` tant que l’écran d’accueil plein écran est affiché ; la partie n’a pas encore commencé.
     private var isStartScreen = true
+    /// Porte Jouer : Arcade, Five ou Zen. La puce ne lance pas la partie.
+    private var homePlayLane: HomePlayLane = .arcade
+    /// Porte Défis : Défi Arcade ou Défi Five.
+    private var homeDailyLane: HomeDailyLane = .arcade
     /// Accesseurs exposés à GameViewController pour les guards de bannière défi entrant.
     var pvpCoordinatorIsNil: Bool { pvpCoordinator == nil }
     /// Ne montrer le logo studio qu’au tout premier affichage de la scene.
     private var didShowStudioSplash = false
-    /// Taille des chips d'accueil, mémorisée pour positionner le dot PvP auto-search.
-    private var startScreenChipSize: CGSize = .zero
-
     /// Banque audio préchargée (`BlomixSoundBank`).
     private let soundBank = BlomixSoundBank()
 
@@ -2336,6 +2342,387 @@ final class GameScene: SKScene {
         BlomixSKButtonNode(name: chipName, labelName: labelName, text: text, size: chipSize, fontSize: fontSize)
     }
 
+    private func homePillCaptionFont() -> UIFont {
+        let name = BlomixTypeRole.inkChromePostScriptName
+        return UIFont(name: name, size: Self.homePillCaptionFontSize)
+            ?? .systemFont(ofSize: Self.homePillCaptionFontSize)
+    }
+
+    private func homePillCaptionWidth(_ text: String) -> CGFloat {
+        ceil((text as NSString).size(withAttributes: [.font: homePillCaptionFont()]).width)
+    }
+
+    /// Hauteur d’encre du mot (pas la boîte de ligne, pas le corps 13 pt).
+    private func homePillCaptionInkHeight(_ text: String) -> CGFloat {
+        let box = (text as NSString).boundingRect(
+            with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude),
+            options: [.usesDeviceMetrics],
+            attributes: [.font: homePillCaptionFont()],
+            context: nil
+        )
+        return ceil(box.height)
+    }
+
+    /// Les deux rangées partagent ce diamètre : le plus haut des mots Arcade / Five / Zen.
+    private func homePillMarkDiameter() -> CGFloat {
+        let texts = [BlomixL10n.startButton, BlomixL10n.fiveButton, BlomixL10n.zenButton]
+        let ink = texts.map { homePillCaptionInkHeight($0) }.max() ?? Self.homePillCaptionFontSize
+        return max(ink, 8)
+    }
+
+    /// Disque plein. Choisi : matière de la gouttière (dégradé du skin, creusé).
+    /// Repos : gris plein. Pas de capsule au centre, pas d’anneau.
+    private final class HomeLanePillNode: SKNode {
+        let diameter: CGFloat
+        private let timeOffset: Float
+        private var showsSkin: Bool
+        private var skinObserver: NSObjectProtocol?
+
+        init(pillName: String, text: String, diameter: CGFloat, active: Bool) {
+            self.diameter = diameter
+            var hash: UInt64 = 5381
+            for byte in pillName.utf8 { hash = ((hash << 5) &+ hash) &+ UInt64(byte) }
+            self.timeOffset = Float(hash % 1000) / 1000
+            self.showsSkin = active
+            super.init()
+            name = pillName
+            let disc = BlomixSkinGradient.makeWellNode(
+                size: CGSize(width: diameter, height: diameter),
+                cornerRadius: diameter / 2,
+                timeOffset: timeOffset
+            )
+            disc.name = "homePillDisc"
+            addChild(disc)
+            let label = SKLabelNode(text: text)
+            label.name = GameScene.homePillCaptionName
+            label.fontName = BlomixTypeRole.inkChromePostScriptName
+            label.fontSize = GameScene.homePillCaptionFontSize
+            label.horizontalAlignmentMode = .left
+            label.verticalAlignmentMode = .center
+            label.position = CGPoint(x: diameter / 2 + 6, y: 0)
+            label.zPosition = 4
+            addChild(label)
+            applyDisc()
+            skinObserver = NotificationCenter.default.addObserver(
+                forName: .blomixSkinDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.applyDisc()
+                }
+            }
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+        override func removeFromParent() {
+            if let skinObserver {
+                NotificationCenter.default.removeObserver(skinObserver)
+                self.skinObserver = nil
+            }
+            super.removeFromParent()
+        }
+
+        func setActive(_ active: Bool) {
+            showsSkin = active
+            applyDisc()
+        }
+
+        private func applyDisc() {
+            guard let disc = childNode(withName: "homePillDisc"),
+                  let fill = disc.childNode(withName: "blomixWellFill") as? SKSpriteNode else { return }
+            let lip = disc.childNode(withName: "blomixWellInnerShadow")
+            if showsSkin {
+                BlomixSkinGradient.applyShader(to: fill, timeOffset: timeOffset)
+                lip?.isHidden = false
+            } else {
+                fill.shader = nil
+                fill.colorBlendFactor = 1
+                fill.color = BlomixAppearance.progressTrackSK
+                lip?.isHidden = true
+            }
+            let caption = childNode(withName: GameScene.homePillCaptionName) as? SKLabelNode
+            caption?.fontColor = showsSkin
+                ? BlomixAppearance.primaryTextSK
+                : BlomixAppearance.tertiaryTextSK
+        }
+    }
+
+    /// Pastille : disque + mot Pangolin à droite.
+    private func makeStartScreenModePill(name: String, text: String, diameter: CGFloat, active: Bool) -> HomeLanePillNode {
+        HomeLanePillNode(pillName: name, text: text, diameter: diameter, active: active)
+    }
+
+    private func setHomePillActive(_ active: Bool, on chip: HomeLanePillNode) {
+        chip.setActive(active)
+    }
+
+    /// Rangée centrée sur l’écran. Écart fixe : les pastilles ne s’étirent pas sur le bouton.
+    private func addHomePillRow(
+        to overlay: SKNode,
+        specs: [(name: String, text: String, active: Bool)],
+        diameter: CGFloat,
+        y: CGFloat,
+        centerX: CGFloat
+    ) -> [HomeLanePillNode] {
+        let wordGap: CGFloat = 6
+        let groupGap: CGFloat = 18
+        let widths = specs.map { diameter + wordGap + homePillCaptionWidth($0.text) }
+        let content = widths.reduce(0, +)
+        let gapCount = CGFloat(max(specs.count - 1, 0))
+        let total = content + groupGap * gapCount
+        var cursor = centerX - total / 2
+        var pills: [HomeLanePillNode] = []
+        for (index, spec) in specs.enumerated() {
+            let pill = makeStartScreenModePill(
+                name: spec.name,
+                text: spec.text,
+                diameter: diameter,
+                active: spec.active
+            )
+            pill.position = CGPoint(x: cursor + diameter / 2, y: y)
+            pill.zPosition = 2
+            overlay.addChild(pill)
+            pills.append(pill)
+            cursor += widths[index] + groupGap
+        }
+        return pills
+    }
+
+    private enum HomePlayLane {
+        case arcade, five, zen
+    }
+
+    private enum HomeDailyLane {
+        case arcade, five
+    }
+
+    /// Caption sous Jouer : Continuer si une save, Découvrir si le tuto Arcade n’a pas été vu.
+    private func homePlayCaption() -> String? {
+        switch homePlayLane {
+        case .arcade:
+            if pendingArcadeSave() != nil { return BlomixL10n.startContinue }
+            if !UserDefaults.standard.hasSeenInteractiveTutorial { return BlomixL10n.startDiscover }
+            return nil
+        case .five:
+            return pendingFiveSave() != nil ? BlomixL10n.startContinue : nil
+        case .zen:
+            return pendingZenSave() != nil ? BlomixL10n.startContinue : nil
+        }
+    }
+
+    /// Caption sous Défis : l’heure de clôture si une run est en cours, Classement si le jour est fini.
+    private func homeDailyCaption() -> String? {
+        let kind: BlomixDailyKind = homeDailyLane == .five ? .five : .arcade
+        let service = BlomixDailyChallenge.service(kind)
+        switch service.hubCTA {
+        case .play:
+            return nil
+        case .resume:
+            if let run = service.loadRun(),
+               let stamp = service.localizedClosureStamp(forDay: run.utcDay) {
+                return BlomixL10n.dailyDeadlineShort(stamp)
+            }
+            return nil
+        case .finished:
+            return BlomixL10n.startDailyRanking
+        }
+    }
+
+    private func setHomeButtonCaption(on chip: BlomixSKButtonNode, name: String, text: String?) {
+        chip.capsuleContentNode?.childNode(withName: name)?.removeFromParent()
+        let opticalY: CGFloat = BlomixVisualStyle.current == .new ? -1 : 1
+        guard let text, !text.isEmpty else {
+            chip.labelNode?.position.y = opticalY
+            return
+        }
+        attachStartScreenChipCaption(to: chip, name: name, text: text)
+    }
+
+    private func refreshHomeLanePills(in overlay: SKNode) {
+        let play: [(String, HomePlayLane)] = [
+            (Self.startScreenPlayPillArcadeName, .arcade),
+            (Self.startScreenFiveChipName, .five),
+            (Self.startScreenZenChipName, .zen),
+        ]
+        for (name, lane) in play {
+            if let chip = overlay.childNode(withName: name) as? HomeLanePillNode {
+                setHomePillActive(lane == homePlayLane, on: chip)
+            }
+        }
+        let daily: [(String, HomeDailyLane)] = [
+            (Self.startScreenDailyPillArcadeName, .arcade),
+            (Self.startScreenFiveDailyChipName, .five),
+        ]
+        for (name, lane) in daily {
+            if let chip = overlay.childNode(withName: name) as? HomeLanePillNode {
+                setHomePillActive(lane == homeDailyLane, on: chip)
+            }
+        }
+    }
+
+    private func performHomePlayAction() {
+        switch homePlayLane {
+        case .arcade: performStartScreenHeroAction()
+        case .five: performFiveButtonAction()
+        case .zen: performZenButtonAction()
+        }
+    }
+
+    private func performHomeDailyAction() {
+        showDailyHub(kind: homeDailyLane == .five ? .five : .arcade)
+    }
+
+    private func selectHomePlayLane(_ lane: HomePlayLane) {
+        guard lane != homePlayLane else { return }
+        homePlayLane = lane
+        guard let overlay = childNode(withName: Self.startScreenOverlayName) else { return }
+        refreshHomeLanePills(in: overlay)
+        if let chip = overlay.childNode(withName: Self.startScreenStartChipName) as? BlomixSKButtonNode {
+            setHomeButtonCaption(on: chip, name: Self.startScreenHeroSubtitleName, text: homePlayCaption())
+        }
+    }
+
+    private func selectHomeDailyLane(_ lane: HomeDailyLane) {
+        guard lane != homeDailyLane else { return }
+        homeDailyLane = lane
+        guard let overlay = childNode(withName: Self.startScreenOverlayName) else { return }
+        refreshHomeLanePills(in: overlay)
+        if let chip = overlay.childNode(withName: Self.startScreenDailyChipName) as? BlomixSKButtonNode {
+            setHomeButtonCaption(on: chip, name: Self.startScreenDailySubtitleName, text: homeDailyCaption())
+        }
+    }
+
+    /// Chiffres et libellés des rangs. `scale` 1 = taille d’origine.
+    private struct HomeRankZoneMetrics {
+        var discDiameter: CGFloat
+        var rankFontSize: CGFloat
+        var catFontSize: CGFloat
+        var rankPad: CGFloat
+        var catPad: CGFloat
+        var rankCatGap: CGFloat
+        var rankCanvas: CGSize
+        var rawDiscStep: CGFloat
+        var discBottomExtent: CGFloat
+        var discRowGap: CGFloat
+        var glyphTopExtent: CGFloat { rankCanvas.height / 2 - rankPad }
+    }
+
+    private static func homeRankZoneMetrics(scale: CGFloat) -> HomeRankZoneMetrics {
+        let discDiameter = 52 * scale
+        let rankFontSize = discDiameter * 0.30 * 2
+        let catFontSize = discDiameter * 0.21
+        let rankPad = 6 * scale
+        let catPad = 4 * scale
+        let rankCatGap = 7 * scale
+        let rankCanvas = BlomixButtonRelief.cutoutLayout(text: "888", fontSize: rankFontSize, pad: rankPad).canvas
+        let catCanvases = [
+            BlomixL10n.rankDiscSolo, BlomixL10n.rankDiscAvg,
+            BlomixL10n.rankDiscZen, BlomixL10n.rankDiscFive,
+            BlomixL10n.rankDiscDuel, BlomixL10n.rankDiscDaily,
+            BlomixL10n.rankDiscFiveDaily,
+        ].map { BlomixButtonRelief.cutoutLayout(text: $0, fontSize: catFontSize, pad: catPad).canvas }
+        let maxCatW = catCanvases.map(\.width).max() ?? discDiameter
+        let maxCatH = catCanvases.map(\.height).max() ?? (16 * scale)
+        let rawDiscStep = max(discDiameter + 6 * scale, rankCanvas.width + 4 * scale, maxCatW + 4 * scale)
+        let discBottomExtent = rankCanvas.height / 2 - rankPad + rankCatGap - catPad + maxCatH
+        let discRowGap = discDiameter + rankCatGap + maxCatH + 8 * scale
+        return HomeRankZoneMetrics(
+            discDiameter: discDiameter,
+            rankFontSize: rankFontSize,
+            catFontSize: catFontSize,
+            rankPad: rankPad,
+            catPad: catPad,
+            rankCatGap: rankCatGap,
+            rankCanvas: rankCanvas,
+            rawDiscStep: rawDiscStep,
+            discBottomExtent: discBottomExtent,
+            discRowGap: discRowGap
+        )
+    }
+
+    /// Pile Jouer / puces / Défis / puces / Duel. L’air se resserre d’abord.
+    /// Le haut de Jouer ne passe pas sur les disques de rang.
+    private struct HomeStackMetrics {
+        var buttonH: CGFloat
+        var pillH: CGFloat
+        var underGap: CGFloat
+        var groupGap: CGFloat
+        var duelY: CGFloat
+        var dailyPillsY: CGFloat
+        var defisY: CGFloat
+        var playPillsY: CGFloat
+        var jouerY: CGFloat
+    }
+
+    private static func homeStackMetrics(
+        textButtonH: CGFloat,
+        tipAnchorY: CGFloat,
+        heroTopMax: CGFloat,
+        ranksBottom: CGFloat
+    ) -> HomeStackMetrics {
+        var buttonH = textButtonH
+        var pillH: CGFloat = 40
+        var underGap: CGFloat = 7
+        var groupGap: CGFloat = 12
+        let minBottomPad: CGFloat = 18
+        var bottomPad: CGFloat = 40
+
+        func stackHeight() -> CGFloat {
+            3 * buttonH + 2 * pillH + 2 * underGap + 2 * groupGap
+        }
+        func stackTop(pad: CGFloat) -> CGFloat {
+            tipAnchorY + pad + stackHeight()
+        }
+
+        let preferredTop = stackTop(pad: bottomPad)
+        if preferredTop > heroTopMax {
+            bottomPad = max(minBottomPad, bottomPad - (preferredTop - heroTopMax))
+        }
+        if stackTop(pad: bottomPad) > heroTopMax { groupGap = 8 }
+        if stackTop(pad: bottomPad) > heroTopMax { underGap = 4 }
+        if stackTop(pad: bottomPad) > heroTopMax { pillH = 34 }
+        if stackTop(pad: bottomPad) > heroTopMax { bottomPad = minBottomPad }
+
+        let discCeiling = ranksBottom - 12
+        if stackTop(pad: bottomPad) > discCeiling {
+            let extra = stackTop(pad: bottomPad) - discCeiling
+            let buttonSlack = max(0, buttonH - 44) * 3
+            let buttonTake = min(extra, buttonSlack)
+            if buttonTake > 0 { buttonH -= buttonTake / 3 }
+            var remain = extra - buttonTake
+            let pillSlack = max(0, pillH - 32) * 2
+            let pillTake = min(remain, pillSlack)
+            if pillTake > 0 { pillH -= pillTake / 2 }
+            remain -= pillTake
+            if remain > 0 {
+                let groupTake = min(remain, max(0, groupGap - 4))
+                groupGap -= groupTake
+                remain -= groupTake
+                underGap = max(3, underGap - remain / 2)
+            }
+        }
+
+        let duelY = tipAnchorY + bottomPad + buttonH / 2
+        let dailyPillsY = duelY + buttonH / 2 + groupGap + pillH / 2
+        let defisY = dailyPillsY + pillH / 2 + underGap + buttonH / 2
+        let playPillsY = defisY + buttonH / 2 + groupGap + pillH / 2
+        let jouerY = playPillsY + pillH / 2 + underGap + buttonH / 2
+        return HomeStackMetrics(
+            buttonH: buttonH,
+            pillH: pillH,
+            underGap: underGap,
+            groupGap: groupGap,
+            duelY: duelY,
+            dailyPillsY: dailyPillsY,
+            defisY: defisY,
+            playPillsY: playPillsY,
+            jouerY: jouerY
+        )
+    }
+
     /// Caption 9 pt Nunito sous le titre Changa (état « Continuer », le mode reste le titre).
     private func attachStartScreenChipCaption(to chip: BlomixSKButtonNode, name: String, text: String) {
         chip.labelNode?.position.y = 7
@@ -2660,7 +3047,7 @@ final class GameScene: SKScene {
         }
     }
 
-    private func runStartScreenGameChipEntrance(on chip: BlomixSKButtonNode, delay: TimeInterval, slideDistance: CGFloat = 14) {
+    private func runStartScreenGameChipEntrance(on chip: SKNode, delay: TimeInterval, slideDistance: CGFloat = 14) {
         chip.alpha = 0
         if Self.prefersReducedMotion {
             chip.setScale(1)
@@ -2687,6 +3074,25 @@ final class GameScene: SKScene {
         guard let overlay = childNode(withName: Self.startScreenOverlayName),
               let chip = overlay.childNode(withName: chipName) as? BlomixSKButtonNode else { return .zero }
         return sceneHitRectForSKButton(chip, edgeSlop: edgeSlop)
+    }
+
+    /// Pastille ronde + mot à droite. Le mot fait partie de la zone tactile.
+    private func sceneHitRectForHomePill(named name: String) -> CGRect {
+        guard let overlay = childNode(withName: Self.startScreenOverlayName),
+              let chip = overlay.childNode(withName: name) as? HomeLanePillNode,
+              let parent = chip.parent else { return .zero }
+        let p = convert(chip.position, from: parent)
+        let d = chip.diameter
+        var rect = CGRect(x: p.x - d / 2 - 6, y: p.y - d / 2 - 6, width: d + 12, height: d + 12)
+        if let label = chip.childNode(withName: Self.homePillCaptionName) as? SKLabelNode,
+           let text = label.text, !text.isEmpty {
+            let left = convert(label.position, from: chip)
+            let width = homePillCaptionWidth(text)
+            let height = max(d, 36)
+            let labelRect = CGRect(x: left.x - 4, y: left.y - height / 2, width: width + 10, height: height)
+            rect = rect.union(labelRect)
+        }
+        return rect
     }
 
     /// Taille nominale du bouton — pas `calculateAccumulatedFrame` (les échos ambiants dans le puits le gonflent).
@@ -2845,26 +3251,12 @@ final class GameScene: SKScene {
 
         let cx = size.width / 2
 
-        let discDiameter: CGFloat = 52
-        let rankFontSize: CGFloat = discDiameter * 0.30 * 2
-        let catFontSize: CGFloat = discDiameter * 0.21
-        let rankPad: CGFloat = 6
-        let catPad: CGFloat = 4
-        let rankCatGap: CGFloat = 7
-        let rankCanvas = BlomixButtonRelief.cutoutLayout(text: "888", fontSize: rankFontSize, pad: rankPad).canvas
-        let catCanvases = [
-            BlomixL10n.rankDiscSolo, BlomixL10n.rankDiscAvg,
-            BlomixL10n.rankDiscZen, BlomixL10n.rankDiscFive,
-            BlomixL10n.rankDiscDuel, BlomixL10n.rankDiscDaily,
-            BlomixL10n.rankDiscFiveDaily,
-        ].map { BlomixButtonRelief.cutoutLayout(text: $0, fontSize: catFontSize, pad: catPad).canvas }
-        let maxCatW = catCanvases.map(\.width).max() ?? discDiameter
-        let maxCatH = catCanvases.map(\.height).max() ?? 16
-        let rawDiscStep = max(discDiameter + 6, rankCanvas.width + 4, maxCatW + 4)
+        // Zone des rangs à 80 %. Le haut des chiffres ne bouge pas.
+        // BLOMIX et les portes gardent l’ancienne emprise : l’air gagné est entre les deux.
+        let fullRanks = Self.homeRankZoneMetrics(scale: 1)
+        let ranks = Self.homeRankZoneMetrics(scale: 0.8)
         let maxDiscRowW = size.width - 16
-        let discStep = min(rawDiscStep, (maxDiscRowW - discDiameter) / 3)
-        let discBottomExtent = rankCanvas.height / 2 - rankPad + rankCatGap - catPad + maxCatH
-        let discRowGap = discDiameter + rankCatGap + maxCatH + 8
+        let discStep = min(ranks.rawDiscStep, (maxDiscRowW - ranks.discDiameter) / 3)
 
         let iconSide: CGFloat = 44
         let iconCaptionOffset: CGFloat = 32
@@ -2880,62 +3272,45 @@ final class GameScene: SKScene {
         let iconRowY = size.height - topInset - iconSide / 2
         // ── Bande 2 : nom + rangs ──────────────────────────────────────────────
         let playerNameY = iconRowY - iconCaptionOffset - gapAfterIcons
-        let discRow1Y = playerNameY - gapNameToDiscs
-        let discRow2Y = discRow1Y - discRowGap
+        let fullRow1Y = playerNameY - gapNameToDiscs
+        let discRow1Y = fullRow1Y + fullRanks.glyphTopExtent - ranks.glyphTopExtent
+        let discRow2Y = discRow1Y - ranks.discRowGap
         let discCenterY = (discRow1Y + discRow2Y) / 2
-        let ranksBottom = discRow2Y - discBottomExtent
+        let ranksBottom = fullRow1Y - fullRanks.discRowGap - fullRanks.discBottomExtent
 
-        // ── Bande 3 : jeu (bas, pouce) — Arcade | Défi pair | Duel Zen Five ──
+        // ── Bande 3 : Jouer + 3 puces, Défis + 2 puces, Duel. Un peu moins large que l’ancien hero.
         let maxChipOuter = size.width - 48
         let chipFont = BlomixUIDestinationButtonStyle.navigationTitleFontSize
-        let pairGap: CGFloat = 12
-        let pairChipW = (maxChipOuter - pairGap) / 2
-        let tripleGap: CGFloat = 8
-        let tripleChipW = (maxChipOuter - 2 * tripleGap) / 3
-        let modeChipSize = Self.startScreenUnifiedChipSize(
-            texts: [BlomixL10n.startPvPButton, BlomixL10n.zenButton, BlomixL10n.fiveButton],
-            fontSize: chipFont,
-            maxOuterWidth: tripleChipW
-        )
-        let hChip = modeChipSize.height
-        let heroH = hChip * 1.22
+        let columnW = maxChipOuter - 36
         let heroFont = chipFont * 1.12
-        let heroSize = CGSize(width: maxChipOuter, height: heroH)
-        let pairH = heroH
-        let pairChipSize = CGSize(width: pairChipW, height: pairH)
-        let tripleChipSize = CGSize(width: tripleChipW, height: pairH)
-
-        let tipAnchorY = size.height * 0.10
-        let pairFromTip: CGFloat = 64
-        let heroGap: CGFloat = 10
-        var tripleRowY = tipAnchorY + pairFromTip + pairH / 2
-        var dailyRowY = tripleRowY + pairH / 2 + 16 + pairH / 2
-        var arcadeHeroY = dailyRowY + pairH / 2 + heroGap + heroH / 2
-        let minSecondaryY = tipAnchorY + 40 + pairH / 2
-
+        let textButtonH = Self.startScreenUnifiedChipSize(
+            texts: [BlomixL10n.startPlay, BlomixL10n.startChallenges, BlomixL10n.startPvPButton],
+            fontSize: heroFont,
+            maxOuterWidth: columnW
+        ).height
         // ── Bande 1 : BLOMIX + tagline, de préférence au centre écran ──────────
         let titleLayout = BlomixButtonRelief.wordmarkLayout(fontSize: Self.homeWordmarkFontSize)
         let titleTopExtent = titleLayout.canvas.height / 2 - BlomixButtonRelief.wordmarkPad
         let subtitleBottomExtent = subtitleOffset + 8
         let titleBlockH = titleTopExtent + subtitleBottomExtent
         let preferredTitleY = size.height * 0.5
-
         let heroTopMax = ranksBottom - minBandGap - titleBlockH - minBandGap
-        if arcadeHeroY + heroH / 2 > heroTopMax {
-            let overflow = arcadeHeroY + heroH / 2 - heroTopMax
-            dailyRowY -= overflow
-            arcadeHeroY -= overflow
-            tripleRowY -= overflow
-            if tripleRowY < minSecondaryY {
-                let lift = minSecondaryY - tripleRowY
-                tripleRowY = minSecondaryY
-                arcadeHeroY += lift
-                dailyRowY += lift
-            }
-        }
+        let tipAnchorY = size.height * 0.10
+        let stack = Self.homeStackMetrics(
+            textButtonH: textButtonH,
+            tipAnchorY: tipAnchorY,
+            heroTopMax: heroTopMax,
+            ranksBottom: ranksBottom
+        )
+        let buttonSize = CGSize(width: columnW, height: stack.buttonH)
+        let duelY = stack.duelY
+        let dailyPillsY = stack.dailyPillsY
+        let defisY = stack.defisY
+        let playPillsY = stack.playPillsY
+        let jouerY = stack.jouerY
 
         let maxTitleY = ranksBottom - minBandGap - titleTopExtent
-        let minTitleY = arcadeHeroY + heroH / 2 + minBandGap + subtitleBottomExtent
+        let minTitleY = jouerY + stack.buttonH / 2 + minBandGap + subtitleBottomExtent
         let titleY: CGFloat
         if minTitleY <= maxTitleY {
             titleY = min(max(preferredTitleY, minTitleY), maxTitleY)
@@ -2996,11 +3371,11 @@ final class GameScene: SKScene {
             let disc = Self.makeRankDiscNode(
                 name: spec.name,
                 category: spec.category,
-                rankFontSize: rankFontSize,
-                categoryFontSize: catFontSize,
-                rankPad: rankPad,
-                categoryPad: catPad,
-                rankCatGap: rankCatGap
+                rankFontSize: ranks.rankFontSize,
+                categoryFontSize: ranks.catFontSize,
+                rankPad: ranks.rankPad,
+                categoryPad: ranks.catPad,
+                rankCatGap: ranks.rankCatGap
             )
             disc.position = .zero
             wrapper.addChild(disc)
@@ -3031,125 +3406,65 @@ final class GameScene: SKScene {
         }
         refreshStartScreenTrophyBadge()
 
-        let heroKind = startHeroKind()
-        let heroTitle: String
-        let heroSubtitle: String?
-        switch heroKind {
-        case .continueSave:
-            heroTitle = BlomixL10n.startButton
-            heroSubtitle = BlomixL10n.startContinue
-        case .discover:
-            heroTitle = BlomixL10n.startDiscover
-            heroSubtitle = nil
-        case .arcade:
-            heroTitle = BlomixL10n.startButton
-            heroSubtitle = nil
-        }
-        let arcadeDailyCopy = startScreenDailyChipCopy(kind: .arcade)
-        let fiveDailyCopy = startScreenDailyChipCopy(kind: .five)
-        let heroAccent = Self.startScreenHeroAccentColor()
-        let dailyChip = makeStartScreenButtonChip(
-            chipName: Self.startScreenDailyChipName,
-            labelName: Self.startScreenDailyLabelName,
-            text: arcadeDailyCopy.title,
-            chipSize: pairChipSize,
-            fontSize: chipFont
-        )
-        dailyChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
-        dailyChip.position = CGPoint(x: cx - pairChipW / 2 - pairGap / 2, y: dailyRowY)
-        dailyChip.zPosition = 2
-        attachStartScreenChipCaption(
-            to: dailyChip,
-            name: Self.startScreenDailySubtitleName,
-            text: arcadeDailyCopy.subtitle
-        )
-        overlay.addChild(dailyChip)
-
-        let fiveDailyChip = makeStartScreenButtonChip(
-            chipName: Self.startScreenFiveDailyChipName,
-            labelName: Self.startScreenFiveDailyLabelName,
-            text: fiveDailyCopy.title,
-            chipSize: pairChipSize,
-            fontSize: chipFont
-        )
-        fiveDailyChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
-        fiveDailyChip.position = CGPoint(x: cx + pairChipW / 2 + pairGap / 2, y: dailyRowY)
-        fiveDailyChip.zPosition = 2
-        attachStartScreenChipCaption(
-            to: fiveDailyChip,
-            name: Self.startScreenFiveDailySubtitleName,
-            text: fiveDailyCopy.subtitle
-        )
-        overlay.addChild(fiveDailyChip)
-
         let startChip = makeStartScreenButtonChip(
             chipName: Self.startScreenStartChipName,
             labelName: Self.startScreenStartLabelName,
-            text: heroTitle,
-            chipSize: heroSize,
+            text: BlomixL10n.startPlay,
+            chipSize: buttonSize,
             fontSize: heroFont
         )
-        startChip.applyHeroAccent(borderColor: heroAccent, fillTint: Self.startScreenHeroFillTint(from: heroAccent))
-        startChip.position = CGPoint(x: cx, y: arcadeHeroY)
+        startChip.position = CGPoint(x: cx, y: jouerY)
         startChip.zPosition = 2
-        if let heroSubtitle {
-            attachStartScreenChipCaption(
-                to: startChip,
-                name: Self.startScreenHeroSubtitleName,
-                text: heroSubtitle
-            )
-        }
+        setHomeButtonCaption(on: startChip, name: Self.startScreenHeroSubtitleName, text: homePlayCaption())
         overlay.addChild(startChip)
+
+        let pillMark = homePillMarkDiameter()
+        let playPills = addHomePillRow(
+            to: overlay,
+            specs: [
+                (name: Self.startScreenPlayPillArcadeName, text: BlomixL10n.startButton, active: homePlayLane == .arcade),
+                (name: Self.startScreenFiveChipName, text: BlomixL10n.fiveButton, active: homePlayLane == .five),
+                (name: Self.startScreenZenChipName, text: BlomixL10n.zenButton, active: homePlayLane == .zen),
+            ],
+            diameter: pillMark,
+            y: playPillsY,
+            centerX: cx
+        )
+
+        let dailyChip = makeStartScreenButtonChip(
+            chipName: Self.startScreenDailyChipName,
+            labelName: Self.startScreenDailyLabelName,
+            text: BlomixL10n.startChallenges,
+            chipSize: buttonSize,
+            fontSize: heroFont
+        )
+        dailyChip.position = CGPoint(x: cx, y: defisY)
+        dailyChip.zPosition = 2
+        setHomeButtonCaption(on: dailyChip, name: Self.startScreenDailySubtitleName, text: homeDailyCaption())
+        overlay.addChild(dailyChip)
+
+        let dailyPills = addHomePillRow(
+            to: overlay,
+            specs: [
+                (name: Self.startScreenDailyPillArcadeName, text: BlomixL10n.startButton, active: homeDailyLane == .arcade),
+                (name: Self.startScreenFiveDailyChipName, text: BlomixL10n.fiveButton, active: homeDailyLane == .five),
+            ],
+            diameter: pillMark,
+            y: dailyPillsY,
+            centerX: cx
+        )
 
         let pvpChip = makeStartScreenButtonChip(
             chipName: Self.startScreenPvPChipName,
             labelName: Self.startScreenPvPLabelName,
             text: BlomixL10n.startPvPButton,
-            chipSize: tripleChipSize,
-            fontSize: chipFont
+            chipSize: buttonSize,
+            fontSize: heroFont
         )
-        pvpChip.position = CGPoint(x: cx - tripleChipW - tripleGap, y: tripleRowY)
+        pvpChip.position = CGPoint(x: cx, y: duelY)
         pvpChip.zPosition = 2
         overlay.addChild(pvpChip)
-        attachStartScreenPvPPresenceBadge(to: pvpChip, chipSize: tripleChipSize)
-
-        let zenHasSave = pendingZenSave() != nil
-        let zenChip = makeStartScreenButtonChip(
-            chipName: Self.startScreenZenChipName,
-            labelName: Self.startScreenZenLabelName,
-            text: BlomixL10n.zenButton,
-            chipSize: tripleChipSize,
-            fontSize: chipFont
-        )
-        zenChip.position = CGPoint(x: cx, y: tripleRowY)
-        zenChip.zPosition = 2
-        if zenHasSave {
-            attachStartScreenChipCaption(
-                to: zenChip,
-                name: Self.startScreenZenSubtitleName,
-                text: BlomixL10n.startContinue
-            )
-        }
-        overlay.addChild(zenChip)
-
-        let fiveHasSave = pendingFiveSave() != nil
-        let fiveChip = makeStartScreenButtonChip(
-            chipName: Self.startScreenFiveChipName,
-            labelName: Self.startScreenFiveLabelName,
-            text: BlomixL10n.fiveButton,
-            chipSize: tripleChipSize,
-            fontSize: chipFont
-        )
-        fiveChip.position = CGPoint(x: cx + tripleChipW + tripleGap, y: tripleRowY)
-        fiveChip.zPosition = 2
-        if fiveHasSave {
-            attachStartScreenChipCaption(
-                to: fiveChip,
-                name: Self.startScreenFiveSubtitleName,
-                text: BlomixL10n.startContinue
-            )
-        }
-        overlay.addChild(fiveChip)
+        attachStartScreenPvPPresenceBadge(to: pvpChip, chipSize: buttonSize)
 
         refreshStartScreenPlayerIdentityIfVisible()
         run(SKAction.wait(forDuration: 0.05)) { [weak self] in
@@ -3221,9 +3536,16 @@ final class GameScene: SKScene {
                 },
             ]))
 
-            // Mot + hero d’abord. Disques, icônes et modes après la tenue.
+            // Mot + Jouer d’abord. Disques, icônes, Défis et Duel après la tenue.
             runStartScreenFadeEntrance(on: subtitle, delay: t)
             runStartScreenGameChipEntrance(on: startChip, delay: t + 0.08)
+            for (index, pill) in playPills.enumerated() {
+                runStartScreenGameChipEntrance(
+                    on: pill,
+                    delay: t + 0.14 + Double(index) * 0.05,
+                    slideDistance: 8
+                )
+            }
             runStartScreenFadeEntrance(on: playerNameLabel, delay: dashboard)
             runStartScreenRowEntrance(
                 children: iconRow.children,
@@ -3236,17 +3558,28 @@ final class GameScene: SKScene {
                 step: StartScreenEntrance.discStagger
             )
             runStartScreenGameChipEntrance(on: dailyChip, delay: dashboard + 0.22)
-            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: dashboard + 0.30)
+            for (index, pill) in dailyPills.enumerated() {
+                runStartScreenGameChipEntrance(
+                    on: pill,
+                    delay: dashboard + 0.28 + Double(index) * 0.05,
+                    slideDistance: 8
+                )
+            }
             runStartScreenGameChipEntrance(on: pvpChip, delay: dashboard + 0.40)
-            runStartScreenGameChipEntrance(on: zenChip, delay: dashboard + 0.48)
-            runStartScreenGameChipEntrance(on: fiveChip, delay: dashboard + 0.56)
-            runStartScreenFadeEntrance(on: tipContainer, delay: dashboard + 0.72, duration: 0.5)
+            runStartScreenFadeEntrance(on: tipContainer, delay: dashboard + 0.52, duration: 0.5)
         } else {
             titleHost.addChild(BlomixCutoutWordmarkNode(fontSize: Self.homeWordmarkFontSize))
             checkAndShowUpdateBannerIfNeeded(in: overlay)
 
-            // Retour : hero d’abord, entrée courte. Les disques restent (ils ne sont pas remis à zéro).
+            // Retour : Jouer d’abord, entrée courte. Les disques restent (ils ne sont pas remis à zéro).
             runStartScreenGameChipEntrance(on: startChip, delay: 0.04)
+            for (index, pill) in playPills.enumerated() {
+                runStartScreenGameChipEntrance(
+                    on: pill,
+                    delay: 0.08 + Double(index) * 0.04,
+                    slideDistance: 8
+                )
+            }
             runStartScreenFadeEntrance(on: subtitle, delay: 0.08)
             runStartScreenFadeEntrance(on: playerNameLabel, delay: 0.14)
             runStartScreenRowEntrance(
@@ -3254,12 +3587,16 @@ final class GameScene: SKScene {
                 base: 0.18,
                 step: StartScreenEntrance.iconStagger
             )
-            runStartScreenGameChipEntrance(on: dailyChip, delay: 0.16)
-            runStartScreenGameChipEntrance(on: fiveDailyChip, delay: 0.22)
-            runStartScreenGameChipEntrance(on: pvpChip, delay: 0.28)
-            runStartScreenGameChipEntrance(on: zenChip, delay: 0.34)
-            runStartScreenGameChipEntrance(on: fiveChip, delay: 0.40)
-            runStartScreenFadeEntrance(on: tipContainer, delay: 0.48, duration: 0.5)
+            runStartScreenGameChipEntrance(on: dailyChip, delay: 0.20)
+            for (index, pill) in dailyPills.enumerated() {
+                runStartScreenGameChipEntrance(
+                    on: pill,
+                    delay: 0.24 + Double(index) * 0.04,
+                    slideDistance: 8
+                )
+            }
+            runStartScreenGameChipEntrance(on: pvpChip, delay: 0.34)
+            runStartScreenFadeEntrance(on: tipContainer, delay: 0.42, duration: 0.5)
         }
 
         // Si le joueur avait cliqué "Tutoriel" depuis une partie en cours, on le lance maintenant.
@@ -4053,11 +4390,11 @@ final class GameScene: SKScene {
     }
 
     private func touchHitsFiveDailyButton(_ scenePoint: CGPoint) -> Bool {
-        sceneHitRectForStartScreenChip(named: Self.startScreenFiveDailyChipName).contains(scenePoint)
+        sceneHitRectForHomePill(named: Self.startScreenFiveDailyChipName).contains(scenePoint)
     }
 
     private func touchHitsStartScreenFiveButton(_ scenePoint: CGPoint) -> Bool {
-        sceneHitRectForStartScreenChip(named: Self.startScreenFiveChipName).contains(scenePoint)
+        sceneHitRectForHomePill(named: Self.startScreenFiveChipName).contains(scenePoint)
     }
 
     private func touchHitsStartScreenSettingsButton(_ scenePoint: CGPoint) -> Bool {
@@ -4109,8 +4446,16 @@ final class GameScene: SKScene {
         return false
     }
 
+    private func touchHitsStartScreenPlayPillArcade(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForHomePill(named: Self.startScreenPlayPillArcadeName).contains(scenePoint)
+    }
+
+    private func touchHitsStartScreenDailyPillArcade(_ scenePoint: CGPoint) -> Bool {
+        sceneHitRectForHomePill(named: Self.startScreenDailyPillArcadeName).contains(scenePoint)
+    }
+
     private func touchHitsStartScreenZenButton(_ scenePoint: CGPoint) -> Bool {
-        sceneHitRectForStartScreenChip(named: Self.startScreenZenChipName).contains(scenePoint)
+        sceneHitRectForHomePill(named: Self.startScreenZenChipName).contains(scenePoint)
     }
 
     private func touchHitsStartScreenPvPButton(_ scenePoint: CGPoint) -> Bool {
@@ -5379,7 +5724,9 @@ final class GameScene: SKScene {
         ]
         func walk(_ node: SKNode) {
             if let label = node as? SKLabelNode {
-                if label.fontName == BlomixTypeRole.changaPostScriptName
+                if label.name == Self.homePillCaptionName {
+                    label.fontName = BlomixTypeRole.inkChromePostScriptName
+                } else if label.fontName == BlomixTypeRole.changaPostScriptName
                     || label.fontName == BlomixTypeRole.inkPostScriptName {
                     label.fontName = display
                 } else if label.fontName == BlomixTypeRole.inkChromePostScriptName
@@ -9265,10 +9612,32 @@ final class GameScene: SKScene {
         )
     }
 
+    /// Courbe du chiffre HUD. Les chaînes restent linéaires : le dernier point
+    /// bouge encore à la dernière paillette. SAINTX est un ease-out long.
+    private enum ScoreRollCurve {
+        case linear
+        case easeOutCubic
+        /// Ease-out 1,5 : le gros du défilement est pendant le blanchiment,
+        /// le total affiché tombe avec l’arrivée des paillettes.
+        case saintxWash
+    }
+
+    private static func scoreRollEased(_ t: CGFloat, curve: ScoreRollCurve) -> CGFloat {
+        switch curve {
+        case .linear:
+            return t
+        case .easeOutCubic:
+            return 1 - pow(1 - t, 3)
+        case .saintxWash:
+            return 1 - pow(1 - t, 1.5)
+        }
+    }
+
     /// Ajoute les points au total, met à jour le label ; `chainMultiplier` = `chainSeriesLevel` **utilisé** pour ce gain (animation un peu plus forte en combo).
     /// `floatAt` : affiche « +N » à cet endroit (fade légèrement plus lent pour une meilleure lisibilité).
     /// `applyStageMultiplier` : si `false`, les points sont ajoutés tels quels même en solo stagé.
-    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true, scoreRollStartAt: TimeInterval? = nil, scoreRollHoldUntil: TimeInterval? = nil) {
+    /// `scorePopupDelay` : le `+N` part plus tard. Le roll, lui, suit `scoreRollStartAt` / `scoreRollHoldUntil` et n’attend pas ce popup.
+    private func addScore(points: Int, chainMultiplier: Int, floatAt scenePoint: CGPoint? = nil, dotColor: SKColor? = nil, applyStageMultiplier: Bool = true, scoreRollStartAt: TimeInterval? = nil, scoreRollHoldUntil: TimeInterval? = nil, scoreRollCurve: ScoreRollCurve? = nil, scorePopupDelay: TimeInterval = 0) {
         guard points > 0 else { return }
         let multipliedPoints = (applyStageMultiplier && isInStagedSoloMode) ? points * currentStageConfig.multiplier : points
         let scoreBefore = score
@@ -9300,20 +9669,55 @@ final class GameScene: SKScene {
                 flight = ChainClearFeedback.dissolveDotReferenceDuration
             }
             let popup = ScorePopupFeedback.hudDelays(flight: flight)
-            let first = min(scoreRollStartAt ?? popup.first, popup.first)
-            let last = max(scoreRollHoldUntil ?? popup.last, popup.last)
+            let first: TimeInterval
+            let last: TimeInterval
+            if scorePopupDelay > 0 {
+                // Le popup n’est plus l’horloge : SAINTX le garde à l’explosion
+                // pendant que le chiffre court déjà depuis le blanchiment.
+                first = max(0, scoreRollStartAt ?? 0)
+                last = scoreRollHoldUntil ?? first
+            } else {
+                first = min(scoreRollStartAt ?? popup.first, popup.first)
+                last = max(scoreRollHoldUntil ?? popup.last, popup.last)
+            }
             let startAt = max(0, first)
             let rollDuration = max(
                 ScorePopupFeedback.scoreRollMinDuration,
                 last + ScorePopupFeedback.scoreRollArrivalPad - startAt
             )
-            spawnFloatingScorePopup(points: multipliedPoints, at: p, dotColor: dotColor, hudRollStartAt: startAt) { [weak self] in
-                self?.applyDisplayedScoreIncrement(
+            let beginRoll = { [weak self] in
+                guard let self else { return }
+                self.applyDisplayedScoreIncrement(
                     points: multipliedPoints,
                     chainMultiplier: chainMultiplier,
                     scoreColor: dotColor,
-                    scoreRollDuration: rollDuration
+                    scoreRollDuration: rollDuration,
+                    scoreRollCurve: scoreRollCurve
                 )
+            }
+            if scorePopupDelay > 0 {
+                if startAt <= 0 {
+                    beginRoll()
+                } else {
+                    run(SKAction.sequence([
+                        SKAction.wait(forDuration: startAt),
+                        SKAction.run(beginRoll),
+                    ]))
+                }
+                let popupAt = p
+                run(SKAction.sequence([
+                    SKAction.wait(forDuration: scorePopupDelay),
+                    SKAction.run { [weak self] in
+                        self?.spawnFloatingScorePopup(
+                            points: multipliedPoints,
+                            at: popupAt,
+                            dotColor: dotColor,
+                            hudRollStartAt: 0
+                        ) {}
+                    },
+                ]))
+            } else {
+                spawnFloatingScorePopup(points: multipliedPoints, at: p, dotColor: dotColor, hudRollStartAt: startAt, onTransferArrival: beginRoll)
             }
             return
         }
@@ -9367,7 +9771,7 @@ final class GameScene: SKScene {
         }
     }
 
-    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil, scoreRollDuration: TimeInterval? = nil) {
+    private func applyDisplayedScoreIncrement(points: Int, chainMultiplier: Int, scoreColor: SKColor? = nil, scoreRollDuration: TimeInterval? = nil, scoreRollCurve: ScoreRollCurve? = nil) {
         guard points > 0 else { return }
         displayedScore += points
         displayedScore = min(displayedScore, score)
@@ -9386,13 +9790,13 @@ final class GameScene: SKScene {
 
         // ── Rolling counter ──────────────────────────────────────────────────────
         // Solo : total. Duel : mètre 0…50 (chiffre + pile, même horloge).
-        func makeScoreRollAction(duration: TimeInterval, duel: Bool, linear: Bool) -> SKAction {
+        func makeScoreRollAction(duration: TimeInterval, duel: Bool, curve: ScoreRollCurve) -> SKAction {
             SKAction.customAction(withDuration: duration) { [weak self] node, elapsed in
                 guard let self, duration > 0 else { return }
                 let t = min(1, CGFloat(elapsed) / CGFloat(duration))
-                // Paillettes : linéaire pour que le chiffre bouge encore à l’arrivée des dernières.
-                // Hors fenêtre : ease-out cubique (snappy).
-                let eased = linear ? t : (1 - pow(1 - t, 3))
+                // Chaînes : linéaire, le dernier point bouge encore à la dernière paillette.
+                // Hors fenêtre : ease-out cubique. SAINTX : ease-out 1,5 sur toute l’animation.
+                let eased = Self.scoreRollEased(t, curve: curve)
                 let shown = CGFloat(self.scoreRollStart) + eased * CGFloat(self.scoreRollTarget - self.scoreRollStart)
                 if duel {
                     self.applyDuelHudMeter(shown, animateHot: true)
@@ -9424,7 +9828,7 @@ final class GameScene: SKScene {
                     self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
                 }
                 label.run(
-                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true, linear: false), snap]),
+                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true, curve: .easeOutCubic), snap]),
                     withKey: Self.scoreRollActionKey
                 )
             } else if fromMeter >= remainder {
@@ -9443,8 +9847,9 @@ final class GameScene: SKScene {
                 let settle = SKAction.run { [weak self] in
                     self?.applyDuelHudMeter(CGFloat(remainder), animateHot: false)
                 }
+                let curve = scoreRollCurve ?? (scoreRollDuration != nil ? ScoreRollCurve.linear : .easeOutCubic)
                 label.run(
-                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true, linear: scoreRollDuration != nil), settle]),
+                    SKAction.sequence([makeScoreRollAction(duration: rollDuration, duel: true, curve: curve), settle]),
                     withKey: Self.scoreRollActionKey
                 )
             }
@@ -9456,8 +9861,9 @@ final class GameScene: SKScene {
             if let forced = scoreRollDuration {
                 rollDuration = forced
             }
+            let curve = scoreRollCurve ?? (scoreRollDuration != nil ? ScoreRollCurve.linear : .easeOutCubic)
             label.run(
-                makeScoreRollAction(duration: rollDuration, duel: false, linear: scoreRollDuration != nil),
+                makeScoreRollAction(duration: rollDuration, duel: false, curve: curve),
                 withKey: Self.scoreRollActionKey
             )
         }
@@ -12305,9 +12711,9 @@ final class GameScene: SKScene {
         catNode.zPosition = 1
         container.addChild(catNode)
 
-        let hitW = max(rankLayout.canvas.width, catLayout.canvas.width, 54)
+        let hitW = max(rankLayout.canvas.width, catLayout.canvas.width, 44)
         let hitH = rankLayout.canvas.height / 2 - catY + catLayout.canvas.height / 2
-        let hit = SKSpriteNode(color: .clear, size: CGSize(width: hitW, height: max(hitH, 80)))
+        let hit = SKSpriteNode(color: .clear, size: CGSize(width: hitW, height: max(hitH, 64)))
         hit.name = name + rankDiscHitSuffix
         hit.position = CGPoint(x: 0, y: -((hitH / 2) - rankLayout.canvas.height / 2))
         hit.zPosition = 0
@@ -12914,6 +13320,7 @@ final class GameScene: SKScene {
     /// Efface tout le contenu de la grille (animation 2 s : cycle couleurs + overlay blanc 0.1→1.0),
     /// puis laisse un Brix dont la valeur = nombre de cases supprimées.
     /// SAINTX devient un Brix(0) dès l’atterrissage ; le chiffre défile jusqu’à N à l’explosion.
+    /// Le gros score part en même temps (ease-out) et atteint le total avec les paillettes.
     private func applyMagixEffect_cleanx(at cell: GridAddress) {
 
         // ── 1. Snapshot colonnes occupées (pour bonus colonne vidée).
@@ -12961,6 +13368,24 @@ final class GameScene: SKScene {
             : 0.30
         let saintxTotalDuration = Float(overlayDuration + overlayFadeDuration + saintxDissolveWait + CompactRiseAnimation.duration)
         BlomixProceduralSFX.shared.playSaintxWash(duration: saintxTotalDuration)
+
+        // Gros score : dès le blanchiment, jusqu’à la dernière paillette.
+        // Classique : elles partent à l’explosion. Encre : après le retrait (0,20 s).
+        // Le +N reste à l’explosion. La durée du wipe ne change pas.
+        let sparkleSpawn = countDuration
+            + (Self.visualStyleForRun == .new ? ChainClearFeedback.dissolveScaleUpDuration : 0)
+        let sparkleEnd = sparkleArrivalWindow(cells: targets, spawnAt: sparkleSpawn)?.last ?? countDuration
+        let scorePos = scenePointCellCenter(row: cell.row, column: cell.col)
+        addScore(
+            points: 200,
+            chainMultiplier: chainSeriesLevel,
+            floatAt: scorePos,
+            dotColor: .white,
+            scoreRollStartAt: 0,
+            scoreRollHoldUntil: sparkleEnd,
+            scoreRollCurve: .saintxWash,
+            scorePopupDelay: countDuration
+        )
 
         // Brix(0) immédiat ; le chiffre accélère jusqu’à N pile à l’explosion.
         if let cleanxSprite = container.childNode(withName: "cell_\(cell.row)_\(cell.col)") as? SKSpriteNode {
@@ -13076,10 +13501,8 @@ final class GameScene: SKScene {
                 for addr in targets { self.grid[addr.row][addr.col] = .empty }
                 self.grid[cell.row][cell.col] = .priks(finalPriks)
 
-                // Score : 200 pts de base, multiplicateur de stage appliqué dans addScore.
-                let scorePos = self.scenePointCellCenter(row: cell.row, column: cell.col)
-                self.addScore(points: 200, chainMultiplier: self.chainSeriesLevel,
-                              floatAt: scorePos, dotColor: .white)
+                // Le +200 et le roll du gros score sont armés au blanchiment.
+                // Le +N de cette frame est celui qui a été différé, il ne rajoute rien.
 
                 // Après la dissolution, redessiner et compacter.
                 self.run(SKAction.sequence([
@@ -13771,10 +14194,13 @@ final class GameScene: SKScene {
 
     /// Retire les pièces qui couvrent ces cases et montre leurs taches.
     /// La synchro ne les recolle pas tant que le déplacement n’a pas fini.
-    private func suspendNewFusionTouching(_ cells: Set<GridAddress>, in container: SKNode) {
+    /// `retintFromGrid` : faux pendant la remontée. Le modèle est déjà compacté,
+    /// le sprite porte encore l’ancienne case. Relire la grille peindrait le blox
+    /// écrit sur cette case. La teinte posée avant le tassement reste.
+    private func suspendNewFusionTouching(_ cells: Set<GridAddress>, in container: SKNode, retintFromGrid: Bool = true) {
         guard Self.visualStyleForRun == .new, !cells.isEmpty else { return }
         newFusionSyncSuspended = true
-        revealSeparatedInkCells(in: container, touching: cells)
+        revealSeparatedInkCells(in: container, touching: cells, retintFromGrid: retintFromGrid)
         for cell in cells {
             guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
             sprite.isHidden = false
@@ -15273,12 +15699,12 @@ final class GameScene: SKScene {
                 guard let key = press.key else { continue }
                 switch key.keyCode {
                 case .keyboardSpacebar, .keyboardReturnOrEnter:
-                    performStartScreenHeroAction()
+                    performHomePlayAction()
                     return
                 default:
                     let ch = key.charactersIgnoringModifiers
                     if ch == " " || ch == "\r" {
-                        performStartScreenHeroAction()
+                        performHomePlayAction()
                         return
                     }
                     break
@@ -15702,9 +16128,11 @@ final class GameScene: SKScene {
 
     private func animateCompactRiseMoves(_ riseMoves: [CompactRiseMove], in container: SKNode) {
         // Encre : la pièce dessinée au repos ne suit pas le vol. On montre les taches, sans les étirer.
+        // Pas de nouveau lavis : la grille est déjà tassée, la teinte du sprite est la bonne.
         suspendNewFusionTouching(
             Set(riseMoves.map { GridAddress(row: $0.fromRow, col: $0.column) }),
-            in: container
+            in: container,
+            retintFromGrid: false
         )
         var byColumn: [[CompactRiseMove]] = Array(repeating: [], count: GridLayout.columnCount)
         for move in riseMoves {
@@ -16897,7 +17325,8 @@ final class GameScene: SKScene {
 
     /// Retire les pièces qui couvrent `only` (toutes, si `only` est nil) et montre leurs cases.
     /// Chaque case prend son lavis. S’il n’est pas prêt, il arrive sans bloquer l’image.
-    private func revealSeparatedInkCells(in container: SKNode, touching only: Set<GridAddress>? = nil) {
+    /// `retintFromGrid` faux : on montre la tache déjà posée, sans relire `grid`.
+    private func revealSeparatedInkCells(in container: SKNode, touching only: Set<GridAddress>? = nil, retintFromGrid: Bool = true) {
         for child in Array(container.children) where child.name?.hasPrefix(Self.newFusionNodePrefix) == true {
             let cells = fusionCells(on: child)
             if let only, !cells.contains(where: { only.contains($0) }) { continue }
@@ -16905,7 +17334,9 @@ final class GameScene: SKScene {
                 guard let sprite = directGridCellSprite(in: container, row: cell.row, column: cell.col) else { continue }
                 sprite.isHidden = false
                 sprite.zPosition = max(sprite.zPosition, 2)
-                giveSeparatedInkCellItsOwnWash(sprite, row: cell.row, col: cell.col)
+                if retintFromGrid {
+                    giveSeparatedInkCellItsOwnWash(sprite, row: cell.row, col: cell.col)
+                }
             }
             child.removeFromParent()
         }
@@ -19937,16 +20368,32 @@ final class GameScene: SKScene {
                 }
             }
 
-            if touchHitsDailyButton(location) {
-                pendingButtonAction = { [weak self] in self?.showDailyHub(kind: .arcade) }
+            if touchHitsStartScreenPlayPillArcade(location) {
+                pendingButtonAction = { [weak self] in self?.selectHomePlayLane(.arcade) }
+                return
+            }
+            if touchHitsStartScreenFiveButton(location) {
+                pendingButtonAction = { [weak self] in self?.selectHomePlayLane(.five) }
+                return
+            }
+            if touchHitsStartScreenZenButton(location) {
+                pendingButtonAction = { [weak self] in self?.selectHomePlayLane(.zen) }
+                return
+            }
+            if touchHitsStartScreenDailyPillArcade(location) {
+                pendingButtonAction = { [weak self] in self?.selectHomeDailyLane(.arcade) }
                 return
             }
             if touchHitsFiveDailyButton(location) {
-                pendingButtonAction = { [weak self] in self?.showDailyHub(kind: .five) }
+                pendingButtonAction = { [weak self] in self?.selectHomeDailyLane(.five) }
                 return
             }
             if touchHitsStartButton(location) {
-                pendingButtonAction = { [weak self] in self?.performStartScreenHeroAction() }
+                pendingButtonAction = { [weak self] in self?.performHomePlayAction() }
+                return
+            }
+            if touchHitsDailyButton(location) {
+                pendingButtonAction = { [weak self] in self?.performHomeDailyAction() }
                 return
             }
             if touchHitsStartScreenSettingsButton(location) {
@@ -19995,14 +20442,6 @@ final class GameScene: SKScene {
             }
             if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscFiveDailyName) {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .fiveDailyWins) }
-                return
-            }
-            if touchHitsStartScreenZenButton(location) {
-                pendingButtonAction = { [weak self] in self?.performZenButtonAction() }
-                return
-            }
-            if touchHitsStartScreenFiveButton(location) {
-                pendingButtonAction = { [weak self] in self?.performFiveButtonAction() }
                 return
             }
             if touchHitsStartScreenPvPButton(location) {

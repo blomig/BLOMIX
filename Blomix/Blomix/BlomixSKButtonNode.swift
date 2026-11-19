@@ -34,6 +34,8 @@ final class BlomixSKButtonNode: SKNode {
     /// Emprise tactile / layout (hors descendants ambiants clipés dans le puits).
     var layoutSize: CGSize { buttonSize }
     private var wellTimeOffset: Float = 0
+    /// `false` : la gouttière est la piste neutre. `true` : le dégradé du skin.
+    private var wellShowsSkin = true
     private var skinObserver: NSObjectProtocol?
 
     private var restingFillColor = BlomixAppearance.chipFillSK
@@ -48,7 +50,8 @@ final class BlomixSKButtonNode: SKNode {
         text: String,
         size: CGSize,
         fontSize: CGFloat = 0,
-        cornerRadius: CGFloat = -1
+        cornerRadius: CGFloat = -1,
+        wellInset: CGFloat = -1
     ) {
         super.init()
         self.name = name
@@ -58,7 +61,8 @@ final class BlomixSKButtonNode: SKNode {
             text: text,
             labelName: labelName,
             fontSize: fontSize,
-            systemName: nil
+            systemName: nil,
+            wellInset: wellInset
         )
     }
 
@@ -95,13 +99,14 @@ final class BlomixSKButtonNode: SKNode {
         labelName: String?,
         fontSize: CGFloat,
         systemName: String?,
-        iconPointSize: CGFloat = 18
+        iconPointSize: CGFloat = 18,
+        wellInset: CGFloat = -1
     ) {
         buttonSize = size
         wellTimeOffset = Self.timeOffset(for: name ?? text)
         let maxCorner = min(size.width, size.height) / 2
         let resolvedCorner = min(cornerRadius >= 0 ? cornerRadius : Self.cornerRadius, maxCorner)
-        let inset = BlomixUIDestinationButtonStyle.wellInset(for: size)
+        let inset = wellInset >= 0 ? wellInset : BlomixUIDestinationButtonStyle.wellInset(for: size)
         let resolvedFontSize = fontSize > 0 ? fontSize : Self.defaultFontSize
 
         let well = BlomixSkinGradient.makeWellNode(
@@ -227,6 +232,26 @@ final class BlomixSKButtonNode: SKNode {
 
     func refreshSkinGradient() {
         BlomixSkinGradient.refreshWellNode(self, timeOffset: wellTimeOffset)
+        if wellShowsSkin {
+            if let fill = wellFillSprite {
+                BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+            }
+        } else {
+            applyNeutralWell()
+        }
+    }
+
+    /// Gouttière du skin, ou piste neutre. Les portes de l’accueil restent colorées.
+    func setWellShowsSkin(_ shows: Bool) {
+        wellShowsSkin = shows
+        refreshSkinGradient()
+    }
+
+    private func applyNeutralWell() {
+        guard let fill = wellFillSprite else { return }
+        fill.shader = nil
+        fill.colorBlendFactor = 1
+        fill.color = BlomixAppearance.progressTrackSK
     }
 
     private var wellFillSprite: SKSpriteNode? {
@@ -272,8 +297,8 @@ final class BlomixSKButtonNode: SKNode {
                 cornerRadius: capsuleRadius
             )
         }
-        if let well = wellNode {
-            BlomixSkinGradient.refreshWellNode(well, timeOffset: wellTimeOffset)
+        if wellNode != nil {
+            refreshSkinGradient()
         }
         if let icon = capsuleContentNode?.childNode(withName: "blomixButtonIcon") as? SKSpriteNode,
            let systemName = icon.userData?["systemName"] as? String {

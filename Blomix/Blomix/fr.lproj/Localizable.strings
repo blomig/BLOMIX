@@ -18,6 +18,8 @@
 "start.zen" = "Zen";
 "start.five" = "Five";
 "start.pvp" = "Duel";
+"start.play" = "Jouer";
+"start.challenges" = "Défis";
 "start.player_unknown" = "Joueur inconnu";
 "start.player_name_format" = "Joueur : %@";
 "start.player_elo_format" = "Classement Elo : %lld";

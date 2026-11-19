@@ -308,6 +308,7 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 | Voisins immobiles | Après le bounce : **1 pt** vers l’arrivée si même couleur de Blox, sinon loin (8 voisins). Une fois, direction moyenne si plusieurs. Pas les blocs qui rebondissent. **Réduire les animations** : rien. |
 | Cascade pendant bounce | La dissolution **annule** le bounce (et le coup de voisin) et recale scale/position. |
 | Déclencheur | Après vidage + décrément Brix |
+| Encre | La tache montrée pendant la montée garde la teinte posée avant le tassement. On ne relit pas la grille : elle contient déjà le blox qui arrive sur la case de départ. `drawGrid` à l’arrivée reforme les pièces |
 
 ### 3.4 Cascade
 
@@ -509,7 +510,7 @@ Même pipeline que CROSSX (`applyMagixAxisPaint`) : une couleur, pop, `playCrosx
 | **Dissolution** | Fade overlay 0,20 s. Classique : paillettes et grains d’orbite tout de suite, puis scale 1,30→0,01 ; redessin à 0,30 s. Encre : aspiration §3.1 à la place de ce scale, paillettes à 0,20 s, redessin à 0,50 s. Le pop ×1,25 du Brix déposé et le lavage de 2 s ne changent pas. |
 | **Transform** | Dès l’atterrissage : SAINTX → Brix visuel **0** ; le chiffre défile linéairement jusqu’à **N** pile à l’explosion (2,2 s) |
 | **Audio** | `cleanx` |
-| **Score** | +200 pts + Brix(N) sur grille |
+| **Score** | +200 pts (× stage en Arcade) + Brix(N) sur grille. Le gros score part avec le blanchiment, ease-out (exposant 1,5), et atteint le total à la dernière paillette des cases (+ 0,08 s). Le `+N` reste à l’explosion et ne relance pas le chiffre. Durée de l’animation inchangée |
 | **Suite** | compaction + `resolveChains()` — cascades suivantes : linger Magix |
 
 ### 6.7 TWISTX
@@ -597,7 +598,7 @@ Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
 | Début | arrivée de la **première** paillette (cases **ou** shards du `+N`) |
 | Fin | arrivée de la **dernière** paillette (même fenêtre) |
 | Durée | `max(0,12, last − first + 0,08)` — plus de 0,40–0,60 s après que tout soit posé |
-| Easing | **linéaire** si fenêtre paillettes ; ease-out cubique sinon |
+| Easing | **linéaire** si fenêtre paillettes ; ease-out cubique sinon. **SAINTX** : ease-out exposant **1,5**, du blanchiment jusqu’à la dernière paillette des cases. Le `+N` de l’explosion ne décale pas cette fenêtre |
 | Flash couleur | lerp couleur chaîne → blanc en **0,30 s** après roll |
 | Pulse scale | pic `1,2 + chainLevel×0,03` (max ~1,38), montée **0,33 s**, retour **0,11 s** |
 

@@ -244,9 +244,10 @@
 "tutorial.brix_success" = "¡Genial! ¡El Brix se desvanece!";
 "tutorial.bomb_prompt" = "¡Tu bomba arrasa bloques y Brix!";
 "tutorial.bomb_hint" = "Primero el icono bomba, luego una casilla";
-"tutorial.bomb_success" = "¡Genial! Ya lo sabes todo — ¡a disfrutar!";
+"tutorial.bomb_success" = "¿Listo para tu primera partida de verdad?";
 
-"tutorial.magix_intro" = "Aún hay sorpresas — las descubrirás jugando";
+"tutorial.magix_intro" = "A veces aparecerán Magix en tu fila: cada uno tiene un poder, te lo mostraremos cuando llegue.";
+"tutorial.magix_example" = "Por ejemplo, COLORX borra todos los blox de un color.";
 "tutorial.line_arrival" = "¡Cada 10 bloques, una línea empuja la cuadrícula hacia arriba!";
 
 "transition.level_prefix" = "Nivel";

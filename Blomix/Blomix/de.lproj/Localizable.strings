@@ -247,9 +247,10 @@
 "tutorial.brix_success" = "Super! Der Brix schwindet!";
 "tutorial.bomb_prompt" = "Deine Bombe sprengt Blöcke und Brix!";
 "tutorial.bomb_hint" = "Zuerst Bomben-Symbol, dann ein Feld im Gitter";
-"tutorial.bomb_success" = "Super! Du weißt Bescheid — viel Spaß!";
+"tutorial.bomb_success" = "Bereit für dein erstes richtiges Spiel?";
 
-"tutorial.magix_intro" = "Es gibt noch ein paar Überraschungen — du entdeckst sie beim Spielen";
+"tutorial.magix_intro" = "Manchmal erscheinen Magix in deiner Reihe: jeder hat eine Kraft, wir zeigen sie dir, wenn er kommt.";
+"tutorial.magix_example" = "Zum Beispiel löscht COLORX alle Blöcke einer Farbe.";
 "tutorial.line_arrival" = "Alle 10 Blöcke schiebt eine neue Linie das Gitter nach oben!";
 
 /* Transition overlays */

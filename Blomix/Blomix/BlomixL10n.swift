@@ -635,7 +635,8 @@ enum BlomixL10n {
     static var tutorialBombPrompt: String     { tr("tutorial.bomb_prompt",         comment: "Tuto step 4 — main text") }
     static var tutorialBombHint: String       { tr("tutorial.bomb_hint",           comment: "Tuto step 4 — hint text") }
     static var tutorialBombSuccess: String    { tr("tutorial.bomb_success",        comment: "Tuto step 4b — final celebration") }
-    static var tutorialMagixIntro: String     { tr("tutorial.magix_intro",         comment: "Tuto step 5 — Magix blocks intro before exit") }
+    static var tutorialMagixIntro: String     { tr("tutorial.magix_intro",         comment: "Tuto step 5 — Magix will be explained when they arrive") }
+    static var tutorialMagixExample: String   { tr("tutorial.magix_example",       comment: "Tuto step 5 — one concrete Magix, COLORX") }
     // NOTE: popup labels for Magix are defined in MagixRules.label(for:) directly in GameScene.
     static var tutorialLineArrival: String    { tr("tutorial.line_arrival",        comment: "Tuto informational — first bottom line push") }
 

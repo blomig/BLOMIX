@@ -247,9 +247,10 @@
 "tutorial.brix_success" = "Super ! Le Brix se rapproche de la disparition !";
 "tutorial.bomb_prompt" = "Ta bombe casse les blox et les Brix !";
 "tutorial.bomb_hint" = "D’abord l’icône bombe, puis tape sur la case de ton choix";
-"tutorial.bomb_success" = "Super ! Tu sais tout — bonne partie !";
+"tutorial.bomb_success" = "Prêt pour ta première vraie partie ?";
 
-"tutorial.magix_intro" = "Il y a encore quelques surprises, tu les découvriras en jouant";
+"tutorial.magix_intro" = "Des Magix apparaîtront parfois dans ta file : chacun a un pouvoir, on te le montrera le moment venu.";
+"tutorial.magix_example" = "Par exemple, COLORX efface tous les blox d’une couleur.";
 "tutorial.line_arrival" = "Tous les 10 blox, une ligne vient perturber le jeu !";
 
 /* Transition overlays */

@@ -247,9 +247,10 @@
 "tutorial.brix_success" = "Super! The Brix is fading!";
 "tutorial.bomb_prompt" = "Your bomb blasts blocks and Brix!";
 "tutorial.bomb_hint" = "First tap the bomb icon, then tap a cell in the grid";
-"tutorial.bomb_success" = "Super! You know it all — enjoy the game!";
+"tutorial.bomb_success" = "Ready for your first real game?";
 
-"tutorial.magix_intro" = "There are still a few surprises in store, you’ll discover them as you play";
+"tutorial.magix_intro" = "Magix will sometimes show up in your queue: each has a power, and you’ll see it when it arrives.";
+"tutorial.magix_example" = "For example, COLORX clears every block of one color.";
 "tutorial.line_arrival" = "Every 10 blocks, a new line pushes the grid up!";
 
 /* Transition overlays */

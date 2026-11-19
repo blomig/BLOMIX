@@ -1907,8 +1907,8 @@ final class GameScene: SKScene {
         case brixCelebration  // Overlay 3b : "Super !" (auto-dismiss)
         case freePlay         // Pas d'overlay ; 2 drops libres avant la bombe
         case bombIntro        // Overlay 4 : animation bombe, attendre bomb drop
-        case bombCelebration  // Overlay 4b : "Super ! Tu sais tout !" (auto-dismiss → magixIntro)
-        case magixIntro       // Overlay 5  : tous les Magix + "Il y a encore des surprises…" (tap ou 3 s → sortie)
+        case bombCelebration  // Overlay 4b : "Prêt pour ta première vraie partie ?" (auto-dismiss → sortie)
+        case magixIntro       // Overlay 5  : une phrase + un seul exemple (COLORX). Tap ou 4,5 s.
 
         /// Index stable (pas l’ordre de visite : la bombe saute à `magixIntro` puis revient ici).
         var telemetryIndex: Int {
@@ -19817,8 +19817,8 @@ final class GameScene: SKScene {
                 self.emitTutorialTelemetryStep(.freePlay)
             }
         case .magixIntro:
-            // Auto-dismiss après 3 s ; le tap est géré dans touchesBegan.
-            run(SKAction.wait(forDuration: 3.0)) { [weak self] in
+            // Le temps de lire la phrase. Le tap est géré dans touchesBegan.
+            run(SKAction.wait(forDuration: 4.5)) { [weak self] in
                 guard let self, self.tutorialStep == .magixIntro else { return }
                 self.tutorialAdvanceTo(.bombCelebration)
             }
@@ -20016,7 +20016,13 @@ final class GameScene: SKScene {
     }
 
     private func buildCelebrationOverlay(node: SKNode, width: CGFloat, text: String) {
-        let h: CGFloat = 64
+        let textWidth = width - 20
+        let attr = tutorialAttributedText(text, size: 17, bold: true)
+        let textH = ceil(attr.boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil).height)
+        let h = max(64, textH + 28)
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: h), cornerRadius: 10)
         bg.fillColor   = BlomixAppearance.panelFillTranslucent
         bg.strokeColor = BlomixAppearance.panelStrokeStrong
@@ -20025,7 +20031,7 @@ final class GameScene: SKScene {
         node.addChild(bg)
 
         let label = SKLabelNode()
-        label.attributedText = tutorialAttributedText(text, size: 17, bold: true)
+        label.attributedText = attr
         label.numberOfLines          = 0
         label.preferredMaxLayoutWidth = width - 20
         label.horizontalAlignmentMode = .center
@@ -20039,30 +20045,27 @@ final class GameScene: SKScene {
         node.run(SKAction.scale(to: 1.0, duration: 0.2))
     }
 
-    /// Overlay Magix : tous les Magix animés + texte "surprises".
-    /// Tap ou auto-dismiss 3 s → `exitTutorial()`.
+    /// Une phrase et un seul exemple (COLORX). Plus de défilé des 9 Magix.
+    /// Tap ou 4,5 s → l’écran « prêt pour ta première vraie partie ? ».
     private func buildMagixIntroOverlay(node: SKNode, width: CGFloat) {
-        let pad: CGFloat        = 14
-        let kinds = Array(MagixKind.allCases)
-        let n = CGFloat(kinds.count)
-        let blockGap: CGFloat   = 6
-        let maxRowW = width - pad * 2
-        let blockSize: CGFloat  = min(30, floor((maxRowW - (n - 1) * blockGap) / max(n, 1)))
-        let blocksRowH: CGFloat = blockSize + 10   // hauteur réservée à la rangée de blocs
-        let mainFont: CGFloat   = 14
-
-        // Mesurer la hauteur du texte.
+        let pad: CGFloat = 14
+        let blockSize: CGFloat = 36
+        let mainFont: CGFloat = 14
+        let exampleFont: CGFloat = 13
         let textWidth = width - pad * 2
-        let text = BlomixL10n.tutorialMagixIntro
-        let mainAttr = tutorialAttributedText(text, size: mainFont, bold: false)
-        let textH = ceil(mainAttr.boundingRect(
-            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
-            options: [.usesLineFragmentOrigin, .usesFontLeading],
-            context: nil).height)
 
-        let contentH = pad * 2 + blocksRowH + 8 + textH
+        let mainAttr = tutorialAttributedText(BlomixL10n.tutorialMagixIntro, size: mainFont, bold: false)
+        let exampleAttr = tutorialAttributedText(BlomixL10n.tutorialMagixExample, size: exampleFont, bold: true)
+        let measure: (NSAttributedString) -> CGFloat = { attr in
+            ceil(attr.boundingRect(
+                with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                context: nil).height)
+        }
+        let mainH = measure(mainAttr)
+        let exampleH = measure(exampleAttr)
+        let contentH = pad * 2 + blockSize + 10 + mainH + 8 + exampleH
 
-        // Fond.
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: contentH), cornerRadius: 10)
         bg.fillColor   = BlomixAppearance.panelFillTranslucent
         bg.strokeColor = BlomixAppearance.panelStroke
@@ -20071,36 +20074,37 @@ final class GameScene: SKScene {
         node.addChild(bg)
 
         var curY: CGFloat = contentH / 2 - pad
+        let sprite = Self.makeMagixShaderSprite(
+            size: CGSize(width: blockSize, height: blockSize),
+            kind: .colorx
+        )
+        sprite.position = CGPoint(x: 0, y: curY - blockSize / 2)
+        sprite.zPosition = 1
+        node.addChild(sprite)
+        curY -= blockSize + 10
 
-        let totalBlocksW = n * blockSize + (n - 1) * blockGap
-        var blockX = -totalBlocksW / 2 + blockSize / 2
-        let blockY = curY - blockSize / 2
-
-        for kind in kinds {
-            let sprite = Self.makeMagixShaderSprite(
-                size: CGSize(width: blockSize, height: blockSize),
-                kind: kind
-            )
-            sprite.position  = CGPoint(x: blockX, y: blockY)
-            sprite.zPosition = 1
-            node.addChild(sprite)
-            blockX += blockSize + blockGap
-        }
-        curY -= blocksRowH + 8
-
-        // Texte explicatif.
         let mainLabel = SKLabelNode()
-        mainLabel.attributedText          = mainAttr
-        mainLabel.numberOfLines           = 0
+        mainLabel.attributedText = mainAttr
+        mainLabel.numberOfLines = 0
         mainLabel.preferredMaxLayoutWidth = textWidth
-        mainLabel.verticalAlignmentMode   = .top
-        mainLabel.position  = CGPoint(x: 0, y: curY)
+        mainLabel.verticalAlignmentMode = .top
+        mainLabel.position = CGPoint(x: 0, y: curY)
         mainLabel.zPosition = 1
         node.addChild(mainLabel)
+        curY -= mainH + 8
 
-        // Léger pop-in identique aux célébrations.
+        let exampleLabel = SKLabelNode()
+        exampleLabel.attributedText = exampleAttr
+        exampleLabel.numberOfLines = 0
+        exampleLabel.preferredMaxLayoutWidth = textWidth
+        exampleLabel.verticalAlignmentMode = .top
+        exampleLabel.position = CGPoint(x: 0, y: curY)
+        exampleLabel.zPosition = 1
+        node.addChild(exampleLabel)
+
         node.setScale(0.88)
-        node.run(SKAction.scale(to: 1.0, duration: 0.2))
+        let pop: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.2
+        node.run(SKAction.scale(to: 1.0, duration: pop))
     }
 
     /// Emprise de la chaîne en biais (5 cases, pas + écart).
@@ -20442,7 +20446,7 @@ final class GameScene: SKScene {
             return
         }
 
-        // Overlay Magix (étape 4c du tutoriel) : tap n'importe où → écran "Tu sais tout".
+        // Overlay Magix : tap n'importe où → « Prêt pour ta première vraie partie ? ».
         if isTutorialMode && tutorialStep == .magixIntro {
             pendingButtonAction = { [weak self] in
                 guard let self, self.tutorialStep == .magixIntro else { return }

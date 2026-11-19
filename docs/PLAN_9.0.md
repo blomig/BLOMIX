@@ -201,3 +201,4 @@ La suite du look New est la piste Encre ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) 
 | P1 | Prise en main, mesure seulement. `eventsJSON` gagne `tutorial_start`, `tutorial_step`, `tutorial_end` et `is_new_install` sur `first_launch`. Pas de champ CloudKit nouveau. L’accueil ne change pas. Le tuto passe par Découvrir, il n’est pas automatique. | 19/11/2026 |
 | P2 | Installation neuve : la popup Nouveautés ne s’affiche pas. La campagne courante est marquée vue. L’accueil ne change pas. | 19/11/2026 |
 | P3 | Le tuto dit que 5 blox comptent en ligne, en L ou en diagonale, et montre la chaîne en biais. Une bulle pointe la file des prochains blox. | 19/11/2026 |
+| P4 | Fin du tuto : une phrase et l’exemple COLORX, plus « Prêt pour ta première vraie partie ? ». Plus de défilé des 9 Magix, plus de « Tu sais tout ». | 19/11/2026 |

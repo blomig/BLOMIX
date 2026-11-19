@@ -247,9 +247,10 @@
 "tutorial.brix_success" = "Ótimo! O Brix está sumindo!";
 "tutorial.bomb_prompt" = "Sua bomba explode blocos e Brix!";
 "tutorial.bomb_hint" = "Toque primeiro no ícone da bomba, depois em uma casa da grade";
-"tutorial.bomb_success" = "Ótimo! Você já sabe tudo — bom jogo!";
+"tutorial.bomb_success" = "Pronto para a sua primeira partida de verdade?";
 
-"tutorial.magix_intro" = "Ainda há algumas surpresas: você as descobre jogando";
+"tutorial.magix_intro" = "Às vezes vão aparecer Magix na sua fila: cada um tem um poder, e a gente mostra quando ele chega.";
+"tutorial.magix_example" = "Por exemplo, o COLORX apaga todos os blox de uma cor.";
 "tutorial.line_arrival" = "A cada 10 blocos, uma nova linha empurra a grade para cima!";
 
 /* Transition overlays */

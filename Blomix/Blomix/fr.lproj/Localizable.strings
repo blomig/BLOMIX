@@ -135,7 +135,7 @@
 "leaderboard.title" = "Score";
 "leaderboard.subtitle" = "BlomixMainScore";
 "leaderboard.loading" = "Chargement du classement…";
-"leaderboard.gc_sign_in" = "Connectez-vous à Game Center pour afficher le classement.";
+"leaderboard.gc_sign_in" = "Connecte-toi à Game Center pour afficher le classement.";
 "leaderboard.gc_error_format" = "Erreur Game Center : %@";
 "leaderboard.not_found" = "Classement introuvable.";
 "leaderboard.load_error_format" = "Erreur de chargement : %@";
@@ -214,7 +214,7 @@
 "tutorial.page3_title" = "À toi de jouer !";
 "tutorial.page3_body" = "En Duel, les règles de la grille sont les mêmes. Tous les 50 points, tu envoies une ligne à l’autre joueur. Le dernier encore en jeu gagne.\n\nDans les réglages, tu peux changer les couleurs et les sons.";
 
-"pvp.mode_choice_hint" = "Comment voulez-vous jouer ?";
+"pvp.mode_choice_hint" = "Comment veux-tu jouer ?";
 "pvp.mode_auto_desc" = "Prêt à jouer";
 "pvp.mode_recent_desc" = "Adversaire récent";
 "pvp.mode_available_desc" = "Joueurs disponibles";
@@ -227,13 +227,13 @@
 "pvp.recent_invite_sent_format" = "Invitation envoyée à %@";
 "pvp.recent_invite_hint" = "En attente de réponse…";
 "pvp.recent_invite_failed" = "Invitation refusée ou expirée.";
-"pvp.invite_challenge_format" = "%@ vous défie !";
+"pvp.invite_challenge_format" = "%@ te défie !";
 "pvp.invite_accept" = "Accepter";
 "pvp.invite_decline" = "Refuser";
 
 "update.banner_available" = "Version %@ disponible — Mettre à jour ↗";
 
-"pvp.leaderboard_invite_not_recent_player" = "Game Center ne permet d'inviter que des joueurs avec qui vous avez récemment joué. Utilisez la recherche automatique PvP pour rencontrer ce joueur.";
+"pvp.leaderboard_invite_not_recent_player" = "Game Center ne permet d'inviter que des joueurs avec qui tu as récemment joué. Utilise la recherche automatique PvP pour rencontrer ce joueur.";
 
 "menu.tutorial" = "Tutoriel";
 "tutorial.skip" = "Passer";
@@ -383,7 +383,7 @@
 "pvp.quick_match.online_subtitle" = "Matchmaking via Game Center";
 "pvp.local.searching" = "Recherche d’un joueur à proximité…";
 "pvp.local.connecting" = "Connexion…";
-"pvp.local.timeout" = "Aucun joueur à proximité. Vérifiez que vous avez tous les deux choisi Local.";
+"pvp.local.timeout" = "Aucun joueur à proximité. Vérifie que toi et l’autre joueur avez choisi Local.";
 "pvp.local.connection_failed" = "Échec de la connexion locale.";
 "pvp.local.identity_failed" = "Impossible d’échanger les infos joueur.";
 "pvp.local.gc_required_title" = "Game Center requis";
@@ -447,7 +447,7 @@
 "guide.section.magix.intro" = "Des blocs spéciaux avec de gros pouvoirs, très rares, et qui n’apparaissent qu’en Arcade, Zen ou Five dans la file de blox / Brix à lancer.";
 "guide.section.magix.body" = "CHROMAX (?) — chemin coloré aléatoire à l’impact, plus ou moins long.\nBRIXED (9) — devient Brix(9) ; tous les autres Brix sont détruits (+20).\nCROSSX (+) — ligne + colonne repeinte d’une couleur, puis chaînes.\nSLASHX (X) — diagonales repeintes d’une couleur, puis chaînes.\nSCRUMBLX (=) — chaque ligne glisse d’un nombre de cases aléatoires ; −1 sur tous les Brix.\nCOLORX (O) — efface tous les blox d’une couleur aléatoire.\nSAINTX (∞) — vide la grille, laisse un Brix ; +200 × stage.\nTWISTX (§) — échange une couleur de blox contre le Brix minimal.\nBOMBX (B) — tâche de couleur aléatoire, puis ajoute une bombe au stock.";
 "guide.section.score.title" = "Score";
-"guide.section.score.body" = "Chaînes : 5 points pour une chaîne de 5 blox, et jusqu’à 20 points pour une chaîne très longue. +10 pour une chaîne en cascade.\nColonne vidée : +10. Grille entièrement vide : +500 (Arcade/Zen/Five, hors ×stage).";
+"guide.section.score.body" = "Chaînes : 5 points pour une chaîne de 5 blox, et jusqu’à 20 points pour une chaîne très longue. +10 pour une chaîne en cascade.\nColonne vidée : +10. Grille entièrement vide : +500, multiplié par le stage en Arcade, plat en Zen et en Five.";
 "guide.section.duel.title" = "Duel";
 "guide.section.duel.body" = "Le gros chiffre et la barre sont le mètre d’attaque (0…50) : tous les 50 points, ça envoie une ligne à l’autre joueur.\nPlacer une bombe gèle votre timer de tour.";
 "guide.section.five.title" = "Five";

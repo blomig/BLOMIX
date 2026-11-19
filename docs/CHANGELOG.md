@@ -13,6 +13,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Ajouté
 
+- **Textes** : les conseils du jour et les phrases françaises encore au vouvoiement passent au tutoiement. Le Guide dit maintenant que le +500 grille vide est multiplié par le stage en Arcade, et plat en Zen et en Five (c’est ce que fait le code ; l’ancien Guide disait « hors ×stage » pour les trois).
 - **Fin du tutoriel** : plus de défilé des 9 Magix. Une phrase dit qu’on montrera chaque pouvoir le moment venu, avec COLORX comme seul exemple. La fin demande « Prêt pour ta première vraie partie ? ». Six langues.
 - **Tutoriel** : le texte dit qu’une chaîne de 5 compte en ligne, en L ou en diagonale, et le dessin montre cinq blox en biais. Une bulle pointe la file des deux prochains blox. Six langues.
 - **Nouveautés** : une installation neuve (même critère que `is_new_install`) marque la campagne courante comme vue et n’affiche pas la popup. Une mise à jour la voit encore.

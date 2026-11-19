@@ -8054,14 +8054,14 @@ final class GameScene: SKScene {
         let lang2 = preferredLangs.first.map { String($0.prefix(2)).lowercased() } ?? "en"
         if lang2.hasPrefix("fr") {
             return [
-                TipOfDay(text: "N’oubliez pas les diagonales."),
-                TipOfDay(text: "Jouez la bombe au bon moment."),
-                TipOfDay(text: "Plus les chaînes sont longues, plus vous marquez de points."),
-                TipOfDay(text: "Pensez aux coups suivants."),
-                TipOfDay(text: "Soignez vos empilements."),
-                TipOfDay(text: "Regardez les blox à venir."),
-                TipOfDay(text: "Respirez, lentement."),
-                TipOfDay(text: "Vous pouvez tout paramétrer à votre goût dans les réglages."),
+                TipOfDay(text: "N’oublie pas les diagonales."),
+                TipOfDay(text: "Joue la bombe au bon moment."),
+                TipOfDay(text: "Plus les chaînes sont longues, plus tu marques de points."),
+                TipOfDay(text: "Pense aux coups suivants."),
+                TipOfDay(text: "Soigne tes empilements."),
+                TipOfDay(text: "Regarde les blox à venir."),
+                TipOfDay(text: "Respire, lentement."),
+                TipOfDay(text: "Tu peux tout paramétrer à ton goût dans les réglages."),
                 TipOfDay(text: "Pas plus de 5 parties par jour."),
             ]
         }

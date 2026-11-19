@@ -434,7 +434,7 @@
 "guide.section.magix.intro" = "Blocchi speciali con grandi poteri, molto rari, e compaiono solo in Arcade, Zen o Five nella coda di blox / Brix da lanciare.";
 "guide.section.magix.body" = "CHROMAX (?) — percorso colorato casuale all’impatto, più o meno lungo.\nBRIXED (9) — diventa Brix(9); tutti gli altri Brix sono distrutti (+20).\nCROSSX (+) — riga + colonna ridipinte di un colore, poi catene.\nSLASHX (X) — diagonali ridipinte di un colore, poi catene.\nSCRUMBLX (=) — ogni riga scorre di un numero casuale di caselle; −1 su tutti i Brix.\nCOLORX (O) — cancella tutti i blox di un colore casuale.\nSAINTX (∞) — svuota la griglia, lascia un Brix; +200 × livello.\nTWISTX (§) — scambia un colore di blox con il Brix minimo.\nBOMBX (B) — macchia di colore casuale, poi aggiunge una bomba allo stock.";
 "guide.section.score.title" = "Punteggio";
-"guide.section.score.body" = "Catene: 5 punti per una catena di 5 blox, fino a 20 per una catena molto lunga. +10 per una catena in cascata.\nColonna vuota: +10. Griglia del tutto vuota: +500 (Arcade/Zen/Five, senza ×livello).";
+"guide.section.score.body" = "Catene: 5 punti per una catena di 5 blox, fino a 20 per una catena molto lunga. +10 per una catena in cascata.\nColonna vuota: +10. Griglia del tutto vuota: +500, moltiplicato per il livello in Arcade, piatto in Zen e Five.";
 "guide.section.duel.title" = "Duello";
 "guide.section.duel.body" = "Il numero grande e la barra sono il metro d’attacco (0…50): ogni 50 punti invia una riga all’altro giocatore.\nPiazzare una bomba congela il timer del turno.";
 "guide.section.five.title" = "Five";

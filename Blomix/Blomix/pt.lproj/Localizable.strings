@@ -447,7 +447,7 @@
 "guide.section.magix.intro" = "Blocos especiais com efeitos fortes, bem raros, e só aparecem no Arcade, no Zen ou no Five na fila de blox / Brix a lançar.";
 "guide.section.magix.body" = "CHROMAX (?) — caminho colorido aleatório no impacto, mais ou menos longo.\nBRIXED (9) — vira Brix(9); todos os outros Brix são destruídos (+20).\nCROSSX (+) — linha + coluna pintadas de uma cor, depois cadeias.\nSLASHX (X) — diagonais pintadas de uma cor, depois cadeias.\nSCRUMBLX (=) — cada linha desliza um número aleatório de casas; −1 em todos os Brix.\nCOLORX (O) — limpa todos os blox de uma cor aleatória.\nSAINTX (∞) — esvazia a grade, deixa um Brix; +200 × stage.\nTWISTX (§) — troca uma cor de blox pelo Brix mais baixo.\nBOMBX (B) — mancha de cor aleatória, depois adiciona uma bomba ao estoque.";
 "guide.section.score.title" = "Pontuação";
-"guide.section.score.body" = "Cadeias: 5 pontos para uma cadeia de 5 blox, até 20 para uma bem longa. +10 para uma cadeia em cascata.\nColuna esvaziada: +10. Grade totalmente vazia: +500 (Arcade/Zen/Five, sem multiplicador de stage).";
+"guide.section.score.body" = "Cadeias: 5 pontos para uma cadeia de 5 blox, até 20 para uma bem longa. +10 para uma cadeia em cascata.\nColuna esvaziada: +10. Grade totalmente vazia: +500, multiplicado pelo stage na Arcade, sem multiplicador em Zen e Five.";
 "guide.section.duel.title" = "Duelo";
 "guide.section.duel.body" = "O número grande e a barra são o medidor de ataque (0…50): a cada 50 pontos, uma linha vai para o outro jogador.\nColocar uma bomba congela o timer do seu turno.";
 "guide.section.five.title" = "Five";

@@ -447,7 +447,7 @@
 "guide.section.magix.intro" = "Special blocks with powerful effects, very rare, and they only appear in Arcade, Zen or Five in the blox / Brix launch queue.";
 "guide.section.magix.body" = "CHROMAX (?) — random coloured path on impact, more or less long.\nBRIXED (9) — becomes Brix(9); all other Brix are destroyed (+20).\nCROSSX (+) — row + column repainted one colour, then chains.\nSLASHX (X) — diagonals repainted one colour, then chains.\nSCRUMBLX (=) — each row shifts a random number of cells; −1 on every Brix.\nCOLORX (O) — clears all blox of a random colour.\nSAINTX (∞) — clears the board, leaves a Brix; +200 × stage.\nTWISTX (§) — swaps one blox colour for the lowest Brix.\nBOMBX (B) — random colour stain, then adds a bomb to the stock.";
 "guide.section.score.title" = "Score";
-"guide.section.score.body" = "Chains: 5 points for a chain of 5 blox, up to 20 for a very long chain. +10 for a cascade chain.\nCleared column: +10. Fully empty board: +500 (Arcade/Zen/Five, no stage multiplier).";
+"guide.section.score.body" = "Chains: 5 points for a chain of 5 blox, up to 20 for a very long chain. +10 for a cascade chain.\nCleared column: +10. Fully empty board: +500, multiplied by the stage in Arcade, flat in Zen and Five.";
 "guide.section.duel.title" = "Duel";
 "guide.section.duel.body" = "The big number and the bar are the attack meter (0…50): every 50 points sends a line to the other player.\nPlacing a bomb freezes your turn timer.";
 "guide.section.five.title" = "Five";

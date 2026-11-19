@@ -447,7 +447,7 @@
 "guide.section.magix.intro" = "Spezialblöcke mit großen Kräften, sehr selten, und sie erscheinen nur in Arcade, Zen oder Five in der Blox-/Brix-Warteschlange.";
 "guide.section.magix.body" = "CHROMAX (?) — zufälliger Farbpfad beim Aufprall, mal kürzer, mal länger.\nBRIXED (9) — wird Brix(9); alle anderen Brix werden zerstört (+20).\nCROSSX (+) — Zeile + Spalte in einer Farbe neu gefärbt, dann Ketten.\nSLASHX (X) — Diagonalen in einer Farbe neu gefärbt, dann Ketten.\nSCRUMBLX (=) — jede Zeile verschiebt sich um eine zufällige Zahl Felder; −1 auf alle Brix.\nCOLORX (O) — löscht alle Blox einer zufälligen Farbe.\nSAINTX (∞) — leert das Feld, lässt einen Brix; +200 × Stufe.\nTWISTX (§) — tauscht eine Blox-Farbe gegen den kleinsten Brix.\nBOMBX (B) — zufälliger Farbfleck, dann eine Bombe zum Vorrat.";
 "guide.section.score.title" = "Punkte";
-"guide.section.score.body" = "Ketten: 5 Punkte für eine Kette aus 5 Blox, bis zu 20 für eine sehr lange Kette. +10 für eine Kaskadenkette.\nLeere Spalte: +10. Komplett leeres Feld: +500 (Arcade/Zen/Five, ohne Stufenmultiplikator).";
+"guide.section.score.body" = "Ketten: 5 Punkte für eine Kette aus 5 Blox, bis zu 20 für eine sehr lange Kette. +10 für eine Kaskadenkette.\nLeere Spalte: +10. Komplett leeres Feld: +500, in Arcade mal Stufenmultiplikator, in Zen und Five ohne.";
 "guide.section.duel.title" = "Duell";
 "guide.section.duel.body" = "Die große Zahl und der Balken sind der Angriffsmesser (0…50): alle 50 Punkte geht eine Reihe an den Gegner.\nEine Bombe zu legen hält deinen Zug-Timer an.";
 "guide.section.five.title" = "Five";

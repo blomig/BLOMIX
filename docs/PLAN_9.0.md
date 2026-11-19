@@ -202,3 +202,4 @@ La suite du look New est la piste Encre ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) 
 | P2 | Installation neuve : la popup Nouveautés ne s’affiche pas. La campagne courante est marquée vue. L’accueil ne change pas. | 19/11/2026 |
 | P3 | Le tuto dit que 5 blox comptent en ligne, en L ou en diagonale, et montre la chaîne en biais. Une bulle pointe la file des prochains blox. | 19/11/2026 |
 | P4 | Fin du tuto : une phrase et l’exemple COLORX, plus « Prêt pour ta première vraie partie ? ». Plus de défilé des 9 Magix, plus de « Tu sais tout ». | 19/11/2026 |
+| P5 | Tutoiement des conseils du jour et des phrases FR encore en vous. Le Guide aligne le +500 sur le code : × stage en Arcade, plat en Zen et Five. L’ancien Guide disait l’inverse pour l’Arcade. | 19/11/2026 |

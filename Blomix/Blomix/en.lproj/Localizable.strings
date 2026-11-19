@@ -248,6 +248,11 @@
 "tutorial.bomb_prompt" = "Your bomb blasts blocks and Brix!";
 "tutorial.bomb_hint" = "First tap the bomb icon, then tap a cell in the grid";
 "tutorial.bomb_success" = "Ready for your first real game?";
+"tutorial.finish" = "Let's go";
+"guided.first_subtitle" = "No timer for this first game.";
+"guided.hint.line" = "A line just arrived from the bottom. It pushes everything up.";
+"guided.hint.cascade" = "Cascade: one chain set off another.";
+"guided.hint.brix" = "This Brix reached 0: it disappears.";
 
 "tutorial.magix_intro" = "Magix will sometimes show up in your queue: each has a power, and you’ll see it when it arrives.";
 "tutorial.magix_example" = "For example, COLORX clears every block of one color.";
@@ -272,6 +277,7 @@
 
 /* Stage transition overlay (Arcade / Daily) */
 "stage.overlay.stats_format" = "%llds · ×%lld";
+"stage.overlay.multiplier_format" = "×%lld";
 
 /* Rank discs (start screen) */
 "rank_disc.solo" = "ARC.";

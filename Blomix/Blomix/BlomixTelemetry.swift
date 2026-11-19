@@ -214,6 +214,9 @@ enum BlomixTelemetry {
     private static var tutorialMeasured = false
     private static var tutorialStepIndex = 0
     private static var tutorialStepId = "intro"
+    private static var guidedMeasured = false
+    /// Première partie guidée encore ouverte au moment où le processus meurt.
+    private static let guidedPendingKey = "blomix_telemetry_guided_pending_end_v1"
 
     // MARK: - Cycle de vie
 
@@ -226,6 +229,7 @@ enum BlomixTelemetry {
         }
         sessionOpen = true
         resolveTutorialAbandonIfProcessRestarted()
+        resolveGuidedEndIfProcessRestarted()
         if !UserDefaults.standard.bool(forKey: firstLaunchKey) {
             UserDefaults.standard.set(true, forKey: firstLaunchKey)
             let fresh = BlomixInstallCensus.isNewInstall()
@@ -274,6 +278,24 @@ enum BlomixTelemetry {
             result: result
         )
         clearTutorialPendingAbandon()
+        Task { await flush() }
+    }
+
+    /// Première Arcade lancée par le bouton de fin du tuto. Pas de champ CloudKit nouveau.
+    static func noteFirstGuidedGameStart() {
+        if guidedMeasured { noteFirstGuidedGameEnd() }
+        guidedMeasured = true
+        UserDefaults.standard.set(true, forKey: guidedPendingKey)
+        enqueue(kind: "first_guided_game_start")
+    }
+
+    /// Fin de cette partie guidée : game over, retour accueil, ou processus tué.
+    static func noteFirstGuidedGameEnd() {
+        let pending = UserDefaults.standard.bool(forKey: guidedPendingKey)
+        guard guidedMeasured || pending else { return }
+        guidedMeasured = false
+        UserDefaults.standard.set(false, forKey: guidedPendingKey)
+        enqueue(kind: "first_guided_game_end")
         Task { await flush() }
     }
 
@@ -348,6 +370,14 @@ enum BlomixTelemetry {
 
     private static func clearTutorialPendingAbandon() {
         UserDefaults.standard.removeObject(forKey: tutorialPendingKey)
+    }
+
+    /// Même processus (retour au premier plan) : la partie guidée continue.
+    /// Processus relancé : la clé locale ferme l’entonnoir.
+    private static func resolveGuidedEndIfProcessRestarted() {
+        guard UserDefaults.standard.bool(forKey: guidedPendingKey) else { return }
+        if guidedMeasured { return }
+        noteFirstGuidedGameEnd()
     }
 
     private static func enqueue(

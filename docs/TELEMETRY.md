@@ -23,12 +23,16 @@ Identifiant : UUID aléatoire, clé `blomix_telemetry_install_id`. Créé une fo
 | `tutorial_start` | Démarrage du tutoriel interactif | — |
 | `tutorial_step` | Chaque étape atteinte, y compris la première | `step_index`, `step_id` |
 | `tutorial_end` | Fin du script, bouton Passer, game over, ou processus tué pendant le tuto | `result` (`completed`, `skipped`, `abandoned`), `step_index`, `step_id` de l’étape atteinte |
+| `first_guided_game_start` | Le bouton de fin du tuto lance la première Arcade sans chrono | — |
+| `first_guided_game_end` | Fin de cette partie : game over, retour à l’accueil, ou processus tué après un passage en arrière-plan | — |
 
 `tutorial_end` part aussi quand « FIN DU TUTO » ou « Passer » ramène à l’accueil. Avant, seul le game over du tuto émettait quelque chose (`game_end`, `mode` = `tutorial`). Ce `game_end` reste en plus, le jour où le tuto se termine par un game over.
 
 `step_id` : `intro`, `chain_prompt`, `chain_celebration`, `awaiting_brix`, `brix_intro`, `brix_celebration`, `free_play`, `bomb_intro`, `bomb_celebration`, `magix_intro`. `step_index` est l’index stable de cette liste (0…9), pas l’ordre de visite : après la bombe le script passe par `magix_intro` (9) puis `bomb_celebration` (8).
 
 Un abandon est : le game over pendant le tuto, ou le processus tué après un passage en arrière-plan (la dernière étape est relue au lancement suivant). Revenir au premier plan sans tuer l’app ne compte pas comme un abandon. Un force-quit qui ne passe pas par l’arrière-plan ne laisse pas d’événement.
+
+`first_guided_game_end` suit la même règle de processus : la clé `blomix_telemetry_guided_pending_end_v1` est lue au prochain lancement si l’app a été tuée. Revenir au premier plan sans tuer l’app ne ferme pas la partie. Le bouton Passer, ou une sauvegarde déjà là, ne lance pas cette partie : pas d’événement. Une reprise plus tard de la sauvegarde est une Arcade normale, avec le chrono. Ce n’est pas un second `first_guided_game_start`.
 
 ### `is_new_install`
 
@@ -67,7 +71,7 @@ Conteneur : `iCloud.blomig.BLOMIX`. Base : **Public**. Type : `TelemetryBatch`.
 | `locale` | String | aucun |
 | `sentAt` | Date/Time | Queryable, sortable |
 
-`eventsJSON` est un tableau JSON. Les dates (`at`) sont en ISO-8601. Exemple d’élément : `{"id":"…","kind":"game_end","mode":"zen","durationSec":420,"resumed":false,"at":"2026-11-13T18:00:00Z"}`. `day` n’est présent que pour `daily_played`. `resumed` n’est présent que pour un `game_end` dont la partie était suivie. `step_index`, `step_id` et `result` ne sont présents que pour le tutoriel. `is_new_install` n’est présent que pour un `first_launch` émis à partir de cette mesure. Une clé absente reste absente : un lot déjà en file se relit. Pas de nouveau champ sur le type CloudKit `TelemetryBatch`.
+`eventsJSON` est un tableau JSON. Les dates (`at`) sont en ISO-8601. Exemple d’élément : `{"id":"…","kind":"game_end","mode":"zen","durationSec":420,"resumed":false,"at":"2026-11-13T18:00:00Z"}`. `day` n’est présent que pour `daily_played`. `resumed` n’est présent que pour un `game_end` dont la partie était suivie. `step_index`, `step_id` et `result` ne sont présents que pour le tutoriel. `is_new_install` n’est présent que pour un `first_launch` émis à partir de cette mesure. `first_guided_game_start` et `first_guided_game_end` n’ajoutent pas de clé. Une clé absente reste absente : un lot déjà en file se relit. Pas de nouveau champ sur le type CloudKit `TelemetryBatch`.
 
 Droits **avant** de déployer en Production :
 

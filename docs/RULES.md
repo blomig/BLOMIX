@@ -275,7 +275,9 @@ Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_D
 - Pas automatique. Au premier lancement, l’accueil s’ouvre. Sous **Jouer**, tant que le tuto n’a pas été vu et que la pastille Arcade est choisie (c’est le défaut), la légende est **Découvrir** et le bouton lance le tutoriel. Five et Zen partent directement. L’icône Tutoriel de l’accueil le relance.
 - Séquence de blocs scriptée, bombe verrouillée jusqu'à l'étape dédiée
 - Pas de Brix/Magix dans les lignes injectées
-- Bouton **Passer** toujours disponible
+- Bouton **Passer** toujours disponible. Il ramène à l’accueil.
+- Le bouton **C’est parti** (fin du script) lance une première Arcade **sans chrono par coup**, seulement s’il n’y avait pas de sauvegarde Arcade, Zen ou Five au début du tuto, et si cette partie guidée n’a pas déjà été lancée. Sinon il ramène à l’accueil, comme Passer. Les stages et le ×score restent ceux de l’Arcade. Une partie lancée depuis l’accueil garde le chrono.
+- Pendant cette partie seulement, trois bulles, une fois chacune : la première ligne qui s’est posée, la première cascade, le premier Brix arrivé à 0. Elles ne bloquent pas le jeu. Un tap ferme celle qui est ouverte. Le × les coupe pour les suivantes (clé locale). Réduire les animations raccourcit le fondu, le texte reste.
 
 ---
 

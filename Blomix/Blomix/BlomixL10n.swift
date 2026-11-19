@@ -639,6 +639,11 @@ enum BlomixL10n {
     static var tutorialMagixExample: String   { tr("tutorial.magix_example",       comment: "Tuto step 5 — one concrete Magix, COLORX") }
     // NOTE: popup labels for Magix are defined in MagixRules.label(for:) directly in GameScene.
     static var tutorialLineArrival: String    { tr("tutorial.line_arrival",        comment: "Tuto informational — first bottom line push") }
+    static var tutorialFinish: String        { tr("tutorial.finish",             comment: "Tuto end button — start the first real game") }
+    static var guidedFirstSubtitle: String   { tr("guided.first_subtitle",       comment: "First Arcade after the tuto — no per-move timer") }
+    static var guidedHintLine: String        { tr("guided.hint.line",            comment: "Coach — first incoming line has landed") }
+    static var guidedHintCascade: String     { tr("guided.hint.cascade",         comment: "Coach — first cascade") }
+    static var guidedHintBrix: String        { tr("guided.hint.brix",            comment: "Coach — first Brix that reaches 0") }
 
     // MARK: - Music track picker
     static var musicPickerLabel: String { tr("settings.music_picker_label", comment: "Sound settings — music track picker label") }
@@ -661,6 +666,9 @@ enum BlomixL10n {
     static var transitionLevelPrefix: String { tr("transition.level_prefix", comment: "Stage transition overlay — Level / Niveau") }
     static func stageOverlayStats(seconds: Int, multiplier: Int) -> String {
         String(format: tr("stage.overlay.stats_format", comment: "%llds · ×%lld — seconds per move and score multiplier"), seconds, multiplier)
+    }
+    static func stageOverlayMultiplier(_ multiplier: Int) -> String {
+        String(format: tr("stage.overlay.multiplier_format", comment: "×%lld — score multiplier only, no per-move seconds"), multiplier)
     }
     static var zenOverlayLevelPrefix: String { tr("zen.overlay.level_prefix", comment: "Zen intro overlay small header") }
     static var zenOverlayStageText: String { tr("zen.overlay.stage_text", comment: "Zen intro overlay large text") }

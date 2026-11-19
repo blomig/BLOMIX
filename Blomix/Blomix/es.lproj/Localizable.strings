@@ -245,6 +245,11 @@
 "tutorial.bomb_prompt" = "¡Tu bomba arrasa bloques y Brix!";
 "tutorial.bomb_hint" = "Primero el icono bomba, luego una casilla";
 "tutorial.bomb_success" = "¿Listo para tu primera partida de verdad?";
+"tutorial.finish" = "Vamos";
+"guided.first_subtitle" = "Sin crono para esta primera partida.";
+"guided.hint.line" = "Acaba de llegar una línea por abajo. Empuja todo hacia arriba.";
+"guided.hint.cascade" = "Cascada: una cadena ha disparado otra.";
+"guided.hint.brix" = "Este Brix ha llegado a 0: desaparece.";
 
 "tutorial.magix_intro" = "A veces aparecerán Magix en tu fila: cada uno tiene un poder, te lo mostraremos cuando llegue.";
 "tutorial.magix_example" = "Por ejemplo, COLORX borra todos los blox de un color.";
@@ -265,6 +270,7 @@
 "five.overlay.line1" = "línea cada 5";
 
 "stage.overlay.stats_format" = "%llds · ×%lld";
+"stage.overlay.multiplier_format" = "×%lld";
 
 "rank_disc.solo" = "ARC.";
 "rank_disc.avg" = "MED.";

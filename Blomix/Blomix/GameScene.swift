@@ -1907,7 +1907,7 @@ final class GameScene: SKScene {
         case brixCelebration  // Overlay 3b : "Super !" (auto-dismiss)
         case freePlay         // Pas d'overlay ; 2 drops libres avant la bombe
         case bombIntro        // Overlay 4 : animation bombe, attendre bomb drop
-        case bombCelebration  // Overlay 4b : "Prêt pour ta première vraie partie ?" (auto-dismiss → sortie)
+        case bombCelebration  // Overlay 4b : "Prêt pour ta première vraie partie ?" + bouton de fin
         case magixIntro       // Overlay 5  : une phrase + un seul exemple (COLORX). Tap ou 4,5 s.
 
         /// Index stable (pas l’ordre de visite : la bombe saute à `magixIntro` puis revient ici).
@@ -1946,7 +1946,16 @@ final class GameScene: SKScene {
     private static let tutorialQueueCalloutName = "tutoQueueCallout"
     private static let tutorialLineOverlayName  = "tutoLineOverlay"
     private static let tutorialSkipBtnName      = "tutoSkipBtn"
+    private static let tutorialFinishBtnName    = "tutoFinishBtn"
     private static let tutorialFreePlayDropsNeeded = 2
+    /// Une seule première Arcade sans chrono. Absent = pas encore lancée.
+    private static let didFirstGuidedGameKey = "blomix_did_first_guided_game"
+    /// Absent = les bulles sont allumées. Le × écrit false.
+    private static let guidedCoachEnabledKey = "blomix_guided_coach_enabled"
+    private static let guidedCoachLineKey = "blomix_guided_hint_line_v1"
+    private static let guidedCoachCascadeKey = "blomix_guided_hint_cascade_v1"
+    private static let guidedCoachBrixKey = "blomix_guided_hint_brix_v1"
+    private static let guidedCoachName = "guidedCoachBubble"
 
     private var isTutorialMode:       Bool          = false
     private var isZenMode:            Bool          = false
@@ -1974,6 +1983,11 @@ final class GameScene: SKScene {
     private var tutorialPriksShown:   Bool          = false
     private var tutorialBlockQueue:   [BlockType]   = []
     private var tutorialLineShown:    Bool          = false   // overlay "1ère ligne" affiché une seule fois
+    /// Une save Arcade, Zen ou Five existait déjà au lancement de ce tuto.
+    private var tutorialHadSoloSave:  Bool          = false
+    /// Arcade lancée par le bouton de fin du tuto : pas de chrono par coup.
+    private var isFirstGuidedGame:    Bool          = false
+    private var guidedCoachQueue:     [String]      = []
     private var pendingTutorialStart: Bool          = false
     /// Vrai pendant toute la séquence unwindToStartScreen (teardown → reset → restore).
     /// Empêche willResignActiveNotification d'écraser la sauvegarde solo avec un état transitoire.
@@ -2185,6 +2199,7 @@ final class GameScene: SKScene {
 
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
     private func resetSessionModelForNewMatch(zen: Bool = false, five: Bool = false) {
+        finishFirstGuidedGameIfNeeded()
         isZenMode = zen && !five
         isFiveMode = five && !zen
         bestScoreFetchGeneration += 1
@@ -4333,7 +4348,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.leaderScoreTitleName)?.isHidden = hidden || !showsLeaderboardTopHUD
         childNode(withName: Self.scoreRaceContainerName)?.isHidden = hidden || !showsScoreRaceHUD
         childNode(withName: Self.hudAttackCaptionName)?.isHidden = hidden || pvpCoordinator == nil
-        childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isUntimedSoloMode
+        childNode(withName: Self.hudTimerCaptionName)?.isHidden = hidden || isUntimedSoloMode || isFirstGuidedGame
         // Compteur LIGNE
         childNode(withName: Self.ligneCaptionName)?.isHidden = hidden
         childNode(withName: Self.ligneValueName)?.isHidden = hidden
@@ -6259,6 +6274,7 @@ final class GameScene: SKScene {
         if isTutorialMode {
             BlomixTelemetry.noteTutorialEnd(result: "abandoned")
         } else {
+            finishFirstGuidedGameIfNeeded()
             noteTrophiesAtGameOver(finalScore: finalScore)
             BlomixPlayerSurvey.recordCompletedGame()
         }
@@ -8499,6 +8515,9 @@ final class GameScene: SKScene {
                 }
             }
         }
+        if animated, !vanishedPriks.isEmpty {
+            enqueueGuidedCoach(key: Self.guidedCoachBrixKey, text: BlomixL10n.guidedHintBrix)
+        }
 
         if animated {
             playStaggeredPriksDigitDecrements(decrementing)
@@ -8981,6 +9000,7 @@ final class GameScene: SKScene {
             }.first ?? .empty
             let color = Self.bloxTrailColor(for: blockType)
             spawnComboLabelPopup(level: chainSeriesLevel, at: center, color: color)
+            enqueueGuidedCoach(key: Self.guidedCoachCascadeKey, text: BlomixL10n.guidedHintCascade)
         }
         let connectLift: CGFloat = comboShown ? LateralConnectBonus.popupYLiftWhenCombo : 0
         for pop in connectPopups {
@@ -10950,7 +10970,7 @@ final class GameScene: SKScene {
         timerCaptionLabel.horizontalAlignmentMode = .right
         timerCaptionLabel.verticalAlignmentMode = .center
         timerCaptionLabel.zPosition = 12
-        timerCaptionLabel.isHidden = isUntimedSoloMode   // pas de timer en Zen / Five
+        timerCaptionLabel.isHidden = isUntimedSoloMode || isFirstGuidedGame   // pas de timer en Zen / Five, ni sur la première partie guidée
         addChild(timerCaptionLabel)
 
         // Compteur LIGNE (gauche du gros score — symétrique de TEMPS à droite)
@@ -12214,6 +12234,7 @@ final class GameScene: SKScene {
             // La ligne ne remplit que le trou le plus haut : un vide plus bas laisserait un Brix suspendu.
             let didRepairHoles = self.repairGravityHolesIfNeeded()
             self.drawGrid()
+            self.enqueueGuidedCoach(key: Self.guidedCoachLineKey, text: BlomixL10n.guidedHintLine)
             // Bounce sur chaque case nouvellement placée (effet vague colonne par colonne).
             // Après un tassage, la case d’arrivée n’est plus celle du placement : on ne bounce pas au mauvais endroit.
             if !didRepairHoles, let container = self.childNode(withName: Self.gridContainerName) {
@@ -19046,7 +19067,7 @@ final class GameScene: SKScene {
     private func updateStageTimerHUD() {
         guard let lbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode else { return }
         lbl.text    = "\(stageTimerSecondsRemaining)s"
-        lbl.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver || isWindingDown
+        lbl.isHidden = !isInStagedSoloMode || isStartScreen || isGameOver || isWindingDown || isFirstGuidedGame
         applyTimerAimingChrome(to: lbl, seconds: stageTimerSecondsRemaining)
         refreshTimerCaptionForAiming()
         childNode(withName: Self.hudTimerCaptionName)?.isHidden = lbl.isHidden
@@ -19124,6 +19145,7 @@ final class GameScene: SKScene {
 
     /// Redémarre le timer depuis la durée complète du stage courant.
     func restartStageTimer() {
+        if holdStageTimerOffForGuidedGame() { return }
         guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
         autoDropLockedColumn = nil
         removeAction(forKey: Self.stageTimerActionKey)
@@ -19164,6 +19186,7 @@ final class GameScene: SKScene {
 
     /// Reprend le décompte sur les secondes restantes (ne pas appeler `restartStageTimer`).
     private func resumeStageTimerKeepingRemaining() {
+        if holdStageTimerOffForGuidedGame() { return }
         guard isInStagedSoloMode, !isGameOver, !isStartScreen else { return }
         removeAction(forKey: Self.stageTimerActionKey)
         updateStageTimerHUD()
@@ -19179,6 +19202,10 @@ final class GameScene: SKScene {
     }
 
     private func stageTimerTick() {
+        if isFirstGuidedGame {
+            stopStageTimer()
+            return
+        }
         guard isInStagedSoloMode, !isGameOver, !isStartScreen else {
             stopStageTimer()
             return
@@ -19229,8 +19256,11 @@ final class GameScene: SKScene {
         refreshBombHudIcon()   // mise à jour icône bombe → nuke si stage ≥ 2
         stopStageTimer()
         playStageBadgeOverlaySyncedAdvance(revealing: Self.stageBadgeText(for: newCfg.levelText))
+        let statsLine = isFirstGuidedGame
+            ? BlomixL10n.stageOverlayMultiplier(newCfg.multiplier)
+            : newCfg.overlayStatsLine
         showTransitionOverlay(stageLevelText: Self.stageBadgeText(for: newCfg.levelText),
-                              line1: newCfg.overlayStatsLine,
+                              line1: statsLine,
                               line2: "") { [weak self] in
             // Changement de musique APRÈS disparition de l'overlay (évite la superposition avec transition.wav).
             BlomixMusicPlayer.shared.switchToFile(newCfg.musicFilename)
@@ -19703,6 +19733,7 @@ final class GameScene: SKScene {
         // Marquer le tutoriel comme vu dès son démarrage.
         // Même si le joueur quitte l'app en cours de route, il ne sera plus re-déclenché
         // automatiquement au prochain lancement. Il reste accessible via le bouton "Tutoriel".
+        finishFirstGuidedGameIfNeeded()
         UserDefaults.standard.hasSeenGameTutorial        = true
         UserDefaults.standard.hasSeenInteractiveTutorial = true
 
@@ -19716,18 +19747,17 @@ final class GameScene: SKScene {
         tutorialLineShown    = false
         tutorialBlockQueue   = buildTutorialBlockQueue()
 
-        if isStartScreen {
-            // Lancement direct depuis l'écran d'accueil.
-            beginNewMatchFromStartScreen()
-        } else {
+        if !isStartScreen {
             // Depuis une partie en cours : sauvegarder et reset.
             if !isGameOver && pvpCoordinator == nil {
                 saveCurrentSoloGameState()
             }
             isStartScreen = true   // passe le guard de beginNewMatchFromStartScreen
             isGameOver    = false
-            beginNewMatchFromStartScreen()
         }
+        let saves = BlomixSoloSaveManager.shared
+        tutorialHadSoloSave = saves.loadArcade() != nil || saves.loadZen() != nil || saves.loadFive() != nil
+        beginNewMatchFromStartScreen()
         // Skip + overlay d'étape « intro » : affichés après l'overlay de lancement
         // (voir completion de `startTutorialGameWithIntro`).
         let opening = TutorialStep.intro
@@ -19822,12 +19852,6 @@ final class GameScene: SKScene {
                 guard let self, self.tutorialStep == .magixIntro else { return }
                 self.tutorialAdvanceTo(.bombCelebration)
             }
-        case .bombCelebration:
-            run(SKAction.wait(forDuration: 3.0)) { [weak self] in
-                guard let self, self.tutorialStep == .bombCelebration else { return }
-                BlomixTrophyHooks.noteTutorialFinished()
-                self.exitTutorial(result: "completed")
-            }
         case .bombIntro:
             tutorialBombUnlocked = true
         default:
@@ -19889,7 +19913,9 @@ final class GameScene: SKScene {
 
         case .bombCelebration:
             buildCelebrationOverlay(node: overlay, width: bannerW,
-                                    text: BlomixL10n.tutorialBombSuccess)
+                                    text: BlomixL10n.tutorialBombSuccess,
+                                    actionTitle: BlomixL10n.tutorialFinish,
+                                    actionName: Self.tutorialFinishBtnName)
 
         case .magixIntro:
             buildMagixIntroOverlay(node: overlay, width: bannerW)
@@ -20015,14 +20041,17 @@ final class GameScene: SKScene {
         }
     }
 
-    private func buildCelebrationOverlay(node: SKNode, width: CGFloat, text: String) {
+    private func buildCelebrationOverlay(node: SKNode, width: CGFloat, text: String,
+                                         actionTitle: String? = nil, actionName: String? = nil) {
         let textWidth = width - 20
         let attr = tutorialAttributedText(text, size: 17, bold: true)
         let textH = ceil(attr.boundingRect(
             with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             context: nil).height)
-        let h = max(64, textH + 28)
+        let hasAction = actionTitle != nil && actionName != nil
+        let buttonH: CGFloat = hasAction ? 46 : 0
+        let h = max(64, textH + 28 + buttonH)
         let bg = SKShapeNode(rectOf: CGSize(width: width, height: h), cornerRadius: 10)
         bg.fillColor   = BlomixAppearance.panelFillTranslucent
         bg.strokeColor = BlomixAppearance.panelStrokeStrong
@@ -20036,13 +20065,32 @@ final class GameScene: SKScene {
         label.preferredMaxLayoutWidth = width - 20
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode   = .center
-        label.position  = .zero
+        label.position  = CGPoint(x: 0, y: hasAction ? buttonH / 2 : 0)
         label.zPosition = 1
         node.addChild(label)
 
-        // Petit pop-in
-        node.setScale(0.85)
-        node.run(SKAction.scale(to: 1.0, duration: 0.2))
+        if let actionTitle, let actionName {
+            let font: CGFloat = 16
+            let fitted = BlomixSKButtonNode.fittingSize(
+                for: actionTitle, fontSize: font, maxWidth: width - 28
+            )
+            let chipSize = CGSize(width: max(fitted.width, 132), height: max(fitted.height, 36))
+            let chip = makeStartScreenButtonChip(
+                chipName: actionName,
+                labelName: actionName + "_lbl",
+                text: actionTitle,
+                chipSize: chipSize,
+                fontSize: font
+            )
+            chip.position = CGPoint(x: 0, y: -h / 2 + chipSize.height / 2 + 10)
+            chip.zPosition = 2
+            node.addChild(chip)
+        }
+
+        // Petit pop-in. Réduire les animations : le texte et le bouton restent, sans le geste.
+        let pop: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.2
+        node.setScale(Self.prefersReducedMotion ? 1 : 0.85)
+        node.run(SKAction.scale(to: 1.0, duration: pop))
     }
 
     /// Une phrase et un seul exemple (COLORX). Plus de défilé des 9 Magix.
@@ -20253,8 +20301,8 @@ final class GameScene: SKScene {
 
     // ── Sortie ───────────────────────────────────────────────────────────────────
 
-    /// `result` : `completed` (fin du script) ou `skipped` (bouton Passer).
-    /// Les deux ramènent à l’accueil. Le game over passe par `noteTutorialEnd` avant.
+    /// `result` : `completed` (fin du script, retour accueil) ou `skipped` (bouton Passer).
+    /// La première partie sans chrono ne passe pas ici. Le game over passe par `noteTutorialEnd` avant.
     private func exitTutorial(result: String) {
         guard isTutorialMode else { return }
         BlomixTelemetry.noteTutorialEnd(result: result)
@@ -20270,6 +20318,191 @@ final class GameScene: SKScene {
         ) { [weak self] in
             self?.unwindToStartScreen(restoreSave: true)
         }
+    }
+
+    /// Bouton de la carte de fin. Première fois, sans save : Arcade sans chrono. Sinon accueil.
+    private func finishTutorialFromEndButton() {
+        guard isTutorialMode, tutorialStep == .bombCelebration else { return }
+        let alreadyGuided = UserDefaults.standard.bool(forKey: Self.didFirstGuidedGameKey)
+        if !alreadyGuided && !tutorialHadSoloSave {
+            beginFirstGuidedArcade()
+        } else {
+            BlomixTrophyHooks.noteTutorialFinished()
+            exitTutorial(result: "completed")
+        }
+    }
+
+    /// Remplace le retour accueil. Le chrono de 32 s ne démarre pas.
+    private func beginFirstGuidedArcade() {
+        guard isTutorialMode else { return }
+        BlomixTelemetry.noteTutorialEnd(result: "completed")
+        BlomixTrophyHooks.noteTutorialFinished()
+        UserDefaults.standard.hasSeenInteractiveTutorial = true
+        isTutorialMode = false
+        tutorialBombUnlocked = false
+        dismissCurrentTutorialOverlay()
+        hideTutorialSkipButton()
+        childNode(withName: Self.tutorialLineOverlayName)?.removeFromParent()
+
+        cancelGhostPreview()
+        clearDailyChallengeSessionFlags()
+        BlomixSoloSaveManager.shared.clearArcade()
+        consumeInMemoryPvPSoloSnapshots()
+
+        resetSessionModelForNewMatch()
+        isFirstGuidedGame = true
+        UserDefaults.standard.set(true, forKey: Self.didFirstGuidedGameKey)
+        BlomixTelemetry.noteFirstGuidedGameStart()
+
+        let magixBReward = grantPendingMagixBAsFirstBlockIfEligible()
+        addTopTitle()
+        setupBombHUD()
+        setupScoreHUD()
+        captureVisualStyleForRun()
+        drawGrid()
+        updatePreviewSprite()
+        rebuildGameOverflowMenu()
+        setGameplayNodesHidden(false)
+        if magixBReward { presentMagixBRewardNote() }
+        ensureStageBadge()
+        layoutStageBadge()
+        refreshStageBadge()
+        hideGuidedTimerChrome()
+
+        soundBank.play(.begin)
+        refreshGameCenterStatusLabelText()
+        NotificationCenter.default.post(name: .blomixDidBeginGameplayMatch, object: self)
+        BlomixTelemetry.noteGameBegan(mode: "arcade")
+
+        showTransitionOverlay(
+            line1: BlomixL10n.startButton,
+            line2: BlomixL10n.guidedFirstSubtitle
+        ) { [weak self] in
+            guard let self else { return }
+            BlomixMusicPlayer.shared.switchToFile(Self.soloStages[0].musicFilename)
+            self.refreshStageBadge()
+            self.hideGuidedTimerChrome()
+        }
+    }
+
+    /// Ferme la session guidée une fois : télémétrie, plus de bulles, le chrono redevient normal ensuite.
+    private func finishFirstGuidedGameIfNeeded() {
+        guard isFirstGuidedGame else { return }
+        isFirstGuidedGame = false
+        guidedCoachQueue.removeAll()
+        childNode(withName: Self.guidedCoachName)?.removeFromParent()
+        BlomixTelemetry.noteFirstGuidedGameEnd()
+    }
+
+    /// Vrai si le chrono doit rester éteint. Coupe aussi un tick déjà armé.
+    private func holdStageTimerOffForGuidedGame() -> Bool {
+        guard isFirstGuidedGame else { return false }
+        hideGuidedTimerChrome()
+        return true
+    }
+
+    private func hideGuidedTimerChrome() {
+        stopStageTimer()
+        childNode(withName: Self.stageTimerHudName)?.isHidden = true
+        childNode(withName: Self.hudTimerCaptionName)?.isHidden = true
+    }
+
+    private func guidedCoachMasterEnabled() -> Bool {
+        if UserDefaults.standard.object(forKey: Self.guidedCoachEnabledKey) == nil { return true }
+        return UserDefaults.standard.bool(forKey: Self.guidedCoachEnabledKey)
+    }
+
+    /// Une bulle par clé, mémorisée dès l’affichage. Le × coupe les suivantes.
+    private func enqueueGuidedCoach(key: String, text: String) {
+        guard isFirstGuidedGame, !isGameOver, guidedCoachMasterEnabled() else { return }
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        guidedCoachQueue.append(text)
+        if childNode(withName: Self.guidedCoachName) == nil {
+            presentNextGuidedCoach()
+        }
+    }
+
+    private func presentNextGuidedCoach() {
+        guard isFirstGuidedGame, !isGameOver, guidedCoachMasterEnabled(), !guidedCoachQueue.isEmpty else {
+            guidedCoachQueue.removeAll()
+            return
+        }
+        let text = guidedCoachQueue.removeFirst()
+        let width = min(size.width - 36, 280)
+        let fontSize: CGFloat = 13
+        let pad: CGFloat = 10
+        let textWidth = width - pad * 2 - 22
+        let attr = tutorialAttributedText(text, size: fontSize, bold: false)
+        let textH = ceil(attr.boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil).height)
+        let bubbleH = max(46, textH + pad * 2)
+
+        let node = SKNode()
+        node.name = Self.guidedCoachName
+        let y = scenePointCellCenter(row: GridLayout.topRowIndex + 1, column: 0).y
+        node.position = CGPoint(x: size.width / 2, y: y)
+        node.zPosition = 80
+
+        let bg = SKShapeNode(rectOf: CGSize(width: width, height: bubbleH), cornerRadius: 8)
+        bg.fillColor = BlomixAppearance.panelFillTranslucent
+        bg.strokeColor = BlomixAppearance.panelStroke
+        bg.lineWidth = 0.5
+        node.addChild(bg)
+
+        let label = SKLabelNode()
+        label.attributedText = attr
+        label.numberOfLines = 0
+        label.preferredMaxLayoutWidth = textWidth
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: -8, y: 0)
+        label.zPosition = 1
+        node.addChild(label)
+
+        let close = SKLabelNode(text: "×")
+        close.fontName = Self.customUIFontPostScriptName
+        close.fontSize = 18
+        close.fontColor = BlomixAppearance.tertiaryTextSK
+        close.verticalAlignmentMode = .center
+        close.horizontalAlignmentMode = .center
+        close.position = CGPoint(x: width / 2 - 16, y: 0)
+        close.zPosition = 2
+        node.addChild(close)
+
+        let fadeIn: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.22
+        let fadeOut: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.3
+        node.alpha = 0
+        addChild(node)
+        node.run(SKAction.sequence([
+            SKAction.fadeIn(withDuration: fadeIn),
+            SKAction.wait(forDuration: 3.4),
+            SKAction.fadeOut(withDuration: fadeOut),
+            SKAction.removeFromParent(),
+            SKAction.run { [weak self] in self?.presentNextGuidedCoach() },
+        ]), withKey: "guidedCoachLife")
+    }
+
+    private func dismissGuidedCoach(disableRest: Bool) {
+        if disableRest {
+            UserDefaults.standard.set(false, forKey: Self.guidedCoachEnabledKey)
+            guidedCoachQueue.removeAll()
+        }
+        if let node = childNode(withName: Self.guidedCoachName) {
+            node.removeAllActions()
+            node.removeFromParent()
+        }
+        if !disableRest { presentNextGuidedCoach() }
+    }
+
+    /// `.disable` sur le ×, `.dismiss` sur le reste de la bulle.
+    private func guidedCoachHit(_ point: CGPoint) -> Bool? {
+        guard let node = childNode(withName: Self.guidedCoachName) else { return nil }
+        let frame = node.calculateAccumulatedFrame()
+        guard frame.contains(point) else { return nil }
+        return point.x > frame.maxX - 36
     }
 
     /// Overlay informatif une seule fois lors de la 1ère ligne qui monte, sans interrompre le jeu.
@@ -20298,6 +20531,11 @@ final class GameScene: SKScene {
 
     private func touchHitsTutorialSkipButton(_ point: CGPoint) -> Bool {
         guard let btn = childNode(withName: Self.tutorialSkipBtnName) else { return false }
+        return btn.calculateAccumulatedFrame().contains(point)
+    }
+
+    private func touchHitsTutorialFinishButton(_ point: CGPoint) -> Bool {
+        guard let btn = childNode(withName: Self.tutorialFinishBtnName) else { return false }
         return btn.calculateAccumulatedFrame().contains(point)
     }
 
@@ -20438,6 +20676,12 @@ final class GameScene: SKScene {
         if let btn = blomixButtonAtPoint(location) {
             btn.animatePressed()
             lastPressedSKButton = btn
+        }
+
+        // Bouton de fin du tuto (carte « prêt ? ») : avant Passer si les deux sont touchés.
+        if isTutorialMode && touchHitsTutorialFinishButton(location) {
+            pendingButtonAction = { [weak self] in self?.finishTutorialFromEndButton() }
+            return
         }
 
         // Bouton "Passer" du tutoriel : priorité absolue, visible en permanence.
@@ -20657,6 +20901,15 @@ final class GameScene: SKScene {
 
         if touchHitsGameMenuIcon(scenePoint: location) {
             pendingButtonAction = { [weak self] in self?.toggleGameOverflowMenu() }
+            return
+        }
+
+        if let disableRest = guidedCoachHit(location) {
+            lastPressedSKButton?.animateReleased()
+            lastPressedSKButton = nil
+            pendingButtonAction = { [weak self] in
+                self?.dismissGuidedCoach(disableRest: disableRest)
+            }
             return
         }
 

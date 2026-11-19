@@ -248,6 +248,11 @@
 "tutorial.bomb_prompt" = "Deine Bombe sprengt Blöcke und Brix!";
 "tutorial.bomb_hint" = "Zuerst Bomben-Symbol, dann ein Feld im Gitter";
 "tutorial.bomb_success" = "Bereit für dein erstes richtiges Spiel?";
+"tutorial.finish" = "Los geht's";
+"guided.first_subtitle" = "Keine Uhr für dieses erste Spiel.";
+"guided.hint.line" = "Eine Reihe kommt von unten. Sie schiebt alles nach oben.";
+"guided.hint.cascade" = "Kaskade: eine Kette hat eine weitere ausgelöst.";
+"guided.hint.brix" = "Dieser Brix ist bei 0: er verschwindet.";
 
 "tutorial.magix_intro" = "Manchmal erscheinen Magix in deiner Reihe: jeder hat eine Kraft, wir zeigen sie dir, wenn er kommt.";
 "tutorial.magix_example" = "Zum Beispiel löscht COLORX alle Blöcke einer Farbe.";
@@ -272,6 +277,7 @@
 
 /* Stage transition overlay (Arcade / Daily) */
 "stage.overlay.stats_format" = "%llds · ×%lld";
+"stage.overlay.multiplier_format" = "×%lld";
 
 /* Rank discs (start screen) */
 "rank_disc.solo" = "ARC.";

@@ -216,6 +216,20 @@ final class ActivePlayClockTests: XCTestCase {
         XCTAssertNil(object["step_id"])
     }
 
+    func testGuidedGameEventsAddNoExtraKeys() throws {
+        let event = BlomixTelemetryEvent(
+            id: "g",
+            kind: "first_guided_game_start",
+            at: t(0)
+        )
+        let object = try jsonObject(event)
+        XCTAssertEqual(object["kind"] as? String, "first_guided_game_start")
+        XCTAssertNil(object["is_new_install"])
+        XCTAssertNil(object["step_index"])
+        XCTAssertNil(object["result"])
+        XCTAssertNil(object["mode"])
+    }
+
     func testInstallCensusTreatsAnEmptySuiteAsNew() {
         let name = "blomix-census-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!

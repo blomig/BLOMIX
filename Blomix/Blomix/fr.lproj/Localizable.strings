@@ -248,6 +248,11 @@
 "tutorial.bomb_prompt" = "Ta bombe casse les blox et les Brix !";
 "tutorial.bomb_hint" = "D’abord l’icône bombe, puis tape sur la case de ton choix";
 "tutorial.bomb_success" = "Prêt pour ta première vraie partie ?";
+"tutorial.finish" = "C’est parti";
+"guided.first_subtitle" = "Pas de chrono pour cette première partie.";
+"guided.hint.line" = "Une ligne vient d’arriver par le bas. Elle pousse tout vers le haut.";
+"guided.hint.cascade" = "Cascade : une chaîne en a déclenché une autre.";
+"guided.hint.brix" = "Ce Brix est arrivé à 0 : il disparaît.";
 
 "tutorial.magix_intro" = "Des Magix apparaîtront parfois dans ta file : chacun a un pouvoir, on te le montrera le moment venu.";
 "tutorial.magix_example" = "Par exemple, COLORX efface tous les blox d’une couleur.";
@@ -272,6 +277,7 @@
 
 /* Overlay transition de stage (Arcade / Défi) */
 "stage.overlay.stats_format" = "%llds · ×%lld";
+"stage.overlay.multiplier_format" = "×%lld";
 
 /* Disques de classement (écran d'accueil) */
 "rank_disc.solo" = "ARC.";

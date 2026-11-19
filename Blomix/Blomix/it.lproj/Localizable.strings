@@ -250,6 +250,15 @@
 "guided.hint.line" = "È arrivata una riga dal basso. Spinge tutto verso l’alto.";
 "guided.hint.cascade" = "Cascata: una catena ne ha innescata un’altra.";
 "guided.hint.brix" = "Questo Brix è arrivato a 0: sparisce.";
+"magix.intro.chromax" = "CHROMAX dipinge un percorso di blox, poi parte una catena.";
+"magix.intro.brixed" = "BRIXED diventa un Brix da 9 e fa sparire gli altri Brix.";
+"magix.intro.crosx" = "CROSSX colora la sua riga e la sua colonna, poi si incatenano.";
+"magix.intro.slashx" = "SLASHX colora le sue due diagonali, poi si incatenano.";
+"magix.intro.scrumblx" = "SCRUMBLX sposta ogni riga e abbassa i Brix.";
+"magix.intro.colorx" = "COLORX sceglie un colore e cancella tutti i suoi blox.";
+"magix.intro.cleanx" = "SAINTX svuota la griglia e lascia un Brix pari alle caselle cancellate.";
+"magix.intro.twistx" = "TWISTX scambia un colore con tutti i Brix.";
+"magix.intro.bombx" = "BOMBX colora intorno a sé e ti dà una bomba.";
 
 "tutorial.magix_intro" = "A volte nella tua fila compariranno dei Magix: ognuno ha un potere, te lo mostreremo quando arriva.";
 "tutorial.magix_example" = "Per esempio, COLORX cancella tutti i blox di un colore.";

@@ -13,6 +13,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Ajouté
 
+- **Magix** : la première fois qu’un Magix entre dans la file, une bulle donne son nom et son effet en une phrase. Une fois par sorte, mémorisé sur l’appareil. Pas pendant le tutoriel. Classique et Encre. Six langues.
 - **Première partie** : le bouton « C’est parti » de la fin du tuto lance une Arcade sans chrono, si aucune sauvegarde Arcade, Zen ou Five n’existait et que cette partie guidée n’a pas déjà été faite. Passer, ou un joueur qui a déjà une sauvegarde, revient à l’accueil. Trois bulles, une fois chacune : première ligne posée, première cascade, premier Brix à 0. Le tap ferme la bulle, le × coupe les suivantes. `first_guided_game_start` et `first_guided_game_end` partent dans `eventsJSON`. Une Arcade lancée autrement garde le chrono de 32 s.
 - **Textes** : les conseils du jour et les phrases françaises encore au vouvoiement passent au tutoiement. Le Guide dit maintenant que le +500 grille vide est multiplié par le stage en Arcade, et plat en Zen et en Five (c’est ce que fait le code ; l’ancien Guide disait « hors ×stage » pour les trois).
 - **Fin du tutoriel** : plus de défilé des 9 Magix. Une phrase dit qu’on montrera chaque pouvoir le moment venu, avec COLORX comme seul exemple. La fin demande « Prêt pour ta première vraie partie ? ». Six langues.

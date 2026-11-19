@@ -644,6 +644,15 @@ enum BlomixL10n {
     static var guidedHintLine: String        { tr("guided.hint.line",            comment: "Coach — first incoming line has landed") }
     static var guidedHintCascade: String     { tr("guided.hint.cascade",         comment: "Coach — first cascade") }
     static var guidedHintBrix: String        { tr("guided.hint.brix",            comment: "Coach — first Brix that reaches 0") }
+    static var magixIntroChromax: String    { tr("magix.intro.chromax",         comment: "First time CHROMAX is in the queue") }
+    static var magixIntroBrixed: String     { tr("magix.intro.brixed",          comment: "First time BRIXED is in the queue") }
+    static var magixIntroCrosx: String      { tr("magix.intro.crosx",           comment: "First time CROSSX is in the queue") }
+    static var magixIntroSlashx: String     { tr("magix.intro.slashx",          comment: "First time SLASHX is in the queue") }
+    static var magixIntroScrumblx: String   { tr("magix.intro.scrumblx",        comment: "First time SCRUMBLX is in the queue") }
+    static var magixIntroColorx: String     { tr("magix.intro.colorx",          comment: "First time COLORX is in the queue") }
+    static var magixIntroCleanx: String     { tr("magix.intro.cleanx",          comment: "First time SAINTX is in the queue") }
+    static var magixIntroTwistx: String     { tr("magix.intro.twistx",          comment: "First time TWISTX is in the queue") }
+    static var magixIntroBombx: String      { tr("magix.intro.bombx",           comment: "First time BOMBX is in the queue") }
 
     // MARK: - Music track picker
     static var musicPickerLabel: String { tr("settings.music_picker_label", comment: "Sound settings — music track picker label") }

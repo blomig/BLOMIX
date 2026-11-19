@@ -1956,6 +1956,9 @@ final class GameScene: SKScene {
     private static let guidedCoachCascadeKey = "blomix_guided_hint_cascade_v1"
     private static let guidedCoachBrixKey = "blomix_guided_hint_brix_v1"
     private static let guidedCoachName = "guidedCoachBubble"
+    /// Sorts de Magix déjà expliquées. Une entrée par `MagixKind.rawValue`.
+    private static let magixIntroSeenKey = "blomix_magix_intro_seen_v1"
+    private static let magixIntroBubbleName = "magixFirstContact"
 
     private var isTutorialMode:       Bool          = false
     private var isZenMode:            Bool          = false
@@ -1988,6 +1991,8 @@ final class GameScene: SKScene {
     /// Arcade lancée par le bouton de fin du tuto : pas de chrono par coup.
     private var isFirstGuidedGame:    Bool          = false
     private var guidedCoachQueue:     [String]      = []
+    private var magixIntroQueue:      [MagixKind]   = []
+    private var magixIntroShowing:    MagixKind?    = nil
     private var pendingTutorialStart: Bool          = false
     /// Vrai pendant toute la séquence unwindToStartScreen (teardown → reset → restore).
     /// Empêche willResignActiveNotification d'écraser la sauvegarde solo avec un état transitoire.
@@ -2200,6 +2205,9 @@ final class GameScene: SKScene {
     /// Remet le modèle de jeu à l’état initial (grille vide, score, bombes, etc.) — sans recréer l’UI gameplay.
     private func resetSessionModelForNewMatch(zen: Bool = false, five: Bool = false) {
         finishFirstGuidedGameIfNeeded()
+        magixIntroQueue.removeAll()
+        magixIntroShowing = nil
+        childNode(withName: Self.magixIntroBubbleName)?.removeFromParent()
         isZenMode = zen && !five
         isFiveMode = five && !zen
         bestScoreFetchGeneration += 1
@@ -14794,6 +14802,9 @@ final class GameScene: SKScene {
         }
         Self.applyBlockTypeToQueueSprite(sprite: slotTwo, block: displayedTwoAhead, slotCellPoints: leftCell)
         Self.applyBlockTypeToQueueSprite(sprite: slotNext, block: displayedNext, slotCellPoints: cell)
+        if !isBombMode {
+            noteMagixArrivedInQueue(next: displayedNext, twoAhead: displayedTwoAhead)
+        }
     }
 
     /// Miniature couleur / Priks pour la file sous la grille (`slotCellPoints` = côté du cadre ; gauche = moitié du droit).
@@ -20497,6 +20508,144 @@ final class GameScene: SKScene {
         if !disableRest { presentNextGuidedCoach() }
     }
 
+    /// Première fois qu’un Magix est visible dans la file (P1 ou P2). Pas pendant le tuto.
+    private func noteMagixArrivedInQueue(next: BlockType, twoAhead: BlockType) {
+        guard !isTutorialMode, !isStartScreen, !isGameOver else { return }
+        let seen = Set(UserDefaults.standard.stringArray(forKey: Self.magixIntroSeenKey) ?? [])
+        for block in [next, twoAhead] {
+            guard case .magix(let kind) = block else { continue }
+            if seen.contains(kind.rawValue) { continue }
+            if magixIntroShowing == kind || magixIntroQueue.contains(kind) { continue }
+            magixIntroQueue.append(kind)
+        }
+        if childNode(withName: Self.magixIntroBubbleName) == nil {
+            presentNextMagixIntro()
+        }
+    }
+
+    private func magixIntroText(_ kind: MagixKind) -> String {
+        switch kind {
+        case .chromax:  return BlomixL10n.magixIntroChromax
+        case .brixed:   return BlomixL10n.magixIntroBrixed
+        case .crosx:    return BlomixL10n.magixIntroCrosx
+        case .slashx:   return BlomixL10n.magixIntroSlashx
+        case .scrumblx: return BlomixL10n.magixIntroScrumblx
+        case .colorx:   return BlomixL10n.magixIntroColorx
+        case .cleanx:   return BlomixL10n.magixIntroCleanx
+        case .twistx:   return BlomixL10n.magixIntroTwistx
+        case .bombx:    return BlomixL10n.magixIntroBombx
+        }
+    }
+
+    private func presentNextMagixIntro() {
+        guard !isTutorialMode, !isStartScreen, !isGameOver, !magixIntroQueue.isEmpty else { return }
+        let kind = magixIntroQueue.removeFirst()
+        magixIntroShowing = kind
+        var seen = UserDefaults.standard.stringArray(forKey: Self.magixIntroSeenKey) ?? []
+        if !seen.contains(kind.rawValue) {
+            seen.append(kind.rawValue)
+            UserDefaults.standard.set(seen, forKey: Self.magixIntroSeenKey)
+        }
+
+        let text = magixIntroText(kind)
+        let width = min(size.width - 24, 260)
+        let fontSize: CGFloat = 13
+        let pad: CGFloat = 10
+        let spriteSide: CGFloat = 28
+        let textWidth = width - pad * 2 - spriteSide - 8
+        let attr = tutorialAttributedText(text, size: fontSize, bold: false)
+        let textH = ceil(attr.boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil).height)
+        let bubbleH = max(spriteSide + pad, textH + pad * 2)
+        let pointerH: CGFloat = 8
+
+        let slotName: String
+        if case .magix(let shown) = blockAfterCurrent, shown == kind {
+            slotName = Self.upcomingSlotNextName
+        } else {
+            slotName = Self.upcomingSlotTwoAheadName
+        }
+        let slot = childNode(withName: slotName)
+        let targetX = slot?.position.x ?? size.width / 2
+        let targetTop = (slot?.position.y ?? size.height * 0.16) + UpcomingQueueLayout.cellPoints / 2
+        let halfW = width / 2
+        let centerX = min(max(targetX, halfW + 8), size.width - halfW - 8)
+        let centerY = targetTop + 6 + pointerH + bubbleH / 2
+
+        let node = SKNode()
+        node.name = Self.magixIntroBubbleName
+        node.position = CGPoint(x: centerX, y: centerY)
+        node.zPosition = 220
+
+        let bg = SKShapeNode(rectOf: CGSize(width: width, height: bubbleH), cornerRadius: 8)
+        bg.fillColor = BlomixAppearance.panelFillTranslucent
+        bg.strokeColor = BlomixAppearance.panelStroke
+        bg.lineWidth = 0.5
+        node.addChild(bg)
+
+        let icon = Self.makeMagixShaderSprite(size: CGSize(width: spriteSide, height: spriteSide), kind: kind)
+        icon.position = CGPoint(x: -width / 2 + pad + spriteSide / 2, y: 0)
+        icon.zPosition = 1
+        node.addChild(icon)
+
+        let label = SKLabelNode()
+        label.attributedText = attr
+        label.numberOfLines = 0
+        label.preferredMaxLayoutWidth = textWidth
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .left
+        label.position = CGPoint(x: icon.position.x + spriteSide / 2 + 8, y: 0)
+        label.zPosition = 1
+        node.addChild(label)
+
+        let tip = SKShapeNode()
+        let localTipX = targetX - centerX
+        let tipPath = CGMutablePath()
+        let baseY = -bubbleH / 2
+        tipPath.move(to: CGPoint(x: localTipX - 7, y: baseY))
+        tipPath.addLine(to: CGPoint(x: localTipX + 7, y: baseY))
+        tipPath.addLine(to: CGPoint(x: localTipX, y: baseY - pointerH))
+        tipPath.closeSubpath()
+        tip.path = tipPath
+        tip.fillColor = BlomixAppearance.panelFillTranslucent
+        tip.strokeColor = BlomixAppearance.panelStroke
+        tip.lineWidth = 0.5
+        tip.zPosition = 1
+        node.addChild(tip)
+
+        let fadeIn: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.22
+        let fadeOut: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.3
+        node.alpha = 0
+        addChild(node)
+        node.run(SKAction.sequence([
+            SKAction.fadeIn(withDuration: fadeIn),
+            SKAction.wait(forDuration: 4.2),
+            SKAction.fadeOut(withDuration: fadeOut),
+            SKAction.removeFromParent(),
+            SKAction.run { [weak self] in
+                guard let self else { return }
+                self.magixIntroShowing = nil
+                self.presentNextMagixIntro()
+            },
+        ]), withKey: "magixIntroLife")
+    }
+
+    private func dismissMagixIntro() {
+        if let node = childNode(withName: Self.magixIntroBubbleName) {
+            node.removeAllActions()
+            node.removeFromParent()
+        }
+        magixIntroShowing = nil
+        presentNextMagixIntro()
+    }
+
+    private func touchHitsMagixIntro(_ point: CGPoint) -> Bool {
+        guard let node = childNode(withName: Self.magixIntroBubbleName) else { return false }
+        return node.calculateAccumulatedFrame().contains(point)
+    }
+
     /// `.disable` sur le ×, `.dismiss` sur le reste de la bulle.
     private func guidedCoachHit(_ point: CGPoint) -> Bool? {
         guard let node = childNode(withName: Self.guidedCoachName) else { return nil }
@@ -20910,6 +21059,13 @@ final class GameScene: SKScene {
             pendingButtonAction = { [weak self] in
                 self?.dismissGuidedCoach(disableRest: disableRest)
             }
+            return
+        }
+
+        if touchHitsMagixIntro(location) {
+            lastPressedSKButton?.animateReleased()
+            lastPressedSKButton = nil
+            pendingButtonAction = { [weak self] in self?.dismissMagixIntro() }
             return
         }
 

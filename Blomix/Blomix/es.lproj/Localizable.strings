@@ -250,6 +250,15 @@
 "guided.hint.line" = "Acaba de llegar una línea por abajo. Empuja todo hacia arriba.";
 "guided.hint.cascade" = "Cascada: una cadena ha disparado otra.";
 "guided.hint.brix" = "Este Brix ha llegado a 0: desaparece.";
+"magix.intro.chromax" = "CHROMAX pinta un camino de blox y luego sale una cadena.";
+"magix.intro.brixed" = "BRIXED se vuelve un Brix de 9 y hace desaparecer los otros Brix.";
+"magix.intro.crosx" = "CROSSX pinta su fila y su columna, y luego encadenan.";
+"magix.intro.slashx" = "SLASHX pinta sus dos diagonales, y luego encadenan.";
+"magix.intro.scrumblx" = "SCRUMBLX desplaza cada fila y baja los Brix.";
+"magix.intro.colorx" = "COLORX elige un color y borra todos sus blox.";
+"magix.intro.cleanx" = "SAINTX vacía la rejilla y deja un Brix con las casillas borradas.";
+"magix.intro.twistx" = "TWISTX cambia un color con todos los Brix.";
+"magix.intro.bombx" = "BOMBX pinta a su alrededor y te da una bomba.";
 
 "tutorial.magix_intro" = "A veces aparecerán Magix en tu fila: cada uno tiene un poder, te lo mostraremos cuando llegue.";
 "tutorial.magix_example" = "Por ejemplo, COLORX borra todos los blox de un color.";

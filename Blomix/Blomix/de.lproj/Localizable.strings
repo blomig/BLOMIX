@@ -253,6 +253,15 @@
 "guided.hint.line" = "Eine Reihe kommt von unten. Sie schiebt alles nach oben.";
 "guided.hint.cascade" = "Kaskade: eine Kette hat eine weitere ausgelöst.";
 "guided.hint.brix" = "Dieser Brix ist bei 0: er verschwindet.";
+"magix.intro.chromax" = "CHROMAX malt einen Weg aus Blox, dann startet eine Kette.";
+"magix.intro.brixed" = "BRIXED wird ein Brix mit 9 und entfernt die anderen Brix.";
+"magix.intro.crosx" = "CROSSX malt seine Zeile und Spalte, danach gibt es eine Kette.";
+"magix.intro.slashx" = "SLASHX malt seine beiden Diagonalen, danach gibt es eine Kette.";
+"magix.intro.scrumblx" = "SCRUMBLX verschiebt jede Reihe und senkt die Brix.";
+"magix.intro.colorx" = "COLORX wählt eine Farbe und löscht alle ihre Blox.";
+"magix.intro.cleanx" = "SAINTX leert das Feld und lässt einen Brix in Höhe der gelöschten Felder.";
+"magix.intro.twistx" = "TWISTX tauscht eine Farbe mit allen Brix.";
+"magix.intro.bombx" = "BOMBX malt um sich herum und gibt dir eine Bombe.";
 
 "tutorial.magix_intro" = "Manchmal erscheinen Magix in deiner Reihe: jeder hat eine Kraft, wir zeigen sie dir, wenn er kommt.";
 "tutorial.magix_example" = "Zum Beispiel löscht COLORX alle Blöcke einer Farbe.";

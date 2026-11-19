@@ -253,6 +253,15 @@
 "guided.hint.line" = "A line just arrived from the bottom. It pushes everything up.";
 "guided.hint.cascade" = "Cascade: one chain set off another.";
 "guided.hint.brix" = "This Brix reached 0: it disappears.";
+"magix.intro.chromax" = "CHROMAX paints a path of blox, then a chain starts.";
+"magix.intro.brixed" = "BRIXED becomes a Brix worth 9 and removes the other Brix.";
+"magix.intro.crosx" = "CROSSX paints its row and column, then they chain.";
+"magix.intro.slashx" = "SLASHX paints its two diagonals, then they chain.";
+"magix.intro.scrumblx" = "SCRUMBLX shifts every row and lowers the Brix.";
+"magix.intro.colorx" = "COLORX picks a color and clears all of its blox.";
+"magix.intro.cleanx" = "SAINTX clears the board and leaves a Brix worth the cells it cleared.";
+"magix.intro.twistx" = "TWISTX swaps one color with every Brix.";
+"magix.intro.bombx" = "BOMBX paints around itself and gives you a bomb.";
 
 "tutorial.magix_intro" = "Magix will sometimes show up in your queue: each has a power, and you’ll see it when it arrives.";
 "tutorial.magix_example" = "For example, COLORX clears every block of one color.";

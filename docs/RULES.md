@@ -272,7 +272,7 @@ Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_D
 
 ### Tutoriel interactif
 
-- Automatique au premier lancement (ou via l’icône Tutoriel de l’accueil)
+- Pas automatique. Au premier lancement, l’accueil s’ouvre. Sous **Jouer**, tant que le tuto n’a pas été vu et que la pastille Arcade est choisie (c’est le défaut), la légende est **Découvrir** et le bouton lance le tutoriel. Five et Zen partent directement. L’icône Tutoriel de l’accueil le relance.
 - Séquence de blocs scriptée, bombe verrouillée jusqu'à l'étape dédiée
 - Pas de Brix/Magix dans les lignes injectées
 - Bouton **Passer** toujours disponible

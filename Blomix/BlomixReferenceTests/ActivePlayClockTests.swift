@@ -172,6 +172,68 @@ final class ActivePlayClockTests: XCTestCase {
         XCTAssertEqual(event.mode, "arcade")
         XCTAssertNil(event.resumed)
         XCTAssertNil(event.day)
+        XCTAssertNil(event.stepIndex)
+        XCTAssertNil(event.stepId)
+        XCTAssertNil(event.result)
+        XCTAssertNil(event.isNewInstall)
+    }
+
+    func testTutorialEndJSONUsesSnakeCaseAndOmitsEmptyKeys() throws {
+        let event = BlomixTelemetryEvent(
+            id: "t",
+            kind: "tutorial_end",
+            mode: nil,
+            durationSec: nil,
+            day: nil,
+            resumed: nil,
+            at: t(0),
+            stepIndex: 4,
+            stepId: "brix_intro",
+            result: "abandoned",
+            isNewInstall: nil
+        )
+        let object = try jsonObject(event)
+        XCTAssertEqual(object["kind"] as? String, "tutorial_end")
+        XCTAssertEqual(object["step_index"] as? Int, 4)
+        XCTAssertEqual(object["step_id"] as? String, "brix_intro")
+        XCTAssertEqual(object["result"] as? String, "abandoned")
+        XCTAssertNil(object["stepIndex"])
+        XCTAssertNil(object["is_new_install"])
+        XCTAssertNil(object["mode"])
+        XCTAssertNil(object["durationSec"])
+    }
+
+    func testFirstLaunchJSONKeepsTheNewInstallFlag() throws {
+        let event = BlomixTelemetryEvent(
+            id: "f",
+            kind: "first_launch",
+            at: t(0),
+            isNewInstall: true
+        )
+        let object = try jsonObject(event)
+        XCTAssertEqual(object["is_new_install"] as? Bool, true)
+        XCTAssertNil(object["result"])
+        XCTAssertNil(object["step_id"])
+    }
+
+    func testInstallCensusTreatsAnEmptySuiteAsNew() {
+        let name = "blomix-census-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        XCTAssertTrue(BlomixInstallCensus.isNewInstall(defaults: defaults))
+        defaults.set(true, forKey: "BlomixHasSeenInteractiveTutorial_v1")
+        XCTAssertFalse(BlomixInstallCensus.isNewInstall(defaults: defaults))
+        defaults.removePersistentDomain(forName: name)
+        defaults.set(12, forKey: "BlomixLocalZenHighScore")
+        XCTAssertFalse(BlomixInstallCensus.isNewInstall(defaults: defaults))
+        defaults.removePersistentDomain(forName: name)
+        let trophy = #"{"items":{"theme_light":{"value":1}}}"#.data(using: .utf8)!
+        defaults.set(trophy, forKey: "blomix_trophies_v1")
+        XCTAssertTrue(BlomixInstallCensus.isNewInstall(defaults: defaults))
+        let played = #"{"items":{"play_arcade":{"value":1}}}"#.data(using: .utf8)!
+        defaults.set(played, forKey: "blomix_trophies_v1")
+        XCTAssertFalse(BlomixInstallCensus.isNewInstall(defaults: defaults))
+        defaults.removePersistentDomain(forName: name)
     }
 
     private func jsonObject(_ event: BlomixTelemetryEvent) throws -> [String: Any] {

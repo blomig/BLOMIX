@@ -111,7 +111,9 @@ struct BlomixActivePlaySession: Equatable {
     }
 }
 
-/// Élément de `eventsJSON`. `resumed` absent sur les anciens lots et hors `game_end`.
+/// Élément de `eventsJSON`. Les clés optionnelles absentes restent absentes :
+/// un lot d’avant se relit. Aucun champ CloudKit nouveau : tout tient dans le JSON.
+/// `step_index`, `step_id` et `result` : tutoriel. `is_new_install` : seulement `first_launch`.
 struct BlomixTelemetryEvent: Codable, Equatable {
     var id: String
     var kind: String
@@ -120,6 +122,72 @@ struct BlomixTelemetryEvent: Codable, Equatable {
     var day: String?
     var resumed: Bool?
     var at: Date
+    var stepIndex: Int? = nil
+    var stepId: String? = nil
+    var result: String? = nil
+    var isNewInstall: Bool? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, mode, durationSec, day, resumed, at
+        case stepIndex = "step_index"
+        case stepId = "step_id"
+        case result
+        case isNewInstall = "is_new_install"
+    }
+}
+
+/// Trace locale d’un joueur déjà passé par l’app, lue au premier `first_launch` de cette mesure.
+/// Ne crée rien : un effet de bord (trophée « thème clair » posé au lancement) ne compte pas.
+enum BlomixInstallCensus {
+    /// Vrai seulement si aucune de ces traces n’existe. Documenté dans `docs/TELEMETRY.md`.
+    static func isNewInstall(defaults: UserDefaults = .standard) -> Bool {
+        if defaults.bool(forKey: "BlomixHasSeenGameTutorial") { return false }
+        if defaults.bool(forKey: "BlomixHasSeenInteractiveTutorial_v1") { return false }
+        let scoreKeys = [
+            "BlomixLocalHighScore",
+            "BlomixLocalZenHighScore",
+            "BlomixLocalFiveHighScore",
+            "BlomixAvgGameCount",
+            "BlomixPendingGCScore",
+            "BlomixPendingZenGCScore",
+            "BlomixPendingFiveGCScore",
+            "blomix_daily_career_points",
+            "blomix_five_daily_career_points",
+            "blomix_daily_finished_score",
+            "blomix_five_daily_finished_score",
+            "blomix_daily_pending_gc_points",
+            "blomix_five_daily_pending_gc_points",
+            "BlomixPvPEloPending.matches",
+        ]
+        if scoreKeys.contains(where: { defaults.integer(forKey: $0) > 0 }) { return false }
+        let presentKeys = [
+            "blomix_solo_save_v2",
+            "blomix_zen_save_v1",
+            "blomix_five_save_v1",
+            "blomix_daily_save_v1",
+            "blomix_five_daily_save_v1",
+            "blomix_daily_finished_day",
+            "blomix_five_daily_finished_day",
+        ]
+        if presentKeys.contains(where: { defaults.object(forKey: $0) != nil }) { return false }
+        if let data = defaults.data(forKey: "blomix_trophies_v1"), hasPlayTrophy(in: data) {
+            return false
+        }
+        return true
+    }
+
+    /// `theme_light` est posé au premier lancement en Clair, sans partie. Il ne compte pas.
+    private static func hasPlayTrophy(in data: Data) -> Bool {
+        struct File: Decodable {
+            var items: [String: Item]?
+            struct Item: Decodable { var value: Int? }
+        }
+        guard let file = try? JSONDecoder().decode(File.self, from: data) else { return true }
+        for (id, item) in file.items ?? [:] where id != "theme_light" {
+            if (item.value ?? 0) > 0 { return true }
+        }
+        return false
+    }
 }
 
 @MainActor
@@ -131,6 +199,9 @@ enum BlomixTelemetry {
     private static let firstLaunchKey = "blomix_telemetry_did_note_first_launch"
     private static let queueKey = "blomix_telemetry_queue_v1"
     private static let cooldownKey = "blomix_telemetry_cooldown_until"
+    /// Dernière étape du tuto, écrite à la mise en arrière-plan. Relue au prochain lancement
+    /// si le processus a été tué avant `tutorial_end`. Pas un champ CloudKit.
+    private static let tutorialPendingKey = "blomix_telemetry_tutorial_pending_end_v1"
     private static let queueCap = 200
     private static let batchCap = 20
 
@@ -140,6 +211,9 @@ enum BlomixTelemetry {
     private static var sessionOpen = false
     private static var flushing = false
     private static var play = BlomixActivePlaySession()
+    private static var tutorialMeasured = false
+    private static var tutorialStepIndex = 0
+    private static var tutorialStepId = "intro"
 
     // MARK: - Cycle de vie
 
@@ -151,17 +225,56 @@ enum BlomixTelemetry {
             return
         }
         sessionOpen = true
+        resolveTutorialAbandonIfProcessRestarted()
         if !UserDefaults.standard.bool(forKey: firstLaunchKey) {
             UserDefaults.standard.set(true, forKey: firstLaunchKey)
-            enqueue(kind: "first_launch", mode: nil, durationSec: nil, day: nil)
+            let fresh = BlomixInstallCensus.isNewInstall()
+            enqueue(kind: "first_launch", isNewInstall: fresh)
         }
-        enqueue(kind: "session_start", mode: nil, durationSec: nil, day: nil)
+        enqueue(kind: "session_start")
         Task { await flush() }
     }
 
     static func noteEnteredBackground() {
         play.setForeground(false, at: Date())
         sessionOpen = false
+        markTutorialPendingAbandon()
+    }
+
+    /// Début du tutoriel interactif. Émet aussi l’étape d’ouverture.
+    static func noteTutorialStart(stepIndex: Int, stepId: String) {
+        if tutorialMeasured {
+            noteTutorialEnd(result: "abandoned")
+        }
+        tutorialMeasured = true
+        tutorialStepIndex = stepIndex
+        tutorialStepId = stepId
+        enqueue(kind: "tutorial_start")
+        enqueue(kind: "tutorial_step", stepIndex: stepIndex, stepId: stepId)
+        clearTutorialPendingAbandon()
+    }
+
+    /// Changement d’étape. Un second appel pour la même étape ne double pas l’événement.
+    static func noteTutorialStep(index: Int, id: String) {
+        guard tutorialMeasured else { return }
+        guard index != tutorialStepIndex || id != tutorialStepId else { return }
+        tutorialStepIndex = index
+        tutorialStepId = id
+        enqueue(kind: "tutorial_step", stepIndex: index, stepId: id)
+    }
+
+    /// `result` : `completed`, `skipped` ou `abandoned`. L’étape atteinte est celle du dernier `tutorial_step`.
+    static func noteTutorialEnd(result: String) {
+        guard tutorialMeasured else { return }
+        tutorialMeasured = false
+        enqueue(
+            kind: "tutorial_end",
+            stepIndex: tutorialStepIndex,
+            stepId: tutorialStepId,
+            result: result
+        )
+        clearTutorialPendingAbandon()
+        Task { await flush() }
     }
 
     /// Début d’une partie neuve. La reprise ne doit pas appeler ceci.
@@ -204,7 +317,50 @@ enum BlomixTelemetry {
 
     // MARK: - File
 
-    private static func enqueue(kind: String, mode: String?, durationSec: Int?, day: String?, resumed: Bool? = nil) {
+    /// Processus tué pendant le tuto : le drapeau mémoire est perdu, la clé locale non.
+    /// Même processus (retour au premier plan) : on efface le drapeau, le tuto continue.
+    private static func resolveTutorialAbandonIfProcessRestarted() {
+        guard let data = UserDefaults.standard.data(forKey: tutorialPendingKey),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let stepId = object["step_id"] as? String else {
+            return
+        }
+        if tutorialMeasured {
+            clearTutorialPendingAbandon()
+            return
+        }
+        tutorialMeasured = true
+        tutorialStepIndex = object["step_index"] as? Int ?? 0
+        tutorialStepId = stepId
+        noteTutorialEnd(result: "abandoned")
+    }
+
+    private static func markTutorialPendingAbandon() {
+        guard tutorialMeasured else { return }
+        let payload: [String: Any] = [
+            "step_index": tutorialStepIndex,
+            "step_id": tutorialStepId,
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: payload) {
+            UserDefaults.standard.set(data, forKey: tutorialPendingKey)
+        }
+    }
+
+    private static func clearTutorialPendingAbandon() {
+        UserDefaults.standard.removeObject(forKey: tutorialPendingKey)
+    }
+
+    private static func enqueue(
+        kind: String,
+        mode: String? = nil,
+        durationSec: Int? = nil,
+        day: String? = nil,
+        resumed: Bool? = nil,
+        stepIndex: Int? = nil,
+        stepId: String? = nil,
+        result: String? = nil,
+        isNewInstall: Bool? = nil
+    ) {
         var queue = loadQueue()
         queue.append(BlomixTelemetryEvent(
             id: UUID().uuidString,
@@ -213,7 +369,11 @@ enum BlomixTelemetry {
             durationSec: durationSec,
             day: day,
             resumed: resumed,
-            at: Date()
+            at: Date(),
+            stepIndex: stepIndex,
+            stepId: stepId,
+            result: result,
+            isNewInstall: isNewInstall
         ))
         if queue.count > queueCap {
             queue.removeFirst(queue.count - queueCap)

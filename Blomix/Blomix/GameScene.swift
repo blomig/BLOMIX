@@ -1909,6 +1909,37 @@ final class GameScene: SKScene {
         case bombIntro        // Overlay 4 : animation bombe, attendre bomb drop
         case bombCelebration  // Overlay 4b : "Super ! Tu sais tout !" (auto-dismiss → magixIntro)
         case magixIntro       // Overlay 5  : tous les Magix + "Il y a encore des surprises…" (tap ou 3 s → sortie)
+
+        /// Index stable (pas l’ordre de visite : la bombe saute à `magixIntro` puis revient ici).
+        var telemetryIndex: Int {
+            switch self {
+            case .intro: return 0
+            case .chainPrompt: return 1
+            case .chainCelebration: return 2
+            case .awaitingBrix: return 3
+            case .brixIntro: return 4
+            case .brixCelebration: return 5
+            case .freePlay: return 6
+            case .bombIntro: return 7
+            case .bombCelebration: return 8
+            case .magixIntro: return 9
+            }
+        }
+
+        var telemetryID: String {
+            switch self {
+            case .intro: return "intro"
+            case .chainPrompt: return "chain_prompt"
+            case .chainCelebration: return "chain_celebration"
+            case .awaitingBrix: return "awaiting_brix"
+            case .brixIntro: return "brix_intro"
+            case .brixCelebration: return "brix_celebration"
+            case .freePlay: return "free_play"
+            case .bombIntro: return "bomb_intro"
+            case .bombCelebration: return "bomb_celebration"
+            case .magixIntro: return "magix_intro"
+            }
+        }
     }
 
     private static let tutorialOverlayName      = "tutoStepOverlay"
@@ -6223,7 +6254,9 @@ final class GameScene: SKScene {
         gameOverShareCardImage = nil
 
         playMatchSound(.end)
-        if !isTutorialMode {
+        if isTutorialMode {
+            BlomixTelemetry.noteTutorialEnd(result: "abandoned")
+        } else {
             noteTrophiesAtGameOver(finalScore: finalScore)
             BlomixPlayerSurvey.recordCompletedGame()
         }
@@ -19695,6 +19728,15 @@ final class GameScene: SKScene {
         }
         // Skip + overlay d'étape « intro » : affichés après l'overlay de lancement
         // (voir completion de `startTutorialGameWithIntro`).
+        let opening = TutorialStep.intro
+        BlomixTelemetry.noteTutorialStart(
+            stepIndex: opening.telemetryIndex,
+            stepId: opening.telemetryID
+        )
+    }
+
+    private func emitTutorialTelemetryStep(_ step: TutorialStep) {
+        BlomixTelemetry.noteTutorialStep(index: step.telemetryIndex, id: step.telemetryID)
     }
 
     // ── Machine à états ──────────────────────────────────────────────────────────
@@ -19709,6 +19751,7 @@ final class GameScene: SKScene {
             tutorialPriksShown = true
             tutorialStep       = .brixIntro
             tutorialStepDrops  = 0
+            emitTutorialTelemetryStep(.brixIntro)
             run(SKAction.wait(forDuration: 0.5)) { [weak self] in
                 self?.showTutorialStepOverlay(for: .brixIntro)
             }
@@ -19750,6 +19793,7 @@ final class GameScene: SKScene {
     private func tutorialAdvanceTo(_ step: TutorialStep) {
         tutorialStep      = step
         tutorialStepDrops = 0
+        emitTutorialTelemetryStep(step)
         showTutorialStepOverlay(for: step)
 
         // Auto-dismiss des célébrations.
@@ -19760,6 +19804,7 @@ final class GameScene: SKScene {
                 self.dismissCurrentTutorialOverlay()
                 self.tutorialStep     = .awaitingBrix
                 self.tutorialStepDrops = 0
+                self.emitTutorialTelemetryStep(.awaitingBrix)
             }
         case .brixCelebration:
             run(SKAction.wait(forDuration: 2.8)) { [weak self] in
@@ -19767,6 +19812,7 @@ final class GameScene: SKScene {
                 self.dismissCurrentTutorialOverlay()
                 self.tutorialStep     = .freePlay
                 self.tutorialStepDrops = 0
+                self.emitTutorialTelemetryStep(.freePlay)
             }
         case .magixIntro:
             // Auto-dismiss après 3 s ; le tap est géré dans touchesBegan.
@@ -19778,7 +19824,7 @@ final class GameScene: SKScene {
             run(SKAction.wait(forDuration: 3.0)) { [weak self] in
                 guard let self, self.tutorialStep == .bombCelebration else { return }
                 BlomixTrophyHooks.noteTutorialFinished()
-                self.exitTutorial()
+                self.exitTutorial(result: "completed")
             }
         case .bombIntro:
             tutorialBombUnlocked = true
@@ -20123,7 +20169,11 @@ final class GameScene: SKScene {
 
     // ── Sortie ───────────────────────────────────────────────────────────────────
 
-    private func exitTutorial() {
+    /// `result` : `completed` (fin du script) ou `skipped` (bouton Passer).
+    /// Les deux ramènent à l’accueil. Le game over passe par `noteTutorialEnd` avant.
+    private func exitTutorial(result: String) {
+        guard isTutorialMode else { return }
+        BlomixTelemetry.noteTutorialEnd(result: result)
         UserDefaults.standard.hasSeenInteractiveTutorial = true
         isTutorialMode       = false
         tutorialBombUnlocked = false
@@ -20308,7 +20358,7 @@ final class GameScene: SKScene {
 
         // Bouton "Passer" du tutoriel : priorité absolue, visible en permanence.
         if isTutorialMode && touchHitsTutorialSkipButton(location) {
-            pendingButtonAction = { [weak self] in self?.exitTutorial() }
+            pendingButtonAction = { [weak self] in self?.exitTutorial(result: "skipped") }
             return
         }
 

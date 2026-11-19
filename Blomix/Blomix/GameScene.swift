@@ -3648,6 +3648,7 @@ final class GameScene: SKScene {
 
     /// Après le splash + poinçon + entrée chrome accueil. Ok = session ; Ne plus montrer = définitif.
     private func scheduleWhatsNewDialogAfterIntro() {
+        BlomixWhatsNew.suppressIfNewInstall()
         guard BlomixWhatsNew.shouldPresent else { return }
         removeAction(forKey: Self.whatsNewPresentActionKey)
         run(SKAction.sequence([

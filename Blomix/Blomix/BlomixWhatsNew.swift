@@ -48,6 +48,14 @@ enum BlomixWhatsNew {
         UserDefaults.standard.set(true, forKey: defaultsKey)
     }
 
+    /// Installation neuve : la campagne courante est notée vue, le dialogue ne s’ouvre pas.
+    /// Le critère est celui de `first_launch` (`BlomixInstallCensus`). Une mise à jour,
+    /// elle, a déjà une trace locale et voit la popup.
+    static func suppressIfNewInstall() {
+        guard shouldPresent, BlomixInstallCensus.isNewInstall() else { return }
+        markDontShowAgain()
+    }
+
     static func present(in host: UIView) {
         guard shouldPresent else { return }
         host.subviews.compactMap { $0 as? BlomixWhatsNewDialogView }.forEach { $0.removeFromSuperview() }

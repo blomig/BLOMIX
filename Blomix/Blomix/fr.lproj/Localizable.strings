@@ -238,8 +238,9 @@
 "menu.tutorial" = "Tutoriel";
 "tutorial.skip" = "Passer";
 "tutorial.intro_text" = "Tape sur une colonne pour placer un blox";
-"tutorial.chain_prompt" = "Fais une chaîne de 5 blox de même couleur";
+"tutorial.chain_prompt" = "Fais une chaîne de 5 blox de la même couleur, en ligne, en L ou en diagonale";
 "tutorial.chain_hint" = "Essaye avec les bleus ↓";
+"tutorial.queue_hint" = "Les prochains blox. Tu vois ici les deux qui arrivent.";
 "tutorial.chain_success" = "Super ! 5 blox = effacés !";
 "tutorial.brix_prompt" = "Les Brix sont plus résistants";
 "tutorial.brix_hint" = "Fais des chaînes à côté pour les faire baisser";

@@ -627,6 +627,7 @@ enum BlomixL10n {
     static var tutorialIntroText: String      { tr("tutorial.intro_text",         comment: "Tuto step 1 — main text") }
     static var tutorialChainPrompt: String    { tr("tutorial.chain_prompt",        comment: "Tuto step 2 — main text") }
     static var tutorialChainHint: String      { tr("tutorial.chain_hint",          comment: "Tuto step 2 — hint text") }
+    static var tutorialQueueHint: String     { tr("tutorial.queue_hint",          comment: "Tuto — callout on the upcoming blox queue") }
     static var tutorialChainSuccess: String   { tr("tutorial.chain_success",       comment: "Tuto step 2b — celebration") }
     static var tutorialBrixPrompt: String     { tr("tutorial.brix_prompt",         comment: "Tuto step 3 — main text") }
     static var tutorialBrixHint: String       { tr("tutorial.brix_hint",           comment: "Tuto step 3 — hint text") }

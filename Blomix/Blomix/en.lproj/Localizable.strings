@@ -238,8 +238,9 @@
 "menu.tutorial" = "Tutorial";
 "tutorial.skip" = "Skip";
 "tutorial.intro_text" = "Tap a column to place a block";
-"tutorial.chain_prompt" = "Make a chain of 5 same-color blocks";
+"tutorial.chain_prompt" = "Make a chain of 5 same-color blocks, in a line, an L, or a diagonal";
 "tutorial.chain_hint" = "Try it with the blue ones ↓";
+"tutorial.queue_hint" = "Next blox. These two are the ones coming up.";
 "tutorial.chain_success" = "Super! 5 blocks = cleared!";
 "tutorial.brix_prompt" = "Brix are tougher to clear";
 "tutorial.brix_hint" = "Make chains next to them to chip away";

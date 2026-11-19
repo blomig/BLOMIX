@@ -13,6 +13,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Ajouté
 
+- **Tutoriel** : le texte dit qu’une chaîne de 5 compte en ligne, en L ou en diagonale, et le dessin montre cinq blox en biais. Une bulle pointe la file des deux prochains blox. Six langues.
 - **Nouveautés** : une installation neuve (même critère que `is_new_install`) marque la campagne courante comme vue et n’affiche pas la popup. Une mise à jour la voit encore.
 - **Télémétrie du tutoriel** : `tutorial_start`, `tutorial_step` (index et identifiant d’étape), `tutorial_end` avec `completed`, `skipped` ou `abandoned` et l’étape atteinte. L’événement part aussi quand « FIN DU TUTO » ou « Passer » ramène à l’accueil, et si l’app est tuée pendant le tuto. `first_launch` porte `is_new_install` (aucune trace locale de jeu : pas de record, pas de sauvegarde, tuto jamais vu, pas de trophée de partie). Tout est dans `eventsJSON`. Pas de nouveau champ CloudKit. Le rapport sépare les nouveaux joueurs, les mises à jour, et les lots d’avant la clé.
 - **Style visuel** (Réglages, section Apparence) : segment Classique / Encre (bêta), 6 langues. Défaut Classique. Clé `BlomixVisualStyle` (`.old` / `.new`). `.new` est la piste Encre. Le choix est enregistré tout de suite et ne redessine pas la partie en cours. Il est figé au début de la partie suivante. [PLAN_9.0.md](PLAN_9.0.md), [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md).

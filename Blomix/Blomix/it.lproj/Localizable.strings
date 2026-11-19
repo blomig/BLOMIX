@@ -235,8 +235,9 @@
 "menu.tutorial" = "Tutorial";
 "tutorial.skip" = "Salta";
 "tutorial.intro_text" = "Tocca una colonna per piazzare un blocco";
-"tutorial.chain_prompt" = "Fai una catena di 5 blocchi dello stesso colore";
+"tutorial.chain_prompt" = "Fai una catena di 5 blocchi dello stesso colore, in linea, a L o in diagonale";
 "tutorial.chain_hint" = "Prova con i blu ↓";
+"tutorial.queue_hint" = "I prossimi blox. Qui vedi i due che arrivano dopo.";
 "tutorial.chain_success" = "Super! 5 blocchi = eliminati!";
 "tutorial.brix_prompt" = "I Brix sono più difficili da eliminare";
 "tutorial.brix_hint" = "Fai catene accanto per consumarli";

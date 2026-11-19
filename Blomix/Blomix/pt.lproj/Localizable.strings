@@ -238,8 +238,9 @@
 "menu.tutorial" = "Tutorial";
 "tutorial.skip" = "Pular";
 "tutorial.intro_text" = "Toque em uma coluna para colocar um bloco";
-"tutorial.chain_prompt" = "Faça uma cadeia de 5 blocos da mesma cor";
+"tutorial.chain_prompt" = "Faça uma cadeia de 5 blocos da mesma cor, em linha, em L ou na diagonal";
 "tutorial.chain_hint" = "Tente com os azuis ↓";
+"tutorial.queue_hint" = "Os próximos blox. Aqui você vê os dois que vêm a seguir.";
 "tutorial.chain_success" = "Ótimo! 5 blocos = limpos!";
 "tutorial.brix_prompt" = "Os Brix são mais difíceis de limpar";
 "tutorial.brix_hint" = "Faça cadeias ao lado para desgastá-los";

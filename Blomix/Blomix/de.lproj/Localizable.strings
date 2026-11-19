@@ -238,8 +238,9 @@
 "menu.tutorial" = "Tutorial";
 "tutorial.skip" = "Überspringen";
 "tutorial.intro_text" = "Tippe eine Spalte, um einen Block zu setzen";
-"tutorial.chain_prompt" = "Bilde eine Kette aus 5 gleichfarbigen Blöcken";
+"tutorial.chain_prompt" = "Bilde eine Kette aus 5 gleichfarbigen Blöcken, in einer Reihe, als L oder diagonal";
 "tutorial.chain_hint" = "Probiere es mit den blauen ↓";
+"tutorial.queue_hint" = "Die nächsten Blöcke. Hier siehst du die zwei, die als Nächstes kommen.";
 "tutorial.chain_success" = "Super! 5 Blöcke = weg!";
 "tutorial.brix_prompt" = "Brix sind hartnäckiger";
 "tutorial.brix_hint" = "Bilde Ketten daneben, um sie abzutragen";

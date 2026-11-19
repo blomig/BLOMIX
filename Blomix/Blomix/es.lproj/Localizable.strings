@@ -235,8 +235,9 @@
 "menu.tutorial" = "Tutorial";
 "tutorial.skip" = "Saltar";
 "tutorial.intro_text" = "Toca una columna para colocar un bloque";
-"tutorial.chain_prompt" = "Haz una cadena de 5 bloques del mismo color";
+"tutorial.chain_prompt" = "Haz una cadena de 5 bloques del mismo color, en línea, en L o en diagonal";
 "tutorial.chain_hint" = "Pruébalo con los azules ↓";
+"tutorial.queue_hint" = "Los próximos blox. Aquí ves los dos que llegan después.";
 "tutorial.chain_success" = "¡Genial! 5 bloques = ¡eliminados!";
 "tutorial.brix_prompt" = "Los Brix cuestan más de eliminar";
 "tutorial.brix_hint" = "Haz cadenas junto a ellos para desgastarlos";

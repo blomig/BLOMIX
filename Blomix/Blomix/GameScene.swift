@@ -1943,6 +1943,7 @@ final class GameScene: SKScene {
     }
 
     private static let tutorialOverlayName      = "tutoStepOverlay"
+    private static let tutorialQueueCalloutName = "tutoQueueCallout"
     private static let tutorialLineOverlayName  = "tutoLineOverlay"
     private static let tutorialSkipBtnName      = "tutoSkipBtn"
     private static let tutorialFreePlayDropsNeeded = 2
@@ -19865,6 +19866,7 @@ final class GameScene: SKScene {
                                main: BlomixL10n.tutorialChainPrompt,
                                hint: BlomixL10n.tutorialChainHint,
                                showChainImage: true)
+            showTutorialQueueCallout()
 
         case .chainCelebration:
             buildCelebrationOverlay(node: overlay, width: bannerW,
@@ -19903,6 +19905,7 @@ final class GameScene: SKScene {
 
     private func dismissCurrentTutorialOverlay() {
         childNode(withName: Self.tutorialOverlayName)?.removeFromParent()
+        childNode(withName: Self.tutorialQueueCalloutName)?.removeFromParent()
     }
 
     // ── Builders d'overlays ──────────────────────────────────────────────────────
@@ -19936,7 +19939,8 @@ final class GameScene: SKScene {
 
         var contentHeight: CGFloat = pad * 2 + mainLabelH + 4
         if hint != nil     { contentHeight += hintLabelH + 10 }
-        if showChainImage  { contentHeight += 28 }
+        let chainSpan = Self.tutorialChainImageSpan
+        if showChainImage  { contentHeight += chainSpan + 8 }
         if showFingerAnim  { contentHeight += 36 }
         if showBombImage   { contentHeight += bombImageSize + 8 }
 
@@ -19964,13 +19968,13 @@ final class GameScene: SKScene {
             curY -= 32
         }
 
-        // Image chaîne de 5 blox bleus (overlay 2)
+        // Chaîne de 5 en diagonale (overlay 2) : la ligne droite n’est plus le seul modèle.
         if showChainImage {
             let chainNode = buildChainImageNode()
-            chainNode.position = CGPoint(x: 0, y: curY - 10)
+            chainNode.position = CGPoint(x: 0, y: curY - chainSpan / 2)
             chainNode.zPosition = 1
             node.addChild(chainNode)
-            curY -= 28
+            curY -= chainSpan + 8
         }
 
         // Sprite bombe animé (shader couleurs + halo + particules) + animation pulsée
@@ -20099,22 +20103,97 @@ final class GameScene: SKScene {
         node.run(SKAction.scale(to: 1.0, duration: 0.2))
     }
 
+    /// Emprise de la chaîne en biais (5 cases, pas + écart).
+    private static var tutorialChainImageSpan: CGFloat {
+        let block: CGFloat = 16
+        let gap: CGFloat = 3
+        return 4 * (block + gap) + block
+    }
+
+    /// Cinq bleus en diagonale. Le texte dit que la ligne et le L comptent aussi.
     private func buildChainImageNode() -> SKNode {
         let container = SKNode()
-        let blockSize: CGFloat = 18
+        let blockSize: CGFloat = 16
         let gap: CGFloat = 3
-        let total = 5
-        let startX = -(CGFloat(total) * (blockSize + gap) - gap) / 2 + blockSize / 2
+        let step = blockSize + gap
+        let span = Self.tutorialChainImageSpan - blockSize
         let blueColor = BlomixSkinCatalog.shared.bloxSKColor(forNormalizedKey: "blue") ?? SKColor.systemBlue
-        for i in 0..<total {
+        for i in 0..<5 {
             let sq = SKShapeNode(rectOf: CGSize(width: blockSize, height: blockSize), cornerRadius: 3)
             sq.fillColor   = blueColor
             sq.strokeColor = UIColor(white: 1, alpha: 0.3)
             sq.lineWidth   = 0.5
-            sq.position    = CGPoint(x: startX + CGFloat(i) * (blockSize + gap), y: 0)
+            let along = -span / 2 + CGFloat(i) * step
+            sq.position = CGPoint(x: along, y: along)
             container.addChild(sq)
         }
         return container
+    }
+
+    /// Bulle au-dessus de la file des deux prochains blox. Ne bloque pas le jeu.
+    private func showTutorialQueueCallout() {
+        childNode(withName: Self.tutorialQueueCalloutName)?.removeFromParent()
+        guard let slotNext = childNode(withName: Self.upcomingSlotNextName),
+              let slotTwo = childNode(withName: Self.upcomingSlotTwoAheadName) else { return }
+
+        let text = BlomixL10n.tutorialQueueHint
+        let width = min(size.width - 24, 230)
+        let fontSize: CGFloat = 13
+        let pad: CGFloat = 10
+        let textWidth = width - pad * 2
+        let attr = tutorialAttributedText(text, size: fontSize, bold: false)
+        let textH = ceil(attr.boundingRect(
+            with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            context: nil).height)
+        let bubbleH = textH + pad * 2
+        let pointerH: CGFloat = 8
+
+        let targetX = (slotNext.position.x + slotTwo.position.x) / 2
+        let targetTop = max(slotNext.position.y, slotTwo.position.y) + UpcomingQueueLayout.cellPoints / 2
+        let halfW = width / 2
+        let centerX = min(max(targetX, halfW + 8), size.width - halfW - 8)
+        let centerY = targetTop + 6 + pointerH + bubbleH / 2
+
+        let node = SKNode()
+        node.name = Self.tutorialQueueCalloutName
+        node.position = CGPoint(x: centerX, y: centerY)
+        node.zPosition = 220
+
+        let bg = SKShapeNode(rectOf: CGSize(width: width, height: bubbleH), cornerRadius: 8)
+        bg.fillColor = BlomixAppearance.panelFillTranslucent
+        bg.strokeColor = BlomixAppearance.panelStroke
+        bg.lineWidth = 0.5
+        node.addChild(bg)
+
+        let label = SKLabelNode()
+        label.attributedText = attr
+        label.numberOfLines = 0
+        label.preferredMaxLayoutWidth = textWidth
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.zPosition = 1
+        node.addChild(label)
+
+        let tip = SKShapeNode()
+        let localTipX = targetX - centerX
+        let tipPath = CGMutablePath()
+        let baseY = -bubbleH / 2
+        tipPath.move(to: CGPoint(x: localTipX - 7, y: baseY))
+        tipPath.addLine(to: CGPoint(x: localTipX + 7, y: baseY))
+        tipPath.addLine(to: CGPoint(x: localTipX, y: baseY - pointerH))
+        tipPath.closeSubpath()
+        tip.path = tipPath
+        tip.fillColor = BlomixAppearance.panelFillTranslucent
+        tip.strokeColor = BlomixAppearance.panelStroke
+        tip.lineWidth = 0.5
+        tip.zPosition = 1
+        node.addChild(tip)
+
+        node.alpha = 0
+        let fade: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.25
+        node.run(SKAction.fadeIn(withDuration: fade))
+        addChild(node)
     }
 
     private func tutorialAttributedText(_ text: String, size: CGFloat, bold: Bool) -> NSAttributedString {

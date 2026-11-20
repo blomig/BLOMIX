@@ -1,7 +1,5 @@
-• Trofeo completado: cada trofeo que llevas a 3 estrellas te regala un BOMBX, como primer bloque de tu próxima partida de Arcade, Zen o Five.
-• Jugadas más vivas: un lanzamiento largo hace girar el bloque, los vecinos reaccionan al colocarlo y la vibración sigue la fuerza de tus cadenas.
-• Cascadas: COMBO y CONNECT se quedan en la rejilla, y cada oleada pega más fuerte.
-• La línea amenazante se lee mejor, y el fin de partida es más claro.
-• Salón de trofeos: un degradado propio para cada trofeo.
-• Tutorial revisado, y el acierto indica que los Magix no se puntúan.
-• Medición anónima del uso, sin publicidad ni rastreo, para mejorar el juego.
+• Tinta: un look nuevo, acuarela sobre papel, junto a Oscuro y Claro.
+• Inicio: tres puertas, Jugar, Desafíos y Duelo. Eliges el modo justo debajo.
+• La primera vez que llega un Magix, una burbuja dice lo que hace.
+• Después del tutorial, tu primera partida va sin crono.
+• Logros de Game Center: lo que ya hiciste en el Salón también cuenta allí.

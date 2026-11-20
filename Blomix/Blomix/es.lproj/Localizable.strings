@@ -350,6 +350,11 @@
 "whatsnew.moves_matter" = "Tus jugadas tienen más cuerpo: el bloque gira en el lanzamiento largo y los vecinos reaccionan al posarlo";
 "whatsnew.grid_air" = "Aire en la rejilla: pequeños granos suben por los huecos";
 "whatsnew.salon_gradient" = "Salón de trofeos: cada trofeo tiene su degradado";
+"whatsnew.ink" = "Tinta: un look nuevo, acuarela sobre papel, junto a Oscuro y Claro";
+"whatsnew.home_doors" = "Inicio: tres puertas, Jugar, Desafíos y Duelo. Eliges el modo justo debajo";
+"whatsnew.magix_card" = "La primera vez que llega un Magix, una burbuja dice lo que hace";
+"whatsnew.first_game" = "Después del tutorial, tu primera partida va sin crono";
+"whatsnew.achievements" = "Logros de Game Center: lo que ya hiciste en el Salón también cuenta allí";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */

@@ -363,6 +363,11 @@
 "whatsnew.moves_matter" = "Your moves have more weight: the block spins on a long launch, neighbors react when it lands";
 "whatsnew.grid_air" = "Air in the grid: small grains rise through the holes";
 "whatsnew.salon_gradient" = "Trophy lounge: each trophy has its own gradient";
+"whatsnew.ink" = "Ink: a new look, watercolor on paper, beside Dark and Light";
+"whatsnew.home_doors" = "Home: three doors, Play, Challenges, and Duel. Pick the mode just underneath";
+"whatsnew.magix_card" = "The first time a Magix arrives, a bubble tells you what it does";
+"whatsnew.first_game" = "After the tutorial, your first game has no timer";
+"whatsnew.achievements" = "Game Center achievements: what you already did in the Trophy Lounge counts there too";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */

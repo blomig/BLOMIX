@@ -1,7 +1,5 @@
-• Completed trophy: each trophy you take to 3 stars gives you a BOMBX, as the first block of your next Arcade, Zen, or Five game.
-• Livelier moves: a long launch spins the block, neighbors react when it lands, and vibration follows the strength of your chains.
-• Cascades: COMBO and CONNECT stay on the grid, and each wave hits harder.
-• The incoming line is easier to read, and game over is clearer.
-• Trophy lounge: a gradient of its own for each trophy.
-• Tutorial revised, and placement now says that Magix moves are not scored.
-• Anonymous usage measurement, with no ads and no tracking, to improve the game.
+• Ink: a new look, watercolor on paper, beside Dark and Light.
+• Home: three doors, Play, Challenges, and Duel. Pick the mode just underneath.
+• The first time a Magix arrives, a bubble tells you what it does.
+• After the tutorial, your first game has no timer.
+• Game Center achievements: what you already did in the Trophy Lounge counts there too.

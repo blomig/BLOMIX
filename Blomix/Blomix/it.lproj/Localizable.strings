@@ -350,6 +350,11 @@
 "whatsnew.moves_matter" = "Le tue mosse hanno più corpo: il blocco ruota nel lancio lungo e i vicini reagiscono alla posa";
 "whatsnew.grid_air" = "Aria nella griglia: piccoli grani salgono nei buchi";
 "whatsnew.salon_gradient" = "Salone dei trofei: ogni trofeo ha la sua sfumatura";
+"whatsnew.ink" = "Inchiostro: un nuovo look, acquerello su carta, accanto a Scuro e Chiaro";
+"whatsnew.home_doors" = "Home: tre porte, Gioca, Sfide e Duello. Scegli la modalità proprio sotto";
+"whatsnew.magix_card" = "La prima volta che arriva un Magix, una bolla dice cosa fa";
+"whatsnew.first_game" = "Dopo il tutorial, la tua prima partita è senza timer";
+"whatsnew.achievements" = "Obiettivi Game Center: quello che hai già fatto nel Salone conta anche lì";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */

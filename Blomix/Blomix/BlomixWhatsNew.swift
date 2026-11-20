@@ -19,16 +19,17 @@ enum BlomixWhatsNew {
     /// tant qu’il ne change pas, la clé UserDefaults et le texte restent ceux de l’ancienne note.
     /// `8.9b` : des testeurs TestFlight ont pu taper « Ne plus montrer » sur `8.9`
     /// avant cette réécriture. Cette clé UserDefaults ne se réinitialise pas.
-    static let campaignID = "8.9b"
+    static let campaignID = "9.0"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Puces du dialogue. À réécrire avec la campagne, pas en dur dans la vue.
     static var factTexts: [String] {
         [
-            BlomixL10n.whatsNewTrophyCompleted,
-            BlomixL10n.whatsNewMovesMatter,
-            BlomixL10n.whatsNewGridAir,
-            BlomixL10n.whatsNewSalonGradient,
+            BlomixL10n.whatsNewInk,
+            BlomixL10n.whatsNewHomeDoors,
+            BlomixL10n.whatsNewMagixCard,
+            BlomixL10n.whatsNewFirstGame,
+            BlomixL10n.whatsNewAchievements,
         ]
     }
 

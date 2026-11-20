@@ -829,7 +829,13 @@ enum BlomixL10n {
     /// Campagne 8.9, plus affichées. Réécrire avec `BlomixWhatsNew.campaignID`.
     static var whatsNewSalonPhase: String { tr("whatsnew.salon_phase", comment: "8.9 — each trophy has its own skin gradient") }
     static var whatsNewSalonDot: String { tr("whatsnew.salon_dot", comment: "8.9 — home trophy dot turns off once every new card is opened") }
-    /// Campagne 8.9b.
+    /// Campagne 9.0.
+    static var whatsNewInk: String { tr("whatsnew.ink", comment: "9.0 — Ink look, watercolor on paper, beside Dark and Light") }
+    static var whatsNewHomeDoors: String { tr("whatsnew.home_doors", comment: "9.0 — home has Play, Challenges, and Duel, mode chosen underneath") }
+    static var whatsNewMagixCard: String { tr("whatsnew.magix_card", comment: "9.0 — first time a Magix arrives, a bubble explains it") }
+    static var whatsNewFirstGame: String { tr("whatsnew.first_game", comment: "9.0 — after the tutorial, the first game has no timer") }
+    static var whatsNewAchievements: String { tr("whatsnew.achievements", comment: "9.0 — Game Center achievements count what the Trophy Lounge already recorded") }
+    /// Campagne 8.9b, plus affichées.
     static var whatsNewTrophyCompleted: String { tr("whatsnew.trophy_completed", comment: "8.9b — a completed trophy grants a BOMBX on the next solo game") }
     static var whatsNewMovesMatter: String { tr("whatsnew.moves_matter", comment: "8.9b — long launch spins the block, neighbors react on landing") }
     static var whatsNewGridAir: String { tr("whatsnew.grid_air", comment: "8.9b — small grains rise through holes in the grid") }

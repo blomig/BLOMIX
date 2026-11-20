@@ -1,7 +1,5 @@
-• Trophäe abgeschlossen: jede Trophäe, die du auf 3 Sterne bringst, schenkt dir ein BOMBX, als erster Block deiner nächsten Partie in Arcade, Zen oder Five.
-• Lebendigere Züge: ein langer Druck dreht den Block, die Nachbarn reagieren beim Setzen, und die Vibration folgt der Stärke deiner Ketten.
-• Kaskaden: COMBO und CONNECT bleiben auf dem Feld, und jede Welle trifft härter.
-• Die drohende Linie ist besser lesbar, und das Spielende ist klarer.
-• Trophäen-Salon: ein eigenes Farbspiel für jede Trophäe.
-• Tutorial überarbeitet, und die Platzierung sagt, dass Magix nicht gewertet werden.
-• Anonyme Messung der Nutzung, ohne Werbung und ohne Tracking, um das Spiel zu verbessern.
+• Tinte: ein neuer Look, Aquarell auf Papier, neben Dunkel und Hell.
+• Start: drei Türen, Spielen, Challenges und Duell. Den Modus wählst du direkt darunter.
+• Wenn ein Magix zum ersten Mal ankommt, sagt eine Blase, was er tut.
+• Nach dem Tutorial läuft deine erste Partie ohne Uhr.
+• Game-Center-Erfolge: was du im Trophäen-Salon schon geschafft hast, zählt auch dort.

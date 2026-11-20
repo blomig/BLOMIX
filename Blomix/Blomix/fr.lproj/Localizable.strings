@@ -363,6 +363,11 @@
 "whatsnew.moves_matter" = "Tes coups ont plus de matière : le bloc tourne au lancer long, les voisins réagissent à la pose";
 "whatsnew.grid_air" = "De l’air dans la grille : de petits grains montent dans les trous";
 "whatsnew.salon_gradient" = "Salon : chaque trophée a son dégradé";
+"whatsnew.ink" = "Encre : un nouveau look, aquarelle sur papier, à côté de Sombre et Clair";
+"whatsnew.home_doors" = "Accueil : trois portes, Jouer, Défis et Duel. Tu choisis le mode juste en dessous";
+"whatsnew.magix_card" = "La première fois qu’un Magix arrive, une bulle dit ce qu’il fait";
+"whatsnew.first_game" = "Après le tutoriel, ta première partie se joue sans chrono";
+"whatsnew.achievements" = "Réalisations Game Center : ce que tu as déjà fait dans le Salon compte aussi";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */

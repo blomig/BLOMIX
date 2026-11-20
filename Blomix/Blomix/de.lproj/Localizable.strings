@@ -363,6 +363,11 @@
 "whatsnew.moves_matter" = "Mehr Gewicht im Zug: der Block dreht sich beim langen Drücken, die Nachbarn reagieren beim Setzen";
 "whatsnew.grid_air" = "Luft im Feld: kleine Körner steigen in den Lücken auf";
 "whatsnew.salon_gradient" = "Trophäen-Salon: jede Trophäe hat ihr eigenes Farbspiel";
+"whatsnew.ink" = "Tinte: ein neuer Look, Aquarell auf Papier, neben Dunkel und Hell";
+"whatsnew.home_doors" = "Start: drei Türen, Spielen, Challenges und Duell. Den Modus wählst du direkt darunter";
+"whatsnew.magix_card" = "Wenn ein Magix zum ersten Mal ankommt, sagt eine Blase, was er tut";
+"whatsnew.first_game" = "Nach dem Tutorial läuft deine erste Partie ohne Uhr";
+"whatsnew.achievements" = "Game-Center-Erfolge: was du im Trophäen-Salon schon geschafft hast, zählt auch dort";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */

@@ -1,7 +1,5 @@
-• Trophée complété : chaque trophée porté à 3 étoiles t’offre un BOMBX, en premier bloc de ta prochaine partie Arcade, Zen ou Five.
-• Des coups plus vivants : un lancer long fait tourner le bloc, les voisins réagissent à la pose, et les vibrations suivent la force de tes chaînes.
-• Cascades : COMBO et CONNECT restent sur la grille, et chaque vague frappe plus fort.
-• Ligne menaçante plus lisible, et une fin de partie plus claire.
-• Salon des trophées : un dégradé propre à chaque trophée.
-• Tutoriel revu, et la justesse précise que les Magix ne sont pas notés.
-• Mesure anonyme de l’usage, sans publicité ni pistage, pour améliorer le jeu.
+• Encre : un nouveau look, aquarelle sur papier, à côté de Sombre et Clair.
+• Accueil : trois portes, Jouer, Défis et Duel. Tu choisis le mode juste en dessous.
+• La première fois qu’un Magix arrive, une bulle dit ce qu’il fait.
+• Après le tutoriel, ta première partie se joue sans chrono.
+• Réalisations Game Center : ce que tu as déjà fait dans le Salon compte aussi.

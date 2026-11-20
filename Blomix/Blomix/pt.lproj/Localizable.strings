@@ -363,6 +363,11 @@
 "whatsnew.moves_matter" = "Suas jogadas têm mais corpo: o bloco gira no lançamento longo e os vizinhos reagem ao pousar";
 "whatsnew.grid_air" = "Ar na grade: pequenos grãos sobem pelos buracos";
 "whatsnew.salon_gradient" = "Salão de troféus: cada troféu tem o seu degradê";
+"whatsnew.ink" = "Tinta: um visual novo, aquarela no papel, ao lado de Escuro e Claro";
+"whatsnew.home_doors" = "Início: três portas, Jogar, Desafios e Duelo. Você escolhe o modo logo abaixo";
+"whatsnew.magix_card" = "Na primeira vez que um Magix chega, um balão diz o que ele faz";
+"whatsnew.first_game" = "Depois do tutorial, sua primeira partida é sem cronômetro";
+"whatsnew.achievements" = "Conquistas do Game Center: o que você já fez no Salão também conta lá";
 "whatsnew.dont_show" = "Não mostrar de novo";
 
 /* Appearance */

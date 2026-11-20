@@ -34,6 +34,10 @@ final class BlomixSKButtonNode: SKNode {
     /// Emprise tactile / layout (hors descendants ambiants clipés dans le puits).
     var layoutSize: CGSize { buttonSize }
     private var wellTimeOffset: Float = 0
+    /// Encre : le masque du liseré. Le scale d’appui ne touche pas le libellé.
+    private weak var inkRimMask: SKSpriteNode?
+    /// Figé à la construction. Le Classique ne passe jamais par le chemin Encre.
+    private var usesInkChrome = false
     /// `false` : la gouttière est la piste neutre. `true` : le dégradé du skin.
     private var wellShowsSkin = true
     private var skinObserver: NSObjectProtocol?
@@ -108,6 +112,20 @@ final class BlomixSKButtonNode: SKNode {
         let resolvedCorner = min(cornerRadius >= 0 ? cornerRadius : Self.cornerRadius, maxCorner)
         let inset = wellInset >= 0 ? wellInset : BlomixUIDestinationButtonStyle.wellInset(for: size)
         let resolvedFontSize = fontSize > 0 ? fontSize : Self.defaultFontSize
+        usesInkChrome = BlomixInkChrome.isActive
+        if usesInkChrome {
+            assembleInk(
+                size: size,
+                cornerRadius: resolvedCorner,
+                text: text,
+                labelName: labelName,
+                fontSize: resolvedFontSize,
+                systemName: systemName,
+                iconPointSize: iconPointSize
+            )
+            installChromeObservers()
+            return
+        }
 
         let well = BlomixSkinGradient.makeWellNode(
             size: size,
@@ -210,6 +228,96 @@ final class BlomixSKButtonNode: SKNode {
             inner.addChild(icon)
         }
 
+        installChromeObservers()
+    }
+
+    /// Papier washi + liseré. Le puits `blomixWell` reste le crop des échos,
+    /// masqué par l’anneau peint : le fill garde la taille du bouton.
+    private func assembleInk(
+        size: CGSize,
+        cornerRadius: CGFloat,
+        text: String,
+        labelName: String?,
+        fontSize: CGFloat,
+        systemName: String?,
+        iconPointSize: CGFloat
+    ) {
+        let clip = SKCropNode()
+        clip.zPosition = 0
+        let clipMask = SKSpriteNode(
+            texture: BlomixButtonRelief.roundedRectMaskTexture(size: size, cornerRadius: cornerRadius),
+            size: size
+        )
+        clip.maskNode = clipMask
+        addChild(clip)
+
+        let paper = SKSpriteNode(
+            texture: BlomixInkChrome.paperTexture(size: size, cornerRadius: cornerRadius),
+            size: size
+        )
+        paper.name = "blomixInkPaper"
+        paper.zPosition = 0
+        clip.addChild(paper)
+
+        let well = SKCropNode()
+        well.name = "blomixWell"
+        well.zPosition = 1
+        well.userData = NSMutableDictionary()
+        well.userData?["cornerRadius"] = cornerRadius
+        well.userData?["timeOffset"] = wellTimeOffset
+        let rim = SKSpriteNode(
+            texture: BlomixInkChrome.brushRingTexture(size: size, cornerRadius: cornerRadius),
+            size: size
+        )
+        well.maskNode = rim
+        inkRimMask = rim
+        let fill = SKSpriteNode(texture: BlomixSkinGradient.shaderBaseTexture, size: size)
+        fill.name = "blomixWellFill"
+        BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+        well.addChild(fill)
+        clip.addChild(well)
+        wellNode = well
+
+        let inner = SKNode()
+        inner.name = "blomixCapsuleContent"
+        inner.zPosition = 2
+        addChild(inner)
+        capsuleContentNode = inner
+
+        if !text.isEmpty || labelName != nil {
+            let label = SKLabelNode(text: text)
+            label.name = labelName
+            label.fontName = BlomixTypeRole.inkPostScriptName
+            label.fontSize = fontSize
+            label.fontColor = BlomixInkChrome.inkGray
+            label.horizontalAlignmentMode = .center
+            label.verticalAlignmentMode = .center
+            label.position = CGPoint(x: 0, y: -1)
+            label.zPosition = 1
+            inner.addChild(label)
+            labelNode = label
+        }
+
+        if let systemName {
+            let iconSide = min(size.width, size.height) * 0.46
+            let icon = SKSpriteNode(
+                texture: BlomixAppearance.chromeSymbolTexture(
+                    systemName: systemName,
+                    pointSize: iconPointSize,
+                    canvasSide: max(iconSide, 18),
+                    tint: BlomixInkChrome.inkGrayUI
+                )
+            )
+            icon.name = "blomixButtonIcon"
+            icon.size = CGSize(width: iconSide, height: iconSide)
+            icon.zPosition = 1
+            icon.userData = NSMutableDictionary()
+            icon.userData?["systemName"] = systemName
+            inner.addChild(icon)
+        }
+    }
+
+    private func installChromeObservers() {
         skinObserver = NotificationCenter.default.addObserver(
             forName: .blomixSkinDidChange,
             object: nil,
@@ -231,6 +339,16 @@ final class BlomixSKButtonNode: SKNode {
     }
 
     func refreshSkinGradient() {
+        if usesInkChrome {
+            if wellShowsSkin {
+                if let fill = wellFillSprite {
+                    BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+                }
+            } else {
+                applyNeutralWell()
+            }
+            return
+        }
         BlomixSkinGradient.refreshWellNode(self, timeOffset: wellTimeOffset)
         if wellShowsSkin {
             if let fill = wellFillSprite {
@@ -279,13 +397,39 @@ final class BlomixSKButtonNode: SKNode {
     func setWellShaderEnabled(_ enabled: Bool) {
         guard let fill = wellNode?.childNode(withName: "blomixWellFill") as? SKSpriteNode else { return }
         if enabled {
-            BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+            if usesInkChrome {
+                fill.alpha = 1
+                if wellShowsSkin {
+                    BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+                } else {
+                    applyNeutralWell()
+                }
+            } else {
+                BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
+            }
         } else {
             fill.shader = nil
+            if usesInkChrome { fill.alpha = 0 }
         }
     }
 
     func refreshChrome() {
+        if usesInkChrome {
+            labelNode?.fontName = BlomixTypeRole.inkPostScriptName
+            labelNode?.fontColor = BlomixInkChrome.inkGray
+            if let icon = capsuleContentNode?.childNode(withName: "blomixButtonIcon") as? SKSpriteNode,
+               let systemName = icon.userData?["systemName"] as? String {
+                let side = icon.size.width
+                icon.texture = BlomixAppearance.chromeSymbolTexture(
+                    systemName: systemName,
+                    pointSize: 18,
+                    canvasSide: max(side, 18),
+                    tint: BlomixInkChrome.inkGrayUI
+                )
+            }
+            refreshSkinGradient()
+            return
+        }
         backgroundNode?.fillColor = BlomixAppearance.chipFillSK
         restingFillColor = BlomixAppearance.chipFillSK
         labelNode?.fontColor = BlomixAppearance.chipTitleSK
@@ -325,6 +469,14 @@ final class BlomixSKButtonNode: SKNode {
     func animatePressed() {
         Self.haptic.impactOccurred()
         Self.haptic.prepare()
+        if usesInkChrome {
+            guard let rim = inkRimMask else { return }
+            rim.removeAction(forKey: Self.pressActionKey)
+            let spread = SKAction.scale(to: BlomixInkChrome.spreadScale, duration: BlomixInkChrome.spreadOutDuration)
+            spread.timingMode = .easeOut
+            rim.run(spread, withKey: Self.pressActionKey)
+            return
+        }
         guard let inner = capsuleContentNode else { return }
         inner.removeAction(forKey: Self.pressActionKey)
 
@@ -339,6 +491,14 @@ final class BlomixSKButtonNode: SKNode {
     }
 
     func animateReleased() {
+        if usesInkChrome {
+            guard let rim = inkRimMask else { return }
+            rim.removeAction(forKey: Self.pressActionKey)
+            let back = SKAction.scale(to: 1, duration: BlomixInkChrome.spreadBackDuration)
+            back.timingMode = .easeOut
+            rim.run(back, withKey: Self.pressActionKey)
+            return
+        }
         guard let inner = capsuleContentNode else { return }
         inner.removeAction(forKey: Self.pressActionKey)
 

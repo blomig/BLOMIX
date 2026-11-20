@@ -3795,9 +3795,22 @@ final class GameScene: SKScene {
         let miniSize = CGSize(width: side, height: side)
         let colorKey = Self.startScreenAmbientBlockColorKeys.randomElement() ?? "red"
         let color = Self.bloxSolidFillColor(forNormalizedKey: colorKey) ?? SKColor(white: 0.45, alpha: 1)
-        let block = SKSpriteNode(color: color, size: miniSize)
+        let inkDecor = BlomixInkChrome.isActive
+        let confettiVariant = Int.random(in: 0..<BlomixInkChrome.confettiCount)
+        let block: SKSpriteNode
+        if inkDecor {
+            block = BlomixInkChrome.makeConfettiSprite(
+                side: side,
+                variant: confettiVariant,
+                tint: BlomixInkChrome.watermarkSK,
+                alpha: CGFloat.random(in: BlomixInkChrome.plateAlpha)
+            )
+            block.zRotation = CGFloat.random(in: -0.6...0.6)
+        } else {
+            block = SKSpriteNode(color: color, size: miniSize)
+            block.alpha = StartScreenAmbientReveal.ghostAlpha
+        }
         block.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        block.alpha = StartScreenAmbientReveal.ghostAlpha
         block.zPosition = 0
 
         let horizontalInset = miniSize.width / 2 + 8
@@ -3821,6 +3834,12 @@ final class GameScene: SKScene {
         let move = SKAction.moveTo(y: endY, duration: duration)
         move.timingMode = .linear
         block.run(SKAction.sequence([move, SKAction.removeFromParent()]))
+        let spin = CGFloat.random(in: 0.35...0.70) * (Bool.random() ? 1 : -1)
+        if inkDecor, !Self.prefersReducedMotion {
+            let turn = SKAction.rotate(byAngle: spin, duration: duration)
+            turn.timingMode = .linear
+            block.run(turn)
+        }
 
         if gutterReveal {
             spawnAmbientGutterEchoes(
@@ -3831,7 +3850,9 @@ final class GameScene: SKScene {
                 end: CGPoint(x: x, y: endY),
                 duration: duration,
                 in: overlay,
-                from: container
+                from: container,
+                variant: confettiVariant,
+                spin: inkDecor && !Self.prefersReducedMotion ? spin : 0
             )
         }
     }
@@ -3845,7 +3866,9 @@ final class GameScene: SKScene {
         end: CGPoint,
         duration: TimeInterval,
         in overlay: SKNode,
-        from container: SKNode
+        from container: SKNode,
+        variant: Int = 0,
+        spin: CGFloat = 0
     ) {
         let pathRect = CGRect(
             x: min(start.x, end.x) - size.width / 2,
@@ -3882,7 +3905,18 @@ final class GameScene: SKScene {
             guard delay < duration + 0.5 else { continue }
             let crossDuration = TimeInterval((yExit - yEnter) / max(localSpeed, 0.001))
 
-            let echo = BlomixAmbientEchoSprite(color: color, size: size)
+            let echo: BlomixAmbientEchoSprite
+            if BlomixInkChrome.isActive {
+                echo = BlomixAmbientEchoSprite(
+                    texture: BlomixInkChrome.confettiTexture(variant: variant),
+                    size: size
+                )
+                echo.color = color
+                echo.colorBlendFactor = 1
+                echo.zRotation = CGFloat.random(in: -0.5...0.5)
+            } else {
+                echo = BlomixAmbientEchoSprite(color: color, size: size)
+            }
             echo.name = "blomixAmbientEcho"
             echo.anchorPoint = CGPoint(x: 0.5, y: 0.5)
             echo.alpha = StartScreenAmbientReveal.windowAlpha
@@ -3898,6 +3932,17 @@ final class GameScene: SKScene {
                 travel,
                 SKAction.removeFromParent(),
             ]))
+            if spin != 0, duration > 0 {
+                let turn = SKAction.rotate(
+                    byAngle: spin * CGFloat(crossDuration / duration),
+                    duration: crossDuration
+                )
+                turn.timingMode = .linear
+                echo.run(SKAction.sequence([
+                    SKAction.wait(forDuration: delay),
+                    turn,
+                ]))
+            }
         }
     }
 
@@ -9933,7 +9978,13 @@ final class GameScene: SKScene {
 
         // ── Flash couleur de chaîne → repos primaryText (chiffre HUD) ────────────
         // Encre : la même teinte sur les glyphes, puis retour au gris (pas au texte).
-        if let scoreColor {
+        // SAINTX Encre : le roll dure tout le blanchiment. Le blanc du voile
+        // ne peint pas les glyphes. Ils restent le gris de repos.
+        if Self.visualStyleForRun == .new, scoreRollCurve == .saintxWash {
+            label.removeAction(forKey: "scoreColorFlash")
+            applyScoreAndPileAccent(BlomixAppearance.primaryTextSK)
+            applyScoreWashTint(scoreWashRestColor())
+        } else if let scoreColor {
             applyScoreAndPileAccent(scoreColor)
             applyScoreWashTint(scoreColor)
             label.removeAction(forKey: "scoreColorFlash")
@@ -12549,8 +12600,9 @@ final class GameScene: SKScene {
     private static var magixShaderCache: [String: SKShader] = [:]
     private static let magixTimeOffsetAttributeName = "a_timeOffset"
 
-    private static func attachMagixPaletteShader(to sprite: SKSpriteNode, timeOffset: Float = 0) {
-        sprite.shader = makeMagixPaletteShader()
+    private static func attachMagixPaletteShader(to sprite: SKSpriteNode, timeOffset: Float = 0, ink: Bool? = nil) {
+        let useInk = ink ?? (visualStyleForRun == .new)
+        sprite.shader = makeMagixPaletteShader(ink: useInk)
         sprite.setValue(SKAttributeValue(float: timeOffset), forAttribute: magixTimeOffsetAttributeName)
     }
 
@@ -12571,7 +12623,7 @@ final class GameScene: SKScene {
             gl_FragColor=vec4(col*ring*a,a);
         """
 
-    /// Masque Encre : grain au centre, encre irrégulière sur le tour.
+    /// Masque Encre : lavis au centre, encre irrégulière sur le tour.
     private static let inkDiscShaderTail = """
             vec4 inkTex=texture2D(u_texture,uv);
             float a=inkTex.a;
@@ -12582,12 +12634,18 @@ final class GameScene: SKScene {
 
     /// Classique : pastille blanche, pour des UV définis. Encre : masque aquarelle.
     /// `salt` 1 = Magix, 2 = bombe.
-    private static func specialDiscTexture(size: CGSize, salt: Int) -> SKTexture {
-        guard visualStyleForRun == .new else { return magixShaderBaseTexture }
+    private static func specialDiscTexture(size: CGSize, salt: Int, ink: Bool) -> SKTexture {
+        guard ink else { return magixShaderBaseTexture }
         return BlomixNewInkRenderer.discTexture(pointSize: size, salt: salt)
     }
 
-    private static func makeMagixPaletteShader(timeOffset: Float = 0.0) -> SKShader {
+    /// Guide et nouveautés. La partie Encre en cours gagne. Sinon le style choisi :
+    /// l’accueil a remis `visualStyleForRun` à Classique.
+    private static var previewSpecialIsInk: Bool {
+        visualStyleForRun == .new || BlomixVisualStyle.current == .new
+    }
+
+    private static func makeMagixPaletteShader(timeOffset: Float = 0.0, ink: Bool) -> SKShader {
         _ = timeOffset
         // Les couleurs de la palette sont intégrées directement dans le source GLSL
         // pour éviter tout problème de mapping de sampler (SpriteKit peut remapper
@@ -12598,7 +12656,6 @@ final class GameScene: SKScene {
                SKColor.yellow, SKColor(red: 0.6, green: 0, blue: 0.9, alpha: 1), SKColor.orange]
             : uiColors
         let n = safeColors.count
-        let ink = visualStyleForRun == .new
         let cacheKey = "\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)|ink:\(ink ? 1 : 0)"
         if let cached = magixShaderCache[cacheKey] { return cached }
 
@@ -12847,34 +12904,23 @@ final class GameScene: SKScene {
     }
 
     private static func applyMagixShader(to sprite: SKSpriteNode, size: CGSize,
-                                          kind: MagixKind, symbolLabelName: String) {
+                                          kind: MagixKind, symbolLabelName: String,
+                                          ink: Bool? = nil) {
+        let useInk = ink ?? (visualStyleForRun == .new)
         // Classique : texture blanche pour que v_tex_coord soit défini.
-        // Encre : masque grain + couronne, échantillonné par le shader.
-        sprite.texture          = specialDiscTexture(size: size, salt: 1)
+        // Encre : masque lavis + couronne, échantillonné par le shader.
+        sprite.texture          = specialDiscTexture(size: size, salt: 1, ink: useInk)
         sprite.colorBlendFactor = 0   // le shader fournit 100 % de la couleur
         sprite.color            = .white
         sprite.size             = size
         sprite.blendMode        = .alpha
-        Self.attachMagixPaletteShader(to: sprite, timeOffset: 0)
+        Self.attachMagixPaletteShader(to: sprite, timeOffset: 0, ink: useInk)
 
-        // ── Halo dégradé radial (glow) — blanc en sombre, noir en clair ────────
         sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
         sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
-        let haloSpread = SpecialOrbitJuice.haloSpread
-        let haloTexture = Self.makeMagixHaloTexture(blockSize: size, spread: haloSpread)
-        let glow = SKSpriteNode(texture: haloTexture,
-                                size: CGSize(width:  size.width  + haloSpread * 2,
-                                             height: size.height + haloSpread * 2))
-        glow.name        = MagixRules.glowNodeName
-        glow.alpha       = BlomixAppearance.specialHaloBaseAlpha
-        glow.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        glow.zPosition   = -2   // derrière le sprite principal et les biseaux
-        // Pulsing doux indépendant du breathing général.
-        glow.run(SKAction.repeatForever(SKAction.sequence([
-            SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseHigh, duration: 1.2),
-            SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseLow, duration: 1.2),
-        ])))
-        sprite.addChild(glow)
+        if !useInk {
+            attachClassicSpecialHalo(to: sprite, size: size)
+        }
 
         attachSpecialOrbitParticles(to: sprite, size: size, pickColor: pickMagixOrbitColor)
 
@@ -12906,7 +12952,7 @@ final class GameScene: SKScene {
     // MARK: - Bombe (sprite MAGIX-style noir/rouge/jaune)
 
     /// Shader cyclique noir → rouge joueur → jaune joueur, identique au MAGIX mais sur 3 couleurs.
-    private static func makeBombPaletteShader() -> SKShader {
+    private static func makeBombPaletteShader(ink: Bool) -> SKShader {
         let red    = bloxSolidFillColor(colorName: "red")    ?? SKColor(red: 0.90, green: 0.20, blue: 0.20, alpha: 1)
         let yellow = bloxSolidFillColor(colorName: "yellow") ?? SKColor(red: 0.91, green: 0.77, blue: 0.42, alpha: 1)
         let black  = SKColor.black
@@ -12949,26 +12995,15 @@ final class GameScene: SKScene {
             float wy=cos(uv.y*2.2-t*0.35)*0.5+0.5;
             vec3 ab=mix(c1,c2,wx);
             vec3 col=mix(ab,c3,wy*0.38);
-            \(visualStyleForRun == .new ? Self.inkDiscShaderTail : Self.classicBombDiscShaderTail)
+            \(ink ? Self.inkDiscShaderTail : Self.classicBombDiscShaderTail)
         }
         """
         return SKShader(source: src)
     }
 
-    /// Applique le look bombe MAGIX-style sur un sprite existant (réutilisable pour icône HUD).
-    private static func applyBombShader(to sprite: SKSpriteNode, size: CGSize) {
-        sprite.texture          = specialDiscTexture(size: size, salt: 2)
-        sprite.colorBlendFactor = 0
-        sprite.color            = .white
-        sprite.size             = size
-        sprite.shader           = makeBombPaletteShader()
-
-        // Nettoyer le symbole MAGIX éventuel (preview réutilisée).
-        sprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
-
-        // ── Halo dégradé radial — blanc en sombre, noir en clair ───────────────
-        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
-        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+    /// Halo radial. Classique seulement : en Encre le disque n’a pas de voile.
+    /// Les orbites, elles, partent dans les deux styles.
+    private static func attachClassicSpecialHalo(to sprite: SKSpriteNode, size: CGSize) {
         let haloSpread = SpecialOrbitJuice.haloSpread
         let haloTexture = makeMagixHaloTexture(blockSize: size, spread: haloSpread)
         let glow = SKSpriteNode(texture: haloTexture,
@@ -12983,30 +13018,50 @@ final class GameScene: SKScene {
             SKAction.fadeAlpha(to: BlomixAppearance.specialHaloPulseLow, duration: 1.2),
         ])))
         sprite.addChild(glow)
+    }
+
+    /// Applique le look bombe MAGIX-style sur un sprite existant (réutilisable pour icône HUD).
+    private static func applyBombShader(to sprite: SKSpriteNode, size: CGSize, ink: Bool? = nil) {
+        let useInk = ink ?? (visualStyleForRun == .new)
+        sprite.texture          = specialDiscTexture(size: size, salt: 2, ink: useInk)
+        sprite.colorBlendFactor = 0
+        sprite.color            = .white
+        sprite.size             = size
+        sprite.shader           = makeBombPaletteShader(ink: useInk)
+
+        // Nettoyer le symbole MAGIX éventuel (preview réutilisée).
+        sprite.childNode(withName: MagixRules.symbolLabelName)?.removeFromParent()
+
+        sprite.removeAction(forKey: MagixRules.orbitParticlesActionKey)
+        sprite.childNode(withName: MagixRules.glowNodeName)?.removeFromParent()
+        if !useInk {
+            attachClassicSpecialHalo(to: sprite, size: size)
+        }
 
         attachSpecialOrbitParticles(to: sprite, size: size, pickColor: pickBombOrbitColor)
     }
 
-    /// Preview guide (6.4) : même sprite bombe que le HUD.
+    /// Preview guide (6.4) : même sprite bombe que le HUD, au style choisi.
     static func makeGuideBombPreviewSprite(size: CGSize) -> SKSpriteNode {
-        makeBombShaderSprite(size: size)
+        makeBombShaderSprite(size: size, ink: previewSpecialIsInk)
     }
 
-    /// Preview guide (6.4) : même Magix shader + halo + particules que la grille.
+    /// Preview guide (6.4) : même Magix que la grille, au style choisi.
     static func makeGuideMagixPreviewSprite(size: CGSize, kind: MagixKind = .chromax) -> SKSpriteNode {
         let sprite = SKSpriteNode(texture: magixShaderBaseTexture, size: size)
         sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-        applyMagixShader(to: sprite, size: size, kind: kind, symbolLabelName: "guideMagixSymbol")
+        applyMagixShader(to: sprite, size: size, kind: kind,
+                         symbolLabelName: "guideMagixSymbol", ink: previewSpecialIsInk)
         return sprite
     }
 
-    /// Crée un sprite bombe MAGIX-style autonome (shader + biseau + halo + particules).
-    private static func makeBombShaderSprite(size: CGSize) -> SKSpriteNode {
+    /// Crée un sprite bombe MAGIX-style autonome (shader + halo Classique + particules).
+    private static func makeBombShaderSprite(size: CGSize, ink: Bool? = nil) -> SKSpriteNode {
         let sprite = SKSpriteNode(texture: magixShaderBaseTexture, size: size)
         sprite.colorBlendFactor = 0
         sprite.color            = .white
         sprite.anchorPoint      = CGPoint(x: 0.5, y: 0.5)
-        applyBombShader(to: sprite, size: size)
+        applyBombShader(to: sprite, size: size, ink: ink)
         return sprite
     }
 
@@ -13411,7 +13466,8 @@ final class GameScene: SKScene {
             for addr in targets { grid[addr.row][addr.col] = .empty }
             grid[cell.row][cell.col] = .priks(max(1, clearedCount))
             addScore(points: 200, chainMultiplier: chainSeriesLevel,
-                     floatAt: scenePointCellCenter(row: cell.row, column: cell.col), dotColor: .white)
+                     floatAt: scenePointCellCenter(row: cell.row, column: cell.col), dotColor: .white,
+                     scoreRollCurve: .saintxWash)
             drawGrid()
             applyMagixCompactionAndContinue(columnHadBlockBefore: columnHadBlock)
             return
@@ -14931,17 +14987,20 @@ final class GameScene: SKScene {
         refreshUpcomingQueueSlots()
     }
 
-    /// Halo + particules orbitales de l’icône bombe HUD uniquement.
+    /// Particules orbitales de l’icône bombe HUD, plus le halo en Classique.
     /// Actif tant qu’il reste des bombes en stock **ou** qu’une bombe est armée (`isBombMode`).
     /// Preview / sprite de pose gardent leur juice via `applyBombShader` (hors de ce chemin).
     private func refreshBombHudJuice(active: Bool) {
         guard let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode else { return }
         let hasGlow = icon.childNode(withName: MagixRules.glowNodeName) != nil
         let hasOrbit = icon.action(forKey: MagixRules.orbitParticlesActionKey) != nil
+        // Encre : pas de halo. Le stock allumé, ce sont les orbites seules.
+        // Sinon chaque refresh du compteur relançait le spawner.
+        let ink = Self.visualStyleForRun == .new
+        let juiceReady = ink ? hasOrbit : (hasGlow && hasOrbit)
 
         if active {
-            // Réactiver seulement si manquant (évite de relancer le spawner à chaque update).
-            guard !hasGlow || !hasOrbit else { return }
+            guard !juiceReady else { return }
             Self.applyBombShader(to: icon, size: icon.size)
             attachNukeDigitIfNeeded(to: icon, size: icon.size)
         } else {
@@ -15102,7 +15161,7 @@ final class GameScene: SKScene {
         guard let icon = childNode(withName: Self.bombHudIconName) as? SKSpriteNode else { return }
         Self.applyBombShader(to: icon, size: icon.size)
         attachNukeDigitIfNeeded(to: icon, size: icon.size)
-        // `applyBombShader` ré-attache toujours halo + particules : les retirer si stock vide.
+        // `applyBombShader` ré-attache les particules (et le halo en Classique) : les retirer si stock vide.
         let bombJuiceActive = bombCount > 0 || isBombMode
         icon.alpha = bombJuiceActive ? 1.0 : 0.4
         refreshBombHudJuice(active: bombJuiceActive)
@@ -18468,13 +18527,23 @@ final class GameScene: SKScene {
         } else {
             let distance = max(1, top - grain.position.y)
             let fullSpan = GridLayout.spanPoints + side * 2
-            let meanTravel = (GravityAir.travel.lowerBound + GravityAir.travel.upperBound) / 2
+            let meanTravel: TimeInterval
+            if let stored = grain.userData?["airMean"] as? NSNumber {
+                meanTravel = stored.doubleValue
+            } else {
+                meanTravel = (GravityAir.travel.lowerBound + GravityAir.travel.upperBound) / 2
+            }
             let speed = fullSpan / CGFloat(meanTravel)
             duration = max(0.35, TimeInterval(distance / speed))
         }
         let move = SKAction.moveTo(y: top, duration: duration)
         move.timingMode = .linear
         grain.run(.sequence([move, .removeFromParent()]), withKey: GravityAir.riseActionKey)
+        if let rate = grain.userData?["inkSpinRate"] as? NSNumber, !Self.prefersReducedMotion {
+            let turn = SKAction.rotate(byAngle: CGFloat(rate.doubleValue) * CGFloat(duration), duration: duration)
+            turn.timingMode = .linear
+            grain.run(turn, withKey: "inkSpin")
+        }
     }
 
     private func stopGravityAir(in container: SKNode) {
@@ -18503,16 +18572,36 @@ final class GameScene: SKScene {
         }
         guard existing < GravityAir.maxGrains else { return }
         let half = GridLayout.spanPoints / 2
-        let side = CGFloat.random(in: GravityAir.side)
-        let key = Self.colorPalette.randomElement() ?? "red"
-        let color = Self.bloxSolidFillColor(forNormalizedKey: key) ?? SKColor(white: 0.7, alpha: 1)
-        let grain = SKSpriteNode(color: color, size: CGSize(width: side, height: side))
+        let ink = Self.visualStyleForRun == .new
+        let side = CGFloat.random(in: ink ? BlomixInkChrome.airSide : GravityAir.side)
+        let grain: SKSpriteNode
+        let travel: TimeInterval
+        if ink {
+            grain = BlomixInkChrome.makeConfettiSprite(
+                side: side,
+                variant: Int.random(in: 0..<BlomixInkChrome.confettiCount),
+                tint: BlomixInkChrome.watermarkSK,
+                alpha: CGFloat.random(in: BlomixInkChrome.airAlpha)
+            )
+            grain.zRotation = CGFloat.random(in: -0.5...0.5)
+            travel = TimeInterval.random(in: BlomixInkChrome.airTravel)
+            let spin = CGFloat.random(in: 0.35...0.70) * (Bool.random() ? 1 : -1)
+            grain.userData = NSMutableDictionary()
+            let mean = (BlomixInkChrome.airTravel.lowerBound + BlomixInkChrome.airTravel.upperBound) / 2
+            grain.userData?["airMean"] = NSNumber(value: mean)
+            grain.userData?["inkSpinRate"] = NSNumber(value: Double(spin / CGFloat(max(travel, 0.01))))
+        } else {
+            let key = Self.colorPalette.randomElement() ?? "red"
+            let color = Self.bloxSolidFillColor(forNormalizedKey: key) ?? SKColor(white: 0.7, alpha: 1)
+            grain = SKSpriteNode(color: color, size: CGSize(width: side, height: side))
+            grain.alpha = CGFloat.random(in: GravityAir.alpha)
+            travel = TimeInterval.random(in: GravityAir.travel)
+        }
         grain.name = Self.gravityAirGrainPrefix
-        grain.alpha = CGFloat.random(in: GravityAir.alpha)
         grain.zPosition = GravityAir.z
         grain.position = CGPoint(x: CGFloat.random(in: -half...half), y: -half - side)
         container.addChild(grain)
-        restartGravityAirRise(on: grain, fullTravel: TimeInterval.random(in: GravityAir.travel))
+        restartGravityAirRise(on: grain, fullTravel: travel)
     }
 
     /// Barre haute du trou, thème Clair, grille principale seulement.

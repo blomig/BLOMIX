@@ -234,19 +234,19 @@ Fichiers `Puzzle Game 2*.mp3` — un par stage solo (voir § Transitions).
 
 | Élément | Paramètres |
 |---|---|
-| Forme | **Disque inscrit** (taille bombe : `cell − 4 pt`) + couronne noire (même recette shader que la bombe). **Encre** : le shader de palette est le même ; la texture est un masque (grain des Blox, couronne d’encre à épaisseur variable). Classique reste le `smoothstep` circulaire. |
+| Forme | **Disque inscrit** (taille bombe : `cell − 4 pt`) + couronne noire (même recette shader que la bombe). **Encre** : le shader de palette est le même ; la texture est un masque (lavis des Blox au centre, couronne d’encre à épaisseur variable). Classique reste le `smoothstep` circulaire. |
 | Shader | Dégradé 6 couleurs animé via `u_time` (GLSL) |
-| Halo (`magixGlow`) | Spread **16 pt**, α pulse 0,28↔0,55, cycle **1,2 s** |
-| Particules orbitales | Spawn **0,12 ± 0,06 s**, **2–3** grains/burst (~2/3 petits r 0,40–0,80, le reste 1,0–1,8). Naissance dans la **couronne colorée** (épaisseur = 2 liserés noirs, UV 0,38←0,50). Vol jusqu’au **bord du halo** (spread 16 pt) en **1,55 s** ; opaque pendant le disque + halo interne (fade in 0,25 / hold 0,80) ; fade out **0,50 s** au bout du halo. α 0,82, z 1. Même recette bombe (`SpecialOrbitJuice`). |
+| Halo (`magixGlow`) | Spread **16 pt**, α pulse 0,28↔0,55, cycle **1,2 s**. **Encre** : pas de sprite. Le spread reste la distance de vol des orbites. |
+| Particules orbitales | Spawn **0,12 ± 0,06 s**, **2–3** grains/burst (~2/3 petits r 0,40–0,80, le reste 1,0–1,8). Naissance dans la **couronne colorée** (épaisseur = 2 liserés noirs, UV 0,38←0,50). Vol jusqu’au **bord du halo** (spread 16 pt) en **1,55 s** ; opaque pendant le disque + halo interne (fade in 0,25 / hold 0,80) ; fade out **0,50 s** au bout du halo. α 0,82, z 1. Même recette bombe (`SpecialOrbitJuice`). Encre : mêmes grains, sans le voile. |
 | Symbole | Police ×0,69 hauteur bloc, noir, z 5 |
 | En chute | Même rendu via `makeMagixShaderSprite` |
 | Après effet | Blox / Brix restants **carrés** |
 
 ### 2.4 Bombe (sprite HUD + chute)
 
-- Disque + couronne noire (shader). **Encre** : même cycle noir → rouge → jaune, masque aquarelle partagé avec le Magix (autre graine). L’icône de stock est repeinte au gel du style, comme la bombe armée dans la file. Classique : couronne géométrique.
+- Disque + couronne noire (shader). **Encre** : même cycle noir → rouge → jaune, lavis au centre, couronne d’encre (autre graine que le Magix). Pas de halo. L’icône de stock est repeinte au gel du style, comme la bombe armée dans la file. Classique : couronne géométrique et halo.
 - Shader noir → rouge → jaune (cycle 3 couleurs)
-- Halo + orbites : **même géométrie** que Magix (`SpecialOrbitJuice`) ; dots rouge / jaune / quasi-noir
+- Orbites : **même géométrie** que Magix (`SpecialOrbitJuice`) ; dots rouge / jaune / quasi-noir. Halo : Classique seulement, même sprite que le Magix.
 - Chiffre « nuke » si stage ≥ 2
 - Activation : `bombLoad` ; tremblement pré-explosion **0,3 s** (±6 pt, 6 oscillations × 0,05 s)
 
@@ -813,6 +813,8 @@ Ombre de contact (`BlomixButtonRelief`) : Sombre **0,32** (appui **0,10**). Clai
 | Settle | `releasePhase2Duration` (0,07 s) | scale 1,0 |
 | UIKit | ressort | `CASpringAnimation` sur capsule + titre, pas sur le puits |
 
+**Encre** (`BlomixInkChrome`, style `.new` ou partie Encre en cours). Le Classique ci-dessus ne change pas. Fond papier `#F0E6D2` (grain de la grille, sans crayon). Le puits est un liseré peint fin (tampon 1,3…2,7 pt) : le fill shader garde la taille du bouton, le masque est l’anneau. Libellé Chelsea Market, gris 0,30. Appui : le masque passe à l’échelle **1,14** en **0,15 s** ease-out, retour **0,16 s** ease-out. Pas de capsule, pas de biseau, pas d’ombre. Le menu ☰ coupé retire le shader comme en Classique.
+
 ### 11.3 Blocs ambiants (`BlomixAmbientBlocksView` + SpriteKit)
 
 - SpriteKit (accueil, Game Over) et UIKit (réglages, classements, lobby PvP, …)
@@ -830,6 +832,7 @@ Ombre de contact (`BlomixButtonRelief`) : Sombre **0,32** (appui **0,10**). Clai
 | Spawn | **0,45…1,3** s |
 | Vitesse | multi **1/3…1,6×** |
 | Autres écrans | même fantôme α **0,20** ; pas de copies gouttière. Spawn SK `0…1` s, multi **1/3…3×** ; UIKit densité low/high inchangée |
+| **Encre** | confettis washi (4 silhouettes). Plaque : filigrane crème, α **0,10…0,18**, rotation lente **±0,35…0,70** rad sur la montée. Dans le liseré / les gouttières révélatrices : même copie, α **0,90**, teinte du skin. **Réduire les animations** : pas de rotation ; la montée reste (comme le Classique). Menus UIKit : filigrane seul, pas de copie |
 
 ### 11.4 Compteur LIGNE x/10
 
@@ -873,6 +876,8 @@ File upcoming, file d’attente et autres fonds vides prennent le trou plus chau
 **Air de gravité** (`syncGravityAir`, préfixe `gravityAirGrain`)
 
 En partie seulement. Enfants du conteneur de grille, z **0,4** (sur le trou, sous les blox z 1). Max **6** (avant 4). Spawn **1,1…2,2 s** (avant 1,6…3,2). Trajet bas → haut **4,5…7,5 s**, côté **2,2…3,6** pt, alpha **0,18…0,32**, couleur skin. Densité moyenne environ **3,5** grains au lieu de **2,5**. Ils ne scorent pas et ne sont pas retirés par `drawGrid`. Un grain sans action de montée (SCRUMBLX vide les actions de la grille ; retour au premier plan) repart, ou revient en bas s’il est déjà sorti. Accueil, fin de partie, **Réduire les animations** : rien.
+
+**Encre** (partie `.new` seulement) : mêmes confettis que l’accueil, crème, côté **4…7** pt, trajet **9…16 s**, alpha **0,08…0,16**, rotation lente. Le plafond, le spawn et le z ne changent pas. **Réduire les animations** : rien, comme le Classique.
 
 ---
 
@@ -920,7 +925,7 @@ Reduce Motion          voisin + jitter/respiration de ligne + montée 2 pt + sha
 FlightSpin             1 tour ±2π sur riseDuration | easeOut | Magix toujours | appui long ghost | pas tap court ni timer ≤ 2 s
 StartScreenEntrance    tenue hero 0,85 | disques 0,07 | icônes 0,05 | hero cold t+0,08 | retour hero 0,04
 RiseModalTransition    0,25 s montée easeOut / descente easeIn | Réduire les animations 0,01
-GravityAir             max 6 | spawn 1,1–2,2 s | trajet 4,5–7,5 s | côté 2,2–3,6 | α 0,18–0,32 | z 0,4 | grain sans action relancé
+GravityAir             max 6 | spawn 1,1–2,2 s | trajet 4,5–7,5 s | côté 2,2–3,6 | α 0,18–0,32 | z 0,4 | grain sans action relancé | Encre : confetti 4–7 pt, 9–16 s, α 0,08–0,16, crème
 ChainClearFeedback     dissolve 0,20+0,16+0,14 | stagger 0,04 / 0,028 / 0,020 | grains 2,0–3,5 / 2,6–4,4 / 3,2–5,2 | shake 1,4 puis 2,0 | sparkles → score ~820 pt/s | cascade 0,07
 ChainCommentaryPopup   delay 0,72 | 40 pt | scale 0,55→1 en 0,36 | shrink 0,82 + fade 0,28 | pas de vol HUD
 BrixLandingSparkles    éjection 6–8 carrés 1,5–2,5 pt (pose / compact) ; poudre ronde inchangée

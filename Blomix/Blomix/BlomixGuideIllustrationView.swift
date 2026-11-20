@@ -245,7 +245,7 @@ private final class GuideSpritePreviewScene: SKScene {
         }
         sprite?.removeFromParent()
         sprite = nil
-        // Corps assez grand pour le dégradé ; un peu de marge pour le halo.
+        // Corps assez grand pour le dégradé. La marge accueille le halo Classique et les paillettes.
         let side = min(available * 0.70, 56)
         let node: SKSpriteNode
         if previewKind == .bombs {

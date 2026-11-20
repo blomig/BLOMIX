@@ -70,9 +70,25 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 ### Cases vides
 - Lignes de grille au crayon ou à l'encre sumi très diluée, à peine visibles.
 
+### Boutons
+Encre seulement. Le composant partagé (`BlomixSKButtonNode`, `BlomixUIButton`) : accueil, menus, navigation. Pas un second écran.
+
+- Fond : rectangle arrondi en papier washi, même grain que la feuille de la grille (`#F0E6D2`), sans filet de crayon. Pas de reflet, pas de dégradé de lumière, pas de biseau, pas d’ombre nette.
+- La gouttière Classique devient un liseré d’aquarelle. Contour peint (masque pré-rendu), fin (tampon 1,3…2,7 pt, fusé court), épaisseur un peu irrégulière, bords fondus dans le papier. La couleur est le dégradé du skin actif, dans le même ordre que la gouttière Classique, et elle suit le skin en direct (même shader).
+- Libellé : Chelsea Market, gris du gros score au repos (blanc 0,30 sur le papier clair).
+- Appui : le liseré s’élargit (échelle 1,14, 0,15 s, ease-out) comme une goutte qui s’étale, puis revient (0,16 s, ease-out). Le mot ne s’enfonce pas.
+- Pastilles de mode, mot BLOMIX et rangs : pas des boutons. Ils gardent leur dessin.
+
+### Décor de fond
+Encre seulement. Les micro-blox deviennent de petits carrés de papier washi aux bords déchirés (quatre silhouettes cuites, teintées ensuite). Tailles, positions et vitesses restent celles du Classique.
+
+- Hors liseré : filigrane, crème sur crème, alpha environ 0,10…0,18. Ils tournent lentement en montant. Réduire les animations coupe cette rotation, pas la montée : le Classique ne l’arrêtait pas non plus.
+- Dans le liseré d’un bouton, et dans les gouttières déjà révélatrices (mot BLOMIX, rangs) : la même copie clipée que le Classique, alpha 0,90, teintée par la couleur du skin. Le masque du liseré ne laisse voir le pigment que dans la peinture.
+- Grille, en partie Encre : les mêmes confettis, plus petits (4…7 pt) et plus lents (9…16 s), alpha 0,08…0,16, toujours crème. Sous les blox. Réduire les animations : rien, comme l’air Classique.
+- Menus UIKit : pas de copie dans une gouttière (le Classique n’en avait pas). Filigrane seulement.
+
 ### Hors périmètre de cette DA pour l'instant
-- Titre, score, boutons, HUD (habillage) : la piste prévoit pinceau sumi noir + petit tampon hanko rouge
-  près du titre, mais c'est soumis à la décision D18 de Lomig. Ne pas le faire sans son accord.
+- Titre (mot BLOMIX), gros score hors chiffres déjà lavés, HUD hors boutons, tampon hanko : la piste D18 reste en attente. Ne pas le faire sans l’accord de Lomig.
 - Apple Watch : non concernée.
 
 ## 4. Animations (étape tardive)
@@ -81,7 +97,7 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 - Fusion qui se forme : fondu doux entre les cases et la pièce, pas de pop.
 - Chaîne de 5, Brix à 0, blox effacés par COLORX et blox effacés par SAINTX : le centre de chaque case aspire la tache (×0,55, ×0,16, puis pincement avec le fondu, 0,50 s). Pendant le retrait, le carré devient le cercle inscrit. Une case seule au repos et une case séparée d’une chaîne portent le tampon de leur adresse, pas le tampon partagé de la file et pas le tampon « 0_0 » commun à toutes les cases seules d’une couleur. Ces 64 masques sont peints une fois hors du fil du jeu, au début de la partie (et après une purge d’arrière-plan). La teinte est celle du skin. Poser le tampon ne peint rien. La pièce soudée reste un seul lavis. La chaîne gardait déjà cette attente. Pour les trois autres, le redessin attend la fin du geste. Le pop ×1,25 du Brix déposé par SAINTX reste. Le lavage SAINTX de 2 s ne change pas.
 - Paillettes : inchangées, elles lisent comme des gouttes. Les paillettes carrées de la mort d’un Brix deviennent des ronds du même diamètre (aussi au trou SCRUMBLX et dans le blast). Les étoiles de présence gardent leur geste et prennent la couleur de fond du Brix (`priks`).
-- Magix et bombe : le halo, les orbites, le glyphe, le pop de peinture et l’explosion (poussée, rotation, effondrement) restent ceux du Classique. Une case ne dépasse pas ce pop (environ ×1,4). En Encre, le disque garde le grain serré (pas le lavis des Blox) et une couronne d’encre irrégulière, multipliés par la palette animée. Le glyphe reste noir. La chute depuis la file (le bloc qui quitte l’aperçu) reste le vol Classique. Seule la disparition des blox et des Brix diffère : aspiration vers le centre de la case.
+- Magix et bombe : le centre du disque est le lavis des Blox (flaques, plancher vers 0,58). La couronne d’encre irrégulière reste, multipliée par la palette animée. Le glyphe reste noir. Pas de halo. Les orbites sont celles du Classique : mêmes grains, même trajet jusqu’à 16 pt au-delà du bord. Le pop de peinture et l’explosion (poussée, rotation, effondrement) restent ceux du Classique. Une case ne dépasse pas ce pop (environ ×1,4). La chute depuis la file reste le vol Classique. Seule la disparition des blox et des Brix diffère : aspiration vers le centre de la case. L’aperçu du guide suit l’Encre choisie, ou la partie Encre encore ouverte.
 
 ## 5. Étapes proposées (un commit local par étape, CHANGELOG + PLAN mis à jour)
 

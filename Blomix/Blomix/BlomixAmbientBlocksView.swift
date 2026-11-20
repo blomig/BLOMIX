@@ -30,6 +30,7 @@ final class BlomixAmbientBlocksView: UIView {
     private var blockSizeMin: CGFloat { blockSizeMax / 2 }
     private let colorKeys = ["red", "blue", "green", "yellow", "purple", "orange"]
     private var spawnTimer: Timer?
+    private var styleObserver: NSObjectProtocol?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -45,10 +46,25 @@ final class BlomixAmbientBlocksView: UIView {
     override func didMoveToWindow() {
         super.didMoveToWindow()
         if window != nil {
+            if styleObserver == nil {
+                styleObserver = NotificationCenter.default.addObserver(
+                    forName: .blomixVisualStyleDidChange,
+                    object: nil,
+                    queue: .main
+                ) { [weak self] _ in
+                    Task { @MainActor [weak self] in
+                        self?.subviews.forEach { $0.removeFromSuperview() }
+                    }
+                }
+            }
             scheduleNextSpawn()
         } else {
             spawnTimer?.invalidate()
             spawnTimer = nil
+            if let styleObserver {
+                NotificationCenter.default.removeObserver(styleObserver)
+                self.styleObserver = nil
+            }
         }
     }
 
@@ -77,6 +93,40 @@ final class BlomixAmbientBlocksView: UIView {
 
         let blockSize = CGFloat.random(in: blockSizeMin...blockSizeMax)
 
+        let xInset = blockSize / 2 + 8
+        let maxX = w - xInset - blockSize
+        guard maxX > xInset else { return }
+        let x = CGFloat.random(in: xInset...maxX)
+
+        // Même dispersion de vitesses que la version SpriteKit.
+        let baseSpeed: CGFloat = 100
+        let speed = baseSpeed * CGFloat.random(in: (1.0 / 3.0)...3.0)
+        let distance = h + blockSize * 2
+        let duration = TimeInterval(distance / speed)
+
+        if BlomixInkChrome.isActive {
+            let variant = Int.random(in: 0..<BlomixInkChrome.confettiCount)
+            let block = UIImageView(image: BlomixInkChrome.confettiImage(variant: variant).withRenderingMode(.alwaysTemplate))
+            block.tintColor = BlomixInkChrome.watermarkUI
+            block.alpha = CGFloat.random(in: BlomixInkChrome.plateAlpha)
+            block.bounds = CGRect(x: 0, y: 0, width: blockSize, height: blockSize)
+            block.center = CGPoint(x: x + blockSize / 2, y: h + blockSize / 2)
+            let startAngle = CGFloat.random(in: -0.6...0.6)
+            block.transform = CGAffineTransform(rotationAngle: startAngle)
+            addSubview(block)
+            let spin = CGFloat.random(in: 0.35...0.70) * (Bool.random() ? 1 : -1)
+            let reduced = UIAccessibility.isReduceMotionEnabled
+            UIView.animate(withDuration: duration, delay: 0, options: [.curveLinear]) {
+                block.center.y = -blockSize * 1.5
+                if !reduced {
+                    block.transform = CGAffineTransform(rotationAngle: startAngle + spin)
+                }
+            } completion: { _ in
+                block.removeFromSuperview()
+            }
+            return
+        }
+
         let colorKey = colorKeys.randomElement() ?? "blue"
         let color = BlomixSkinCatalog.shared.bloxUIColor(forNormalizedKey: colorKey)
                     ?? UIColor(red: 0.4, green: 0.5, blue: 0.9, alpha: 1)
@@ -86,19 +136,8 @@ final class BlomixAmbientBlocksView: UIView {
         block.backgroundColor = color
         block.layer.cornerRadius = 0
         block.alpha = Self.travelingBlockAlpha
-
-        let xInset = blockSize / 2 + 8
-        let maxX = w - xInset - blockSize
-        guard maxX > xInset else { return }
-        let x = CGFloat.random(in: xInset...maxX)
         block.frame = CGRect(x: x, y: h, width: blockSize, height: blockSize)
         addSubview(block)
-
-        // Même dispersion de vitesses que la version SpriteKit.
-        let baseSpeed: CGFloat = 100
-        let speed = baseSpeed * CGFloat.random(in: (1.0 / 3.0)...3.0)
-        let distance = h + blockSize * 2
-        let duration = TimeInterval(distance / speed)
 
         UIView.animate(withDuration: duration, delay: 0, options: [.curveLinear]) {
             block.frame.origin.y = -(blockSize * 2)

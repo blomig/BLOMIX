@@ -154,6 +154,11 @@ enum BlomixUIDestinationButtonStyle {
     /// Clair : non sélectionné plus atténué — le liseré seul ne suffisait pas sur le puits coloré.
     static func applySelectionChrome(to button: UIButton, selected: Bool) {
         button.alpha = selected ? 1 : (BlomixAppearance.isDark ? 0.70 : 0.55)
+        if BlomixInkChrome.isActive {
+            button.layer.borderWidth = 0
+            button.layer.borderColor = UIColor.clear.cgColor
+            return
+        }
         if selected {
             button.layer.borderWidth = 2.0
             button.layer.borderColor = BlomixAppearance.primaryText.cgColor
@@ -198,9 +203,23 @@ class BlomixUIButton: UIButton {
     fileprivate let wellGradient = BlomixSkinGradientLayer()
     fileprivate let wellInnerShadow = CALayer()
     fileprivate let capsuleBevel = CALayer()
+    private let inkPaperLayer: CALayer = {
+        let layer = CALayer()
+        layer.contentsGravity = .resize
+        layer.actions = ["contents": NSNull(), "bounds": NSNull(), "position": NSNull()]
+        return layer
+    }()
+    private let inkRimMask: CALayer = {
+        let layer = CALayer()
+        layer.contentsGravity = .resize
+        layer.actions = ["contents": NSNull(), "bounds": NSNull(), "position": NSNull()]
+        return layer
+    }()
     private var wellInstalled = false
     private var wellCornerRadius: CGFloat = BlomixUIDestinationButtonStyle.cornerRadius
     private var lastReliefSize: CGSize = .zero
+    private var usesInkChrome = false
+    private var inkStyleObserver: NSObjectProtocol?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -248,7 +267,65 @@ class BlomixUIButton: UIButton {
         wellView.layer.cornerRadius = wellCornerRadius
         capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
         lastReliefSize = .zero
+        syncInkChrome()
         setNeedsLayout()
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window != nil, inkStyleObserver == nil else { return }
+        inkStyleObserver = NotificationCenter.default.addObserver(
+            forName: .blomixVisualStyleDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshWellChrome()
+            }
+        }
+    }
+
+    override func willMove(toWindow newWindow: UIWindow?) {
+        super.willMove(toWindow: newWindow)
+        if newWindow == nil, let inkStyleObserver {
+            NotificationCenter.default.removeObserver(inkStyleObserver)
+            self.inkStyleObserver = nil
+        }
+    }
+
+    /// Papier + liseré, ou retour au puits Classique si le style change à l’écran.
+    private func syncInkChrome() {
+        guard wellInstalled else { return }
+        let ink = BlomixInkChrome.isActive
+        let changed = ink != usesInkChrome
+        usesInkChrome = ink
+        capsuleView.isHidden = ink
+        wellInnerShadow.isHidden = ink
+        capsuleBevel.isHidden = ink
+        if ink {
+            capsuleView.layer.shadowOpacity = 0
+            setTitleColor(BlomixInkChrome.inkGrayUI, for: .normal)
+            tintColor = BlomixInkChrome.inkGrayUI
+            if let label = titleLabel {
+                let size = label.font.pointSize
+                label.font = UIFont(name: BlomixTypeRole.inkPostScriptName, size: size) ?? label.font
+            }
+            if inkPaperLayer.superlayer == nil {
+                wellView.layer.insertSublayer(inkPaperLayer, at: 0)
+            }
+            wellGradient.mask = inkRimMask
+        } else if changed {
+            inkPaperLayer.removeFromSuperlayer()
+            wellGradient.mask = nil
+            capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
+            setTitleColor(BlomixUIDestinationButtonStyle.titleColor, for: .normal)
+            tintColor = BlomixUIDestinationButtonStyle.titleColor
+            if let label = titleLabel {
+                let size = label.font.pointSize
+                label.font = BlomixTypography.displayFont(size: size)
+            }
+        }
+        if changed { lastReliefSize = .zero }
     }
 
     /// Agrandit le bouton autour du titre centré (équivalent pratique de contentEdgeInsets
@@ -297,14 +374,28 @@ class BlomixUIButton: UIButton {
         let reliefKey = CGSize(width: bounds.width.rounded(), height: bounds.height.rounded())
         if reliefKey != lastReliefSize, bounds.width > 1, bounds.height > 1 {
             lastReliefSize = reliefKey
-            wellInnerShadow.contents = BlomixButtonRelief.wellInnerShadowImage(
-                size: bounds.size,
-                cornerRadius: wellCornerRadius
-            ).cgImage
-            capsuleBevel.contents = BlomixButtonRelief.capsuleBevelImage(
-                size: capsuleView.bounds.size,
-                cornerRadius: capR
-            ).cgImage
+            if usesInkChrome {
+                inkPaperLayer.frame = wellView.bounds
+                inkPaperLayer.contents = BlomixInkChrome.paperImage(
+                    size: bounds.size,
+                    cornerRadius: wellCornerRadius
+                ).cgImage
+                inkRimMask.frame = wellGradient.bounds
+                inkRimMask.contents = BlomixInkChrome.brushRingImage(
+                    size: bounds.size,
+                    cornerRadius: wellCornerRadius
+                ).cgImage
+                wellGradient.mask = inkRimMask
+            } else {
+                wellInnerShadow.contents = BlomixButtonRelief.wellInnerShadowImage(
+                    size: bounds.size,
+                    cornerRadius: wellCornerRadius
+                ).cgImage
+                capsuleBevel.contents = BlomixButtonRelief.capsuleBevelImage(
+                    size: capsuleView.bounds.size,
+                    cornerRadius: capR
+                ).cgImage
+            }
         }
         bringSubviewToFront(capsuleView)
         if let imageView { bringSubviewToFront(imageView) }
@@ -362,9 +453,10 @@ class BlomixUIButton: UIButton {
     private static let blomixCAKey = "blomixBtn"
     private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
-    /// Scale courant de la capsule (présentation ou modèle).
+    /// Scale courant de la capsule, ou du liseré Encre (présentation ou modèle).
     private func blomixCapsuleScale() -> Double {
-        let src = capsuleView.layer.presentation() ?? capsuleView.layer
+        let model = usesInkChrome ? inkRimMask : capsuleView.layer
+        let src = model.presentation() ?? model
         return (src.value(forKeyPath: "transform.scale") as? NSNumber)?.doubleValue ?? 1.0
     }
 
@@ -376,10 +468,15 @@ class BlomixUIButton: UIButton {
         anim.timingFunction = CAMediaTimingFunction(name: timing)
         anim.fillMode = .forwards
         anim.isRemovedOnCompletion = false
-        for target in blomixCapsuleTargets() {
+        for target in blomixPressTargets() {
             target.removeAnimation(forKey: Self.blomixCAKey)
             target.add(anim, forKey: Self.blomixCAKey)
         }
+    }
+
+    private func blomixPressTargets() -> [CALayer] {
+        if usesInkChrome { return [inkRimMask] }
+        return blomixCapsuleTargets()
     }
 
     private func blomixCapsuleTargets() -> [CALayer] {
@@ -393,6 +490,15 @@ class BlomixUIButton: UIButton {
         Self.haptic.impactOccurred()
         Self.haptic.prepare()
         let fromScale = blomixCapsuleScale()
+        if usesInkChrome {
+            blomixAddCapsuleScale(
+                from: fromScale,
+                to: Double(BlomixInkChrome.spreadScale),
+                duration: BlomixInkChrome.spreadOutDuration,
+                timing: .easeOut
+            )
+            return
+        }
         let toScale = Double(BlomixUIDestinationButtonStyle.pressScale)
         blomixAddCapsuleScale(
             from: fromScale,
@@ -409,6 +515,15 @@ class BlomixUIButton: UIButton {
 
     private func blomixAnimateRelease() {
         let fromScale = blomixCapsuleScale()
+        if usesInkChrome {
+            blomixAddCapsuleScale(
+                from: fromScale,
+                to: 1,
+                duration: BlomixInkChrome.spreadBackDuration,
+                timing: .easeOut
+            )
+            return
+        }
         let d = BlomixUIDestinationButtonStyle.springDamping
         let k = BlomixUIDestinationButtonStyle.springStiffness
         let m = BlomixUIDestinationButtonStyle.springMass
@@ -425,7 +540,7 @@ class BlomixUIButton: UIButton {
         scaleAnim.isRemovedOnCompletion = false
         scaleAnim.duration = scaleAnim.settlingDuration
 
-        for target in blomixCapsuleTargets() {
+        for target in blomixPressTargets() {
             target.removeAnimation(forKey: Self.blomixCAKey)
             target.add(scaleAnim, forKey: Self.blomixCAKey)
         }

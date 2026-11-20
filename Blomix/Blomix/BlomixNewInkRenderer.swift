@@ -551,7 +551,7 @@ enum BlomixNewInkRenderer {
         ctx.restoreGState()
     }
 
-    /// `wash` : flaques d'aquarelle (Blox, Brix). Le disque Magix / bombe garde le grain serré.
+    /// `wash` : flaques d'aquarelle (Blox, Brix, centre du disque Magix / bombe).
     private static func pigment(
         seed: UInt64,
         px: CGFloat,
@@ -694,9 +694,9 @@ enum BlomixNewInkRenderer {
         return dist
     }
 
-    /// Disque Magix / bombe. Le centre a le grain des Blox. La couronne est de l’encre
-    /// dont l’épaisseur et la charge varient : pas un trait circulaire. `salt` sépare
-    /// le Magix de la bombe. Une taille = une texture.
+    /// Disque Magix / bombe. Le centre a le lavis des Blox (flaques, washi visible).
+    /// La couronne est de l’encre dont l’épaisseur et la charge varient : pas un trait
+    /// circulaire. `salt` sépare le Magix de la bombe. Une taille = une texture.
     @MainActor
     static func discTexture(pointSize: CGSize, salt: Int) -> SKTexture {
         let scale = max(1, UITraitCollection.current.displayScale)
@@ -936,12 +936,14 @@ enum BlomixNewInkRenderer {
                     let innerR = outerR - thickness
                     let cover = 1 - smoothstep(outerR - 0.25, outerR + 0.85, dist)
                     let rim = smoothstep(innerR - 0.55, innerR + 0.18, dist) * cover
+                    // Centre : mêmes flaques que les Blox. La couronne, plus bas, reste chargée.
                     let sample = pigment(
                         seed: seed,
                         px: CGFloat(x) + phaseX,
                         py: CGFloat(y) + phaseY,
                         scale: scale,
-                        granulation: granulation
+                        granulation: granulation,
+                        wash: true
                     )
                     let wash = 0.5 + 0.5 * midN
                     // L’encre s’accumule là où le tour est large, et sèche là où il est fin.

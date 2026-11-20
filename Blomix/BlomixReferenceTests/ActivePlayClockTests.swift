@@ -258,3 +258,74 @@ final class ActivePlayClockTests: XCTestCase {
         return try XCTUnwrap(object as? [String: Any])
     }
 }
+
+/// Pourcentages des réalisations, sans Game Center.
+final class GameCenterAchievementMathTests: XCTestCase {
+
+    func testBinaryIsZeroOrComplete() {
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 0, target: 1, mode: .binary, hidden: false), 0)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 1, target: 1, mode: .binary, hidden: false), 100)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 4, target: 1, mode: .binary, hidden: false), 100)
+    }
+
+    func testProgressiveRoundsToTwoDecimals() {
+        XCTAssertEqual(
+            BlomixGCAchievementMath.percent(value: 2, target: 7, mode: .progressive, hidden: false),
+            28.57,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 3, target: 6, mode: .progressive, hidden: false), 50)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 5, target: 10, mode: .progressive, hidden: false), 50)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 12, target: 10, mode: .progressive, hidden: false), 100)
+    }
+
+    func testHiddenSendsOnlyCompletion() {
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 0, target: 1, mode: .binary, hidden: true), 0)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 1, target: 1, mode: .binary, hidden: true), 100)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 2, target: 7, mode: .progressive, hidden: true), 0)
+        XCTAssertEqual(BlomixGCAchievementMath.percent(value: 7, target: 7, mode: .progressive, hidden: true), 100)
+    }
+
+    func testBurstKeepsOnlyTheHighestPointBanner() {
+        let few = [
+            (gcID: "a", points: 10),
+            (gcID: "b", points: 30),
+            (gcID: "c", points: 60),
+        ]
+        XCTAssertNil(BlomixGCAchievementMath.soleBannerID(amongCompleted: few))
+        let many = few + [
+            (gcID: "d", points: 100),
+            (gcID: "e", points: 100),
+        ]
+        XCTAssertEqual(BlomixGCAchievementMath.soleBannerID(amongCompleted: many), "e")
+    }
+
+    @MainActor
+    func testTableMatchesTheTwentyASCIdentifiers() {
+        let ids = BlomixGameCenterAchievements.entries.map(\.gcID)
+        XCTAssertEqual(ids, [
+            "blomix.ach.first_chain",
+            "blomix.ach.first_bomb",
+            "blomix.ach.tutorial",
+            "blomix.ach.first_magix",
+            "blomix.ach.pacifist",
+            "blomix.ach.super_combo",
+            "blomix.ach.stage_3",
+            "blomix.ach.duel_win",
+            "blomix.ach.daily_streak_3",
+            "blomix.ach.five_tide_20",
+            "blomix.ach.zen_2000",
+            "blomix.ach.stage_ultime",
+            "blomix.ach.chain_10",
+            "blomix.ach.magix_all_nine",
+            "blomix.ach.daily_streak_7",
+            "blomix.ach.trophies_30",
+            "blomix.ach.arcade_10k",
+            "blomix.ach.combo_deep",
+            "blomix.ach.daily_streak_30",
+            "blomix.ach.saintx_ultime",
+        ])
+        let hidden = Set(BlomixGameCenterAchievements.entries.filter(\.hidden).map(\.gcID))
+        XCTAssertEqual(hidden, ["blomix.ach.pacifist", "blomix.ach.saintx_ultime"])
+    }
+}

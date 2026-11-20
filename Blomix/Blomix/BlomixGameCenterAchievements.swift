@@ -8,6 +8,7 @@
 //
 
 import Foundation
+@preconcurrency import GameKit
 
 /// Pourcentage Game Center (0…100, deux décimales) à partir d’un compteur du Salon.
 enum BlomixGCAchievementMath {
@@ -120,6 +121,21 @@ final class BlomixGameCenterAchievements {
         },
     ]
 
+    private static let cacheKey = "blomix_gc_achievements_v1"
+    private static let debounceNanos: UInt64 = 1_500_000_000
+
+    private struct CacheFile: Codable {
+        var byPlayer: [String: [String: Double]] = [:]
+    }
+
+    private var observers: [NSObjectProtocol] = []
+    private var needsSync = false
+    private var didMergeServer = false
+    private var debounceTask: Task<Void, Never>?
+    private var debouncePending = false
+    private var syncTask: Task<Void, Never>?
+    private var runAgain = false
+
     private init() {}
 
     /// Pourcentage à envoyer pour une entrée, d’après le Salon actuel.
@@ -131,4 +147,226 @@ final class BlomixGameCenterAchievements {
             hidden: entry.hidden
         )
     }
+
+    /// Idempotent. S’abonne à l’auth et aux changements du Salon.
+    func start() {
+        guard observers.isEmpty else { return }
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: .blomixGameCenterAuthDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleAuthChange()
+            }
+        })
+        observers.append(center.addObserver(
+            forName: .blomixTrophiesDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.scheduleSync()
+            }
+        })
+    }
+
+    /// Retour au premier plan, ou file d’attente après une coupure.
+    func syncIfNeeded() {
+        start()
+        debounceTask?.cancel()
+        debounceTask = nil
+        debouncePending = false
+        guard GKLocalPlayer.local.isAuthenticated else {
+            needsSync = true
+            print("[GCAch] joueur non authentifié, envoi reporté")
+            return
+        }
+        if !didMergeServer {
+            Task { await self.catchUpFromServerThenSync() }
+            return
+        }
+        guard needsSync else {
+            print("[GCAch] rien à envoyer")
+            return
+        }
+        Task { await self.performSync(limitBanners: false) }
+    }
+
+    private func handleAuthChange() {
+        guard GKLocalPlayer.local.isAuthenticated else {
+            needsSync = true
+            didMergeServer = false
+            print("[GCAch] joueur non authentifié, envoi reporté")
+            return
+        }
+        Task { await self.catchUpFromServerThenSync() }
+    }
+
+    private func scheduleSync() {
+        needsSync = true
+        guard GKLocalPlayer.local.isAuthenticated else { return }
+        debounceTask?.cancel()
+        debouncePending = true
+        debounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: Self.debounceNanos)
+            guard !Task.isCancelled else { return }
+            self.debouncePending = false
+            if !self.didMergeServer {
+                await self.catchUpFromServerThenSync()
+            } else {
+                await self.performSync(limitBanners: false)
+            }
+        }
+    }
+
+    private func catchUpFromServerThenSync() async {
+        guard GKLocalPlayer.local.isAuthenticated else {
+            needsSync = true
+            return
+        }
+        do {
+            let remote = try await GKAchievement.loadAchievements()
+            mergeServer(remote)
+            didMergeServer = true
+            print("[GCAch] état serveur fusionné (\(remote.count))")
+        } catch {
+            needsSync = true
+            print("[GCAch] lecture serveur en échec : \(error.localizedDescription)")
+            return
+        }
+        await performSync(limitBanners: true)
+    }
+
+    private func performSync(limitBanners: Bool) async {
+        if let existing = syncTask {
+            runAgain = true
+            await existing.value
+            return
+        }
+        let task = Task { @MainActor in
+            await self.reportIncreased(limitBanners: limitBanners)
+        }
+        syncTask = task
+        await task.value
+        syncTask = nil
+        if runAgain {
+            runAgain = false
+            await performSync(limitBanners: false)
+        }
+    }
+
+    private func reportIncreased(limitBanners: Bool) async {
+        guard let playerKey = currentPlayerKey() else {
+            needsSync = true
+            print("[GCAch] joueur non authentifié, envoi reporté")
+            return
+        }
+        var cache = loadCache()
+        var stored = cache.byPlayer[playerKey] ?? [:]
+        var pending: [(entry: Entry, percent: Double)] = []
+        for entry in Self.entries {
+            let percent = self.percent(for: entry)
+            guard percent > 0 else { continue }
+            let previous = stored[entry.gcID] ?? -1
+            guard percent > previous else { continue }
+            pending.append((entry, percent))
+        }
+        guard !pending.isEmpty else {
+            if !debouncePending { needsSync = false }
+            print("[GCAch] rien à envoyer")
+            return
+        }
+
+        let completed = pending
+            .filter { $0.percent >= 100 }
+            .map { (gcID: $0.entry.gcID, points: $0.entry.points) }
+        let soleBanner = limitBanners
+            ? BlomixGCAchievementMath.soleBannerID(amongCompleted: completed)
+            : nil
+        let achievements: [GKAchievement] = pending.map { item in
+            let achievement = GKAchievement(identifier: item.entry.gcID)
+            achievement.percentComplete = item.percent
+            if item.percent >= 100, let soleBanner {
+                achievement.showsCompletionBanner = item.entry.gcID == soleBanner
+            } else {
+                achievement.showsCompletionBanner = true
+            }
+            return achievement
+        }
+
+        do {
+            try await GKAchievement.report(achievements)
+            for item in pending {
+                stored[item.entry.gcID] = item.percent
+            }
+            cache.byPlayer[playerKey] = stored
+            saveCache(cache)
+            if !debouncePending { needsSync = false }
+            let done = completed.count
+            print("[GCAch] envoi de \(pending.count) réalisation(s), dont \(done) complétée(s)")
+        } catch {
+            needsSync = true
+            print("[GCAch] envoi en échec : \(error.localizedDescription)")
+        }
+    }
+
+    /// On garde le max entre le cache local et Game Center. Jamais une baisse.
+    private func mergeServer(_ remote: [GKAchievement]) {
+        guard let playerKey = currentPlayerKey() else { return }
+        var cache = loadCache()
+        var stored = cache.byPlayer[playerKey] ?? [:]
+        let known = Set(Self.entries.map(\.gcID))
+        for achievement in remote where known.contains(achievement.identifier) {
+            let current = stored[achievement.identifier] ?? -1
+            let percent = (achievement.percentComplete * 100).rounded() / 100
+            if percent > current {
+                stored[achievement.identifier] = percent
+            }
+        }
+        cache.byPlayer[playerKey] = stored
+        saveCache(cache)
+    }
+
+    /// `teamPlayerID` sépare les comptes. `gamePlayerID` seulement s’il est vide.
+    private func currentPlayerKey() -> String? {
+        let local = GKLocalPlayer.local
+        guard local.isAuthenticated else { return nil }
+        if !local.teamPlayerID.isEmpty { return local.teamPlayerID }
+        if !local.gamePlayerID.isEmpty { return local.gamePlayerID }
+        return nil
+    }
+
+    private func loadCache() -> CacheFile {
+        guard let data = UserDefaults.standard.data(forKey: Self.cacheKey),
+              let file = try? JSONDecoder().decode(CacheFile.self, from: data) else {
+            return CacheFile()
+        }
+        return file
+    }
+
+    private func saveCache(_ file: CacheFile) {
+        guard let data = try? JSONEncoder().encode(file) else { return }
+        UserDefaults.standard.set(data, forKey: Self.cacheKey)
+    }
+
+#if DEBUG
+    /// Sans bouton. À appeler depuis le débogueur seulement.
+    func resetReportedAchievementsForDebug() async {
+        do {
+            try await GKAchievement.resetAchievements()
+            if let playerKey = currentPlayerKey() {
+                var cache = loadCache()
+                cache.byPlayer[playerKey] = [:]
+                saveCache(cache)
+            }
+            didMergeServer = false
+            needsSync = true
+            print("[GCAch] réalisations réinitialisées (debug)")
+        } catch {
+            print("[GCAch] reset debug en échec : \(error.localizedDescription)")
+        }
+    }
+#endif
 }

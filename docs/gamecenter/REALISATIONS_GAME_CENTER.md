@@ -503,6 +503,9 @@ Premier constat, avec l'ancienne clé Sales and Reports (lecture seule) :
 - Langues : les 6 langues de la fiche (fr-FR, en-US, es-ES, it, de-DE, pt-BR) sont créées dans ASC (section 2 bis).
 
 ### 3.3 Code à ajouter (pour Grok Build, 9.0)
+
+**Implémenté le 20/11/2026.** `BlomixGameCenterAchievements.swift` lit les 20 compteurs du Salon, calcule le pourcentage (binaire 0 ou 100, progressif arrondi à deux décimales, cachées uniquement à 100) et envoie un seul `GKAchievement.report` pour ce qui a monté. Cache `blomix_gc_achievements_v1`, indexé par `teamPlayerID` (repli `gamePlayerID` s’il est vide). Debounce 1,5 s sur `.blomixTrophiesDidChange`. Au retour d’auth, fusion avec `loadAchievements()` puis rattrapage : si plus de trois réalisations se complètent dans ce lot, seule la plus haute en points affiche une bannière. `start()` est appelé dans `SceneDelegate.scene(_:willConnectTo:)`, `syncIfNeeded()` dans `sceneDidBecomeActive`. `resetAchievements` existe seulement en `#if DEBUG`, sans bouton. Les tests unitaires du calcul et de la table des 20 identifiants passent. Les essais sandbox sur iPhone (bannières en jeu, hors ligne, rattrapage d’un Salon déjà rempli) ne sont pas faits ici : le simulateur n’était pas connecté à Game Center.
+
 1. **Nouveau fichier `BlomixGameCenterAchievements.swift`** (MainActor) : une table `[(gcID, trophyID ou closure, seuil, isProgressive)]`, et une fonction `sync()` qui :
    - lit `BlomixTrophyStore.shared.progress(for:)` ou `litVisibleCount` ;
    - calcule `percentComplete` (100 si le seuil est atteint, sinon la progression pour les n° 14, 16 et 19, par exemple 2/7 pour une série) ;
@@ -523,4 +526,4 @@ Premier constat, avec l'ancienne clé Sales and Reports (lecture seule) :
 ### 3.5 Reste à faire (Lomig)
 1. ~~Images~~ : fait le 20/11/2026, 120 images envoyées par l'API (section 0 bis).
 2. **Rattacher à la 9.0** : à la création de la version 9.0 dans ASC, section Game Center de la version, ajouter les 20 réalisations, puis soumettre avec le build. Rappel : une fois en ligne, une réalisation ne peut plus être supprimée et ses points ne peuvent plus changer.
-3. **Code Swift** : `BlomixGameCenterAchievements.swift` (section 3.3), avec les `vendorIdentifier` du tableau 0 comme identifiants `GKAchievement`. À tester en sandbox Game Center avant la soumission.
+3. **Code Swift** : fait le 20/11/2026 (section 3.3). Reste le test sandbox Game Center sur iPhone, avant la soumission.

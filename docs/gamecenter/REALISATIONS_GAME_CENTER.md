@@ -1,7 +1,8 @@
 # BLOMIX — 20 réalisations Game Center (9.0, créées dans App Store Connect)
 
 > Statut : **validé par Lomig et créé dans App Store Connect le 20/11/2026** : 20 réalisations, 120 localisations (6 langues), vérifiées par GET.
-> Images 1024×1024 ajoutées le 20/11/2026 pour les 120 localisations (section 0 bis). Pas encore rattachées à une version : elles ne sont pas visibles des joueurs pour l'instant.
+> Images 1024×1024 ajoutées le 20/11/2026 pour les 120 localisations (section 0 bis).
+> Le 20/11/2026 au soir, les 20 versions et la version **9.0** (build **167**) sont dans le brouillon de review iOS `bce8572c-c5f7-4587-a7a8-eeeb56a25afa` (Ready for Review, `submittedDate` vide). Rien n’est parti chez Apple. Elles ne sont pas visibles des joueurs.
 > Source analysée : 8.9 publique (`blomig/BLOMIX`, commit c990254), `BlomixTrophyStore.swift`, `GameScene.swift`, `docs/TROPHIES.md`, `docs/RULES.md`, `docs/MAGIX.md`.
 > Rédigé le 20/11/2026.
 
@@ -491,7 +492,9 @@ Champs communs à toutes : **réalisable plusieurs fois : non**. Le compteur est
 
 ### 3.2 Game Center dans App Store Connect
 
-**Mise à jour du 20/11/2026** : les 20 réalisations et leurs 120 localisations ont été créées avec la clé App Manager (`POST /v1/gameCenterAchievements` et `/v1/gameCenterAchievementLocalizations`), puis contrôlées par GET : 930 points, aucun écart avec ce document. Rien n'a été supprimé, archivé ni modifié sur les classements. Aucun rattachement à une version. Les images ont été ajoutées ensuite (section 0 bis).
+**Mise à jour du 20/11/2026** : les 20 réalisations et leurs 120 localisations ont été créées avec la clé App Manager (`POST /v1/gameCenterAchievements` et `/v1/gameCenterAchievementLocalizations`), puis contrôlées par GET : 930 points, aucun écart avec ce document. Rien n'a été supprimé, archivé ni modifié sur les classements. Les images ont été ajoutées ensuite (section 0 bis).
+
+**Rattachement du 20/11/2026** : chaque réalisation avait déjà sa version 1. Ces 20 versions et la version App Store 9.0 sont dans le même brouillon (`bce8572c-c5f7-4587-a7a8-eeeb56a25afa`, plateforme iOS, état Ready for Review, `submittedDate` vide). Le build 167, Valid, est sélectionné sur la 9.0. La 8.9 reste Ready for Sale. Game Center était déjà activé sur la 9.0, et cette version Game Center reste compatible avec celle de la 8.9 (`b00e61d4-471f-4da8-98a5-37f953a5c041`). `fastlane submit` s’arrête sur ce brouillon : la lane refuse un brouillon qui contient déjà des éléments, et elle enverrait avec `automatic_release`. Les essais sandbox ne sont pas faits.
 
 Premier constat, avec l'ancienne clé Sales and Reports (lecture seule) :
 - `GET /v1/apps/6762053543` : OK (app « BLOMIX - Block Puzzle », bundle `blomig.BLOMIX`).
@@ -525,5 +528,5 @@ Premier constat, avec l'ancienne clé Sales and Reports (lecture seule) :
 
 ### 3.5 Reste à faire (Lomig)
 1. ~~Images~~ : fait le 20/11/2026, 120 images envoyées par l'API (section 0 bis).
-2. **Rattacher à la 9.0** : à la création de la version 9.0 dans ASC, section Game Center de la version, ajouter les 20 réalisations, puis soumettre avec le build. Rappel : une fois en ligne, une réalisation ne peut plus être supprimée et ses points ne peuvent plus changer.
+2. ~~Rattacher à la 9.0~~ : fait le 20/11/2026, dans le brouillon de review, pas envoyé (section 3.2). Une fois en ligne, une réalisation ne peut plus être supprimée et ses points ne peuvent plus changer.
 3. **Code Swift** : fait le 20/11/2026 (section 3.3). Reste le test sandbox Game Center sur iPhone, avant la soumission.

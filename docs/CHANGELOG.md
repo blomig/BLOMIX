@@ -28,7 +28,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Modifié
 
-- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0. La Watch reste en 8.0. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Pas soumis à la review.
+- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 167. La Watch reste en 8.0. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le binaire est sur App Store Connect. Les 20 réalisations et la 9.0 sont dans le même brouillon de review (Ready for Review, pas envoyé). La 8.9 reste en vente.
 - **Magix et bombe en Encre** : le centre du disque est le lavis des Blox (flaques, washi visible). La couronne d’encre irrégulière reste. La palette animée teinte le masque. Le glyphe reste noir. Plus de halo. Les paillettes en orbite sont celles du Classique, jusqu’à 16 pt au-delà du bord. Grille, chute, file, icône de stock, aperçu du guide. Classique garde le trait, le halo et les mêmes paillettes. Le pop et l’explosion ne changent pas.
 - **SAINTX en Encre** : pendant le défilement du gros score, les chiffres restent le gris habituel. En Classique ils passent encore au blanc.
 - **Tutoriel** : la bulle « prochains blox » est juste sous la file, pointe vers le haut. Elle ne recouvre plus la carte de la chaîne de 5. « Passer » descend avec elle, le temps de cette étape.

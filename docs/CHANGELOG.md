@@ -25,6 +25,9 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Modifié
 
+- **Tutoriel** : la bulle « prochains blox » est juste sous la file, pointe vers le haut. Elle ne recouvre plus la carte de la chaîne de 5. « Passer » descend avec elle, le temps de cette étape.
+- **Magix** : la carte d’explication est au milieu de la grille, comme les cartes du tutoriel. Elle s’affiche quand le Magix est en position 2 de la file (le prochain bloc), pas dès la position 3.
+- **Fin du tuto** : « C’est parti » sort du tutoriel et lance la partie. Le tap animait le bouton et posait un blox.
 - **SAINTX** : le gros score défile dès le blanchiment (ease-out) et atteint le total à l’arrivée des paillettes. Le chiffre du Brix, le `+N`, les paillettes et la durée de l’animation restent les mêmes.
 - **Accueil, pastilles** : le rond a la hauteur d’encre du mot (Pangolin 13, police inchangée). C’est un disque plein : couleur de la gouttière s’il est choisi, gris sinon. Plus de bouton ni de capsule au centre. Les rangées sont centrées sur l’écran, écart fixe. Jouer, Défis et Duel ne bougent pas.
 - **Encre, remontée** : un blox qui monte après une chaîne, un Magix ou une bombe garde sa teinte pendant le vol. Avant, le lavis relisait la grille déjà tassée et prenait la couleur du blox écrit sur la case de départ. À l’arrivée, la couleur était déjà la bonne.

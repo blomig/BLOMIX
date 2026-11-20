@@ -201,7 +201,9 @@ La suite du look New est la piste Encre ([DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md) 
 | P1 | Prise en main, mesure seulement. `eventsJSON` gagne `tutorial_start`, `tutorial_step`, `tutorial_end` et `is_new_install` sur `first_launch`. Pas de champ CloudKit nouveau. L’accueil ne change pas. Le tuto passe par Découvrir, il n’est pas automatique. | 19/11/2026 |
 | P2 | Installation neuve : la popup Nouveautés ne s’affiche pas. La campagne courante est marquée vue. L’accueil ne change pas. | 19/11/2026 |
 | P3 | Le tuto dit que 5 blox comptent en ligne, en L ou en diagonale, et montre la chaîne en biais. Une bulle pointe la file des prochains blox. | 19/11/2026 |
+| P3b | La bulle de la file est juste sous les prochains blox, pour ne plus recouvrir la carte de la chaîne. | 20/11/2026 |
 | P4 | Fin du tuto : une phrase et l’exemple COLORX, plus « Prêt pour ta première vraie partie ? ». Plus de défilé des 9 Magix, plus de « Tu sais tout ». | 19/11/2026 |
 | P5 | Tutoiement des conseils du jour et des phrases FR encore en vous. Le Guide aligne le +500 sur le code : × stage en Arcade, plat en Zen et Five. L’ancien Guide disait l’inverse pour l’Arcade. | 19/11/2026 |
 | P6 | Fin du tuto : bouton « C’est parti ». Sans sauvegarde Arcade/Zen/Five et une seule fois, ça lance une Arcade sans chrono (pas l’overlay 32 s). Sinon, et avec Passer, retour à l’accueil. Bulles une fois : ligne posée, cascade, Brix à 0. Tap ferme, × coupe le reste. `first_guided_game_start` / `end` dans `eventsJSON` seulement. L’accueil ne change pas. Le chrono des autres Arcade non plus. | 19/11/2026 |
 | P7 | Première fois qu’un Magix est dans la file (P1 ou P2) : bulle nom + effet, une fois par sorte, clé locale. Pas pendant le tuto. Pas de déblocage par paliers, pas de nouveaux symboles. | 19/11/2026 |
+| P7b | La carte Magix est au centre de la grille, et seulement en position 2 (P1). « C’est parti » lance la partie : le tap ne pose plus un blox. | 20/11/2026 |

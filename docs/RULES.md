@@ -83,7 +83,7 @@ Après chaque pose : P0 ← P1, P1 ← P2, P2 ← tirage aléatoire.
 En **Duel**, la séquence est partagée (RNG synchronisé, **sans Magix**).  
 En **tutoriel**, la séquence est scriptée puis repasse en aléatoire.
 
-La première fois qu’un Magix donné apparaît en **P1** ou **P2** (hors tutoriel), une bulle donne son nom et son effet en une phrase. Une fois par sorte, mémorisé sur l’appareil. Un tap la ferme. Elle ne bloque pas la pose.
+La première fois qu’un Magix est en **position 2** de la file (P1, le prochain bloc, mini de droite), une carte au milieu de la grille donne son nom et son effet en une phrase. Pas quand il est encore en **position 3** (P2, mini de gauche), ni sur le gros aperçu. Hors tutoriel. Une fois par sorte, mémorisé sur l’appareil. Un tap la ferme. Elle ne bloque pas la pose.
 
 ---
 

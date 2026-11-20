@@ -14803,7 +14803,8 @@ final class GameScene: SKScene {
         Self.applyBlockTypeToQueueSprite(sprite: slotTwo, block: displayedTwoAhead, slotCellPoints: leftCell)
         Self.applyBlockTypeToQueueSprite(sprite: slotNext, block: displayedNext, slotCellPoints: cell)
         if !isBombMode {
-            noteMagixArrivedInQueue(next: displayedNext, twoAhead: displayedTwoAhead)
+            // Position 2 seulement (P1, mini de droite). Pas la position 3 (P2, mini de gauche).
+            noteMagixArrivedInQueue(next: displayedNext)
         }
     }
 
@@ -19943,6 +19944,7 @@ final class GameScene: SKScene {
     private func dismissCurrentTutorialOverlay() {
         childNode(withName: Self.tutorialOverlayName)?.removeFromParent()
         childNode(withName: Self.tutorialQueueCalloutName)?.removeFromParent()
+        layoutTutorialSkipButton()
     }
 
     // ── Builders d'overlays ──────────────────────────────────────────────────────
@@ -20193,7 +20195,7 @@ final class GameScene: SKScene {
         return container
     }
 
-    /// Bulle au-dessus de la file des deux prochains blox. Ne bloque pas le jeu.
+    /// Bulle juste sous la file des deux prochains blox. La carte « chaîne de 5 » reste au-dessus.
     private func showTutorialQueueCallout() {
         childNode(withName: Self.tutorialQueueCalloutName)?.removeFromParent()
         guard let slotNext = childNode(withName: Self.upcomingSlotNextName),
@@ -20213,10 +20215,17 @@ final class GameScene: SKScene {
         let pointerH: CGFloat = 8
 
         let targetX = (slotNext.position.x + slotTwo.position.x) / 2
-        let targetTop = max(slotNext.position.y, slotTwo.position.y) + UpcomingQueueLayout.cellPoints / 2
+        let queueBottom: CGFloat
+        if let caption = childNode(withName: Self.upcomingQueueCaptionLabelName) {
+            queueBottom = caption.calculateAccumulatedFrame().minY
+        } else {
+            queueBottom = min(slotNext.calculateAccumulatedFrame().minY,
+                              slotTwo.calculateAccumulatedFrame().minY)
+        }
         let halfW = width / 2
         let centerX = min(max(targetX, halfW + 8), size.width - halfW - 8)
-        let centerY = targetTop + 6 + pointerH + bubbleH / 2
+        let pointerTipY = queueBottom - 6
+        let centerY = pointerTipY - pointerH - bubbleH / 2
 
         let node = SKNode()
         node.name = Self.tutorialQueueCalloutName
@@ -20241,10 +20250,10 @@ final class GameScene: SKScene {
         let tip = SKShapeNode()
         let localTipX = targetX - centerX
         let tipPath = CGMutablePath()
-        let baseY = -bubbleH / 2
-        tipPath.move(to: CGPoint(x: localTipX - 7, y: baseY))
-        tipPath.addLine(to: CGPoint(x: localTipX + 7, y: baseY))
-        tipPath.addLine(to: CGPoint(x: localTipX, y: baseY - pointerH))
+        let topY = bubbleH / 2
+        tipPath.move(to: CGPoint(x: localTipX - 7, y: topY))
+        tipPath.addLine(to: CGPoint(x: localTipX + 7, y: topY))
+        tipPath.addLine(to: CGPoint(x: localTipX, y: topY + pointerH))
         tipPath.closeSubpath()
         tip.path = tipPath
         tip.fillColor = BlomixAppearance.panelFillTranslucent
@@ -20257,6 +20266,7 @@ final class GameScene: SKScene {
         let fade: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.25
         node.run(SKAction.fadeIn(withDuration: fade))
         addChild(node)
+        layoutTutorialSkipButton()
     }
 
     private func tutorialAttributedText(_ text: String, size: CGFloat, bold: Bool) -> NSAttributedString {
@@ -20294,16 +20304,22 @@ final class GameScene: SKScene {
             fontSize:  skipFont
         )
 
-        // Centre horizontal aligné sur la file de blocs (preview centré sur la largeur).
-        let chipX = size.width / 2
-        // Vertical : juste sous le label caption de la queue ; fallback en bas d'écran si absent.
-        let captionY = (childNode(withName: Self.upcomingQueueCaptionLabelName)?.position.y)
-                    ?? (size.height * 0.12)
-        let chipY = captionY - chipSize.height - 8
-
-        chip.position  = CGPoint(x: chipX, y: chipY)
         chip.zPosition = 210
         addChild(chip)
+        layoutTutorialSkipButton()
+    }
+
+    /// Sous la légende de la file, ou sous la bulle du tuto quand elle est là.
+    private func layoutTutorialSkipButton() {
+        guard let chip = childNode(withName: Self.tutorialSkipBtnName) as? BlomixSKButtonNode else { return }
+        let captionY = (childNode(withName: Self.upcomingQueueCaptionLabelName)?.position.y)
+            ?? (size.height * 0.12)
+        var clearanceY = captionY - 8
+        if let callout = childNode(withName: Self.tutorialQueueCalloutName) {
+            clearanceY = min(clearanceY, callout.calculateAccumulatedFrame().minY - 8)
+        }
+        let y = max(clearanceY - chip.layoutSize.height / 2, chip.layoutSize.height / 2 + 12)
+        chip.position = CGPoint(x: size.width / 2, y: y)
     }
 
     private func hideTutorialSkipButton() {
@@ -20508,16 +20524,14 @@ final class GameScene: SKScene {
         if !disableRest { presentNextGuidedCoach() }
     }
 
-    /// Première fois qu’un Magix est visible dans la file (P1 ou P2). Pas pendant le tuto.
-    private func noteMagixArrivedInQueue(next: BlockType, twoAhead: BlockType) {
+    /// Première fois qu’un Magix est en position 2 (P1, le prochain bloc). Pas en position 3 (P2).
+    private func noteMagixArrivedInQueue(next: BlockType) {
         guard !isTutorialMode, !isStartScreen, !isGameOver else { return }
+        guard case .magix(let kind) = next else { return }
         let seen = Set(UserDefaults.standard.stringArray(forKey: Self.magixIntroSeenKey) ?? [])
-        for block in [next, twoAhead] {
-            guard case .magix(let kind) = block else { continue }
-            if seen.contains(kind.rawValue) { continue }
-            if magixIntroShowing == kind || magixIntroQueue.contains(kind) { continue }
-            magixIntroQueue.append(kind)
-        }
+        if seen.contains(kind.rawValue) { return }
+        if magixIntroShowing == kind || magixIntroQueue.contains(kind) { return }
+        magixIntroQueue.append(kind)
         if childNode(withName: Self.magixIntroBubbleName) == nil {
             presentNextMagixIntro()
         }
@@ -20548,38 +20562,28 @@ final class GameScene: SKScene {
         }
 
         let text = magixIntroText(kind)
-        let width = min(size.width - 24, 260)
-        let fontSize: CGFloat = 13
-        let pad: CGFloat = 10
-        let spriteSide: CGFloat = 28
-        let textWidth = width - pad * 2 - spriteSide - 8
-        let attr = tutorialAttributedText(text, size: fontSize, bold: false)
+        let width = min(size.width - 48, 320)
+        let fontSize: CGFloat = 16
+        let pad: CGFloat = 14
+        let spriteSide: CGFloat = 36
+        let textWidth = width - pad * 2 - spriteSide - 10
+        let attr = tutorialAttributedText(text, size: fontSize, bold: true)
         let textH = ceil(attr.boundingRect(
             with: CGSize(width: textWidth, height: .greatestFiniteMagnitude),
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             context: nil).height)
-        let bubbleH = max(spriteSide + pad, textH + pad * 2)
-        let pointerH: CGFloat = 8
+        let bubbleH = max(spriteSide + pad * 2, textH + pad * 2)
 
-        let slotName: String
-        if case .magix(let shown) = blockAfterCurrent, shown == kind {
-            slotName = Self.upcomingSlotNextName
-        } else {
-            slotName = Self.upcomingSlotTwoAheadName
-        }
-        let slot = childNode(withName: slotName)
-        let targetX = slot?.position.x ?? size.width / 2
-        let targetTop = (slot?.position.y ?? size.height * 0.16) + UpcomingQueueLayout.cellPoints / 2
-        let halfW = width / 2
-        let centerX = min(max(targetX, halfW + 8), size.width - halfW - 8)
-        let centerY = targetTop + 6 + pointerH + bubbleH / 2
+        // Même ancrage que les cartes du tutoriel : milieu de grille, 2e et 3e lignes du bas.
+        let row2Y = scenePointCellCenter(row: GridLayout.bottomRowIndex - 1, column: 0).y
+        let row3Y = scenePointCellCenter(row: GridLayout.bottomRowIndex - 2, column: 0).y
 
         let node = SKNode()
         node.name = Self.magixIntroBubbleName
-        node.position = CGPoint(x: centerX, y: centerY)
-        node.zPosition = 220
+        node.position = CGPoint(x: size.width / 2, y: (row2Y + row3Y) / 2)
+        node.zPosition = 210
 
-        let bg = SKShapeNode(rectOf: CGSize(width: width, height: bubbleH), cornerRadius: 8)
+        let bg = SKShapeNode(rectOf: CGSize(width: width, height: bubbleH), cornerRadius: 10)
         bg.fillColor = BlomixAppearance.panelFillTranslucent
         bg.strokeColor = BlomixAppearance.panelStroke
         bg.lineWidth = 0.5
@@ -20596,24 +20600,9 @@ final class GameScene: SKScene {
         label.preferredMaxLayoutWidth = textWidth
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .left
-        label.position = CGPoint(x: icon.position.x + spriteSide / 2 + 8, y: 0)
+        label.position = CGPoint(x: icon.position.x + spriteSide / 2 + 10, y: 0)
         label.zPosition = 1
         node.addChild(label)
-
-        let tip = SKShapeNode()
-        let localTipX = targetX - centerX
-        let tipPath = CGMutablePath()
-        let baseY = -bubbleH / 2
-        tipPath.move(to: CGPoint(x: localTipX - 7, y: baseY))
-        tipPath.addLine(to: CGPoint(x: localTipX + 7, y: baseY))
-        tipPath.addLine(to: CGPoint(x: localTipX, y: baseY - pointerH))
-        tipPath.closeSubpath()
-        tip.path = tipPath
-        tip.fillColor = BlomixAppearance.panelFillTranslucent
-        tip.strokeColor = BlomixAppearance.panelStroke
-        tip.lineWidth = 0.5
-        tip.zPosition = 1
-        node.addChild(tip)
 
         let fadeIn: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.22
         let fadeOut: TimeInterval = Self.prefersReducedMotion ? 0.01 : 0.3
@@ -20683,9 +20672,21 @@ final class GameScene: SKScene {
         return btn.calculateAccumulatedFrame().contains(point)
     }
 
+    /// Même détection que l’animation d’appui. `calculateAccumulatedFrame` du bouton
+    /// est dans l’overlay, pas dans la scène : s’en servir laissait le tap poser un blox.
     private func touchHitsTutorialFinishButton(_ point: CGPoint) -> Bool {
-        guard let btn = childNode(withName: Self.tutorialFinishBtnName) else { return false }
-        return btn.calculateAccumulatedFrame().contains(point)
+        blomixButtonAtPoint(point)?.name == Self.tutorialFinishBtnName
+    }
+
+    private func touchHitsTutorialOverlay(_ point: CGPoint) -> Bool {
+        for n in nodes(at: point) {
+            var node: SKNode? = n
+            while let cur = node {
+                if cur.name == Self.tutorialOverlayName { return true }
+                node = cur.parent
+            }
+        }
+        return false
     }
 
     // MARK: - In-app update banner
@@ -20828,8 +20829,14 @@ final class GameScene: SKScene {
         }
 
         // Bouton de fin du tuto (carte « prêt ? ») : avant Passer si les deux sont touchés.
+        // Le reste de la carte ne pose pas de blox non plus.
         if isTutorialMode && touchHitsTutorialFinishButton(location) {
             pendingButtonAction = { [weak self] in self?.finishTutorialFromEndButton() }
+            return
+        }
+        if isTutorialMode && tutorialStep == .bombCelebration && touchHitsTutorialOverlay(location) {
+            lastPressedSKButton?.animateReleased()
+            lastPressedSKButton = nil
             return
         }
 

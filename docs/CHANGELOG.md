@@ -7,9 +7,9 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.0] — en préparation (branche `9.0`, iPhone `MARKETING_VERSION` 9.0, pas soumis à la review)
+## [9.0] — en review (branche `9.0`, iPhone `MARKETING_VERSION` 9.0, build 168, envoyé le 21/11/2026)
 
-Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One, Pangolin à la place de Nunito.
+Prototype de look. La fiche 9.0 est chez Apple, publication automatique à l’approbation. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One, Pangolin à la place de Nunito.
 
 ### Ajouté
 
@@ -28,7 +28,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Modifié
 
-- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 168. La Watch reste en 8.0. Ce build, Valid, est sélectionné sur la fiche à la place du 167. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le brouillon de review ne change pas : la version 9.0 et les 20 réalisations y restent (Ready for Review, pas envoyé). Changer le binaire ne les retire pas. La 8.9 reste en vente.
+- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 168. La Watch reste en 8.0. Ce build, Valid, est sélectionné sur la fiche à la place du 167. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le 21/11/2026 la review est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-21T08:22:39Z). Le même envoi contient la version et les 20 réalisations. Publication automatique à l’approbation (`AFTER_APPROVAL`). La 8.9 reste en vente jusque-là.
 - **Magix et bombe en Encre** : le centre du disque est le lavis des Blox (flaques, washi visible). La couronne d’encre irrégulière reste. La palette animée teinte le masque. Le glyphe reste noir. Plus de halo. Les paillettes en orbite sont celles du Classique, jusqu’à 16 pt au-delà du bord. Grille, chute, file, icône de stock, aperçu du guide. Classique garde le trait, le halo et les mêmes paillettes. Le pop et l’explosion ne changent pas.
 - **SAINTX en Encre** : pendant le défilement du gros score, les chiffres restent le gris habituel. En Classique ils passent encore au blanc.
 - **Tutoriel** : la bulle « prochains blox » est juste sous la file, pointe vers le haut. Elle ne recouvre plus la carte de la chaîne de 5. « Passer » descend avec elle, le temps de cette étape.

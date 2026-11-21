@@ -9970,8 +9970,27 @@ final class GameScene: SKScene {
                 rollDuration = forced
             }
             let curve = scoreRollCurve ?? (scoreRollDuration != nil ? ScoreRollCurve.linear : .easeOutCubic)
+            // Le `customAction` s’arrête souvent avant t = 1. `Int` tronque,
+            // donc le chiffre restait à cible − 1. Le Game Over lit `score`
+            // et avait l’air d’ajouter un point. On pose la cible à la fin,
+            // comme le mètre Duel. Pendant le roll, la troncature reste :
+            // le dernier point arrive avec la dernière paillette.
+            let settle = SKAction.run { [weak self] in
+                guard let self,
+                      let lbl = self.childNode(withName: Self.scoreHudLabelName) as? SKLabelNode
+                else { return }
+                let rendered = "\(self.scoreRollTarget)"
+                if lbl.text != rendered {
+                    lbl.text = rendered
+                    self.refreshScoreWashPlate()
+                }
+                self.updateScoreRaceMarker(liveScore: self.scoreRollTarget)
+            }
             label.run(
-                makeScoreRollAction(duration: rollDuration, duel: false, curve: curve),
+                SKAction.sequence([
+                    makeScoreRollAction(duration: rollDuration, duel: false, curve: curve),
+                    settle,
+                ]),
                 withKey: Self.scoreRollActionKey
             )
         }
@@ -20913,7 +20932,7 @@ final class GameScene: SKScene {
 
         // Animation press sur tout BlomixSKButtonNode touché.
         if let btn = blomixButtonAtPoint(location) {
-            btn.animatePressed()
+            btn.animatePressed(at: btn.convert(location, from: self))
             lastPressedSKButton = btn
         }
 

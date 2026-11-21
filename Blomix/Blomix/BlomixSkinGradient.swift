@@ -8,6 +8,7 @@
 
 import CoreText
 import QuartzCore
+import simd
 import SpriteKit
 import UIKit
 
@@ -112,6 +113,125 @@ enum BlomixSkinGradient {
         ]
         shaderCache[key] = shader
         return shader
+    }
+
+    /// Surface Encre à l’appui. Même palette que le puits. L’alpha vient du lavis
+    /// (texture) et d’un disque (`a_radius`, `a_origin` en points, centre du sprite, y vers le haut).
+    static func makeInkFloodShader() -> SKShader {
+        let colors = paletteSKColors()
+        let n = colors.count
+        let key = "flood|\(BlomixSkinCatalog.shared.selectedSkinId)|\(n)|\(wellTimeScale)"
+        if let cached = shaderCache[key] { return cached }
+
+        func v3(_ c: SKColor) -> String {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            c.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return String(format: "vec3(%.4f,%.4f,%.4f)", Float(r), Float(g), Float(b))
+        }
+
+        var branches = ""
+        for i in 0..<n {
+            let next = (i + 1) % n
+            let limit = String(format: "%.1f", Float(i + 1))
+            if i == 0 {
+                branches += "    if (fi<\(limit)){ca=\(v3(colors[i]));cb=\(v3(colors[next]));}\n"
+            } else if i < n - 1 {
+                branches += "    else if (fi<\(limit)){ca=\(v3(colors[i]));cb=\(v3(colors[next]));}\n"
+            } else {
+                branches += "    else{ca=\(v3(colors[i]));cb=\(v3(colors[next]));}\n"
+            }
+        }
+        let nStr = String(format: "%.1f", Float(n))
+        let src = """
+        vec3 mgxPal(float t){
+            float N=\(nStr);
+            float ti=fract(t)*N;
+            float fi=floor(ti);
+            float f=smoothstep(0.0,1.0,fract(ti));
+            vec3 ca=vec3(1.0),cb=vec3(1.0);
+        \(branches)    return mix(ca,cb,f);
+        }
+        void main(){
+            vec2 uv=v_tex_coord;
+            float t=u_time*\(String(format: "%.4f", wellTimeScale))+a_timeOffset;
+            vec3 c1=mgxPal(t);
+            vec3 c2=mgxPal(t+0.333);
+            vec3 c3=mgxPal(t+0.667);
+            float wx=sin(uv.x*3.14159+t*0.5)*0.5+0.5;
+            float wy=cos(uv.y*2.2-t*0.35)*0.5+0.5;
+            vec3 ab=mix(c1,c2,wx);
+            vec3 grad=mix(ab,c3,wy*0.38);
+            vec3 col=mix(grad, a_flat, clamp(a_useFlat, 0.0, 1.0));
+            vec4 wash=texture2D(u_texture, uv);
+            float wa=wash.a;
+            float g=wa>0.15?wash.r/wa:1.0;
+            vec2 local=(uv-vec2(0.5))*a_size;
+            float d=distance(local, a_origin);
+            float cover=1.0-smoothstep(a_radius-a_feather, max(a_radius, 0.0001), d);
+            if (a_radius<0.05) cover=0.0;
+            float a=wa*cover*v_color_mix.a;
+            vec3 rgb=col*g*a;
+            gl_FragColor=vec4(rgb, a);
+        }
+        """
+        let shader = SKShader(source: src)
+        shader.attributes = [
+            SKAttribute(name: timeOffsetAttributeName, type: .float),
+            SKAttribute(name: "a_origin", type: .vectorFloat2),
+            SKAttribute(name: "a_size", type: .vectorFloat2),
+            SKAttribute(name: "a_radius", type: .float),
+            SKAttribute(name: "a_feather", type: .float),
+            SKAttribute(name: "a_useFlat", type: .float),
+            SKAttribute(name: "a_flat", type: .vectorFloat3),
+        ]
+        shaderCache[key] = shader
+        return shader
+    }
+
+    /// `flat` nil : dégradé du skin. Sinon piste neutre (gouttière sans skin).
+    static func applyInkFloodShader(
+        to sprite: SKSpriteNode,
+        timeOffset: Float,
+        flat: SKColor?,
+        size: CGSize,
+        feather: CGFloat
+    ) {
+        sprite.shader = makeInkFloodShader()
+        sprite.colorBlendFactor = 0
+        sprite.color = .white
+        sprite.setValue(SKAttributeValue(float: timeOffset), forAttribute: timeOffsetAttributeName)
+        sprite.setValue(
+            SKAttributeValue(vectorFloat2: simd_float2(Float(size.width), Float(size.height))),
+            forAttribute: "a_size"
+        )
+        sprite.setValue(SKAttributeValue(float: Float(feather)), forAttribute: "a_feather")
+        let useFlat: Float = flat == nil ? 0 : 1
+        sprite.setValue(SKAttributeValue(float: useFlat), forAttribute: "a_useFlat")
+        let rgb = flat.map(rgbComponents) ?? (1, 1, 1)
+        sprite.setValue(
+            SKAttributeValue(vectorFloat3: simd_float3(Float(rgb.0), Float(rgb.1), Float(rgb.2))),
+            forAttribute: "a_flat"
+        )
+        sprite.userData = sprite.userData ?? NSMutableDictionary()
+        sprite.userData?["timeOffset"] = timeOffset
+    }
+
+    static func setInkFlood(radius: CGFloat, origin: CGPoint, on sprite: SKSpriteNode) {
+        sprite.setValue(SKAttributeValue(float: Float(radius)), forAttribute: "a_radius")
+        sprite.setValue(
+            SKAttributeValue(vectorFloat2: simd_float2(Float(origin.x), Float(origin.y))),
+            forAttribute: "a_origin"
+        )
+    }
+
+    private static func rgbComponents(_ color: SKColor) -> (CGFloat, CGFloat, CGFloat) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        if color.getRed(&r, green: &g, blue: &b, alpha: &a) {
+            return (r, g, b)
+        }
+        var white: CGFloat = 1
+        color.getWhite(&white, alpha: &a)
+        return (white, white, white)
     }
 
     static func applyShader(to sprite: SKSpriteNode, timeOffset: Float = 0) {

@@ -13,7 +13,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Ajouté
 
-- **Encre, boutons** : le bouton partagé (accueil, menus, navigation) est un rectangle de papier washi (`#F0E6D2`, grain de la grille). La gouttière devient un liseré d’aquarelle fin (tampon 1,3…2,7 pt), épaisseur irrégulière, couleurs du skin en direct. Le mot est en Chelsea Market, gris du score. À l’appui le liseré s’étale (0,15 s) puis revient (0,16 s). Sombre et Clair gardent le puits et la capsule.
+- **Encre, boutons** : le bouton partagé (accueil, menus, navigation) est un rectangle de papier washi (`#F0E6D2`, grain de la grille). Le tour est un lavis de Blox d’épaisseur constante (2,4 pt), couleurs du skin en direct. Le mot est en Chelsea Market, gris du score. À l’appui la surface se colore depuis le doigt (0,16 s) et, au relâchement, cette couleur est aspirée vers ce point à la même vitesse. Rien ne sort du rectangle. Sombre et Clair gardent le puits et la capsule.
 - **Encre, décor** : les micro-blox sont des confettis de papier déchiré. Sur la plaque ils sont un filigrane crème ; dans le liseré (et les gouttières qui révélaient déjà le blox) ils prennent la couleur du skin. L’air de la grille reprend les mêmes confettis, plus petits et plus lents. Réduire les animations coupe le mouvement comme avant, et la rotation en plus. Classique inchangé.
 - **Réalisations Game Center** : les 20 identifiants déjà créés dans App Store Connect partent depuis les compteurs du Salon. Une réalisation progressive envoie sa part (2/7 jours → 28,57 %). Pacifiste et Infini ×6, cachées, ne partent qu’à 100. Le cache par joueur n’envoie que ce qui monte, en un seul lot, après 1,5 s. Au rattrapage, si plus de trois se complètent ensemble, une seule bannière : la plus haute en points. Hors ligne, le Salon garde la valeur et l’envoi part au retour. Pas de reset en Release. Les essais sandbox sur iPhone restent à faire.
 - **Magix** : la première fois qu’un Magix entre dans la file, une bulle donne son nom et son effet en une phrase. Une fois par sorte, mémorisé sur l’appareil. Pas pendant le tutoriel. Classique et Encre. Six langues.
@@ -28,7 +28,7 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 
 ### Modifié
 
-- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 167. La Watch reste en 8.0. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le binaire est sur App Store Connect. Les 20 réalisations et la 9.0 sont dans le même brouillon de review (Ready for Review, pas envoyé). La 8.9 reste en vente.
+- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 168. La Watch reste en 8.0. Ce build remplace le 167 comme binaire de la fiche. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le brouillon de review ne change pas : la version 9.0 et les 20 réalisations y restent (Ready for Review, pas envoyé). Changer le binaire ne les retire pas. La 8.9 reste en vente.
 - **Magix et bombe en Encre** : le centre du disque est le lavis des Blox (flaques, washi visible). La couronne d’encre irrégulière reste. La palette animée teinte le masque. Le glyphe reste noir. Plus de halo. Les paillettes en orbite sont celles du Classique, jusqu’à 16 pt au-delà du bord. Grille, chute, file, icône de stock, aperçu du guide. Classique garde le trait, le halo et les mêmes paillettes. Le pop et l’explosion ne changent pas.
 - **SAINTX en Encre** : pendant le défilement du gros score, les chiffres restent le gris habituel. En Classique ils passent encore au blanc.
 - **Tutoriel** : la bulle « prochains blox » est juste sous la file, pointe vers le haut. Elle ne recouvre plus la carte de la chaîne de 5. « Passer » descend avec elle, le temps de cette étape.
@@ -65,6 +65,10 @@ Prototype de look. Pas de fiche ASC. Le style Nouveau est la piste Encre (encre 
 - **Score Encre** : le gros chiffre est le lavis, seulement à l’intérieur des glyphes. Pas de rectangle autour. Gris foncé sur le papier clair (blanc 0,30), gris moyen sur le papier sombre (blanc 0,58). À l’arrivée des paillettes, les glyphes prennent leur couleur, puis le gris revient. Les trous des chiffres restent vides. Les dix chiffres sont peints une fois : pendant leur vol, le roll réassemble ces chiffres et change seulement la couleur, il ne repeint pas le lavis. Classique : chiffre plein, sans lavis.
 - **Grille** : dans tous les modes, seule la grille descend pour que l’air sous le gros score égale l’air au-dessus du bloc à lancer. Le score, la course, la bombe et ce bloc ne bougent pas.
 - **Toast trophée** : au palier, le libellé revient dans un petit cadre arrondi (puits du skin + capsule). L’anneau, le point, la place et le fondu ne changent pas. Le puits s’efface avec le cadre.
+
+### Corrigé
+
+- **Score** : à la fin du défilement, le chiffre de la grille se pose sur le total. Avant, il restait un point en dessous, et le Game Over avait l’air d’en ajouter un. Le score enregistré ne change pas.
 
 ---
 

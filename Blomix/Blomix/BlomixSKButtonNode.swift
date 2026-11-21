@@ -2,8 +2,9 @@
 //  BlomixSKButtonNode.swift
 //  Blomix
 //
-//  Bouton SpriteKit : puits (dégradé skin) + capsule chrome. L’appui scale
-//  uniquement la capsule. Style : `BlomixUIDestinationButtonStyle`.
+//  Bouton SpriteKit : puits (dégradé skin) + capsule chrome. L’appui Classique
+//  scale uniquement la capsule. Encre : la surface se colore depuis le doigt.
+//  Style : `BlomixUIDestinationButtonStyle`.
 //
 
 import SpriteKit
@@ -34,8 +35,14 @@ final class BlomixSKButtonNode: SKNode {
     /// Emprise tactile / layout (hors descendants ambiants clipés dans le puits).
     var layoutSize: CGSize { buttonSize }
     private var wellTimeOffset: Float = 0
-    /// Encre : le masque du liseré. Le scale d’appui ne touche pas le libellé.
-    private weak var inkRimMask: SKSpriteNode?
+    /// Encre : surface colorée à l’appui. Cachée au repos. Jamais scalée.
+    private weak var inkFloodSprite: SKSpriteNode?
+    /// Rayon courant du disque, en points. 0 au repos.
+    private var inkFloodRadius: CGFloat = 0
+    /// Rayon qui couvre le bouton depuis le point d’appui, plume comprise.
+    private var inkFloodMax: CGFloat = 1
+    /// Point d’appui dans le bouton (centre, y vers le haut). On y revient.
+    private var inkFloodOrigin: CGPoint = .zero
     /// Figé à la construction. Le Classique ne passe jamais par le chemin Encre.
     private var usesInkChrome = false
     /// `false` : la gouttière est la piste neutre. `true` : le dégradé du skin.
@@ -231,8 +238,8 @@ final class BlomixSKButtonNode: SKNode {
         installChromeObservers()
     }
 
-    /// Papier washi + liseré. Le puits `blomixWell` reste le crop des échos,
-    /// masqué par l’anneau peint : le fill garde la taille du bouton.
+    /// Papier washi + tour. Le puits `blomixWell` reste le crop des échos,
+    /// masqué par la bande : le fill garde la taille du bouton.
     private func assembleInk(
         size: CGSize,
         cornerRadius: CGFloat,
@@ -259,18 +266,28 @@ final class BlomixSKButtonNode: SKNode {
         paper.zPosition = 0
         clip.addChild(paper)
 
+        let flood = SKSpriteNode(
+            texture: BlomixInkChrome.faceWashTexture(size: size, cornerRadius: cornerRadius),
+            size: size
+        )
+        flood.name = "blomixInkFlood"
+        flood.zPosition = 1
+        flood.isHidden = true
+        clip.addChild(flood)
+        inkFloodSprite = flood
+        applyInkFloodLook()
+
         let well = SKCropNode()
         well.name = "blomixWell"
-        well.zPosition = 1
+        well.zPosition = 2
         well.userData = NSMutableDictionary()
         well.userData?["cornerRadius"] = cornerRadius
         well.userData?["timeOffset"] = wellTimeOffset
         let rim = SKSpriteNode(
-            texture: BlomixInkChrome.brushRingTexture(size: size, cornerRadius: cornerRadius),
+            texture: BlomixInkChrome.rimWashTexture(size: size, cornerRadius: cornerRadius),
             size: size
         )
         well.maskNode = rim
-        inkRimMask = rim
         let fill = SKSpriteNode(texture: BlomixSkinGradient.shaderBaseTexture, size: size)
         fill.name = "blomixWellFill"
         BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
@@ -347,6 +364,7 @@ final class BlomixSKButtonNode: SKNode {
             } else {
                 applyNeutralWell()
             }
+            applyInkFloodLook()
             return
         }
         BlomixSkinGradient.refreshWellNode(self, timeOffset: wellTimeOffset)
@@ -372,6 +390,20 @@ final class BlomixSKButtonNode: SKNode {
         fill.color = BlomixAppearance.progressTrackSK
     }
 
+    /// Même teinte que le tour : dégradé, ou piste neutre. Le disque ne bouge pas ici.
+    private func applyInkFloodLook() {
+        guard let flood = inkFloodSprite else { return }
+        let flat: SKColor? = wellShowsSkin ? nil : BlomixAppearance.progressTrackSK
+        BlomixSkinGradient.applyInkFloodShader(
+            to: flood,
+            timeOffset: wellTimeOffset,
+            flat: flat,
+            size: buttonSize,
+            feather: BlomixInkChrome.floodFeather
+        )
+        BlomixSkinGradient.setInkFlood(radius: inkFloodRadius, origin: inkFloodOrigin, on: flood)
+    }
+
     private var wellFillSprite: SKSpriteNode? {
         wellNode?.childNode(withName: "blomixWellFill") as? SKSpriteNode
     }
@@ -380,17 +412,18 @@ final class BlomixSKButtonNode: SKNode {
     func runChromeFadeSequence(fadeIn: TimeInterval, hold: TimeInterval, fadeOut: TimeInterval) {
         alpha = 0
         wellFillSprite?.alpha = 0
+        inkFloodSprite?.alpha = 0
         let appear = SKAction.fadeIn(withDuration: fadeIn)
         let vanish = SKAction.fadeOut(withDuration: fadeOut)
         let holdWait = SKAction.wait(forDuration: hold)
         run(SKAction.sequence([appear, holdWait, vanish, SKAction.removeFromParent()]))
-        if let fill = wellFillSprite {
-            fill.run(SKAction.sequence([
-                appear.copy() as! SKAction,
-                holdWait.copy() as! SKAction,
-                vanish.copy() as! SKAction,
-            ]))
-        }
+        let fillFade = SKAction.sequence([
+            appear.copy() as! SKAction,
+            holdWait.copy() as! SKAction,
+            vanish.copy() as! SKAction,
+        ])
+        wellFillSprite?.run(fillFade)
+        inkFloodSprite?.run(fillFade.copy() as! SKAction)
     }
 
     /// Retire le shader GPU des puits invisibles (dropdown ☰ fermé).
@@ -404,12 +437,18 @@ final class BlomixSKButtonNode: SKNode {
                 } else {
                     applyNeutralWell()
                 }
+                applyInkFloodLook()
             } else {
                 BlomixSkinGradient.applyShader(to: fill, timeOffset: wellTimeOffset)
             }
         } else {
             fill.shader = nil
-            if usesInkChrome { fill.alpha = 0 }
+            if usesInkChrome {
+                fill.alpha = 0
+                inkFloodSprite?.removeAction(forKey: Self.pressActionKey)
+                inkFloodSprite?.isHidden = true
+                inkFloodRadius = 0
+            }
         }
     }
 
@@ -466,15 +505,14 @@ final class BlomixSKButtonNode: SKNode {
     private static let pressActionKey = "blomixSKBtnPress"
     private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
-    func animatePressed() {
+    /// `localPoint` : dans le bouton, centre à l’origine, y vers le haut. Encre seulement.
+    func animatePressed(at localPoint: CGPoint = .zero) {
         Self.haptic.impactOccurred()
         Self.haptic.prepare()
         if usesInkChrome {
-            guard let rim = inkRimMask else { return }
-            rim.removeAction(forKey: Self.pressActionKey)
-            let spread = SKAction.scale(to: BlomixInkChrome.spreadScale, duration: BlomixInkChrome.spreadOutDuration)
-            spread.timingMode = .easeOut
-            rim.run(spread, withKey: Self.pressActionKey)
+            inkFloodOrigin = localPoint
+            inkFloodMax = Self.inkFloodReach(from: localPoint, size: buttonSize)
+            animateInkFlood(to: inkFloodMax)
             return
         }
         guard let inner = capsuleContentNode else { return }
@@ -492,11 +530,7 @@ final class BlomixSKButtonNode: SKNode {
 
     func animateReleased() {
         if usesInkChrome {
-            guard let rim = inkRimMask else { return }
-            rim.removeAction(forKey: Self.pressActionKey)
-            let back = SKAction.scale(to: 1, duration: BlomixInkChrome.spreadBackDuration)
-            back.timingMode = .easeOut
-            rim.run(back, withKey: Self.pressActionKey)
+            animateInkFlood(to: 0)
             return
         }
         guard let inner = capsuleContentNode else { return }
@@ -513,6 +547,51 @@ final class BlomixSKButtonNode: SKNode {
         let fade = SKAction.fadeAlpha(to: BlomixButtonRelief.contactShadowAlpha, duration: dur1)
         fade.timingMode = .easeOut
         contactShadowNode?.run(fade)
+    }
+
+    /// Le front parcourt le rayon à vitesse constante. Relâché à mi-chemin, il met moitié moins de temps.
+    private func animateInkFlood(to target: CGFloat) {
+        guard let flood = inkFloodSprite else { return }
+        flood.removeAction(forKey: Self.pressActionKey)
+        let from = inkFloodRadius
+        if abs(target - from) < 0.4 {
+            inkFloodRadius = target
+            BlomixSkinGradient.setInkFlood(radius: target, origin: inkFloodOrigin, on: flood)
+            flood.isHidden = target < 0.4
+            return
+        }
+        let travel = max(inkFloodMax, 1)
+        let duration = BlomixInkChrome.floodDuration * Double(abs(target - from) / travel)
+        flood.isHidden = false
+        let grow = SKAction.customAction(withDuration: duration) { [weak self] _, elapsed in
+            guard let self else { return }
+            let u = min(1, CGFloat(elapsed) / CGFloat(max(duration, 0.001)))
+            self.inkFloodRadius = from + (target - from) * u
+            if let flood = self.inkFloodSprite {
+                BlomixSkinGradient.setInkFlood(radius: self.inkFloodRadius, origin: self.inkFloodOrigin, on: flood)
+            }
+        }
+        let settle = SKAction.run { [weak self] in
+            guard let self, let flood = self.inkFloodSprite else { return }
+            self.inkFloodRadius = target
+            BlomixSkinGradient.setInkFlood(radius: target, origin: self.inkFloodOrigin, on: flood)
+            flood.isHidden = target < 0.4
+        }
+        flood.run(.sequence([grow, settle]), withKey: Self.pressActionKey)
+    }
+
+    /// Coin le plus loin, plus la plume, pour que le bouton soit plein au rayon max.
+    private static func inkFloodReach(from origin: CGPoint, size: CGSize) -> CGFloat {
+        let hw = size.width / 2
+        let hh = size.height / 2
+        let corners = [
+            CGPoint(x: -hw, y: -hh),
+            CGPoint(x: hw, y: -hh),
+            CGPoint(x: hw, y: hh),
+            CGPoint(x: -hw, y: hh),
+        ]
+        let far = corners.map { hypot($0.x - origin.x, $0.y - origin.y) }.max() ?? hypot(hw, hh)
+        return far + BlomixInkChrome.floodFeather
     }
 
     // MARK: - Helpers

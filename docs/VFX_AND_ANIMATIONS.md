@@ -598,7 +598,7 @@ Le glyphe **est** le transfert (plus de dots au t=0 autour du centroïde).
 | Début | arrivée de la **première** paillette (cases **ou** shards du `+N`) |
 | Fin | arrivée de la **dernière** paillette (même fenêtre) |
 | Durée | `max(0,12, last − first + 0,08)` — plus de 0,40–0,60 s après que tout soit posé |
-| Easing | **linéaire** si fenêtre paillettes ; ease-out cubique sinon. **SAINTX** : ease-out exposant **1,5**, du blanchiment jusqu’à la dernière paillette des cases. Le `+N` de l’explosion ne décale pas cette fenêtre |
+| Easing | **linéaire** si fenêtre paillettes ; ease-out cubique sinon. **SAINTX** : ease-out exposant **1,5**, du blanchiment jusqu’à la dernière paillette des cases. Le `+N` de l’explosion ne décale pas cette fenêtre. Le chiffre affiché est la partie entière pendant le roll. À la fin de l’action, il se pose sur le total exact (le Game Over lit le même nombre) |
 | Flash couleur | lerp couleur chaîne → blanc en **0,30 s** après roll |
 | Pulse scale | pic `1,2 + chainLevel×0,03` (max ~1,38), montée **0,33 s**, retour **0,11 s** |
 
@@ -813,7 +813,7 @@ Ombre de contact (`BlomixButtonRelief`) : Sombre **0,32** (appui **0,10**). Clai
 | Settle | `releasePhase2Duration` (0,07 s) | scale 1,0 |
 | UIKit | ressort | `CASpringAnimation` sur capsule + titre, pas sur le puits |
 
-**Encre** (`BlomixInkChrome`, style `.new` ou partie Encre en cours). Le Classique ci-dessus ne change pas. Fond papier `#F0E6D2` (grain de la grille, sans crayon). Le puits est un liseré peint fin (tampon 1,3…2,7 pt) : le fill shader garde la taille du bouton, le masque est l’anneau. Libellé Chelsea Market, gris 0,30. Appui : le masque passe à l’échelle **1,14** en **0,15 s** ease-out, retour **0,16 s** ease-out. Pas de capsule, pas de biseau, pas d’ombre. Le menu ☰ coupé retire le shader comme en Classique.
+**Encre** (`BlomixInkChrome`, style `.new` ou partie Encre en cours). Le Classique ci-dessus ne change pas. Fond papier `#F0E6D2` (grain de la grille, sans crayon). Le tour est une bande de **2,4 pt**, même lavis que les Blox (flaques, plancher 0,58) : le fill shader garde la taille du bouton, le masque est cette bande. Libellé Chelsea Market, gris 0,30. Appui : la surface se colore depuis le point touché, même dégradé et même lavis, disque à plume **2,4 pt**, **0,16 s** pour le rayon entier, vitesse constante. Relâchement : aspiration vers ce point, même vitesse. Pas de scale, rien hors du rectangle. Pas de capsule, pas de biseau, pas d’ombre. Le menu ☰ coupé retire le shader comme en Classique.
 
 ### 11.3 Blocs ambiants (`BlomixAmbientBlocksView` + SpriteKit)
 
@@ -832,7 +832,7 @@ Ombre de contact (`BlomixButtonRelief`) : Sombre **0,32** (appui **0,10**). Clai
 | Spawn | **0,45…1,3** s |
 | Vitesse | multi **1/3…1,6×** |
 | Autres écrans | même fantôme α **0,20** ; pas de copies gouttière. Spawn SK `0…1` s, multi **1/3…3×** ; UIKit densité low/high inchangée |
-| **Encre** | confettis washi (4 silhouettes). Plaque : filigrane crème, α **0,10…0,18**, rotation lente **±0,35…0,70** rad sur la montée. Dans le liseré / les gouttières révélatrices : même copie, α **0,90**, teinte du skin. **Réduire les animations** : pas de rotation ; la montée reste (comme le Classique). Menus UIKit : filigrane seul, pas de copie |
+| **Encre** | confettis washi (4 silhouettes). Plaque : filigrane crème, α **0,10…0,18**, rotation lente **±0,35…0,70** rad sur la montée. Dans le tour du bouton / les gouttières révélatrices : même copie, α **0,90**, teinte du skin. Pas dans la surface colorée à l’appui. **Réduire les animations** : pas de rotation ; la montée reste (comme le Classique). Menus UIKit : filigrane seul, pas de copie |
 
 ### 11.4 Compteur LIGNE x/10
 

@@ -585,6 +585,12 @@ enum BlomixNewInkRenderer {
         return (gray, alpha)
     }
 
+    /// Même lavis que les Blox (`wash: true`), un point en points. Gris et alpha séparés.
+    /// Le chrome des boutons s’en sert pour le tour et pour la surface à l’appui.
+    static func bloxWashSample(px: CGFloat, py: CGFloat) -> (gray: CGFloat, alpha: CGFloat) {
+        pigment(seed: 0xB10C_5A11, px: px, py: py, scale: 1, granulation: 1, wash: true)
+    }
+
     /// Distance signée à la capsule, en points. `inBody` vient des cases seules :
     /// le pont ne recouvre pas leur lavis. Nil s'il n'y a pas de diagonale.
     private struct BridgeField {

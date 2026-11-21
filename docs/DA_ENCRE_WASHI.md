@@ -74,16 +74,16 @@ brillant, pas d'ombre portée (sauf un très léger assombrissement de papier mo
 Encre seulement. Le composant partagé (`BlomixSKButtonNode`, `BlomixUIButton`) : accueil, menus, navigation. Pas un second écran.
 
 - Fond : rectangle arrondi en papier washi, même grain que la feuille de la grille (`#F0E6D2`), sans filet de crayon. Pas de reflet, pas de dégradé de lumière, pas de biseau, pas d’ombre nette.
-- La gouttière Classique devient un liseré d’aquarelle. Contour peint (masque pré-rendu), fin (tampon 1,3…2,7 pt, fusé court), épaisseur un peu irrégulière, bords fondus dans le papier. La couleur est le dégradé du skin actif, dans le même ordre que la gouttière Classique, et elle suit le skin en direct (même shader).
+- La gouttière Classique devient un tour d’aquarelle d’épaisseur constante (2,4 pt). Le lavis est celui des Blox (flaques, plancher 0,58), pas un tampon effiloché. La couleur est le dégradé du skin actif, dans le même ordre que la gouttière Classique, et elle suit le skin en direct (même shader).
 - Libellé : Chelsea Market, gris du gros score au repos (blanc 0,30 sur le papier clair).
-- Appui : le liseré s’élargit (échelle 1,14, 0,15 s, ease-out) comme une goutte qui s’étale, puis revient (0,16 s, ease-out). Le mot ne s’enfonce pas.
+- Appui : depuis le point touché, la surface du bouton se colore dans cette même teinte et ce même lavis. Le front est un disque (plume 2,4 pt). Il couvre le bouton en 0,16 s, à vitesse constante. Au relâchement, la couleur est aspirée vers le point d’appui initial, à la même vitesse (un relâchement à mi-chemin met moitié moins de temps). Rien ne dépasse du rectangle. Le tour et le mot ne bougent pas.
 - Pastilles de mode, mot BLOMIX et rangs : pas des boutons. Ils gardent leur dessin.
 
 ### Décor de fond
 Encre seulement. Les micro-blox deviennent de petits carrés de papier washi aux bords déchirés (quatre silhouettes cuites, teintées ensuite). Tailles, positions et vitesses restent celles du Classique.
 
 - Hors liseré : filigrane, crème sur crème, alpha environ 0,10…0,18. Ils tournent lentement en montant. Réduire les animations coupe cette rotation, pas la montée : le Classique ne l’arrêtait pas non plus.
-- Dans le liseré d’un bouton, et dans les gouttières déjà révélatrices (mot BLOMIX, rangs) : la même copie clipée que le Classique, alpha 0,90, teintée par la couleur du skin. Le masque du liseré ne laisse voir le pigment que dans la peinture.
+- Dans le tour d’un bouton, et dans les gouttières déjà révélatrices (mot BLOMIX, rangs) : la même copie clipée que le Classique, alpha 0,90, teintée par la couleur du skin. Le masque du tour ne laisse voir le pigment que dans la bande. La surface colorée à l’appui ne montre pas ces confettis.
 - Grille, en partie Encre : les mêmes confettis, plus petits (4…7 pt) et plus lents (9…16 s), alpha 0,08…0,16, toujours crème. Sous les blox. Réduire les animations : rien, comme l’air Classique.
 - Menus UIKit : pas de copie dans une gouttière (le Classique n’en avait pas). Filigrane seulement.
 

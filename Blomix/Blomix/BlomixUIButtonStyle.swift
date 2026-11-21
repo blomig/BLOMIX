@@ -212,9 +212,11 @@ class BlomixUIButton: UIButton {
     private let inkRimMask: CALayer = {
         let layer = CALayer()
         layer.contentsGravity = .resize
-        layer.actions = ["contents": NSNull(), "bounds": NSNull(), "position": NSNull()]
+        layer.actions = ["contents": NSNull(), "bounds": NSNull(), "position": NSNull(), "transform": NSNull()]
         return layer
     }()
+    private let inkFloodGradient = BlomixSkinGradientLayer()
+    private let inkFloodMask = BlomixInkFloodMaskLayer()
     private var wellInstalled = false
     private var wellCornerRadius: CGFloat = BlomixUIDestinationButtonStyle.cornerRadius
     private var lastReliefSize: CGSize = .zero
@@ -313,9 +315,26 @@ class BlomixUIButton: UIButton {
             if inkPaperLayer.superlayer == nil {
                 wellView.layer.insertSublayer(inkPaperLayer, at: 0)
             }
+            if inkFloodGradient.superlayer == nil {
+                wellView.layer.insertSublayer(inkFloodGradient, above: inkPaperLayer)
+                BlomixSkinGradientClock.shared.register(inkFloodGradient)
+            }
+            inkFloodGradient.mask = inkFloodMask
+            inkRimMask.transform = CATransform3DIdentity
+            inkRimMask.removeAllAnimations()
             wellGradient.mask = inkRimMask
         } else if changed {
             inkPaperLayer.removeFromSuperlayer()
+            if inkFloodGradient.superlayer != nil {
+                inkFloodGradient.removeFromSuperlayer()
+                BlomixSkinGradientClock.shared.unregister(inkFloodGradient)
+            }
+            inkFloodGradient.mask = nil
+            inkFloodMask.removeAnimation(forKey: Self.inkFloodKey)
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            inkFloodMask.spread = 0
+            CATransaction.commit()
             wellGradient.mask = nil
             capsuleView.layer.shadowOpacity = Float(BlomixButtonRelief.contactShadowAlpha)
             setTitleColor(BlomixUIDestinationButtonStyle.titleColor, for: .normal)
@@ -380,12 +399,20 @@ class BlomixUIButton: UIButton {
                     size: bounds.size,
                     cornerRadius: wellCornerRadius
                 ).cgImage
+                inkFloodGradient.frame = wellView.bounds
+                inkFloodMask.frame = inkFloodGradient.bounds
+                inkFloodMask.contentsScale = window?.screen.scale ?? traitCollection.displayScale
+                inkFloodMask.wash = BlomixInkChrome.faceWashImage(
+                    size: bounds.size,
+                    cornerRadius: wellCornerRadius
+                ).cgImage
                 inkRimMask.frame = wellGradient.bounds
-                inkRimMask.contents = BlomixInkChrome.brushRingImage(
+                inkRimMask.contents = BlomixInkChrome.rimWashImage(
                     size: bounds.size,
                     cornerRadius: wellCornerRadius
                 ).cgImage
                 wellGradient.mask = inkRimMask
+                inkFloodGradient.mask = inkFloodMask
             } else {
                 wellInnerShadow.contents = BlomixButtonRelief.wellInnerShadowImage(
                     size: bounds.size,
@@ -404,7 +431,12 @@ class BlomixUIButton: UIButton {
 
     override func beginTracking(_ touch: UITouch, with event: UIEvent?) -> Bool {
         let result = super.beginTracking(touch, with: event)
-        if result { blomixAnimatePress() }
+        if result {
+            if usesInkChrome {
+                blomixPlaceInkFlood(at: touch.location(in: self))
+            }
+            blomixAnimatePress()
+        }
         return result
     }
 
@@ -451,13 +483,54 @@ class BlomixUIButton: UIButton {
     // → aucune perturbation du UIStackView ni de la mise en page environnante.
 
     private static let blomixCAKey = "blomixBtn"
+    private static let inkFloodKey = "blomixInkFlood"
     private static let haptic = UIImpactFeedbackGenerator(style: .light)
 
-    /// Scale courant de la capsule, ou du liseré Encre (présentation ou modèle).
+    /// Scale courant de la capsule Classique (présentation ou modèle).
     private func blomixCapsuleScale() -> Double {
-        let model = usesInkChrome ? inkRimMask : capsuleView.layer
+        let model = capsuleView.layer
         let src = model.presentation() ?? model
         return (src.value(forKeyPath: "transform.scale") as? NSNumber)?.doubleValue ?? 1.0
+    }
+
+    /// Point UIKit (y vers le bas) → origine du masque (y vers le haut).
+    private func blomixPlaceInkFlood(at pointInButton: CGPoint) {
+        let yUp = CGPoint(x: pointInButton.x, y: bounds.height - pointInButton.y)
+        inkFloodMask.origin = yUp
+        let w = inkFloodMask.bounds.width
+        let h = inkFloodMask.bounds.height
+        let corners = [
+            CGPoint(x: 0, y: 0),
+            CGPoint(x: w, y: 0),
+            CGPoint(x: 0, y: h),
+            CGPoint(x: w, y: h),
+        ]
+        let far = corners.map { hypot($0.x - yUp.x, $0.y - yUp.y) }.max() ?? 0
+        inkFloodMask.maxRadius = far + BlomixInkChrome.floodFeather
+    }
+
+    private func blomixInkSpread() -> CGFloat {
+        inkFloodMask.presentation()?.spread ?? inkFloodMask.spread
+    }
+
+    /// `spread` 0…1. La durée suit le chemin qui reste, donc l’aller et le retour ont la même vitesse.
+    private func blomixAnimateInkFlood(to target: CGFloat) {
+        let current = blomixInkSpread()
+        inkFloodMask.removeAnimation(forKey: Self.inkFloodKey)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        inkFloodMask.spread = target
+        CATransaction.commit()
+        let delta = abs(target - current)
+        guard delta > 0.004 else { return }
+        let anim = CABasicAnimation(keyPath: "spread")
+        anim.fromValue = current
+        anim.toValue = target
+        anim.duration = BlomixInkChrome.floodDuration * delta
+        anim.timingFunction = CAMediaTimingFunction(name: .linear)
+        anim.fillMode = .removed
+        anim.isRemovedOnCompletion = true
+        inkFloodMask.add(anim, forKey: Self.inkFloodKey)
     }
 
     private func blomixAddCapsuleScale(from: Double, to: Double, duration: TimeInterval, timing: CAMediaTimingFunctionName) {
@@ -475,8 +548,7 @@ class BlomixUIButton: UIButton {
     }
 
     private func blomixPressTargets() -> [CALayer] {
-        if usesInkChrome { return [inkRimMask] }
-        return blomixCapsuleTargets()
+        blomixCapsuleTargets()
     }
 
     private func blomixCapsuleTargets() -> [CALayer] {
@@ -489,16 +561,11 @@ class BlomixUIButton: UIButton {
     private func blomixAnimatePress() {
         Self.haptic.impactOccurred()
         Self.haptic.prepare()
-        let fromScale = blomixCapsuleScale()
         if usesInkChrome {
-            blomixAddCapsuleScale(
-                from: fromScale,
-                to: Double(BlomixInkChrome.spreadScale),
-                duration: BlomixInkChrome.spreadOutDuration,
-                timing: .easeOut
-            )
+            blomixAnimateInkFlood(to: 1)
             return
         }
+        let fromScale = blomixCapsuleScale()
         let toScale = Double(BlomixUIDestinationButtonStyle.pressScale)
         blomixAddCapsuleScale(
             from: fromScale,
@@ -514,16 +581,11 @@ class BlomixUIButton: UIButton {
     }
 
     private func blomixAnimateRelease() {
-        let fromScale = blomixCapsuleScale()
         if usesInkChrome {
-            blomixAddCapsuleScale(
-                from: fromScale,
-                to: 1,
-                duration: BlomixInkChrome.spreadBackDuration,
-                timing: .easeOut
-            )
+            blomixAnimateInkFlood(to: 0)
             return
         }
+        let fromScale = blomixCapsuleScale()
         let d = BlomixUIDestinationButtonStyle.springDamping
         let k = BlomixUIDestinationButtonStyle.springStiffness
         let m = BlomixUIDestinationButtonStyle.springMass

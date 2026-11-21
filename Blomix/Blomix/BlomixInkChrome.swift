@@ -2,7 +2,7 @@
 //  BlomixInkChrome.swift
 //  Blomix
 //
-//  Encre seulement : papier washi des boutons, liseré d’aquarelle, confettis.
+//  Encre seulement : papier washi des boutons, tour d’aquarelle, confettis.
 //  Textures cuites une fois, teintées par le skin. Le Classique n’appelle rien ici.
 //
 
@@ -41,10 +41,12 @@ enum BlomixInkChrome {
     static let airSide: ClosedRange<CGFloat> = 4...7
     static let airTravel: ClosedRange<TimeInterval> = 9...16
 
-    /// Le liseré s’étale, puis revient. Le libellé ne bouge pas.
-    static let spreadScale: CGFloat = 1.14
-    static let spreadOutDuration: TimeInterval = 0.15
-    static let spreadBackDuration: TimeInterval = 0.16
+    /// Tour d’épaisseur constante, en points. Le lavis vit dedans, pas la largeur.
+    nonisolated static let rimWidth: CGFloat = 2.4
+    /// Front de la couleur à l’appui, en points. Identique au retour.
+    nonisolated static let floodFeather: CGFloat = 2.4
+    /// Temps pour couvrir le bouton depuis le doigt, et pour y revenir. Vitesse constante.
+    nonisolated static let floodDuration: TimeInterval = 0.16
 
     static let confettiCount = 4
 
@@ -67,23 +69,35 @@ enum BlomixInkChrome {
         return image
     }
 
-    // MARK: - Liseré
+    // MARK: - Tour et surface
 
-    static func brushRingTexture(size: CGSize, cornerRadius: CGFloat) -> SKTexture {
-        let key = cacheKey("brush", size: size, corner: cornerRadius)
-        if let cached = brushTextures[key] { return cached }
-        let texture = SKTexture(image: brushRingImage(size: size, cornerRadius: cornerRadius))
-        texture.filteringMode = .linear
-        brushTextures[key] = texture
-        return texture
+    static func rimWashTexture(size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        cachedWashTexture(band: true, size: size, cornerRadius: cornerRadius)
     }
 
-    static func brushRingImage(size: CGSize, cornerRadius: CGFloat) -> UIImage {
-        let key = cacheKey("brush", size: size, corner: cornerRadius)
-        if let cached = brushImages[key] { return cached }
-        let image = drawBrushRing(size: quantized(size), cornerRadius: cornerRadius)
-        brushImages[key] = image
-        return image
+    static func rimWashImage(size: CGSize, cornerRadius: CGFloat) -> UIImage {
+        ensureWashPair(size: size, cornerRadius: cornerRadius).rim
+    }
+
+    static func faceWashTexture(size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        cachedWashTexture(band: false, size: size, cornerRadius: cornerRadius)
+    }
+
+    static func faceWashImage(size: CGSize, cornerRadius: CGFloat) -> UIImage {
+        ensureWashPair(size: size, cornerRadius: cornerRadius).face
+    }
+
+    private static func cachedWashTexture(band: Bool, size: CGSize, cornerRadius: CGFloat) -> SKTexture {
+        let prefix = band ? "rim" : "face"
+        let key = cacheKey(prefix, size: size, corner: cornerRadius)
+        if let cached = washTextures[key] { return cached }
+        let image = band
+            ? rimWashImage(size: size, cornerRadius: cornerRadius)
+            : faceWashImage(size: size, cornerRadius: cornerRadius)
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        washTextures[key] = texture
+        return texture
     }
 
     // MARK: - Confettis
@@ -117,8 +131,8 @@ enum BlomixInkChrome {
 
     private static var paperImages: [String: UIImage] = [:]
     private static var paperTextures: [String: SKTexture] = [:]
-    private static var brushImages: [String: UIImage] = [:]
-    private static var brushTextures: [String: SKTexture] = [:]
+    private static var washPairs: [String: (face: UIImage, rim: UIImage)] = [:]
+    private static var washTextures: [String: SKTexture] = [:]
     private static var confettiImages: [Int: UIImage] = [:]
     private static var confettiTextures: [Int: SKTexture] = [:]
 
@@ -198,57 +212,107 @@ enum BlomixInkChrome {
         }
     }
 
-    private static func drawBrushRing(size: CGSize, cornerRadius: CGFloat) -> UIImage {
-        let format = UIGraphicsImageRendererFormat()
-        format.opaque = false
-        format.scale = 2
-        return UIGraphicsImageRenderer(size: size, format: format).image { context in
-            let cg = context.cgContext
-            // Trait fin : le pigment utile tient dans ~1,3…2,7 pt. Le fusé du 7e tampon
-            // reste court, pour que le liseré ne redevienne pas une gouttière.
-            let inset: CGFloat = min(2.4, min(size.width, size.height) * 0.08)
-            let rect = CGRect(
-                x: inset,
-                y: inset,
-                width: max(4, size.width - inset * 2),
-                height: max(4, size.height - inset * 2)
-            )
-            let radius = min(max(2, cornerRadius - inset * 0.25), min(rect.width, rect.height) / 2)
-            let points = sampleRoundedRect(rect, radius: radius, step: 1.8)
-            let mid = CGPoint(x: size.width / 2, y: size.height / 2)
-            for (index, point) in points.enumerated() {
-                let along = hash01(0xB415, index)
-                let radiusStamp = 1.25 + along * 1.45
-                let pull = (hash01(0xB415, index &+ 17) - 0.70) * 1.05
-                let dx = point.x - mid.x
-                let dy = point.y - mid.y
-                let len = max(1, hypot(dx, dy))
-                let center = CGPoint(x: point.x + dx / len * pull, y: point.y + dy / len * pull)
-                let alpha = 0.42 + hash01(0xB415, index &+ 41) * 0.38
-                stampSoftDisc(cg, center: center, radius: radiusStamp, alpha: alpha)
-                if index % 7 == 0 {
-                    stampSoftDisc(cg, center: center, radius: radiusStamp + 1.35, alpha: 0.10)
+    /// Un seul passage : la surface et le tour lisent le même lavis, au même endroit.
+    private static func ensureWashPair(size: CGSize, cornerRadius: CGFloat) -> (face: UIImage, rim: UIImage) {
+        let key = cacheKey("wash", size: size, corner: cornerRadius)
+        if let cached = washPairs[key] { return cached }
+        let pair = drawWashPair(size: quantized(size), cornerRadius: cornerRadius)
+        washPairs[key] = pair
+        return pair
+    }
+
+    /// `sd` négatif à l’intérieur. Le tour est une bande de `rimWidth` le long du bord.
+    private static func drawWashPair(size: CGSize, cornerRadius: CGFloat) -> (face: UIImage, rim: UIImage) {
+        let scale: CGFloat = 2
+        let width = max(1, Int((size.width * scale).rounded()))
+        let height = max(1, Int((size.height * scale).rounded()))
+        let radius = min(cornerRadius, min(size.width, size.height) / 2)
+        let phaseX = size.width * 17
+        let phaseY = size.height * 11
+        var facePx = [UInt8](repeating: 0, count: width * height * 4)
+        var rimPx = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            let py = (CGFloat(y) + 0.5) / scale
+            for x in 0..<width {
+                let px = (CGFloat(x) + 0.5) / scale
+                let sd = roundedRectSDF(CGPoint(x: px, y: py), size: size, radius: radius)
+                let faceCover: CGFloat = sd < 0.7 ? (1 - smoothstep(-0.15, 0.50, sd)) : 0
+                let rimCover: CGFloat
+                if sd < 0.7, sd > -rimWidth - 0.7 {
+                    let outer = 1 - smoothstep(-0.05, 0.40, sd)
+                    let inner = smoothstep(-rimWidth - 0.30, -rimWidth + 0.30, sd)
+                    rimCover = outer * inner
+                } else {
+                    rimCover = 0
+                }
+                if faceCover <= 0.004, rimCover <= 0.004 { continue }
+                let sample = BlomixNewInkRenderer.bloxWashSample(px: px + phaseX, py: py + phaseY)
+                let o = (y * width + x) * 4
+                if faceCover > 0.004 {
+                    writeWash(&facePx, at: o, sample: sample, cover: faceCover)
+                }
+                if rimCover > 0.004 {
+                    writeWash(&rimPx, at: o, sample: sample, cover: rimCover)
                 }
             }
         }
+        return (
+            face: image(from: facePx, width: width, height: height, scale: scale),
+            rim: image(from: rimPx, width: width, height: height, scale: scale)
+        )
     }
 
-    private static func stampSoftDisc(_ ctx: CGContext, center: CGPoint, radius: CGFloat, alpha: CGFloat) {
-        let colors = [
-            UIColor(white: 1, alpha: alpha).cgColor,
-            UIColor(white: 1, alpha: alpha * 0.45).cgColor,
-            UIColor(white: 1, alpha: 0).cgColor,
-        ] as CFArray
-        let locations: [CGFloat] = [0, 0.42, 1]
-        guard let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: locations) else { return }
-        ctx.drawRadialGradient(
-            gradient,
-            startCenter: center,
-            startRadius: 0,
-            endCenter: center,
-            endRadius: radius,
-            options: []
-        )
+    private static func writeWash(
+        _ pixels: inout [UInt8],
+        at offset: Int,
+        sample: (gray: CGFloat, alpha: CGFloat),
+        cover: CGFloat
+    ) {
+        let alpha = min(1, sample.alpha * cover)
+        let channel = UInt8((sample.gray * alpha * 255).rounded())
+        pixels[offset] = channel
+        pixels[offset + 1] = channel
+        pixels[offset + 2] = channel
+        pixels[offset + 3] = UInt8((alpha * 255).rounded())
+    }
+
+    private static func image(from pixels: [UInt8], width: Int, height: Int, scale: CGFloat) -> UIImage {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let data = Data(pixels)
+        guard let provider = CGDataProvider(data: data as CFData),
+              let cg = CGImage(
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bitsPerPixel: 32,
+                bytesPerRow: width * 4,
+                space: colorSpace,
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+                provider: provider,
+                decode: nil,
+                shouldInterpolate: true,
+                intent: .defaultIntent
+              ) else {
+            return UIImage()
+        }
+        return UIImage(cgImage: cg, scale: scale, orientation: .up)
+    }
+
+    /// Distance signée au rectangle arrondi. Négatif à l’intérieur. `point` depuis le haut gauche.
+    private static func roundedRectSDF(_ point: CGPoint, size: CGSize, radius: CGFloat) -> CGFloat {
+        let halfW = size.width / 2
+        let halfH = size.height / 2
+        let r = min(radius, min(halfW, halfH))
+        let qx = abs(point.x - halfW) - halfW + r
+        let qy = abs(point.y - halfH) - halfH + r
+        let outside = hypot(max(qx, 0), max(qy, 0))
+        let inside = min(max(qx, qy), 0)
+        return outside + inside - r
+    }
+
+    private static func smoothstep(_ edge0: CGFloat, _ edge1: CGFloat, _ x: CGFloat) -> CGFloat {
+        let t = min(1, max(0, (x - edge0) / max(edge1 - edge0, 0.0001)))
+        return t * t * (3 - 2 * t)
     }
 
     private static func drawTornSquare(seed: UInt64) -> UIImage {
@@ -305,67 +369,6 @@ enum BlomixInkChrome {
         }
     }
 
-    private static func sampleRoundedRect(_ rect: CGRect, radius: CGFloat, step: CGFloat) -> [CGPoint] {
-        let r = min(radius, min(rect.width, rect.height) / 2)
-        let top = max(0, rect.width - 2 * r)
-        let side = max(0, rect.height - 2 * r)
-        let arc = CGFloat.pi / 2 * r
-        let perimeter = max(step, 2 * top + 2 * side + 4 * arc)
-        let count = max(12, Int((perimeter / step).rounded()))
-        var points: [CGPoint] = []
-        points.reserveCapacity(count)
-        for index in 0..<count {
-            let distance = perimeter * CGFloat(index) / CGFloat(count)
-            points.append(pointOnRoundedRect(rect, radius: r, distance: distance, top: top, side: side, arc: arc))
-        }
-        return points
-    }
-
-    /// +y vers le bas, comme le bitmap. Angle 0 = +x.
-    private static func pointOnRoundedRect(
-        _ rect: CGRect,
-        radius r: CGFloat,
-        distance raw: CGFloat,
-        top: CGFloat,
-        side: CGFloat,
-        arc: CGFloat
-    ) -> CGPoint {
-        var d = raw
-        let minX = rect.minX
-        let minY = rect.minY
-        let maxX = rect.maxX
-        let maxY = rect.maxY
-        if d <= top { return CGPoint(x: minX + r + d, y: minY) }
-        d -= top
-        if d <= arc {
-            let a = -CGFloat.pi / 2 + (d / max(arc, 0.001)) * (CGFloat.pi / 2)
-            let c = CGPoint(x: maxX - r, y: minY + r)
-            return CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
-        }
-        d -= arc
-        if d <= side { return CGPoint(x: maxX, y: minY + r + d) }
-        d -= side
-        if d <= arc {
-            let a = (d / max(arc, 0.001)) * (CGFloat.pi / 2)
-            let c = CGPoint(x: maxX - r, y: maxY - r)
-            return CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
-        }
-        d -= arc
-        if d <= top { return CGPoint(x: maxX - r - d, y: maxY) }
-        d -= top
-        if d <= arc {
-            let a = CGFloat.pi / 2 + (d / max(arc, 0.001)) * (CGFloat.pi / 2)
-            let c = CGPoint(x: minX + r, y: maxY - r)
-            return CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
-        }
-        d -= arc
-        if d <= side { return CGPoint(x: minX, y: maxY - r - d) }
-        d -= side
-        let a = CGFloat.pi + min(1, d / max(arc, 0.001)) * (CGFloat.pi / 2)
-        let c = CGPoint(x: minX + r, y: minY + r)
-        return CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
-    }
-
     private static func channel(_ value: CGFloat) -> UInt8 {
         UInt8((min(1, max(0, value)) * 255).rounded())
     }
@@ -406,5 +409,80 @@ enum BlomixInkChrome {
         h = (h ^ (h >> 27)) &* 0x94D049BB133111EB
         h = h ^ (h >> 31)
         return CGFloat(h & 0xFFFF) / 32767.5 - 1
+    }
+}
+
+/// Masque UIKit de l’appui Encre. `spread` 0…1 anime le rayon. L’origine est
+/// en points, y vers le haut (le `draw` de CALayer). Le lavis n’est pas scalé :
+/// seul le disque grandit, puis se referme sur le point d’appui.
+final class BlomixInkFloodMaskLayer: CALayer {
+    @NSManaged var spread: CGFloat
+
+    var origin: CGPoint = .zero
+    var maxRadius: CGFloat = 1
+    var wash: CGImage?
+
+    override init() {
+        super.init()
+        spread = 0
+        isOpaque = false
+        contentsScale = 2
+        needsDisplayOnBoundsChange = true
+        actions = ["bounds": NSNull(), "position": NSNull(), "contents": NSNull()]
+    }
+
+    override init(layer: Any) {
+        let other = layer as? BlomixInkFloodMaskLayer
+        origin = other?.origin ?? .zero
+        maxRadius = other?.maxRadius ?? 1
+        wash = other?.wash
+        super.init(layer: layer)
+        spread = other?.spread ?? 0
+        if let other {
+            contentsScale = other.contentsScale
+        }
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) not supported") }
+
+    override class func needsDisplay(forKey key: String) -> Bool {
+        key == "spread" || super.needsDisplay(forKey: key)
+    }
+
+    override func action(forKey event: String) -> (any CAAction)? {
+        if event == "spread" { return NSNull() }
+        return super.action(forKey: event)
+    }
+
+    override func draw(in ctx: CGContext) {
+        guard spread > 0.001, let wash, bounds.width > 1, bounds.height > 1 else { return }
+        let radius = max(0.25, maxRadius * spread)
+        let feather = BlomixInkChrome.floodFeather
+        ctx.saveGState()
+        let colors = [
+            UIColor.white.cgColor,
+            UIColor.white.withAlphaComponent(0).cgColor,
+        ] as CFArray
+        if let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: colors,
+            locations: [0, 1]
+        ) {
+            let inner = max(0, radius - feather)
+            ctx.drawRadialGradient(
+                gradient,
+                startCenter: origin,
+                startRadius: inner,
+                endCenter: origin,
+                endRadius: max(radius, inner + 0.25),
+                options: [.drawsBeforeStartLocation]
+            )
+        }
+        ctx.setBlendMode(.destinationIn)
+        ctx.translateBy(x: 0, y: bounds.height)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.interpolationQuality = .medium
+        ctx.draw(wash, in: CGRect(origin: .zero, size: bounds.size))
+        ctx.restoreGState()
     }
 }

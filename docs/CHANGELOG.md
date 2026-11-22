@@ -7,14 +7,14 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.1] — en local (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, pas encore envoyé)
+## [9.1] — en review (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, envoyé le 22/11/2026)
 
 La 9.0 (build 168) est en vente. La Watch reste en 8.0, build 147.
 
 ### Ajouté
 
 - **Encre, pire coup** : depuis le game over, la mini-grille, la ligne entrante et les trois blocs de la file suivent l’Encre (papier, taches, pièces soudées, Brix, disques Magix). Le voile et les textes restent ceux du Clair. Le Classique garde ses aplats.
-- **Nouveautés 9.1** : la popup d’accueil (campagne `9.1`) et les notes App Store (6 langues) disent les pastilles vertes du Duel et le pire coup en Encre.
+- **Nouveautés 9.1** : la popup d’accueil (campagne `9.1`) et les notes App Store (6 langues) disent les pastilles vertes du Duel et le pire coup en Encre. Le 22/11/2026 la review `fd422af4-565d-4dfb-8634-a0b6d1e555f5` est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-22T15:30:18Z). Le build 169 (`feb9f015-a701-4c11-8004-4205f72c2cbd`, Valid) est sélectionné. Publication automatique à l’approbation (`AFTER_APPROVAL`).
 - **Duel, pastilles vertes** : entre la barre d’envoi et TEMPS, quatre puces (même 2×2 que LIGNE, en vert) montrent les lignes envoyées et pas encore posées chez l’autre. Elles s’éteignent à la pose, ou à la fin de la manche. Cinq lignes ou plus en suspens : les quatre premières restent allumées. Le palier de 50, le tirage et les puces rouges ne changent pas. Un client 9.0 ignore le signal de pose : contre lui, les pastilles restent allumées jusqu’à la fin de la manche.
 
 ### Corrigé

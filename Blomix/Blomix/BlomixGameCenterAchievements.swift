@@ -29,6 +29,39 @@ enum BlomixGCAchievementMath {
         return rounded
     }
 
+    /// Le serveur remplace le cache. Une réalisation absente vaut 0.
+    /// L’ancien cache n’est pas lu : un 100 % sandbox ne doit pas masquer une production vide.
+    /// Les identifiants hors table sont ignorés.
+    static func storedAfterServer(
+        knownIDs: [String],
+        serverPercents: [String: Double]
+    ) -> [String: Double] {
+        var stored: [String: Double] = [:]
+        stored.reserveCapacity(knownIDs.count)
+        for id in knownIDs {
+            let raw = serverPercents[id] ?? 0
+            stored[id] = (raw * 100).rounded() / 100
+        }
+        return stored
+    }
+
+    /// Ce qui doit partir : le Salon est strictement au-dessus du cache fraîchement fusionné.
+    static func increases(
+        salon: [(gcID: String, percent: Double)],
+        stored: [String: Double]
+    ) -> [(gcID: String, percent: Double)] {
+        salon.compactMap { item in
+            guard item.percent > 0 else { return nil }
+            let previous = stored[item.gcID] ?? -1
+            guard item.percent > previous else { return nil }
+            return item
+        }
+    }
+
+    static func sendLog(count: Int, completed: Int) -> String {
+        "[GCAch] envoi de \(count) réalisation(s), dont \(completed) complétée(s)"
+    }
+
     /// Si plus de trois réalisations se complètent dans le même lot, une seule bannière :
     /// celle qui vaut le plus de points (à points égaux, la dernière de la table).
     static func soleBannerID(amongCompleted completed: [(gcID: String, points: Int)]) -> String? {
@@ -121,7 +154,22 @@ final class BlomixGameCenterAchievements {
         },
     ]
 
-    private static let cacheKey = "blomix_gc_achievements_v1"
+    /// Debug parle au sandbox, Release à la production. L’ancienne clé sans
+    /// préfixe (`blomix_gc_achievements_v1`) n’est plus lue : elle mélangeait les deux.
+    enum CacheKey {
+        static let legacy = "blomix_gc_achievements_v1"
+        static let sandbox = "sandbox.blomix_gc_achievements_v1"
+        static let release = "release.blomix_gc_achievements_v1"
+        static var current: String {
+            #if DEBUG
+            sandbox
+            #else
+            release
+            #endif
+        }
+    }
+
+    private static var cacheKey: String { CacheKey.current }
     private static let debounceNanos: UInt64 = 1_500_000_000
 
     private struct CacheFile: Codable {
@@ -265,13 +313,14 @@ final class BlomixGameCenterAchievements {
         }
         var cache = loadCache()
         var stored = cache.byPlayer[playerKey] ?? [:]
-        var pending: [(entry: Entry, percent: Double)] = []
-        for entry in Self.entries {
-            let percent = self.percent(for: entry)
-            guard percent > 0 else { continue }
-            let previous = stored[entry.gcID] ?? -1
-            guard percent > previous else { continue }
-            pending.append((entry, percent))
+        let byID = Dictionary(uniqueKeysWithValues: Self.entries.map { ($0.gcID, $0) })
+        let salon = Self.entries.map { (gcID: $0.gcID, percent: self.percent(for: $0)) }
+        let pending: [(entry: Entry, percent: Double)] = BlomixGCAchievementMath.increases(
+            salon: salon,
+            stored: stored
+        ).compactMap { item in
+            guard let entry = byID[item.gcID] else { return nil }
+            return (entry, item.percent)
         }
         guard !pending.isEmpty else {
             if !debouncePending { needsSync = false }
@@ -305,27 +354,27 @@ final class BlomixGameCenterAchievements {
             saveCache(cache)
             if !debouncePending { needsSync = false }
             let done = completed.count
-            print("[GCAch] envoi de \(pending.count) réalisation(s), dont \(done) complétée(s)")
+            print(BlomixGCAchievementMath.sendLog(count: pending.count, completed: done))
         } catch {
             needsSync = true
             print("[GCAch] envoi en échec : \(error.localizedDescription)")
         }
     }
 
-    /// On garde le max entre le cache local et Game Center. Jamais une baisse.
+    /// Game Center remplace le cache de ce joueur. Le cache ne sert ensuite
+    /// qu’à ne pas renvoyer deux fois la même hausse dans la session.
     private func mergeServer(_ remote: [GKAchievement]) {
         guard let playerKey = currentPlayerKey() else { return }
-        var cache = loadCache()
-        var stored = cache.byPlayer[playerKey] ?? [:]
         let known = Set(Self.entries.map(\.gcID))
+        var server: [String: Double] = [:]
         for achievement in remote where known.contains(achievement.identifier) {
-            let current = stored[achievement.identifier] ?? -1
-            let percent = (achievement.percentComplete * 100).rounded() / 100
-            if percent > current {
-                stored[achievement.identifier] = percent
-            }
+            server[achievement.identifier] = achievement.percentComplete
         }
-        cache.byPlayer[playerKey] = stored
+        var cache = loadCache()
+        cache.byPlayer[playerKey] = BlomixGCAchievementMath.storedAfterServer(
+            knownIDs: Self.entries.map(\.gcID),
+            serverPercents: server
+        )
         saveCache(cache)
     }
 

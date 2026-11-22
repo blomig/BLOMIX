@@ -7,6 +7,16 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [9.1] — en local (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, pas envoyé)
+
+La 9.0 (build 168) est en review. La Watch reste en 8.0, build 147.
+
+### Corrigé
+
+- **Réalisations Game Center** : au lancement, le cache du joueur est remplacé par l’état de `loadAchievements()` (une réalisation absente vaut 0). Un cache de test à 100 % ne bloque plus l’envoi vers la production. La clé est `sandbox.blomix_gc_achievements_v1` en Debug et `release.blomix_gc_achievements_v1` en Release. L’ancienne clé sans préfixe n’est plus lue. Le Salon a un bouton « Réalisations » (6 langues), visible seulement si le joueur est connecté, qui ouvre l’écran Game Center. Identifiants, seuils, cachées à 100 %, bannière unique, debounce et absence de reset en Release ne changent pas.
+
+---
+
 ## [9.0] — en review (branche `9.0`, iPhone `MARKETING_VERSION` 9.0, build 168, envoyé le 21/11/2026)
 
 Prototype de look. La fiche 9.0 est chez Apple, publication automatique à l’approbation. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One, Pangolin à la place de Nunito.

@@ -492,6 +492,7 @@
 /* Salon des trophées */
 "home.icon.salon" = "Salón";
 "trophy.salon.title" = "Salón de trofeos";
+"trophy.salon.achievements" = "Logros";
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Último ascenso: %@ · %@";
 "trophy.toast_format" = "%@ · %@";

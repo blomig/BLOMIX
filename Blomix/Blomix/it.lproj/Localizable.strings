@@ -492,6 +492,7 @@
 /* Salon des trophées */
 "home.icon.salon" = "Salone";
 "trophy.salon.title" = "Salone dei trofei";
+"trophy.salon.achievements" = "Obiettivi";
 "trophy.salon.banner_format" = "%lld / %lld  ·  I %lld · II %lld · III %lld";
 "trophy.salon.last_format" = "Ultimo grado: %@ · %@";
 "trophy.toast_format" = "%@ · %@";

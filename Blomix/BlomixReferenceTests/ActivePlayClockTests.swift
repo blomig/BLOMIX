@@ -328,4 +328,75 @@ final class GameCenterAchievementMathTests: XCTestCase {
         let hidden = Set(BlomixGameCenterAchievements.entries.filter(\.hidden).map(\.gcID))
         XCTAssertEqual(hidden, ["blomix.ach.pacifist", "blomix.ach.saintx_ultime"])
     }
+
+    /// Cache sandbox à 100, réalisations serveur vides : le Salon repart vers Game Center.
+    @MainActor
+    func testStaleSandboxCacheSendsSalonWhenServerIsEmpty() {
+        let ids = BlomixGameCenterAchievements.entries.map(\.gcID)
+        let polluted = Dictionary(uniqueKeysWithValues: ids.map { ($0, 100.0) })
+        XCTAssertEqual(polluted["blomix.ach.first_chain"], 100)
+
+        let stored = BlomixGCAchievementMath.storedAfterServer(knownIDs: ids, serverPercents: [:])
+        XCTAssertEqual(stored.count, ids.count)
+        XCTAssertTrue(stored.values.allSatisfy { $0 == 0 })
+        XCTAssertNil(stored["not.ours"])
+
+        let salon: [(gcID: String, percent: Double)] = ids.map { id in
+            let percent = id == "blomix.ach.first_chain"
+                ? BlomixGCAchievementMath.percent(value: 1, target: 1, mode: .binary, hidden: false)
+                : 0
+            return (gcID: id, percent: percent)
+        }
+        let pending = BlomixGCAchievementMath.increases(salon: salon, stored: stored)
+        XCTAssertEqual(pending.map(\.gcID), ["blomix.ach.first_chain"])
+        XCTAssertEqual(pending.first?.percent, 100)
+
+        let completed = pending.filter { $0.percent >= 100 }.count
+        let line = BlomixGCAchievementMath.sendLog(count: pending.count, completed: completed)
+        print(line)
+        XCTAssertEqual(line, "[GCAch] envoi de 1 réalisation(s), dont 1 complétée(s)")
+    }
+
+    func testServerValueBlocksOnlyWhatProductionAlreadyHas() {
+        let ids = ["blomix.ach.first_chain", "blomix.ach.first_bomb"]
+        let stored = BlomixGCAchievementMath.storedAfterServer(
+            knownIDs: ids,
+            serverPercents: ["blomix.ach.first_bomb": 100, "not.ours": 100]
+        )
+        XCTAssertEqual(stored["blomix.ach.first_bomb"], 100)
+        XCTAssertEqual(stored["blomix.ach.first_chain"], 0)
+        XCTAssertNil(stored["not.ours"])
+
+        let pending = BlomixGCAchievementMath.increases(
+            salon: [
+                (gcID: "blomix.ach.first_chain", percent: 100),
+                (gcID: "blomix.ach.first_bomb", percent: 100),
+            ],
+            stored: stored
+        )
+        XCTAssertEqual(pending.map(\.gcID), ["blomix.ach.first_chain"])
+    }
+
+    @MainActor
+    func testCacheKeyIsSplitFromTheLegacySandboxMix() {
+        XCTAssertNotEqual(
+            BlomixGameCenterAchievements.CacheKey.sandbox,
+            BlomixGameCenterAchievements.CacheKey.release
+        )
+        XCTAssertNotEqual(
+            BlomixGameCenterAchievements.CacheKey.current,
+            BlomixGameCenterAchievements.CacheKey.legacy
+        )
+        #if DEBUG
+        XCTAssertEqual(
+            BlomixGameCenterAchievements.CacheKey.current,
+            BlomixGameCenterAchievements.CacheKey.sandbox
+        )
+        #else
+        XCTAssertEqual(
+            BlomixGameCenterAchievements.CacheKey.current,
+            BlomixGameCenterAchievements.CacheKey.release
+        )
+        #endif
+    }
 }

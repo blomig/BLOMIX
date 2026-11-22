@@ -95,4 +95,12 @@ final class GameCenterManager {
         gcVC.gameCenterDelegate = dashboardDelegate
         viewController.present(gcVC, animated: true)
     }
+
+    /// Écran Game Center des réalisations. Rien si le joueur n’est pas connecté.
+    func showAchievements(from viewController: UIViewController) {
+        guard GKLocalPlayer.local.isAuthenticated else { return }
+        let gcVC = GKGameCenterViewController(state: .achievements)
+        gcVC.gameCenterDelegate = dashboardDelegate
+        viewController.present(gcVC, animated: true)
+    }
 }

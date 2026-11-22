@@ -5,12 +5,16 @@
 //  Salon des trophées — modal famille Crédits : murs, grille de cibles, fiche.
 //
 
+import GameKit
 import UIKit
 
 @MainActor
 final class BlomixTrophySalonViewController: UIViewController {
 
     private let closeButton = BlomixUIButton()
+    private let achievementsButton = BlomixUIButton()
+    private let achievementsRow = UIStackView()
+    private var achievementsWired = false
     private let titleView = BlomixCutoutTitleView(text: BlomixL10n.trophySalonTitle, fontSize: 26, pad: 6)
     private let scrollView = UIScrollView()
     private let contentStack = UIStackView()
@@ -40,6 +44,12 @@ final class BlomixTrophySalonViewController: UIViewController {
             self,
             selector: #selector(trophiesDidChange),
             name: .blomixTrophiesDidChange,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(gameCenterAuthDidChange),
+            name: .blomixGameCenterAuthDidChange,
             object: nil
         )
     }
@@ -116,6 +126,10 @@ final class BlomixTrophySalonViewController: UIViewController {
         lastLabel.numberOfLines = 1
         refreshLast()
         contentStack.addArrangedSubview(lastLabel)
+
+        installAchievementsButtonIfNeeded()
+        contentStack.addArrangedSubview(achievementsRow)
+        refreshAchievementsButton()
 
         for wall in BlomixTrophyWall.allCases {
             contentStack.addArrangedSubview(makeWallBlock(wall))
@@ -318,6 +332,39 @@ final class BlomixTrophySalonViewController: UIViewController {
         if let ficheID {
             openFiche(id: ficheID, scroll: false)
         }
+    }
+
+    private func installAchievementsButtonIfNeeded() {
+        guard !achievementsWired else { return }
+        achievementsWired = true
+        achievementsButton.setTitle(BlomixL10n.trophySalonAchievements, for: .normal)
+        BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: achievementsButton)
+        BlomixUIDestinationButtonStyle.applyContentInsets(
+            UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12),
+            to: achievementsButton
+        )
+        achievementsButton.addTarget(self, action: #selector(achievementsTapped), for: .touchUpInside)
+
+        achievementsRow.axis = .horizontal
+        achievementsRow.alignment = .center
+        let leading = UIView()
+        let trailing = UIView()
+        achievementsRow.addArrangedSubview(leading)
+        achievementsRow.addArrangedSubview(achievementsButton)
+        achievementsRow.addArrangedSubview(trailing)
+        leading.widthAnchor.constraint(equalTo: trailing.widthAnchor).isActive = true
+    }
+
+    private func refreshAchievementsButton() {
+        achievementsRow.isHidden = !GKLocalPlayer.local.isAuthenticated
+    }
+
+    @objc private func gameCenterAuthDidChange() {
+        refreshAchievementsButton()
+    }
+
+    @objc private func achievementsTapped() {
+        GameCenterManager.shared.showAchievements(from: self)
     }
 
     @objc private func closeTapped() {

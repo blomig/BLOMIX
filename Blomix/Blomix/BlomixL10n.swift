@@ -845,6 +845,7 @@ enum BlomixL10n {
     // MARK: - Salon des trophées
 
     static var trophySalonTitle: String { tr("trophy.salon.title", comment: "Trophy lounge screen title") }
+    static var trophySalonAchievements: String { tr("trophy.salon.achievements", comment: "Opens the Game Center achievements screen") }
     static func trophySalonBanner(lit: Int, total: Int, i: Int, ii: Int, iii: Int) -> String {
         String(
             format: tr("trophy.salon.banner_format", comment: "Lit count and ranks I/II/III"),

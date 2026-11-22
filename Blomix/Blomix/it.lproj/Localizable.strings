@@ -355,6 +355,8 @@
 "whatsnew.magix_card" = "La prima volta che arriva un Magix, una bolla dice cosa fa";
 "whatsnew.first_game" = "Dopo il tutorial, la tua prima partita è senza timer";
 "whatsnew.achievements" = "Obiettivi Game Center: quello che hai già fatto nel Salone conta anche lì";
+"whatsnew.duel_pips" = "Duello: quattro pallini verdi, tra la barra di invio e il tempo, mostrano le linee che hai mandato. Si spengono quando l’altro le riceve";
+"whatsnew.ink_worst_move" = "Inchiostro: la schermata della mossa peggiore segue la carta e le macchie";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */

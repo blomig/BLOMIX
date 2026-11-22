@@ -345,7 +345,7 @@ Orthogonal aux skins de couleurs des blox. Persistance `UserDefaults` (`BlomixAp
 | Transitions (contour) | Blanc | Gris foncé |
 | Game over / pire coup | Voile noir + textes clairs | Voile `#F5EEDF` @ 0,94 + textes foncés |
 
-- Apparence dans **Réglages** : trois boutons Sombre, Clair, Encre. Pas de soleil / lune à l’accueil. Pas de suivi du mode système iOS. Une partie Encre déjà lancée reste claire jusqu’au retour accueil, même si Sombre est choisi entre-temps.
+- Apparence dans **Réglages** : trois boutons Sombre, Clair, Encre. Pas de soleil / lune à l’accueil. Pas de suivi du mode système iOS. Une partie Encre déjà lancée reste claire jusqu’au retour accueil, même si Sombre est choisi entre-temps. Le pire coup en Encre reprend le papier et les taches ; le voile reste celui du Clair.
 - Splash studio : toujours noir ; thème appliqué après
 - Boutons : puits (dégradé skin) + capsule chrome (`BlomixSKButtonNode`, `BlomixUIButton`) — voir [SPEC_6.7.md](SPEC_6.7.md)
 - Transitions stage / Zen / PvP / tutoriel : fill **orange skin** inchangé ; **contour seul** via `transitionOutlineColor` (pas de halo)

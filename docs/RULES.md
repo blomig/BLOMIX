@@ -174,7 +174,7 @@ Un **coup** = une pose de bloc (Blox, Brix ou Magix) dont la résolution est ter
 - Chaque case est tirée indépendamment comme un bloc de file, **puis** tout Magix est remplacé par une couleur. En tutoriel, les Brix des lignes sont aussi remplacés par des couleurs.
 - Si une colonne est déjà pleine au moment de l'injection → **Game Over**.
 
-En **Duel**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score. Une **barre continue 0…50** à droite du gros score (gouttière colorée dans un puits fixe ; le chiffre HUD est le reste `score % 50`) montre l’approche du prochain palier ; c’est un indicateur HUD, l’envoi reste inchangé.
+En **Duel**, des lignes d'**attaque** supplémentaires peuvent arriver quand un joueur franchit un palier de **50 points** de score. Une **barre continue 0…50** à droite du gros score (gouttière colorée dans un puits fixe ; le chiffre HUD est le reste `score % 50`) montre l’approche du prochain palier ; c’est un indicateur HUD, l’envoi reste inchangé. Entre cette barre et TEMPS, quatre pastilles (le même 2×2 que les puces rouges de LIGNE, en vert) montrent les lignes déjà envoyées et pas encore posées sur la grille adverse. Une pastille s’allume à l’envoi et s’éteint quand l’autre joueur la pose. Au plus quatre sont visibles. Le palier, le tirage et la file ne changent pas.
 
 Invariant Duel : si au **lancement** d’un blox/Brix aucune ligne n’est affichée en bas, ce coup n’injecte pas de ligne (ni pendant le vol, ni à l’atterrissage). La ligne s’affiche **tremblotante** pour le coup suivant. Si le bandeau était déjà là (9/10 ou attaque vue), la ligne part après ce coup.
 
@@ -285,7 +285,7 @@ Détail appariement / défis : [PVP_MATCHING.md](PVP_MATCHING.md). Bots : [BOT_D
 
 ## 10. Analyse des coups
 
-En fin de partie Arcade / Zen / Five, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie. Absent en Défi.
+En fin de partie Arcade / Zen / Five, un récapitulatif indique la **justesse** des placements et permet de revoir le **pire coup**. Il n’y a plus de bouton hint en cours de partie. Absent en Défi. En **Encre**, cette revue (mini-grille, ligne entrante, trois blocs de la file) reprend le papier et les taches de la partie. Le voile et les textes restent ceux du Clair. En Classique, les aplats de cette revue ne changent pas.
 
 Le pourcentage **ne compte pas** les Magix ni les bombes : seuls les placements de Blox / Brix sont évalués, sur un horizon de 3 blocs visibles (P0, P1, P2). Sous le chiffre, la phrase affichée est « Les Magix ne sont pas notés » (les bombes sont aussi hors calcul, la phrase ne les cite pas).
 

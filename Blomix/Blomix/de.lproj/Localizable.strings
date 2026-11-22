@@ -368,6 +368,8 @@
 "whatsnew.magix_card" = "Wenn ein Magix zum ersten Mal ankommt, sagt eine Blase, was er tut";
 "whatsnew.first_game" = "Nach dem Tutorial läuft deine erste Partie ohne Uhr";
 "whatsnew.achievements" = "Game-Center-Erfolge: was du im Trophäen-Salon schon geschafft hast, zählt auch dort";
+"whatsnew.duel_pips" = "Duell: vier grüne Punkte, zwischen der Sendeleiste und der Zeit, zeigen die Linien, die du geschickt hast. Sie erlöschen, wenn der andere sie bekommt";
+"whatsnew.ink_worst_move" = "Tinte: der Bildschirm des schlechtesten Zugs folgt dem Papier und den Farbflecken";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */

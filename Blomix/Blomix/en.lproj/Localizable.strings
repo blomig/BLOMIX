@@ -368,6 +368,8 @@
 "whatsnew.magix_card" = "The first time a Magix arrives, a bubble tells you what it does";
 "whatsnew.first_game" = "After the tutorial, your first game has no timer";
 "whatsnew.achievements" = "Game Center achievements: what you already did in the Trophy Lounge counts there too";
+"whatsnew.duel_pips" = "Duel: four green dots, between the send bar and the timer, show the lines you sent. They go out when the other player takes them";
+"whatsnew.ink_worst_move" = "Ink: the worst-move screen follows the paper and the washes";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */

@@ -1,5 +1,2 @@
-• Tinte: ein neuer Look, Aquarell auf Papier, neben Dunkel und Hell.
-• Start: drei Türen, Spielen, Challenges und Duell. Den Modus wählst du direkt darunter.
-• Wenn ein Magix zum ersten Mal ankommt, sagt eine Blase, was er tut.
-• Nach dem Tutorial läuft deine erste Partie ohne Uhr.
-• Game-Center-Erfolge: was du im Trophäen-Salon schon geschafft hast, zählt auch dort.
+• Duell: vier grüne Punkte, zwischen der Sendeleiste und der Zeit, zeigen die Linien, die du geschickt hast. Sie erlöschen, wenn der andere sie bekommt.
+• Tinte: der Bildschirm des schlechtesten Zugs folgt dem Papier und den Farbflecken.

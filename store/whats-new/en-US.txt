@@ -1,5 +1,2 @@
-• Ink: a new look, watercolor on paper, beside Dark and Light.
-• Home: three doors, Play, Challenges, and Duel. Pick the mode just underneath.
-• The first time a Magix arrives, a bubble tells you what it does.
-• After the tutorial, your first game has no timer.
-• Game Center achievements: what you already did in the Trophy Lounge counts there too.
+• Duel: four green dots, between the send bar and the timer, show the lines you sent. They go out when the other player takes them.
+• Ink: the worst-move screen follows the paper and the washes.

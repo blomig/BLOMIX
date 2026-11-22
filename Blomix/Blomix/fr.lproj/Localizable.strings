@@ -368,6 +368,8 @@
 "whatsnew.magix_card" = "La première fois qu’un Magix arrive, une bulle dit ce qu’il fait";
 "whatsnew.first_game" = "Après le tutoriel, ta première partie se joue sans chrono";
 "whatsnew.achievements" = "Réalisations Game Center : ce que tu as déjà fait dans le Salon compte aussi";
+"whatsnew.duel_pips" = "Duel : quatre pastilles vertes, entre la barre d’envoi et le temps, montrent les lignes que tu as envoyées. Elles s’éteignent quand l’autre les reçoit";
+"whatsnew.ink_worst_move" = "Encre : l’écran du pire coup suit le papier et les taches";
 "whatsnew.dont_show" = "Ne plus montrer";
 
 /* Apparence */

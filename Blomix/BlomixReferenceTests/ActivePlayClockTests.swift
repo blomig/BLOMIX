@@ -400,3 +400,70 @@ final class GameCenterAchievementMathTests: XCTestCase {
         #endif
     }
 }
+
+/// Pastilles vertes du Duel : lignes envoyées, encore en suspens chez l’autre.
+final class SentAttackLedgerTests: XCTestCase {
+
+    func testSentLineStaysPendingUntilItLands() {
+        var ledger = BlomixPvPSentAttackLedger()
+        ledger.noteSent(attackId: 1)
+        XCTAssertEqual(ledger.pendingCount, 1)
+        XCTAssertEqual(ledger.displayedCount, 1)
+        ledger.noteSent(attackId: 1)
+        XCTAssertEqual(ledger.pendingCount, 1, "un second envoi du même id ne double pas la pastille")
+        ledger.noteTaken(through: 1)
+        XCTAssertEqual(ledger.pendingCount, 0)
+        XCTAssertEqual(ledger.displayedCount, 0)
+    }
+
+    func testSeveralSendsStayLitUntilEachOneLands() {
+        var ledger = BlomixPvPSentAttackLedger()
+        ledger.noteSent(attackId: 1)
+        ledger.noteSent(attackId: 2)
+        ledger.noteSent(attackId: 3)
+        XCTAssertEqual(ledger.displayedCount, 3)
+        XCTAssertEqual(ledger.pendingIds, [1, 2, 3])
+        ledger.noteTaken(through: 1)
+        XCTAssertEqual(ledger.pendingIds, [2, 3])
+        ledger.noteTakenCount(1)
+        XCTAssertEqual(ledger.pendingIds, [3])
+    }
+
+    func testDisplayCapsAtFourWhileTheRestStaysQueued() {
+        var ledger = BlomixPvPSentAttackLedger()
+        for id in 1...5 {
+            ledger.noteSent(attackId: id)
+        }
+        XCTAssertEqual(ledger.pendingCount, 5)
+        XCTAssertEqual(ledger.displayedCount, 4)
+        ledger.noteTaken(through: 1)
+        XCTAssertEqual(ledger.pendingCount, 4)
+        XCTAssertEqual(ledger.displayedCount, 4)
+        ledger.noteTaken(through: 2)
+        XCTAssertEqual(ledger.displayedCount, 3)
+    }
+
+    func testWatermarkClearsOlderIdsAndIgnoresARepeat() {
+        var ledger = BlomixPvPSentAttackLedger()
+        ledger.noteSent(attackId: 1)
+        ledger.noteSent(attackId: 2)
+        ledger.noteSent(attackId: 4)
+        ledger.noteTaken(through: 2)
+        XCTAssertEqual(ledger.pendingIds, [4])
+        ledger.noteTaken(through: 2)
+        XCTAssertEqual(ledger.pendingIds, [4])
+        ledger.noteSent(attackId: 2)
+        XCTAssertEqual(ledger.pendingIds, [4], "un id déjà posé ne se rallume pas")
+    }
+
+    func testResetLetsTheNextMatchStartEmpty() {
+        var ledger = BlomixPvPSentAttackLedger()
+        ledger.noteSent(attackId: 3)
+        ledger.noteTaken(through: 3)
+        ledger.reset()
+        XCTAssertEqual(ledger.pendingCount, 0)
+        XCTAssertEqual(ledger.takenThrough, 0)
+        ledger.noteSent(attackId: 1)
+        XCTAssertEqual(ledger.pendingIds, [1])
+    }
+}

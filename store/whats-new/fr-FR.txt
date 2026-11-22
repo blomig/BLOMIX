@@ -1,5 +1,2 @@
-• Encre : un nouveau look, aquarelle sur papier, à côté de Sombre et Clair.
-• Accueil : trois portes, Jouer, Défis et Duel. Tu choisis le mode juste en dessous.
-• La première fois qu’un Magix arrive, une bulle dit ce qu’il fait.
-• Après le tutoriel, ta première partie se joue sans chrono.
-• Réalisations Game Center : ce que tu as déjà fait dans le Salon compte aussi.
+• Duel : quatre pastilles vertes, entre la barre d’envoi et le temps, montrent les lignes que tu as envoyées. Elles s’éteignent quand l’autre les reçoit.
+• Encre : l’écran du pire coup suit le papier et les taches.

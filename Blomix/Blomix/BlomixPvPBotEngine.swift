@@ -187,7 +187,9 @@ final class BlomixPvPBotMatchController: @unchecked Sendable {
             drainPendingAttacks(into: &engine)
             // Re-plan après d’éventuelles attaques reçues pendant la pensée (colonne fraîche, 0 wait).
             let planned = engine.planMove()
+            let queuedBeforeApply = engine.incomingAttackCount
             let applied = engine.applyPlanned(planned)
+            let consumedPlayerAttacks = max(0, queuedBeforeApply - engine.incomingAttackCount)
             let fill = engine.fillDepth
             let score = engine.score
             let attack = applied.outgoingAttack
@@ -197,6 +199,9 @@ final class BlomixPvPBotMatchController: @unchecked Sendable {
                 guard let self, generation == self.currentGeneration() else { return }
                 Task { @MainActor in
                     self.coordinator?.handleBotFillDepth(fill, score: score)
+                    if consumedPlayerAttacks > 0 {
+                        self.coordinator?.handleBotConsumedPlayerAttacks(consumedPlayerAttacks)
+                    }
                     if let attack {
                         self.coordinator?.handleBotAttack(attack)
                     }
@@ -319,6 +324,9 @@ struct BlomixPvPBotEngine: Sendable {
     var fillDepth: Int {
         max(0, min(8, maxHeight()))
     }
+
+    /// Lignes du joueur encore en file (pas encore posées). Lecture seule pour le HUD.
+    var incomingAttackCount: Int { incomingAttacks.count }
 
     mutating func receiveAttack(_ line: [BlockType]) {
         rng.discardNextRandomLineDrawsMatchingOpponentGeneration()

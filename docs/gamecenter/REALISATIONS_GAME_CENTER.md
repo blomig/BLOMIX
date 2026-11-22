@@ -2,7 +2,7 @@
 
 > Statut : **validé par Lomig et créé dans App Store Connect le 20/11/2026** : 20 réalisations, 120 localisations (6 langues), vérifiées par GET.
 > Images 1024×1024 ajoutées le 20/11/2026 pour les 120 localisations (section 0 bis).
-> Le 21/11/2026, la review iOS `bce8572c-c5f7-4587-a7a8-eeeb56a25afa` est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-21T08:22:39Z). Elle contient la version **9.0** (build **168**, `be9af29d-a7eb-462b-afe7-0507371b07f1`) et les 20 versions de réalisations. Publication automatique à l’approbation (`releaseType` `AFTER_APPROVAL`). Les réalisations deviennent visibles des joueurs quand Apple approuve cette review, en même temps que la 9.0. La 8.9 reste en vente jusque-là.
+> Le 21/11/2026, la review iOS `bce8572c-c5f7-4587-a7a8-eeeb56a25afa` est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-21T08:22:39Z). Elle contient la version **9.0** (build **168**, `be9af29d-a7eb-462b-afe7-0507371b07f1`) et les 20 versions de réalisations. Publication automatique à l’approbation (`releaseType` `AFTER_APPROVAL`). Le 22/11/2026 cette review est `COMPLETE` et la version 9.0 est en vente (`READY_FOR_SALE`). Les réalisations sont parties avec elle.
 > Source analysée : 8.9 publique (`blomig/BLOMIX`, commit c990254), `BlomixTrophyStore.swift`, `GameScene.swift`, `docs/TROPHIES.md`, `docs/RULES.md`, `docs/MAGIX.md`.
 > Rédigé le 20/11/2026.
 
@@ -496,7 +496,7 @@ Champs communs à toutes : **réalisable plusieurs fois : non**. Le compteur est
 
 **Rattachement du 20/11/2026, envoyé le 21/11/2026** : chaque réalisation avait déjà sa version 1. Ces 20 versions et la version App Store 9.0 sont dans le même envoi (`bce8572c-c5f7-4587-a7a8-eeeb56a25afa`, plateforme iOS). Le 21/11/2026 à 08:22 UTC il est passé en Waiting for Review (`submittedDate` 2026-11-21T08:22:39Z), toujours avec 21 éléments. Le build 168 (`be9af29d-a7eb-462b-afe7-0507371b07f1`, Valid) est celui de la 9.0. `releaseType` est `AFTER_APPROVAL` : à l’approbation, la 9.0 et ces réalisations partent en vente ensemble. La 8.9 reste Ready for Sale jusque-là. Game Center était déjà activé sur la 9.0, et cette version Game Center reste compatible avec celle de la 8.9 (`b00e61d4-471f-4da8-98a5-37f953a5c041`). L’envoi n’a pas utilisé `fastlane submit` (cette lane refuse un brouillon déjà rempli). C’est un `PATCH` `submitted: true` sur le brouillon existant. Les essais sandbox ne sont pas faits.
 
-Contrôle fait juste après l’envoi : 21 éléments (1 version d’app, la 9.0, et 20 versions de réalisations), build 168, `submittedDate` rempli, état Waiting for Review. À l’approbation, la 9.0 et ces réalisations partent en même temps.
+Contrôle fait juste après l’envoi : 21 éléments (1 version d’app, la 9.0, et 20 versions de réalisations), build 168, `submittedDate` rempli, état Waiting for Review. Le 22/11/2026 la review est `COMPLETE` et la version 9.0 est `READY_FOR_SALE` : les réalisations sont en ligne avec elle.
 
 Premier constat, avec l'ancienne clé Sales and Reports (lecture seule) :
 - `GET /v1/apps/6762053543` : OK (app « BLOMIX - Block Puzzle », bundle `blomig.BLOMIX`).

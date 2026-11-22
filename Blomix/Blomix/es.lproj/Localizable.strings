@@ -355,6 +355,8 @@
 "whatsnew.magix_card" = "La primera vez que llega un Magix, una burbuja dice lo que hace";
 "whatsnew.first_game" = "Después del tutorial, tu primera partida va sin crono";
 "whatsnew.achievements" = "Logros de Game Center: lo que ya hiciste en el Salón también cuenta allí";
+"whatsnew.duel_pips" = "Duelo: cuatro puntos verdes, entre la barra de envío y el tiempo, muestran las líneas que enviaste. Se apagan cuando el otro las recibe";
+"whatsnew.ink_worst_move" = "Tinta: la pantalla de la peor jugada sigue el papel y las manchas";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */

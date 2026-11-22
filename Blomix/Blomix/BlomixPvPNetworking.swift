@@ -119,6 +119,9 @@ private enum BlomixPvPMessageKind: String, Codable {
     case keepAlive
     /// Snapshot H2H léger (2 ints) — bootstrap si historique vide ; clients anciens ignorent (decode fail soft).
     case h2hSnapshot
+    /// Attaques reçues déjà posées sur notre grille, jusqu’à `attackId` (pastilles vertes de l’émetteur).
+    /// Best-effort. Un client ancien ignore le paquet (decode fail soft).
+    case attackTaken
 }
 
 private struct BlomixPvPWireEnvelope: Codable {
@@ -141,6 +144,8 @@ private struct BlomixPvPWireEnvelope: Codable {
     var h2hMyWins: Int? = nil
     /// H2H : victoires de l’adversaire (POV émetteur).
     var h2hTheirWins: Int? = nil
+    /// Manche des pastilles vertes. Une revanche ignore un `attackId` de la manche d’avant.
+    var attackEpoch: Int? = nil
 }
 
 // MARK: - Blocs ↔ fil
@@ -215,6 +220,46 @@ struct BlomixPvPSeededBlockRNG {
     }
 }
 
+// MARK: - Pastilles vertes (lignes envoyées, pas encore posées chez l’autre)
+
+/// File HUD des attaques que NOUS avons générées. L’ack filaire ne retire rien :
+/// seule une pose chez l’adversaire (`noteTaken`) éteint une pastille.
+struct BlomixPvPSentAttackLedger: Equatable {
+    static let displayCap = 4
+
+    private(set) var pendingIds: [Int] = []
+    /// Plus haut `attackId` déjà posé chez l’adversaire. Les ids inférieurs ou égaux sont partis.
+    private(set) var takenThrough: Int = 0
+
+    var pendingCount: Int { pendingIds.count }
+    var displayedCount: Int { min(Self.displayCap, pendingIds.count) }
+
+    mutating func reset() {
+        pendingIds.removeAll()
+        takenThrough = 0
+    }
+
+    mutating func noteSent(attackId: Int) {
+        guard attackId > takenThrough else { return }
+        guard !pendingIds.contains(attackId) else { return }
+        pendingIds.append(attackId)
+    }
+
+    /// Pose FIFO : cet id, et tout envoi plus ancien encore affiché, s’éteint.
+    mutating func noteTaken(through attackId: Int) {
+        guard attackId > takenThrough else { return }
+        takenThrough = attackId
+        pendingIds.removeAll { $0 <= attackId }
+    }
+
+    /// Bot : les `count` prochaines lignes envoyées viennent d’être posées, dans l’ordre d’envoi.
+    mutating func noteTakenCount(_ count: Int) {
+        guard count > 0, !pendingIds.isEmpty else { return }
+        let drop = min(count, pendingIds.count)
+        noteTaken(through: pendingIds[drop - 1])
+    }
+}
+
 // MARK: - Coordinateur
 
 @MainActor
@@ -225,6 +270,8 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     private struct QueuedAttackLine {
         let id: Int
+        /// Id monoto de l’émetteur. 0 : attaque du bot (pas de retour filaire).
+        let wireAttackId: Int
         let line: [BlockType]
     }
 
@@ -267,6 +314,12 @@ final class BlomixPvPMatchCoordinator: NSObject {
     private var lastReceivedAttackId: Int = 0
     /// Prochain attackId sortant.
     private var nextOutboundAttackId: Int = 1
+    /// Plus haut attackId reçu que NOUS avons posé. Renvoyé à l’émetteur (pastilles vertes).
+    private var lastInjectedIncomingAttackId: Int = 0
+    /// Lignes que NOUS avons envoyées et que l’autre n’a pas encore posées.
+    private var sentAttackLedger = BlomixPvPSentAttackLedger()
+    /// Incrémenté à chaque manche. Les messages de pose portent cette valeur.
+    private var sentAttackEpoch: Int = 1
     private var lastSentScoreAttackBracket: Int = 0
     private var lastSentBoardFillDepth: Int?
     private var lastSentScore: Int?
@@ -444,7 +497,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     func handleBotAttack(_ line: [BlockType]) {
         guard isBotMatch, didFinishHandshake else { return }
-        incomingAttackLines.append(QueuedAttackLine(id: nextIncomingAttackLineID, line: line))
+        incomingAttackLines.append(QueuedAttackLine(id: nextIncomingAttackLineID, wireAttackId: 0, line: line))
         nextIncomingAttackLineID += 1
         lastReceivedAttackId += 1
         if var g = rng {
@@ -466,8 +519,23 @@ final class BlomixPvPMatchCoordinator: NSObject {
         didReceiveRemoteLoss = true
         stopTurnTimer()
         botController?.stop()
+        clearSentAttackPips()
         BlomixPvPLog.event("bot_lost")
         scene?.blomixPvP_presentRemoteVictory()
+    }
+
+    /// Le bot vient de poser `count` de nos lignes (une par idle, dans l’ordre d’envoi).
+    func handleBotConsumedPlayerAttacks(_ count: Int) {
+        guard isBotMatch, count > 0 else { return }
+        let before = sentAttackLedger.displayedCount
+        sentAttackLedger.noteTakenCount(count)
+        if sentAttackLedger.displayedCount != before {
+            scene?.blomixPvP_refreshSentAttackPips()
+        }
+        BlomixPvPLog.event("bot_consumed_player_attack", [
+            "count": "\(count)",
+            "pending": "\(sentAttackLedger.pendingCount)"
+        ])
     }
 
     private func handleLocalGameData(_ data: Data) {
@@ -610,6 +678,9 @@ final class BlomixPvPMatchCoordinator: NSObject {
     }
 
     func tearDown() {
+        sentAttackLedger.reset()
+        lastInjectedIncomingAttackId = 0
+        sentAttackEpoch += 1
         botController?.stop()
         botController = nil
         stopTurnTimer()
@@ -663,9 +734,10 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     var hasSharedRNG: Bool { rng != nil }
 
-    func consumeNextIncomingAttackLineIfAny() -> [BlockType]? {
+    func consumeNextIncomingAttackLineIfAny() -> (wireAttackId: Int, line: [BlockType])? {
         guard !incomingAttackLines.isEmpty else { return nil }
-        return incomingAttackLines.removeFirst().line
+        let queued = incomingAttackLines.removeFirst()
+        return (queued.wireAttackId, queued.line)
     }
 
     func peekNextIncomingAttackLinePreview() -> (id: Int, line: [BlockType])? {
@@ -675,6 +747,9 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     /// Nombre d’attaques encore en file (puces LIGNE). Ne consomme rien.
     var incomingAttackLineCount: Int { incomingAttackLines.count }
+
+    /// Pastilles vertes allumées (0…4). Au-delà de 4 envois en suspens, le surplus reste invisible.
+    var pendingSentAttackDisplayCount: Int { sentAttackLedger.displayedCount }
 
     @discardableResult
     func localScoreDidUpdate(_ score: Int) -> Bool {
@@ -687,6 +762,11 @@ final class BlomixPvPMatchCoordinator: NSObject {
         rng = g
         let attackId = nextOutboundAttackId
         nextOutboundAttackId += 1
+        let shownBefore = sentAttackLedger.displayedCount
+        sentAttackLedger.noteSent(attackId: attackId)
+        if sentAttackLedger.displayedCount != shownBefore {
+            scene?.blomixPvP_refreshSentAttackPips()
+        }
         if isBotMatch {
             botController?.injectPlayerAttack(line)
             BlomixPvPLog.event("attack_sent_bot", ["attackId": "\(attackId)", "bracket": "\(bracket)"])
@@ -707,7 +787,50 @@ final class BlomixPvPMatchCoordinator: NSObject {
         lastSentBoardFillDepth = normalized
         lastSentScore = score
         // Best-effort (non critique) — le HUD distant peut rater une frame.
-        sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .boardFillDepth, seed: nil, line: nil, fillDepth: normalized, score: score))
+        // `attackId` : rattrapage des pastilles vertes si `attackTaken` s’est perdu.
+        var env = BlomixPvPWireEnvelope(k: .boardFillDepth, seed: nil, line: nil, fillDepth: normalized, score: score)
+        stampConsumedAttackWatermark(&env)
+        sendEnvelopeRaw(env)
+    }
+
+    /// Notre grille vient de poser cette attaque reçue. L’émetteur éteint la pastille verte.
+    func noteIncomingAttackLanded(_ wireAttackId: Int) {
+        guard wireAttackId > 0 else { return }
+        if wireAttackId > lastInjectedIncomingAttackId {
+            lastInjectedIncomingAttackId = wireAttackId
+        }
+        guard !isBotMatch, didFinishHandshake else { return }
+        var env = BlomixPvPWireEnvelope(k: .attackTaken, seed: nil, line: nil, fillDepth: nil)
+        env.attackId = lastInjectedIncomingAttackId
+        env.attackEpoch = sentAttackEpoch
+        sendEnvelopeRaw(env)
+        BlomixPvPLog.event("attack_injected_notified", ["attackId": "\(lastInjectedIncomingAttackId)"])
+    }
+
+    /// Absent tant qu’aucune attaque reçue n’a été posée : le paquet reste celui d’avant.
+    private func stampConsumedAttackWatermark(_ env: inout BlomixPvPWireEnvelope) {
+        guard lastInjectedIncomingAttackId > 0 else { return }
+        env.attackId = lastInjectedIncomingAttackId
+        env.attackEpoch = sentAttackEpoch
+    }
+
+    private func noteOpponentTookSentAttack(through attackId: Int?, epoch: Int?) {
+        guard didFinishHandshake, !didReportLocalLoss, !didReceiveRemoteLoss else { return }
+        guard let epoch, epoch == sentAttackEpoch else { return }
+        guard let attackId, attackId > 0, attackId < nextOutboundAttackId else { return }
+        let before = sentAttackLedger.displayedCount
+        sentAttackLedger.noteTaken(through: attackId)
+        guard sentAttackLedger.displayedCount != before else { return }
+        scene?.blomixPvP_refreshSentAttackPips()
+        BlomixPvPLog.event("sent_attack_cleared", [
+            "through": "\(attackId)",
+            "pending": "\(sentAttackLedger.pendingCount)"
+        ])
+    }
+
+    private func clearSentAttackPips() {
+        sentAttackLedger.reset()
+        scene?.blomixPvP_refreshSentAttackPips()
     }
 
     func localPlayerLost() {
@@ -717,6 +840,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         stopTurnTimer()
         stopHeartbeat()
         botController?.stop()
+        clearSentAttackPips()
         enqueueCritical(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil), maxAttempts: 20)
         BlomixPvPLog.event("local_lost_sent")
         scene?.blomixPvP_presentLocalDefeat()
@@ -730,6 +854,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
         stopTurnTimer()
         stopHeartbeat()
         botController?.stop()
+        clearSentAttackPips()
         enqueueCritical(BlomixPvPWireEnvelope(k: .iLost, seed: nil, line: nil, fillDepth: nil), maxAttempts: 20)
         BlomixPvPLog.event("forfeit_sent")
     }
@@ -944,7 +1069,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
                 return
             }
             lastReceivedAttackId = wireId
-            incomingAttackLines.append(QueuedAttackLine(id: nextIncomingAttackLineID, line: line))
+            incomingAttackLines.append(QueuedAttackLine(id: nextIncomingAttackLineID, wireAttackId: wireId, line: line))
             nextIncomingAttackLineID += 1
             if var g = rng {
                 g.discardNextRandomLineDrawsMatchingOpponentGeneration()
@@ -954,6 +1079,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
             BlomixPvPLog.event("attack_received", ["attackId": "\(wireId)"])
 
         case .boardFillDepth:
+            noteOpponentTookSentAttack(through: env.attackId, epoch: env.attackEpoch)
             scene?.blomixPvP_setRemoteBoardFillDepth(env.fillDepth ?? 0)
             scene?.blomixPvP_setRemoteScore(env.score ?? 0)
 
@@ -968,6 +1094,7 @@ final class BlomixPvPMatchCoordinator: NSObject {
             didReceiveRemoteLoss = true
             stopTurnTimer()
             stopHeartbeat()
+            clearSentAttackPips()
             enqueueCritical(BlomixPvPWireEnvelope(k: .ackVictory, seed: nil, line: nil, fillDepth: nil), maxAttempts: 8)
             BlomixPvPLog.event("remote_lost")
             scene?.blomixPvP_presentRemoteVictory()
@@ -995,13 +1122,18 @@ final class BlomixPvPMatchCoordinator: NSObject {
             scene?.blomixPvP_opponentCancelledRematch()
 
         case .ackMsg:
+            // Livraison du paquet seulement. Une pastille verte attend la pose (`attackTaken`).
             if let ackId = env.ackMsgId {
                 acknowledgeMsgId(ackId)
             }
 
         case .keepAlive:
-            // lastPeerAliveAt déjà mis à jour en tête de handleEnvelope
-            break
+            // lastPeerAliveAt déjà mis à jour en tête de handleEnvelope.
+            // `attackId` optionnel : rattrapage du fil des pastilles vertes.
+            noteOpponentTookSentAttack(through: env.attackId, epoch: env.attackEpoch)
+
+        case .attackTaken:
+            noteOpponentTookSentAttack(through: env.attackId, epoch: env.attackEpoch)
 
         case .h2hSnapshot:
             // Best-effort, non critique. Différé d’une frame pour ne pas geler le 1er drop.
@@ -1069,7 +1201,9 @@ final class BlomixPvPMatchCoordinator: NSObject {
 
     private func tickHeartbeat() {
         guard didFinishHandshake, !didReportLocalLoss, !didReceiveRemoteLoss else { return }
-        sendEnvelopeRaw(BlomixPvPWireEnvelope(k: .keepAlive, seed: nil, line: nil, fillDepth: nil))
+        var alive = BlomixPvPWireEnvelope(k: .keepAlive, seed: nil, line: nil, fillDepth: nil)
+        stampConsumedAttackWatermark(&alive)
+        sendEnvelopeRaw(alive)
         // Local Multipeer : keepAlive parfois perdu — seuil plus large (tour par tour).
         let silenceLimit = isLocalMatch ? localPeerSilenceTimeout : peerSilenceTimeout
         if let last = lastPeerAliveAt, Date().timeIntervalSince(last) > silenceLimit {
@@ -1182,6 +1316,9 @@ final class BlomixPvPMatchCoordinator: NSObject {
         nextIncomingAttackLineID = 1
         lastReceivedAttackId = 0
         nextOutboundAttackId = 1
+        lastInjectedIncomingAttackId = 0
+        sentAttackEpoch += 1
+        clearSentAttackPips()
         lastSentScoreAttackBracket = 0
         lastSentBoardFillDepth = nil
         lastSentScore = nil

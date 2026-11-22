@@ -1,5 +1,2 @@
-• Tinta: um visual novo, aquarela no papel, ao lado de Escuro e Claro.
-• Início: três portas, Jogar, Desafios e Duelo. Você escolhe o modo logo abaixo.
-• Na primeira vez que um Magix chega, um balão diz o que ele faz.
-• Depois do tutorial, sua primeira partida é sem cronômetro.
-• Conquistas do Game Center: o que você já fez no Salão também conta lá.
+• Duelo: quatro pontos verdes, entre a barra de envio e o tempo, mostram as linhas que você enviou. Eles apagam quando o outro as recebe.
+• Tinta: a tela da pior jogada segue o papel e as manchas.

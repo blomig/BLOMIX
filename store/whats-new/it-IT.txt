@@ -1,5 +1,2 @@
-• Inchiostro: un nuovo look, acquerello su carta, accanto a Scuro e Chiaro.
-• Home: tre porte, Gioca, Sfide e Duello. Scegli la modalità proprio sotto.
-• La prima volta che arriva un Magix, una bolla dice cosa fa.
-• Dopo il tutorial, la tua prima partita è senza timer.
-• Obiettivi Game Center: quello che hai già fatto nel Salone conta anche lì.
+• Duello: quattro pallini verdi, tra la barra di invio e il tempo, mostrano le linee che hai mandato. Si spengono quando l’altro le riceve.
+• Inchiostro: la schermata della mossa peggiore segue la carta e le macchie.

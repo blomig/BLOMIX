@@ -990,6 +990,10 @@ final class GameScene: SKScene {
     private static let attackPileWidthActionKey = "attackPileWidth"
     private static let attackPileSegmentCount = 5
     private static let attackPilePeakWidthScale: CGFloat = 1.20
+    /// Duel : 4 puces 2×2 entre la barre d’envoi et TEMPS. Vert = ligne envoyée pas encore posée.
+    private static let sentAttackPipsContainerName = "hudSentAttackPips"
+    private static func sentAttackPipName(_ index: Int) -> String { "hudSentAttackPip\(index)" }
+    private static let sentAttackPipLitFill = SKColor(red: 0.20, green: 0.78, blue: 0.28, alpha: 1)
     private static let scorePulseActionKey = "scorePulse"
     private static let scoreRollActionKey  = "scoreRoll"
     private static let scoreRaceRankTickKey = "scoreRaceRankTick"
@@ -4407,6 +4411,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.ligneValueName)?.isHidden = hidden
         childNode(withName: Self.lignePipsContainerName)?.isHidden = hidden
         childNode(withName: Self.attackPileContainerName)?.isHidden = hidden || pvpCoordinator == nil
+        childNode(withName: Self.sentAttackPipsContainerName)?.isHidden = hidden || pvpCoordinator == nil
         childNode(withName: Self.bottomLinePreviewStripName)?.isHidden = hidden
         childNode(withName: Self.bottomMenuContainerName)?.isHidden = hidden
         if let stageLbl = childNode(withName: Self.stageTimerHudName) as? SKLabelNode {
@@ -7679,70 +7684,83 @@ final class GameScene: SKScene {
         let chosenLandingRow    = landingRowPerCol[snap.chosenColumn]
         let chosenIsAlsoOptimal = optColsSet.contains(snap.chosenColumn)
 
-        for r in 0..<rows {
-            for c in 0..<cols {
-                let block = snap.grid[r][c]
-                let cellX = CGFloat(c) * cellSize
-                let cellY = CGFloat(rows - 1 - r) * cellSize
+        if Self.visualStyleForRun == .new {
+            installInkWorstMoveGrid(
+                snap.grid,
+                in: gridContainer,
+                cellSize: cellSize,
+                optimalColumns: optColsSet,
+                landingRowPerCol: landingRowPerCol,
+                chosenColumn: snap.chosenColumn,
+                chosenLandingRow: chosenLandingRow,
+                chosenIsAlsoOptimal: chosenIsAlsoOptimal
+            )
+        } else {
+            for r in 0..<rows {
+                for c in 0..<cols {
+                    let block = snap.grid[r][c]
+                    let cellX = CGFloat(c) * cellSize
+                    let cellY = CGFloat(rows - 1 - r) * cellSize
 
-                let bg = SKShapeNode(
-                    rectOf: CGSize(width: cellSize - 1, height: cellSize - 1),
-                    cornerRadius: 3)
-                bg.position  = CGPoint(x: cellX + cellSize / 2, y: cellY + cellSize / 2)
-                bg.zPosition = 0
+                    let bg = SKShapeNode(
+                        rectOf: CGSize(width: cellSize - 1, height: cellSize - 1),
+                        cornerRadius: 3)
+                    bg.position  = CGPoint(x: cellX + cellSize / 2, y: cellY + cellSize / 2)
+                    bg.zPosition = 0
 
-                switch block {
-                case .color(let name):
-                    bg.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
-                    bg.strokeColor = .clear
-                case .priks(let n):
-                    bg.fillColor   = Self.priksSolidFillColor()
-                    bg.strokeColor = .clear
-                    let nLbl = SKLabelNode(text: "\(n)")
-                    nLbl.fontName               = Self.gridFontName
-                    nLbl.fontSize               = cellSize * 0.45
-                    nLbl.fontColor              = Self.priksDigitColor(remainingHits: n)
-                    nLbl.verticalAlignmentMode  = .center
-                    nLbl.horizontalAlignmentMode = .center
-                    nLbl.zPosition = 1
-                    bg.addChild(nLbl)
-                case .magix:
-                    bg.fillColor   = SKColor(white: 0.78, alpha: 1)
-                    bg.strokeColor = .clear
-                    let mLbl = SKLabelNode(text: "M")
-                    mLbl.fontName               = "Helvetica-Bold"
-                    mLbl.fontSize               = cellSize * 0.45
-                    mLbl.fontColor              = .black
-                    mLbl.verticalAlignmentMode  = .center
-                    mLbl.horizontalAlignmentMode = .center
-                    mLbl.zPosition = 1
-                    bg.addChild(mLbl)
-                case .empty:
-                    bg.fillColor   = BlomixAppearance.emptyCellSK
-                    bg.strokeColor = BlomixAppearance.emptyCellStrokeSK
-                    bg.lineWidth   = 0.5
-                }
-                gridContainer.addChild(bg)
+                    switch block {
+                    case .color(let name):
+                        bg.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                        bg.strokeColor = .clear
+                    case .priks(let n):
+                        bg.fillColor   = Self.priksSolidFillColor()
+                        bg.strokeColor = .clear
+                        let nLbl = SKLabelNode(text: "\(n)")
+                        nLbl.fontName               = Self.gridFontName
+                        nLbl.fontSize               = cellSize * 0.45
+                        nLbl.fontColor              = Self.priksDigitColor(remainingHits: n)
+                        nLbl.verticalAlignmentMode  = .center
+                        nLbl.horizontalAlignmentMode = .center
+                        nLbl.zPosition = 1
+                        bg.addChild(nLbl)
+                    case .magix:
+                        bg.fillColor   = SKColor(white: 0.78, alpha: 1)
+                        bg.strokeColor = .clear
+                        let mLbl = SKLabelNode(text: "M")
+                        mLbl.fontName               = "Helvetica-Bold"
+                        mLbl.fontSize               = cellSize * 0.45
+                        mLbl.fontColor              = .black
+                        mLbl.verticalAlignmentMode  = .center
+                        mLbl.horizontalAlignmentMode = .center
+                        mLbl.zPosition = 1
+                        bg.addChild(mLbl)
+                    case .empty:
+                        bg.fillColor   = BlomixAppearance.emptyCellSK
+                        bg.strokeColor = BlomixAppearance.emptyCellStrokeSK
+                        bg.lineWidth   = 0.5
+                    }
+                    gridContainer.addChild(bg)
 
-                let isOptimalLanding = optColsSet.contains(c) && landingRowPerCol[c] == r
-                let isChosenLanding  = c == snap.chosenColumn && chosenLandingRow == r
+                    let isOptimalLanding = optColsSet.contains(c) && landingRowPerCol[c] == r
+                    let isChosenLanding  = c == snap.chosenColumn && chosenLandingRow == r
 
-                if isOptimalLanding {
-                    let lbl = SKLabelNode(text: "⭐")
-                    lbl.fontName               = "Helvetica"
-                    lbl.fontSize               = cellSize * 0.52
-                    lbl.verticalAlignmentMode  = .center
-                    lbl.horizontalAlignmentMode = .center
-                    lbl.zPosition = 2
-                    bg.addChild(lbl)
-                } else if isChosenLanding && !chosenIsAlsoOptimal {
-                    let lbl = SKLabelNode(text: "💀")
-                    lbl.fontName               = "Helvetica"
-                    lbl.fontSize               = cellSize * 0.52
-                    lbl.verticalAlignmentMode  = .center
-                    lbl.horizontalAlignmentMode = .center
-                    lbl.zPosition = 2
-                    bg.addChild(lbl)
+                    if isOptimalLanding {
+                        let lbl = SKLabelNode(text: "⭐")
+                        lbl.fontName               = "Helvetica"
+                        lbl.fontSize               = cellSize * 0.52
+                        lbl.verticalAlignmentMode  = .center
+                        lbl.horizontalAlignmentMode = .center
+                        lbl.zPosition = 2
+                        bg.addChild(lbl)
+                    } else if isChosenLanding && !chosenIsAlsoOptimal {
+                        let lbl = SKLabelNode(text: "💀")
+                        lbl.fontName               = "Helvetica"
+                        lbl.fontSize               = cellSize * 0.52
+                        lbl.verticalAlignmentMode  = .center
+                        lbl.horizontalAlignmentMode = .center
+                        lbl.zPosition = 2
+                        bg.addChild(lbl)
+                    }
                 }
             }
         }
@@ -7751,37 +7769,47 @@ final class GameScene: SKScene {
         var pendingLineBottomY = gridOriginY - 8   // référence Y pour empiler vers le bas
         if hasPendingLine, let pLine = snap.pendingLine {
             let lineCenterY = pendingLineBottomY - pendingLineH / 2
-            for c in 0..<cols {
-                let block = pLine[c]
-                let cx = gridOriginX + CGFloat(c) * cellSize + cellSize / 2
-                let lc = SKShapeNode(rectOf: CGSize(width: cellSize - 2, height: pendingLineH - 1),
-                                     cornerRadius: 2)
-                lc.position  = CGPoint(x: cx, y: lineCenterY)
-                lc.zPosition = 10
-                switch block {
-                case .color(let name):
-                    lc.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.40, alpha: 1)
-                    lc.strokeColor = .clear
-                case .priks(let n):
-                    lc.fillColor   = Self.priksSolidFillColor()
-                    lc.strokeColor = .clear
-                    let nl = SKLabelNode(text: "\(n)")
-                    nl.fontName               = Self.gridFontName
-                    nl.fontSize               = pendingLineH * 0.55
-                    nl.fontColor              = Self.priksDigitColor(remainingHits: n)
-                    nl.verticalAlignmentMode  = .center
-                    nl.horizontalAlignmentMode = .center
-                    nl.zPosition = 1
-                    lc.addChild(nl)
-                case .magix:
-                    lc.fillColor   = SKColor(white: 0.78, alpha: 1)
-                    lc.strokeColor = .clear
-                case .empty:
-                    lc.fillColor   = BlomixAppearance.emptyCellSK
-                    lc.strokeColor = BlomixAppearance.emptyCellStrokeSK
-                    lc.lineWidth   = 0.5
+            if Self.visualStyleForRun == .new {
+                installInkWorstMoveIncomingLine(
+                    pLine,
+                    centerY: lineCenterY,
+                    leftX: gridOriginX,
+                    cellSize: cellSize,
+                    on: overlay
+                )
+            } else {
+                for c in 0..<cols {
+                    let block = pLine[c]
+                    let cx = gridOriginX + CGFloat(c) * cellSize + cellSize / 2
+                    let lc = SKShapeNode(rectOf: CGSize(width: cellSize - 2, height: pendingLineH - 1),
+                                         cornerRadius: 2)
+                    lc.position  = CGPoint(x: cx, y: lineCenterY)
+                    lc.zPosition = 10
+                    switch block {
+                    case .color(let name):
+                        lc.fillColor   = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.40, alpha: 1)
+                        lc.strokeColor = .clear
+                    case .priks(let n):
+                        lc.fillColor   = Self.priksSolidFillColor()
+                        lc.strokeColor = .clear
+                        let nl = SKLabelNode(text: "\(n)")
+                        nl.fontName               = Self.gridFontName
+                        nl.fontSize               = pendingLineH * 0.55
+                        nl.fontColor              = Self.priksDigitColor(remainingHits: n)
+                        nl.verticalAlignmentMode  = .center
+                        nl.horizontalAlignmentMode = .center
+                        nl.zPosition = 1
+                        lc.addChild(nl)
+                    case .magix:
+                        lc.fillColor   = SKColor(white: 0.78, alpha: 1)
+                        lc.strokeColor = .clear
+                    case .empty:
+                        lc.fillColor   = BlomixAppearance.emptyCellSK
+                        lc.strokeColor = BlomixAppearance.emptyCellStrokeSK
+                        lc.lineWidth   = 0.5
+                    }
+                    overlay.addChild(lc)
                 }
-                overlay.addChild(lc)
             }
             let lineLbl = SKLabelNode(text: BlomixL10n.gameOverIncomingLineLabel)
             lineLbl.fontName               = Self.customUIFontPostScriptName
@@ -7852,10 +7880,23 @@ final class GameScene: SKScene {
         }
 
         for (block, cx, cy, _) in blockPositions {
-            let cell = makeBlockCell(block, size: bs)
-            cell.position  = CGPoint(x: cx, y: cy)
-            cell.zPosition = 10
-            overlay.addChild(cell)
+            if Self.visualStyleForRun == .new {
+                // `bs - 2` n’est pas la case standard : pas d’agrandissement à `cell − 1`.
+                let side = bs - 2
+                let sprite = Self.makeSolidGameplayBlockSprite(
+                    block: block,
+                    pixelSize: CGSize(width: side, height: side),
+                    priksDigitFontSize: bs * 0.45
+                )
+                sprite.position = CGPoint(x: cx, y: cy)
+                sprite.zPosition = 10
+                overlay.addChild(sprite)
+            } else {
+                let cell = makeBlockCell(block, size: bs)
+                cell.position  = CGPoint(x: cx, y: cy)
+                cell.zPosition = 10
+                overlay.addChild(cell)
+            }
         }
 
         // ── Badge de stage textuel (sous la file de blocs, même espace qu'en jeu) ─
@@ -7919,6 +7960,211 @@ final class GameScene: SKScene {
 
         overlay.alpha = 0
         overlay.run(SKAction.fadeIn(withDuration: 0.22))
+    }
+
+    /// Centre d’une case du pire coup Encre, origine en bas à gauche du conteneur.
+    /// Même sens que la grille (rangée 0 en haut). La formule de fusion s’y retrouve.
+    private static func worstMoveInkCellCenter(row: Int, col: Int) -> CGPoint {
+        let pitch = GridLayout.cellPoints
+        return CGPoint(
+            x: (CGFloat(col) + 0.5) * pitch,
+            y: (CGFloat(GridLayout.rowCount - 1 - row) + 0.5) * pitch
+        )
+    }
+
+    /// Mini-grille Encre. Peinte au pas de la partie, puis réduite à `cellSize`.
+    /// Le cache de fusion ignore le pas : une cuisson à la taille de l’overlay
+    /// remplacerait la texture de la grille encore à l’écran.
+    private func installInkWorstMoveGrid(
+        _ grid: [[BlockType]],
+        in container: SKNode,
+        cellSize: CGFloat,
+        optimalColumns: Set<Int>,
+        landingRowPerCol: [Int: Int],
+        chosenColumn: Int,
+        chosenLandingRow: Int?,
+        chosenIsAlsoOptimal: Bool
+    ) {
+        let pitch = GridLayout.cellPoints
+        let rows = GridLayout.rowCount
+        let cols = GridLayout.columnCount
+        let side = GridLayout.spanPoints
+        let paper = SKSpriteNode(
+            texture: BlomixNewInkRenderer.paperTexture(
+                pointSize: CGSize(width: side, height: side),
+                divisions: cols
+            ),
+            size: CGSize(width: side, height: side)
+        )
+        paper.anchorPoint = .zero
+        paper.position = .zero
+        paper.zPosition = -1
+        container.addChild(paper)
+
+        let pointSize = Self.inkCellPointSize()
+        BlomixNewBlockRenderer.prepareAddressStamps(rows: rows, columns: cols, pointSize: pointSize)
+
+        var colorSprites: [GridAddress: SKSpriteNode] = [:]
+        for row in 0..<rows {
+            for col in 0..<cols {
+                let center = Self.worstMoveInkCellCenter(row: row, col: col)
+                switch grid[row][col] {
+                case .color(let name):
+                    let fill = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                    let sprite = SKSpriteNode(color: fill, size: pointSize)
+                    sprite.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+                    sprite.position = center
+                    sprite.zPosition = 1
+                    container.addChild(sprite)
+                    BlomixNewBlockRenderer.applyAddressStampWhenReady(
+                        to: sprite,
+                        fill: fill,
+                        pointSize: pointSize,
+                        row: row,
+                        col: col
+                    )
+                    colorSprites[GridAddress(row: row, col: col)] = sprite
+                case .priks, .magix:
+                    let sprite = Self.makeSolidGameplayBlockSprite(block: grid[row][col])
+                    sprite.position = center
+                    sprite.zPosition = 1
+                    container.addChild(sprite)
+                case .empty:
+                    break
+                }
+
+                let isOptimalLanding = optimalColumns.contains(col) && landingRowPerCol[col] == row
+                let isChosenLanding = col == chosenColumn && chosenLandingRow == row
+                let mark: String?
+                if isOptimalLanding {
+                    mark = "⭐"
+                } else if isChosenLanding && !chosenIsAlsoOptimal {
+                    mark = "💀"
+                } else {
+                    mark = nil
+                }
+                guard let mark else { continue }
+                let label = SKLabelNode(text: mark)
+                label.fontName = "Helvetica"
+                // Après le scale du conteneur, même taille à l’écran que le Classique (`cellSize * 0.52`).
+                label.fontSize = pitch * 0.52
+                label.verticalAlignmentMode = .center
+                label.horizontalAlignmentMode = .center
+                label.position = center
+                label.zPosition = 4
+                container.addChild(label)
+            }
+        }
+
+        installInkWorstMoveFusions(in: grid, sprites: colorSprites, container: container)
+        container.setScale(cellSize / pitch)
+    }
+
+    /// Pièces de 2 cases ou plus. Une case seule garde son tampon d’adresse.
+    /// Les étoiles restent sœurs, au-dessus : on cache les cases seulement une fois la pièce posée.
+    private func installInkWorstMoveFusions(
+        in grid: [[BlockType]],
+        sprites: [GridAddress: SKSpriteNode],
+        container: SKNode
+    ) {
+        let rows = GridLayout.rowCount
+        let cols = GridLayout.columnCount
+        let pitch = GridLayout.cellPoints
+        let neighbors = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        let centerOf: (Int, Int) -> CGPoint = { row, col in
+            Self.worstMoveInkCellCenter(row: row, col: col)
+        }
+        var seen = Set<GridAddress>()
+        var index = 0
+        for row in 0..<rows {
+            for col in 0..<cols {
+                guard case .color(let name) = grid[row][col] else { continue }
+                let start = GridAddress(row: row, col: col)
+                guard seen.insert(start).inserted else { continue }
+                var component: [(row: Int, col: Int)] = []
+                var stack = [start]
+                while let cell = stack.popLast() {
+                    component.append((row: cell.row, col: cell.col))
+                    for delta in neighbors {
+                        let nextRow = cell.row + delta.0
+                        let nextCol = cell.col + delta.1
+                        guard nextRow >= 0, nextRow < rows,
+                              nextCol >= 0, nextCol < cols,
+                              case .color(let other) = grid[nextRow][nextCol], other == name else { continue }
+                        let next = GridAddress(row: nextRow, col: nextCol)
+                        guard seen.insert(next).inserted else { continue }
+                        stack.append(next)
+                    }
+                }
+                guard component.count >= 2 else { continue }
+                let fill = Self.bloxSolidFillColor(colorName: name) ?? SKColor(white: 0.45, alpha: 1)
+                let members = component.compactMap { sprites[GridAddress(row: $0.row, col: $0.col)] }
+                let fusionName = "worstInkFusion\(index)"
+                index += 1
+                if let piece = BlomixNewBlockRenderer.makeCachedFusionSprite(
+                    cells: component,
+                    fill: fill,
+                    cellPitch: pitch,
+                    cellCenter: centerOf
+                ) {
+                    piece.name = fusionName
+                    piece.zPosition = 1.15
+                    container.addChild(piece)
+                    for sprite in members { sprite.isHidden = true }
+                } else {
+                    let captured = component
+                    BlomixNewBlockRenderer.preloadFusion(
+                        cells: captured,
+                        fill: fill,
+                        cellPitch: pitch
+                    ) { [weak container] in
+                        guard let container, container.parent != nil,
+                              container.childNode(withName: fusionName) == nil,
+                              let piece = BlomixNewBlockRenderer.makeCachedFusionSprite(
+                                cells: captured,
+                                fill: fill,
+                                cellPitch: pitch,
+                                cellCenter: centerOf
+                              ) else { return }
+                        piece.name = fusionName
+                        piece.zPosition = 1.15
+                        container.addChild(piece)
+                        for sprite in members where sprite.parent === container {
+                            sprite.isHidden = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Ligne entrante Encre : même demi-case basse que l’aperçu en partie, réduite dans la bande déjà réservée.
+    private func installInkWorstMoveIncomingLine(
+        _ line: [BlockType],
+        centerY: CGFloat,
+        leftX: CGFloat,
+        cellSize: CGFloat,
+        on overlay: SKNode
+    ) {
+        let pitch = GridLayout.cellPoints
+        let scale = cellSize / pitch
+        let root = SKNode()
+        root.zPosition = 10
+        let visualHeight = pitch / 2 * scale
+        root.position = CGPoint(x: leftX, y: centerY - visualHeight / 2)
+        root.setScale(scale)
+        for col in 0..<min(line.count, GridLayout.columnCount) {
+            let crop = SKCropNode()
+            crop.position = CGPoint(x: (CGFloat(col) + 0.5) * pitch, y: 0)
+            let mask = SKSpriteNode(color: .white, size: CGSize(width: pitch, height: pitch / 2))
+            mask.anchorPoint = CGPoint(x: 0.5, y: 0)
+            crop.maskNode = mask
+            let node = Self.makeBottomLinePreviewCellNode(block: line[col])
+            node.position = CGPoint(x: 0, y: pitch / 4)
+            crop.addChild(node)
+            root.addChild(crop)
+        }
+        overlay.addChild(root)
     }
 
     /// Cercles concentriques « lock-on » qui se referment vers `focusPoint` avant l’overlay Game Over.
@@ -8911,12 +9157,14 @@ final class GameScene: SKScene {
                         }
                     }
                     if let atk = pvpCoordinator?.consumeNextIncomingAttackLineIfAny() {
-                        nextBottomLine = atk
+                        nextBottomLine = atk.line
                         switch addRandomLinePushingGridUp() {
                         case .animating:
+                            pvpCoordinator?.noteIncomingAttackLanded(atk.wireAttackId)
                             if decade && !decadeFirst { pvpNeedsDecadeLineAfterAttackInjection = true }
                             return
                         case .gameOver:
+                            pvpCoordinator?.noteIncomingAttackLanded(atk.wireAttackId)
                             return
                         case .didNotRun:
                             break
@@ -10967,6 +11215,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.ligneValueName)?.removeFromParent()
         childNode(withName: Self.lignePipsContainerName)?.removeFromParent()
         childNode(withName: Self.attackPileContainerName)?.removeFromParent()
+        childNode(withName: Self.sentAttackPipsContainerName)?.removeFromParent()
         let label = SKLabelNode(text: "0")
         label.name = Self.scoreHudLabelName
         label.fontName = Self.displayFontName
@@ -11335,35 +11584,58 @@ final class GameScene: SKScene {
         let valW = (valText as NSString).size(withAttributes: [.font: font]).width
         let textW = max(capW, valW)
 
-        let halfGlyph = fontSize * 0.5
+        let metrics = hudPipClusterMetrics(caption: caption, value: value)
+        let inset: CGFloat = 8
+        container.position = CGPoint(
+            x: caption.position.x + textW + inset + metrics.cluster / 2,
+            y: metrics.centerY
+        )
+        placeHudPipCluster(container, pipName: Self.lignePipName, metrics: metrics)
+        if !isStartScreen {
+            applyLignePipChrome(litCount: pendingIncomingLinePipCount())
+        }
+    }
+
+    private struct HudPipClusterMetrics {
+        var pip: CGFloat
+        var innerGap: CGFloat
+        var cluster: CGFloat
+        var centerY: CGFloat
+    }
+
+    /// Même taille que les puces LIGNE : 2×2 calé sur le haut de la légende, pas toute la hauteur.
+    private func hudPipClusterMetrics(caption: SKLabelNode, value: SKLabelNode) -> HudPipClusterMetrics {
+        let halfGlyph = caption.fontSize * 0.5
         let topY = caption.position.y + halfGlyph
         let botY = value.position.y - halfGlyph
         let fullH = max(topY - botY, 16)
-        let innerGap: CGFloat = max(1, fullH * 0.06)
+        let innerGap = max(1, fullH * 0.06)
         let pip = max(2, (fullH - innerGap) / 4)
-        let clusterH = pip * 2 + innerGap
-        let clusterW = clusterH
-        let inset: CGFloat = 8
-        container.position = CGPoint(
-            x: caption.position.x + textW + inset + clusterW / 2,
-            y: topY - clusterH / 2
+        let cluster = pip * 2 + innerGap
+        return HudPipClusterMetrics(
+            pip: pip,
+            innerGap: innerGap,
+            cluster: cluster,
+            centerY: topY - cluster / 2
         )
+    }
 
-        let step = (pip + innerGap) / 2
+    private func placeHudPipCluster(_ container: SKNode, pipName: (Int) -> String, metrics: HudPipClusterMetrics) {
+        let step = (metrics.pip + metrics.innerGap) / 2
         let offsets: [CGPoint] = [
-            CGPoint(x: -step, y:  step),
-            CGPoint(x:  step, y:  step),
+            CGPoint(x: -step, y: step),
+            CGPoint(x: step, y: step),
             CGPoint(x: -step, y: -step),
-            CGPoint(x:  step, y: -step),
+            CGPoint(x: step, y: -step),
         ]
         for i in 0..<4 {
-            guard let pipNode = container.childNode(withName: Self.lignePipName(i)) as? SKShapeNode else { continue }
+            guard let pipNode = container.childNode(withName: pipName(i)) as? SKShapeNode else { continue }
             pipNode.position = offsets[i]
-            let path = CGPath(ellipseIn: CGRect(x: -pip / 2, y: -pip / 2, width: pip, height: pip), transform: nil)
-            pipNode.path = path
-        }
-        if !isStartScreen {
-            applyLignePipChrome(litCount: pendingIncomingLinePipCount())
+            let side = metrics.pip
+            pipNode.path = CGPath(
+                ellipseIn: CGRect(x: -side / 2, y: -side / 2, width: side, height: side),
+                transform: nil
+            )
         }
     }
 
@@ -11398,6 +11670,103 @@ final class GameScene: SKScene {
         layoutLignePips()
         childNode(withName: Self.lignePipsContainerName)?.isHidden = false
         applyLignePipChrome(litCount: pendingIncomingLinePipCount())
+    }
+
+    private func ensureSentAttackPipsIfNeeded() {
+        guard pvpCoordinator != nil else { return }
+        if childNode(withName: Self.sentAttackPipsContainerName) != nil { return }
+        let container = SKNode()
+        container.name = Self.sentAttackPipsContainerName
+        container.zPosition = 12
+        for i in 0..<4 {
+            let pip = SKShapeNode(circleOfRadius: 3)
+            pip.name = Self.sentAttackPipName(i)
+            pip.lineWidth = 1
+            pip.glowWidth = 0
+            container.addChild(pip)
+        }
+        addChild(container)
+        applySentAttackPipChrome(litCount: 0)
+    }
+
+    /// Entre le bord droit de la barre d’envoi et le bord gauche de TEMPS. Même 2×2 que LIGNE.
+    private func layoutSentAttackPips() {
+        guard pvpCoordinator != nil, !isStartScreen else {
+            childNode(withName: Self.sentAttackPipsContainerName)?.isHidden = true
+            return
+        }
+        ensureSentAttackPipsIfNeeded()
+        guard let caption = childNode(withName: Self.ligneCaptionName) as? SKLabelNode,
+              let value = childNode(withName: Self.ligneValueName) as? SKLabelNode,
+              let scoreLbl = childNode(withName: Self.scoreHudLabelName) as? SKLabelNode,
+              let container = childNode(withName: Self.sentAttackPipsContainerName) else { return }
+
+        let metrics = hudPipClusterMetrics(caption: caption, value: value)
+        let inset: CGFloat = 8
+        let barRight = attackPileRightEdge(scoreLbl: scoreLbl)
+        var centerX = barRight + inset + metrics.cluster / 2
+        if let timerCaption = childNode(withName: Self.hudTimerCaptionName) as? SKLabelNode {
+            var timerLeft = labelLeftEdge(timerCaption)
+            if let timerValue = childNode(withName: Self.hudPvPTurnTimerName) as? SKLabelNode {
+                timerLeft = min(timerLeft, labelLeftEdge(timerValue))
+            }
+            let maxCenter = timerLeft - inset - metrics.cluster / 2
+            if centerX > maxCenter {
+                centerX = maxCenter
+            }
+        }
+        container.position = CGPoint(x: centerX, y: metrics.centerY)
+        placeHudPipCluster(container, pipName: Self.sentAttackPipName, metrics: metrics)
+        container.isHidden = false
+        applySentAttackPipChrome(litCount: pvpCoordinator?.pendingSentAttackDisplayCount ?? 0)
+    }
+
+    /// Même bord droit que `layoutAttackPile` (largeur d’un chiffre, +8 après « 50 »).
+    private func attackPileRightEdge(scoreLbl: SKLabelNode) -> CGFloat {
+        let scoreFont = UIFont(name: Self.displayFontName, size: scoreLbl.fontSize)
+            ?? UIFont.systemFont(ofSize: scoreLbl.fontSize, weight: .bold)
+        let digitW = ("0" as NSString).size(withAttributes: [.font: scoreFont]).width
+        let barW = max(10, digitW)
+        let scoreW = ("50" as NSString).size(withAttributes: [.font: scoreFont]).width
+        return scoreLbl.position.x + scoreW / 2 + 8 + barW
+    }
+
+    private func labelLeftEdge(_ label: SKLabelNode) -> CGFloat {
+        let font = UIFont(name: Self.customUIFontPostScriptName, size: label.fontSize)
+            ?? UIFont.systemFont(ofSize: label.fontSize)
+        let text = label.text ?? ""
+        let width = (text as NSString).size(withAttributes: [.font: font]).width
+        switch label.horizontalAlignmentMode {
+        case .left:
+            return label.position.x
+        case .center:
+            return label.position.x - width / 2
+        case .right:
+            return label.position.x - width
+        @unknown default:
+            return label.position.x - width
+        }
+    }
+
+    private func applySentAttackPipChrome(litCount: Int) {
+        guard let container = childNode(withName: Self.sentAttackPipsContainerName) else { return }
+        let idleFill = BlomixAppearance.sceneBackgroundSK
+        let stroke = SKColor(white: 0.55, alpha: 1)
+        let lit = min(4, max(0, litCount))
+        for i in 0..<4 {
+            guard let pip = container.childNode(withName: Self.sentAttackPipName(i)) as? SKShapeNode else { continue }
+            let on = i < lit
+            pip.fillColor = on ? Self.sentAttackPipLitFill : idleFill
+            pip.strokeColor = stroke
+        }
+    }
+
+    private func refreshSentAttackPipsHUD() {
+        layoutSentAttackPips()
+    }
+
+    func blomixPvP_refreshSentAttackPips() {
+        refreshSentAttackPipsHUD()
     }
 
     private func ensureAttackPileIfNeeded() {
@@ -11446,6 +11815,7 @@ final class GameScene: SKScene {
     private func layoutAttackPile() {
         guard pvpCoordinator != nil else {
             childNode(withName: Self.attackPileContainerName)?.isHidden = true
+            childNode(withName: Self.sentAttackPipsContainerName)?.isHidden = true
             return
         }
         ensureAttackPileIfNeeded()
@@ -11501,6 +11871,7 @@ final class GameScene: SKScene {
         if !isStartScreen {
             applyAttackPileMeter(attackPileDisplayMeter)
         }
+        layoutSentAttackPips()
     }
 
     private func applyAttackPileMeter(_ meter: CGFloat) {
@@ -21341,6 +21712,7 @@ final class GameScene: SKScene {
         childNode(withName: Self.hudPvPOpponentName)?.removeFromParent()
         childNode(withName: Self.pvpRemoteFillContainerName)?.removeFromParent()
         childNode(withName: Self.attackPileContainerName)?.removeFromParent()
+        childNode(withName: Self.sentAttackPipsContainerName)?.removeFromParent()
         pvpCoordinator?.tearDown()
         pvpCoordinator = nil
     }

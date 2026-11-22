@@ -7,9 +7,15 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.1] — en local (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, pas envoyé)
+## [9.1] — en local (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, pas encore envoyé)
 
-La 9.0 (build 168) est en review. La Watch reste en 8.0, build 147.
+La 9.0 (build 168) est en vente. La Watch reste en 8.0, build 147.
+
+### Ajouté
+
+- **Encre, pire coup** : depuis le game over, la mini-grille, la ligne entrante et les trois blocs de la file suivent l’Encre (papier, taches, pièces soudées, Brix, disques Magix). Le voile et les textes restent ceux du Clair. Le Classique garde ses aplats.
+- **Nouveautés 9.1** : la popup d’accueil (campagne `9.1`) et les notes App Store (6 langues) disent les pastilles vertes du Duel et le pire coup en Encre.
+- **Duel, pastilles vertes** : entre la barre d’envoi et TEMPS, quatre puces (même 2×2 que LIGNE, en vert) montrent les lignes envoyées et pas encore posées chez l’autre. Elles s’éteignent à la pose, ou à la fin de la manche. Cinq lignes ou plus en suspens : les quatre premières restent allumées. Le palier de 50, le tirage et les puces rouges ne changent pas. Un client 9.0 ignore le signal de pose : contre lui, les pastilles restent allumées jusqu’à la fin de la manche.
 
 ### Corrigé
 
@@ -17,9 +23,9 @@ La 9.0 (build 168) est en review. La Watch reste en 8.0, build 147.
 
 ---
 
-## [9.0] — en review (branche `9.0`, iPhone `MARKETING_VERSION` 9.0, build 168, envoyé le 21/11/2026)
+## [9.0] — en vente (branche `9.0`, iPhone `MARKETING_VERSION` 9.0, build 168, envoyé le 21/11/2026)
 
-Prototype de look. La fiche 9.0 est chez Apple, publication automatique à l’approbation. Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One, Pangolin à la place de Nunito.
+Prototype de look. La fiche 9.0 est en vente (publication automatique à l’approbation). Le style Nouveau est la piste Encre (encre et aquarelle sur washi, [DA_ENCRE_WASHI.md](DA_ENCRE_WASHI.md)). En partie Encre : papier, taches, Brix aux couleurs du skin, Magix et bombe en aquarelle, Chelsea Market à la place de Changa One, Pangolin à la place de Nunito.
 
 ### Ajouté
 
@@ -38,7 +44,7 @@ Prototype de look. La fiche 9.0 est chez Apple, publication automatique à l’a
 
 ### Modifié
 
-- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 168. La Watch reste en 8.0. Ce build, Valid, est sélectionné sur la fiche à la place du 167. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le 21/11/2026 la review est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-21T08:22:39Z). Le même envoi contient la version et les 20 réalisations. Publication automatique à l’approbation (`AFTER_APPROVAL`). La 8.9 reste en vente jusque-là.
+- **Version 9.0** : l’iPhone est en `MARKETING_VERSION` 9.0, build 168. La Watch reste en 8.0. Ce build, Valid, est sélectionné sur la fiche à la place du 167. Les Nouveautés (6 langues) et la popup d’accueil (campagne `9.0`) disent : Encre, trois portes, bulle Magix, première partie sans chrono, réalisations Game Center. Le 21/11/2026 la review est envoyée (`submittedDate` 2026-11-21T08:22:39Z). Le même envoi contient la version et les 20 réalisations. Publication automatique à l’approbation (`AFTER_APPROVAL`). Le 22/11/2026 la version est en vente (`READY_FOR_SALE`) et cette review est `COMPLETE`.
 - **Magix et bombe en Encre** : le centre du disque est le lavis des Blox (flaques, washi visible). La couronne d’encre irrégulière reste. La palette animée teinte le masque. Le glyphe reste noir. Plus de halo. Les paillettes en orbite sont celles du Classique, jusqu’à 16 pt au-delà du bord. Grille, chute, file, icône de stock, aperçu du guide. Classique garde le trait, le halo et les mêmes paillettes. Le pop et l’explosion ne changent pas.
 - **SAINTX en Encre** : pendant le défilement du gros score, les chiffres restent le gris habituel. En Classique ils passent encore au blanc.
 - **Tutoriel** : la bulle « prochains blox » est juste sous la file, pointe vers le haut. Elle ne recouvre plus la carte de la chaîne de 5. « Passer » descend avec elle, le temps de cette étape.

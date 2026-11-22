@@ -829,7 +829,10 @@ enum BlomixL10n {
     /// Campagne 8.9, plus affichées. Réécrire avec `BlomixWhatsNew.campaignID`.
     static var whatsNewSalonPhase: String { tr("whatsnew.salon_phase", comment: "8.9 — each trophy has its own skin gradient") }
     static var whatsNewSalonDot: String { tr("whatsnew.salon_dot", comment: "8.9 — home trophy dot turns off once every new card is opened") }
-    /// Campagne 9.0.
+    /// Campagne 9.1.
+    static var whatsNewDuelPips: String { tr("whatsnew.duel_pips", comment: "9.1 — green Duel dots for lines you sent") }
+    static var whatsNewInkWorstMove: String { tr("whatsnew.ink_worst_move", comment: "9.1 — Ink worst-move screen matches the paper") }
+    /// Campagne 9.0, plus affichées.
     static var whatsNewInk: String { tr("whatsnew.ink", comment: "9.0 — Ink look, watercolor on paper, beside Dark and Light") }
     static var whatsNewHomeDoors: String { tr("whatsnew.home_doors", comment: "9.0 — home has Play, Challenges, and Duel, mode chosen underneath") }
     static var whatsNewMagixCard: String { tr("whatsnew.magix_card", comment: "9.0 — first time a Magix arrives, a bubble explains it") }

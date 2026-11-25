@@ -105,6 +105,9 @@ final class BlomixPvPBotMatchController: @unchecked Sendable {
     private weak var coordinator: BlomixPvPMatchCoordinator?
     private let genLock = NSLock()
     private var generation: UInt64 = 0
+    /// Hors de `queue` : `runLoop` occupe cette file série pendant toute la manche
+    /// (`Thread.sleep`). Un `queue.async` d’attaque n’y entrerait qu’à la fin du match.
+    private let attackLock = NSLock()
     private var pendingPlayerAttacks: [[BlockType]] = []
     private var didInstallAppObservers = false
 
@@ -129,9 +132,9 @@ final class BlomixPvPBotMatchController: @unchecked Sendable {
     }
 
     func injectPlayerAttack(_ line: [BlockType]) {
-        queue.async { [weak self] in
-            self?.pendingPlayerAttacks.append(line)
-        }
+        attackLock.lock()
+        pendingPlayerAttacks.append(line)
+        attackLock.unlock()
     }
 
     private func currentGeneration() -> UInt64 {
@@ -216,8 +219,10 @@ final class BlomixPvPBotMatchController: @unchecked Sendable {
     }
 
     private func drainPendingAttacks(into engine: inout BlomixPvPBotEngine) {
+        attackLock.lock()
         let batch = pendingPlayerAttacks
         pendingPlayerAttacks.removeAll(keepingCapacity: true)
+        attackLock.unlock()
         for line in batch {
             engine.receiveAttack(line)
         }

@@ -1,7 +1,7 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 8.6  
-> **Dernière mise à jour** : octobre 2026
+> **Version de référence** : 9.2  
+> **Dernière mise à jour** : novembre 2026
 
 ---
 
@@ -31,14 +31,14 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 8.8 (iPhone) ; Watch **8.0** |
-| `CURRENT_PROJECT_VERSION` | 163 (iPhone) ; Watch **147** |
+| `MARKETING_VERSION` | 9.2 (iPhone et Watch) |
+| `CURRENT_PROJECT_VERSION` | 170 (iPhone et Watch) |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **8.6 / 158** en vente. **8.8 / 163** en review depuis le 8 nov. (mise en ligne automatique à l’approbation). Groupe `Featuring` toujours sur **160**. Watch : marketing **8.0**, build **147** (le marketing ne suit pas chaque build iPhone ; le build Watch monte quand le binaire Watch change, sinon la montre déjà en 146 ne se met pas à jour).
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **9.2 / 170** en préparation locale (branche `super`). La 9.1 (build 169) est en review. Watch : même `MARKETING_VERSION` et même `CURRENT_PROJECT_VERSION` que l’iPhone. Apple refuse l’archive sinon (`altool` 90379). watchOS ne remplace la montre déjà installée que si le build augmente (147 → 170 le fait). Les clés de partie Watch ne changent pas.
 
 ---
 
@@ -275,9 +275,9 @@ bundle exec fastlane submit      # envoi à la review (irréversible)
 | `CLEAN=0` | pas de `clean` xcodebuild |
 | `EDIT_LIVE=1` | `metadata` : écrit le promo sur la version **en vente** |
 
-`release` et `beta` bumpent `CURRENT_PROJECT_VERSION` **iPhone** : `max(local, dernier build ASC + 1)`. La Watch n’est pas bumpée. **Committer le pbxproj** après un bump.
+`release` et `beta` bumpent `CURRENT_PROJECT_VERSION` **iPhone et Watch** au même numéro : `max(local iPhone, dernier build ASC + 1)`. **Committer le pbxproj** après un bump.
 
-`validate` / `release` lisent `MARKETING_VERSION` de la cible iPhone (`Blomix/Info.plist`) : un écart Watch (ex. 8.0) n’est pas une erreur.
+`validate` (fastlane) ne compare pas la Watch. `altool --validate-app` refuse une Watch embarquée dont `CFBundleShortVersionString` ou `CFBundleVersion` diffère de l’app iPhone (erreur 90379). Les deux cibles doivent porter le même marketing et le même build avant l’archive. `archive_release_ipa!` s’arrête si ce n’est pas le cas.
 
 `release` / `metadata` / `submit` **refusent** de tourner si ASC a déjà une version éditable (review, Pending Developer Release, etc.) dont le numéro **diffère** de `MARKETING_VERSION`. `deliver` avec `skip_app_version_update: false` **renomme** cette fiche au lieu d’en créer une nouvelle, et n’attache pas le nouveau binaire (incident 6.9 : fiche 6.8 → 6.9, build 128 conservé).
 

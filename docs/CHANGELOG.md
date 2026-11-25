@@ -7,9 +7,9 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.2] — local (branche `super`, iPhone `MARKETING_VERSION` 9.2, build 170)
+## [9.2] — archive Release locale (branche `super`, `MARKETING_VERSION` 9.2, build 170)
 
-Pas d’envoi App Store, pas de popup Nouveautés, pas de schéma CloudKit poussé depuis le dépôt. La Watch reste en 8.0, build 147. La 9.1 (build 169) est en review.
+Pas d’envoi App Store, pas de popup Nouveautés, pas de schéma CloudKit poussé depuis le dépôt. iPhone et Watch compagnon sont en 9.2, build 170 : App Store Connect refuse une Watch embarquée dont la version ou le build diffère (erreur 90379). La 9.1 (build 169) est en review.
 
 ### Ajouté
 

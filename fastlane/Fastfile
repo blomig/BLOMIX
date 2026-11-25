@@ -196,17 +196,43 @@ def connect_api_key!
   )
 end
 
-# Cible iPhone (`Blomix/Info.plist`). La Watch peut rester en 8.0 / 146.
-def iphone_pbx_setting(key)
+# Cibles iPhone (`Blomix/Info.plist`) et Watch (`../Watch/Info.plist`).
+# Les deux portent le même marketing et le même build (ASC 90379).
+def pbx_setting(infplist_marker, key)
   pbx = File.read(File.join(XCODEPROJ, "project.pbxproj"))
   values = []
   pbx.split("isa = XCBuildConfiguration;").each do |block|
-    next unless block.include?("INFOPLIST_FILE = Blomix/Info.plist")
+    next unless block.include?(infplist_marker)
 
     val = block[/#{Regexp.escape(key)} = ([^;]+);/, 1]
     values << val.strip if val
   end
   values.uniq
+end
+
+def iphone_pbx_setting(key)
+  pbx_setting("INFOPLIST_FILE = Blomix/Info.plist", key)
+end
+
+def watch_pbx_setting(key)
+  pbx_setting("INFOPLIST_FILE = ../Watch/Info.plist", key)
+end
+
+# ASC erreur 90379 : la Watch embarquée doit avoir les mêmes
+# CFBundleShortVersionString et CFBundleVersion que l’app iPhone.
+def assert_watch_matches_iphone!
+  %w[MARKETING_VERSION CURRENT_PROJECT_VERSION].each do |key|
+    iphone = iphone_pbx_setting(key)
+    watch = watch_pbx_setting(key)
+    UI.user_error!("#{key} iPhone incohérent : #{iphone.join(', ')}") if iphone.size != 1
+    UI.user_error!("#{key} Watch introuvable ou incohérent : #{watch.join(', ')}") if watch.size != 1
+    next if iphone.first == watch.first
+
+    UI.user_error!(
+      "#{key} Watch (#{watch.first}) ≠ iPhone (#{iphone.first}). " \
+      "ASC refuse l’archive (erreur 90379)."
+    )
+  end
 end
 
 def marketing_version
@@ -223,12 +249,14 @@ def iphone_build_number
   builds.first
 end
 
-def set_iphone_build_number!(nxt)
+def set_app_build_number!(nxt)
   path = File.join(XCODEPROJ, "project.pbxproj")
   pbx = File.read(path)
   updated = pbx.split("isa = XCBuildConfiguration;").map.with_index do |block, idx|
     next block if idx.zero?
-    next block unless block.include?("INFOPLIST_FILE = Blomix/Info.plist")
+    iphone = block.include?("INFOPLIST_FILE = Blomix/Info.plist")
+    watch = block.include?("INFOPLIST_FILE = ../Watch/Info.plist")
+    next block unless iphone || watch
 
     block.sub(/CURRENT_PROJECT_VERSION = [^;]+;/, "CURRENT_PROJECT_VERSION = #{nxt};")
   end
@@ -297,13 +325,15 @@ def bump_build_number!(api)
   if nxt == local
     UI.success("Build #{local} encore libre -- on le garde.")
   else
-    set_iphone_build_number!(nxt)
-    UI.success("CURRENT_PROJECT_VERSION iPhone → #{nxt} (Watch inchangée ; committer le pbxproj)")
+    set_app_build_number!(nxt)
+    UI.success("CURRENT_PROJECT_VERSION iPhone et Watch → #{nxt} (committer le pbxproj)")
   end
+  assert_watch_matches_iphone!
   nxt
 end
 
 def archive_release_ipa!
+  assert_watch_matches_iphone!
   clean = ENV["CLEAN"].to_s != "0"
   build_app(
     project: XCODEPROJ,

@@ -2,8 +2,8 @@
 //  BlomixDailyChallenge.swift
 //  Blomix
 //
-//  Défi du jour (Arcade ou Five) : slot save dédié, scores CloudKit, points podium
-//  +5/+3/+1 après clôture (minuit UTC + 2 h), cumul Game Center.
+//  Défi du jour (Arcade, Five ou Super) : slot save dédié, scores CloudKit,
+//  points podium +5/+3/+1 après clôture (minuit UTC + 2 h), cumul Game Center.
 //
 
 import CloudKit
@@ -26,6 +26,30 @@ struct BlomixDailyRunSave: Codable {
     let seed: UInt64
     let fileRNGState: UInt64
     let game: BlomixSoloGameSave
+    /// `.superDaily` est une partie Zen : `isFiveMode` ne suffit pas à le reconnaître.
+    /// Absent des saves d’avant 9.2 (`decodeIfPresent`).
+    let kindRaw: String?
+
+    init(
+        version: Int,
+        utcDay: String,
+        seed: UInt64,
+        fileRNGState: UInt64,
+        game: BlomixSoloGameSave,
+        kindRaw: String? = nil
+    ) {
+        self.version = version
+        self.utcDay = utcDay
+        self.seed = seed
+        self.fileRNGState = fileRNGState
+        self.game = game
+        self.kindRaw = kindRaw
+    }
+
+    var dailyKind: BlomixDailyKind {
+        if let kindRaw, let kind = BlomixDailyKind(rawValue: kindRaw) { return kind }
+        return game.isFiveMode ? .five : .arcade
+    }
 }
 
 enum BlomixDailyHubCTA {
@@ -39,22 +63,25 @@ enum BlomixDailyScoresLoad {
     case unavailable
 }
 
-/// Deux défis quotidiens indépendants : Arcade (ligne /10) et Five (ligne /5).
+/// Trois défis quotidiens indépendants : Arcade (ligne /10), Five (ligne /5), Super (Zen, 0 bombe).
 enum BlomixDailyKind: String, CaseIterable, Sendable {
     case arcade
     case five
+    /// Raw value `super` (le mot-clé Swift `super` ne peut pas nommer le cas).
+    case superDaily = "super"
 
     var recordType: String {
         switch self {
         case .arcade: return "DailyScore"
         case .five: return "FiveDailyScore"
+        case .superDaily: return "SuperDailyScore"
         }
     }
 
-    /// Champ CK queryable du jour UTC. Arcade : `day`. Five : `Day` (Dashboard).
+    /// Champ CK queryable du jour UTC. Arcade et Super : `day`. Five : `Day` (Dashboard).
     var ckDayKey: String {
         switch self {
-        case .arcade: return "day"
+        case .arcade, .superDaily: return "day"
         case .five: return "Day"
         }
     }
@@ -63,6 +90,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "daily"
         case .five: return "five"
+        case .superDaily: return "super"
         }
     }
 
@@ -70,6 +98,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_save_v1"
         case .five: return "blomix_five_daily_save_v1"
+        case .superDaily: return "blomix_super_daily_save_v1"
         }
     }
 
@@ -77,6 +106,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_finished_day"
         case .five: return "blomix_five_daily_finished_day"
+        case .superDaily: return "blomix_super_daily_finished_day"
         }
     }
 
@@ -84,6 +114,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_finished_score"
         case .five: return "blomix_five_daily_finished_score"
+        case .superDaily: return "blomix_super_daily_finished_score"
         }
     }
 
@@ -91,6 +122,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_career_points"
         case .five: return "blomix_five_daily_career_points"
+        case .superDaily: return "blomix_super_daily_career_points"
         }
     }
 
@@ -98,14 +130,16 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_pending_gc_points"
         case .five: return "blomix_five_daily_pending_gc_points"
+        case .superDaily: return "blomix_super_daily_pending_gc_points"
         }
     }
 
-    /// Arcade : `blomix_daily_credited_{day}` ; Five : `credited_five_{day}`.
+    /// Arcade : `blomix_daily_credited_{day}` ; Five : `credited_five_{day}` ; Super : `credited_super_{day}`.
     var creditedPrefix: String {
         switch self {
         case .arcade: return "blomix_daily_credited_"
         case .five: return "credited_five_"
+        case .superDaily: return "credited_super_"
         }
     }
 
@@ -113,6 +147,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_career_rank"
         case .five: return "blomix_five_daily_career_rank"
+        case .superDaily: return "blomix_super_daily_career_rank"
         }
     }
 
@@ -120,6 +155,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_career_rank_pid"
         case .five: return "blomix_five_daily_career_rank_pid"
+        case .superDaily: return "blomix_super_daily_career_rank_pid"
         }
     }
 
@@ -127,6 +163,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "dailywins_arc"
         case .five: return "dailywin_five"
+        case .superDaily: return "dailywin_super"
         }
     }
 
@@ -134,6 +171,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return BlomixDailySeed.arcadeSalt
         case .five: return BlomixDailySeed.fiveSalt
+        case .superDaily: return BlomixDailySeed.superSalt
         }
     }
 
@@ -141,22 +179,36 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix-daily-fx-v1"
         case .five: return "blomix-five-fx-v1"
+        case .superDaily: return "blomix-super-fx-v1"
         }
     }
 
     var linePeriod: Int {
         switch self {
-        case .arcade: return 10
+        case .arcade, .superDaily: return 10
         case .five: return 5
         }
     }
 
-    var isUntimed: Bool { self == .five }
+    /// Five et Super : pas de timer. Arcade garde les stages.
+    var isUntimed: Bool { self != .arcade }
+
+    /// Super part à 0. Arcade et Five gardent le stock solo de 5.
+    var startingBombCount: Int { self == .superDaily ? 0 : 5 }
+
+    var telemetryMode: String {
+        switch self {
+        case .arcade: return "daily_arcade"
+        case .five: return "daily_five"
+        case .superDaily: return "daily_super"
+        }
+    }
 
     var ghostCacheDayKey: String {
         switch self {
         case .arcade: return "blomix_daily_ghost_day"
         case .five: return "blomix_five_daily_ghost_day"
+        case .superDaily: return "blomix_super_daily_ghost_day"
         }
     }
 
@@ -164,6 +216,7 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_ghost_score"
         case .five: return "blomix_five_daily_ghost_score"
+        case .superDaily: return "blomix_super_daily_ghost_score"
         }
     }
 
@@ -171,7 +224,24 @@ enum BlomixDailyKind: String, CaseIterable, Sendable {
         switch self {
         case .arcade: return "blomix_daily_ghost_ver"
         case .five: return "blomix_five_daily_ghost_ver"
+        case .superDaily: return "blomix_super_daily_ghost_ver"
         }
+    }
+}
+
+/// Où un game over écrit le record local et Game Center.
+/// Le Défi Super se joue comme un Zen, sans toucher `ZenMode` ni le record Zen.
+enum BlomixRunRecordSink: Equatable {
+    case none
+    case zen
+    case five
+    case arcade
+
+    static func forGameOver(isSuperDaily: Bool, isFive: Bool, isZen: Bool) -> BlomixRunRecordSink {
+        if isSuperDaily { return .none }
+        if isFive { return .five }
+        if isZen { return .zen }
+        return .arcade
     }
 }
 
@@ -180,6 +250,7 @@ final class BlomixDailyChallenge {
 
     static let arcade = BlomixDailyChallenge(kind: .arcade)
     static let five = BlomixDailyChallenge(kind: .five)
+    static let superDaily = BlomixDailyChallenge(kind: .superDaily)
     /// Alias historique = Défi Arcade.
     static var shared: BlomixDailyChallenge { arcade }
 
@@ -187,6 +258,7 @@ final class BlomixDailyChallenge {
         switch kind {
         case .arcade: return arcade
         case .five: return five
+        case .superDaily: return superDaily
         }
     }
 
@@ -852,4 +924,118 @@ final class BlomixDailyChallenge {
         }
         return all
     }
+}
+
+// MARK: - Déblocage Défi Super
+
+/// Série des jours UTC où Arcade ET Five sont finis. Pur : pas de UserDefaults.
+enum BlomixSuperUnlockMath {
+    static let requiredDays = 7
+
+    static func previousDay(before day: String) -> String? {
+        guard let start = BlomixDailySeed.startOfUtcDay(day) else { return nil }
+        let cal = BlomixDailySeed.utcCalendar()
+        guard let prev = cal.date(byAdding: .day, value: -1, to: start) else { return nil }
+        return BlomixDailySeed.utcDayString(from: prev)
+    }
+
+    /// Aujourd’hui incomplet ne casse pas la série si hier est complet.
+    /// Un jour révolu absent du set remet le compte à 0.
+    static func streak(completeDays: Set<String>, today: String) -> Int {
+        let anchor: String
+        if completeDays.contains(today) {
+            anchor = today
+        } else if let yesterday = previousDay(before: today), completeDays.contains(yesterday) {
+            anchor = yesterday
+        } else {
+            return 0
+        }
+        var count = 0
+        var cursor: String? = anchor
+        while let day = cursor, completeDays.contains(day) {
+            count += 1
+            cursor = previousDay(before: day)
+        }
+        return count
+    }
+}
+
+/// Sept jours UTC d’affilée avec Arcade ET Five terminés débloquent le Défi Super.
+/// Les clés restent locales : aucune progression du jeu n’est dans `NSUbiquitousKeyValueStore`.
+enum BlomixSuperUnlock {
+    static let streakKey = "blomix_super_unlock_streak"
+    static let unlockedKey = "blomix_super_unlocked"
+    static let daysKey = "blomix_super_complete_days"
+    static let bootstrappedKey = "blomix_super_unlock_bootstrapped"
+    static let celebrateKey = "blomix_super_unlock_celebrate_pending"
+
+    static var isUnlocked: Bool { UserDefaults.standard.bool(forKey: unlockedKey) }
+    static var streak: Int { UserDefaults.standard.integer(forKey: streakKey) }
+
+    static func completeDays(defaults: UserDefaults = .standard) -> Set<String> {
+        Set(defaults.stringArray(forKey: daysKey) ?? [])
+    }
+
+    /// Au premier passage : un seul jour si les deux `finished_day` coïncident.
+    /// L’historique local ne garde que le dernier jour fini de chaque défi.
+    static func bootstrapIfNeeded(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: bootstrappedKey) else { return }
+        defaults.set(true, forKey: bootstrappedKey)
+        let arcade = defaults.string(forKey: BlomixDailyKind.arcade.finishedDayKey)
+        let five = defaults.string(forKey: BlomixDailyKind.five.finishedDayKey)
+        if let arcade, arcade == five {
+            defaults.set([arcade], forKey: daysKey)
+        }
+        refreshStreak(defaults: defaults)
+    }
+
+    /// Après le GO du 2e défi du jour `day`. Un jour déjà noté ne compte pas deux fois.
+    static func noteChallengeFinished(kind: BlomixDailyKind, day: String, defaults: UserDefaults = .standard) {
+        guard kind == .arcade || kind == .five else { return }
+        let other: BlomixDailyKind = kind == .arcade ? .five : .arcade
+        guard defaults.string(forKey: other.finishedDayKey) == day else { return }
+        var days = completeDays(defaults: defaults)
+        if days.insert(day).inserted {
+            defaults.set(days.sorted(), forKey: daysKey)
+        }
+        refreshStreak(today: BlomixDailySeed.utcDayString(), defaults: defaults)
+    }
+
+    /// Recalcule la série. Le déblocage, une fois posé, ne revient pas en arrière.
+    static func refreshStreak(
+        today: String = BlomixDailySeed.utcDayString(),
+        defaults: UserDefaults = .standard
+    ) {
+        let value = BlomixSuperUnlockMath.streak(completeDays: completeDays(defaults: defaults), today: today)
+        defaults.set(value, forKey: streakKey)
+        guard !defaults.bool(forKey: unlockedKey) else { return }
+        if value >= BlomixSuperUnlockMath.requiredDays {
+            defaults.set(true, forKey: unlockedKey)
+            defaults.set(true, forKey: celebrateKey)
+        }
+    }
+
+    /// Vrai une seule fois, au retour accueil qui suit le passage à débloqué.
+    static func consumeCelebration(defaults: UserDefaults = .standard) -> Bool {
+        guard defaults.bool(forKey: celebrateKey) else { return false }
+        defaults.set(false, forKey: celebrateKey)
+        return true
+    }
+
+    #if DEBUG
+    static func debugForceUnlock(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: bootstrappedKey)
+        defaults.set(BlomixSuperUnlockMath.requiredDays, forKey: streakKey)
+        defaults.set(true, forKey: unlockedKey)
+        defaults.set(true, forKey: celebrateKey)
+    }
+
+    static func debugReset(defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: bootstrappedKey)
+        defaults.set(0, forKey: streakKey)
+        defaults.set(false, forKey: unlockedKey)
+        defaults.set(false, forKey: celebrateKey)
+        defaults.removeObject(forKey: daysKey)
+    }
+    #endif
 }

@@ -44,12 +44,12 @@ Critère (`BlomixInstallCensus`) : faux dès qu’une de ces traces est présent
 
 - Tutoriel déjà vu : `BlomixHasSeenGameTutorial` ou `BlomixHasSeenInteractiveTutorial_v1`
 - Un record local > 0 : Arcade, Zen, Five, moyenne (`BlomixAvgGameCount`), scores en attente Game Center, points ou score de Défi, matchs Elo en attente
-- Une sauvegarde présente : Arcade, Zen, Five, Défi Arcade, Défi Five, ou un jour de Défi déjà fini
+- Une sauvegarde présente : Arcade, Zen, Five, Défi Arcade, Défi Five, Défi Super, ou un jour de Défi déjà fini
 - Un trophée de jeu dans `blomix_trophies_v1` (valeur > 0). `theme_light` ne compte pas : il est posé au lancement en Clair, sans partie. Un JSON de trophées illisible compte comme une trace.
 
 La lecture ne crée pas ces clés.
 
-`mode` : `arcade`, `zen`, `five`, `daily_arcade`, `daily_five`, `duel`, `tutorial`.
+`mode` : `arcade`, `zen`, `five`, `daily_arcade`, `daily_five`, `daily_super`, `duel`, `tutorial`.
 
 `durationSec` est un entier : **temps de jeu actif**, pas l’horloge murale. Le chrono n’avance que si une partie est ouverte, l’app est au premier plan, et le jeu n’est pas en pause (menu ☰, modal ouvert depuis la partie, confirmation pour quitter). Il s’arrête en arrière-plan, en pause, et au retour au menu. Une partie neuve remet le compteur à zéro (`noteGameBegan`).
 

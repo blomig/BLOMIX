@@ -94,6 +94,7 @@ enum BlomixDailySeed {
     static let formatVersion = "v1"
     static let arcadeSalt = "blomix-daily-v1"
     static let fiveSalt = "blomix-five-v1"
+    static let superSalt = "blomix-super-v1"
     private static let salt = arcadeSalt
     /// Après minuit UTC, les saves du jour précédent restent classables pendant `G`.
     static let graceAfterUtcMidnight: TimeInterval = 2 * 3600

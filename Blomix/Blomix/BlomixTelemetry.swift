@@ -153,10 +153,13 @@ enum BlomixInstallCensus {
             "BlomixPendingFiveGCScore",
             "blomix_daily_career_points",
             "blomix_five_daily_career_points",
+            "blomix_super_daily_career_points",
             "blomix_daily_finished_score",
             "blomix_five_daily_finished_score",
+            "blomix_super_daily_finished_score",
             "blomix_daily_pending_gc_points",
             "blomix_five_daily_pending_gc_points",
+            "blomix_super_daily_pending_gc_points",
             "BlomixPvPEloPending.matches",
         ]
         if scoreKeys.contains(where: { defaults.integer(forKey: $0) > 0 }) { return false }
@@ -166,8 +169,10 @@ enum BlomixInstallCensus {
             "blomix_five_save_v1",
             "blomix_daily_save_v1",
             "blomix_five_daily_save_v1",
+            "blomix_super_daily_save_v1",
             "blomix_daily_finished_day",
             "blomix_five_daily_finished_day",
+            "blomix_super_daily_finished_day",
         ]
         if presentKeys.contains(where: { defaults.object(forKey: $0) != nil }) { return false }
         if let data = defaults.data(forKey: "blomix_trophies_v1"), hasPlayTrophy(in: data) {
@@ -324,7 +329,7 @@ enum BlomixTelemetry {
         play.persistedSeconds(at: Date())
     }
 
-    /// Fin de partie. `mode` est le libellé stable (arcade, zen, five, daily_arcade, daily_five, duel, tutorial).
+    /// Fin de partie. `mode` est le libellé stable (arcade, zen, five, daily_arcade, daily_five, daily_super, duel, tutorial).
     static func noteGameEnded(mode: String) {
         let outcome = play.end(at: Date())
         enqueue(kind: "game_end", mode: mode, durationSec: outcome.durationSec, day: nil, resumed: outcome.resumed)

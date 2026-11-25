@@ -7,6 +7,19 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [9.2] — local (branche `super`, iPhone `MARKETING_VERSION` 9.2, build 170)
+
+Pas d’envoi App Store, pas de popup Nouveautés, pas de schéma CloudKit poussé depuis le dépôt. La Watch reste en 8.0, build 147. La 9.1 (build 169) est en review.
+
+### Ajouté
+
+- **Défi Super** : troisième puce sous DÉFIS, à côté d’Arcade et de Five. JOUER ne change pas. La partie est un Zen (pas de timer, bombe 3×3, score ×1, ligne /10) qui commence avec **0 bombe**. Les bombes gagnées en jeu marchent comme en Zen. La file est la graine du jour, sel `blomix-super-v1`, effets `blomix-super-fx-v1`. Une partie par jour UTC, slot `blomix_super_daily_save_v1`. Le titre en partie est « Défi Super ». Le score n’alimente ni `ZenMode` ni le record Zen local.
+- **Déblocage** : la puce reste grisée, avec un cadenas, tant que le joueur n’a pas fini Arcade **et** Five le même jour UTC, 7 jours UTC d’affilée (`blomix_super_unlock_streak`). À 7, `blomix_super_unlocked` reste vrai même si la série casse. Un trou remet la série à 0. Un seul des deux défis ne compte pas. Un jour ne compte qu’une fois. Aujourd’hui encore ouvert ne casse pas la série si hier est complet. Appui sur la puce grisée : bulle (règle + `3/7`), pas de partie. Au déblocage : pulse de la puce et panneau « Défi Super débloqué ! », au retour accueil. Réglages DEBUG : forcer le déblocage, ou remettre la série à 0 (absent en Release).
+- **Rattrapage** : au premier lancement, si les deux derniers jours finis coïncident, ce jour seul entre dans la série. L’appareil ne garde pas l’historique des jours d’avant. Les clés de progression restent locales : aucune progression BLOMIX n’est dans iCloud KVS.
+- **Infra** : même hub, fantôme, podium +5/+3/+1 après minuit UTC + 2 h, cumul Game Center `dailywin_super` (à créer dans App Store Connect). CloudKit `SuperDailyScore`, champ jour queryable `day` (minuscule). Pastille accueil **S DÉFI**, onglet carrière, trophée Salon `play_daily_super` (pas de réalisation Game Center), télémétrie `daily_super`.
+
+---
+
 ## [9.1] — en review (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, envoyé le 22/11/2026)
 
 La 9.0 (build 168) est en vente. La Watch reste en 8.0, build 147.

@@ -149,6 +149,7 @@
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
 "leaderboard.five_daily_tab" = "5 Dia";
+"leaderboard.super_daily_tab" = "S Dia";
 "leaderboard.avg_format" = "méd. %lld pts";
 "leaderboard.avg_game_count" = "%lld partidas";
 
@@ -481,10 +482,17 @@
 "start.hero_mode_daily" = "Continuar";
 "rank_disc.daily" = "DIA";
 "rank_disc.five_daily" = "5 DIA";
+"rank_disc.super_daily" = "S DIA";
 "leaderboard.daily_tab" = "Dia";
 "daily.hub_title" = "Desafio do dia";
 "daily.hub_title_arcade" = "Desafio Arcade";
 "daily.hub_title_five" = "Desafio Five";
+"daily.super.title" = "Desafio Super";
+"daily.super.chip" = "Super";
+"daily.super.locked" = "Joga os desafios Arcade e Five todos os dias durante 7 dias seguidos para desbloquear o Desafio Super.";
+"daily.super.progress" = "Sequência: %d/7 dias";
+"daily.super.unlocked" = "Desafio Super desbloqueado!";
+"daily.super.rule" = "Uma partida Zen, igual para todos, sem nenhuma bomba no início.";
 "daily.cta_play" = "Desafio!";
 "daily.cta_continue" = "Continuar";
 "daily.cta_tomorrow" = "Volte amanhã";
@@ -529,6 +537,7 @@
 "trophy.title.play_five" = "Five";
 "trophy.title.play_daily_arc" = "Desafio Arcade";
 "trophy.title.play_daily_five" = "Desafio Five";
+"trophy.title.play_daily_super" = "Desafio Super";
 "trophy.title.play_duel" = "Duelo";
 "trophy.title.play_tutorial" = "Sabes tudo";
 "trophy.title.play_both_dailies" = "Dia duplo";
@@ -600,6 +609,7 @@
 "trophy.body.play_five" = "Termina uma partida Five livre.";
 "trophy.body.play_daily_arc" = "Classifica um Desafio Arcade.";
 "trophy.body.play_daily_five" = "Classifica um Desafio Five.";
+"trophy.body.play_daily_super" = "Classifica um Desafio Super.";
 "trophy.body.play_duel" = "Termina um Duelo, ganho ou perdido.";
 "trophy.body.play_tutorial" = "Termina o tutorial (sem Saltar).";
 "trophy.body.play_both_dailies" = "Os dois Desafios no mesmo dia.";
@@ -680,6 +690,7 @@
 "trophy.master.play_five" = "High Five";
 "trophy.master.play_daily_arc" = "Mestre Desafio";
 "trophy.master.play_daily_five" = "Mestre Desafio 5";
+"trophy.master.play_daily_super" = "Mestre Desafio Super";
 "trophy.master.play_duel" = "Pistoleiro";
 "trophy.master.play_tutorial" = "—";
 "trophy.master.play_both_dailies" = "Louco do Desafio";

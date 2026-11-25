@@ -78,7 +78,7 @@ Ce n’est **pas** « 7/8 couleur + 1/8 Brix, plus 3 % Magix par-dessus ».
 
 En PvP : RNG partagé via `BlomixPvPMatchCoordinator` (canaux GK / Local / `.bot`). Duel vs bots : `BlomixPvPBotEngine` (file `blomix.pvpBot`), Elo bot `BlomixPvPBotEloStore` (`BotEloEvent`). [BOT_DUEL.md](BOT_DUEL.md).  
 En tutoriel : séquence scriptée (`tutorialBlockQueue`).  
-En **Défi Arcade** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v1"+YYYY-MM-DD)` FNV-1a 64). En **Défi Five** : même pipeline, sel `blomix-five-v1` / fx `blomix-five-fx-v1`. Effets Magix via `BlomixDailyEffectRNG` (hash d’événement, ne consomme pas la File). Auto-drop **non seedé**.
+En **Défi Arcade** : File LCG (`BlomixDailyFileRNG`, seed `hash("blomix-daily-v1"+YYYY-MM-DD)` FNV-1a 64). En **Défi Five** : même pipeline, sel `blomix-five-v1` / fx `blomix-five-fx-v1`. En **Défi Super** : sel `blomix-super-v1` / fx `blomix-super-fx-v1`, règles Zen, `bombCount` 0. Effets Magix via `BlomixDailyEffectRNG` (hash d’événement, ne consomme pas la File). Auto-drop **non seedé**.
 
 **Restrictions lignes entrantes** (`nextBottomLineRowForSession`) : tirage identique à la file, **puis** tout `.magix` est remplacé par une couleur ; en tutoriel, les `.priks` aussi. En Duel, le RNG partagé **ne tire jamais** de Magix (`BlomixPvPSeededBlockRNG` : 1/8 Brix sinon couleur).
 
@@ -223,6 +223,7 @@ Le lookahead (`BlomixMoveAnalyzer`) **ignore** les Magix **et les bombes** (effe
 - PvP : Elo (`elotype`)
 - Défi Arcade : points podium cumulés — onglet in-app = somme CloudKit des jours clos ; GC `dailywins_arc` = submit du joueur local (le score de la run va **aussi** sur Arcade + moyenne)
 - Défi Five : idem, GC `dailywin_five` ; le score de la run va **seulement** sur `FiveMode`
+- Défi Super : idem, GC `dailywin_super` (à créer) ; le score de la run ne va **ni** sur `ZenMode` **ni** sur le record Zen local
 
 ---
 
@@ -249,7 +250,7 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 
 ### Défi du jour
 
-`isDailyChallengeMode` + `BlomixDailyKind` (`.arcade` | `.five`). Hub paramétré `BlomixDailyHubViewController(kind:)`. Graines **indépendantes**. Défi Arcade : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai), slot **`blomix_daily_save_v1`**, CK `DailyScore`, GC `dailywins_arc` ; le score de la run va **aussi** sur Arcade + moyenne. Défi Five : `isFiveMode`, slot **`blomix_five_daily_save_v1`**, CK `FiveDailyScore` (Production), GC `dailywin_five` ; le score de la run va **seulement** sur `FiveMode`. Les cinq slots **coexistent**. Accueil : porte Jouer (pastilles rondes Arcade, Five, Zen) ; porte Défis (pastilles rondes Arcade, Five) ; porte Duel. **Pas** d’abandon croisé. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Hub UIKit (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
+`isDailyChallengeMode` + `BlomixDailyKind` (`.arcade` | `.five` | `.superDaily`). Hub paramétré `BlomixDailyHubViewController(kind:)`. Graines **indépendantes**. Défi Arcade : même pipeline stage/timer/bombe qu’Arcade (`isInStagedSoloMode` reste vrai), slot **`blomix_daily_save_v1`**, CK `DailyScore`, GC `dailywins_arc` ; le score de la run va **aussi** sur Arcade + moyenne. Défi Five : `isFiveMode`, slot **`blomix_five_daily_save_v1`**, CK `FiveDailyScore` (Production), GC `dailywin_five` ; le score de la run va **seulement** sur `FiveMode`. Défi Super : `isZenMode` + `dailyChallengeKind == .superDaily`, slot **`blomix_super_daily_save_v1`**, `kindRaw` sur la save, CK `SuperDailyScore` (à créer, champ `day`), GC `dailywin_super` (à créer) ; le score de la run **n’écrit pas** Zen. Déblocage : 7 jours UTC avec Arcade et Five finis (`BlomixSuperUnlock`), clés locales, pas de KVS. Les slots solo et défi **coexistent**. Accueil : porte Jouer (pastilles rondes Arcade, Five, Zen) ; porte Défis (pastilles rondes Arcade, Five, Super) ; porte Duel. **Pas** d’abandon croisé. Duel depuis l’accueil = lobby (slots intacts). Entrée PvP **en run** : snapshot dans le slot du mode en cours. Hub UIKit (liste du **jour affiché** : save X pendant la grâce de 2 h après minuit UTC, sinon aujourd’hui). Voir [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
 ### Sauvegarde solo
 
@@ -259,11 +260,12 @@ Timer relancé **à fond** après chaque coup stable et après overlay de stage.
 - Five : `blomix_five_save_v1` (`isFiveMode == true`)
 - Défi Arcade : `blomix_daily_save_v1` (enveloppe + graine)
 - Défi Five : `blomix_five_daily_save_v1`
+- Défi Super : `blomix_super_daily_save_v1` (`kindRaw` = `super` ; une vieille enveloppe sans ce champ reste Arcade ou Five)
 - Grille, file P0/P1/P2, `moveCount`, `nextBottomLine`
 - Bombes, score, `chainSeriesLevel`, `chainClearWaveCount`
 - Stage, timer, `moveRecords`, `hintsRemaining`, `isZenMode`, `isFiveMode`
 - `activePlaySeconds` (optionnel, défaut 0, pas de bump) : temps de jeu actif déjà accumulé, pour la télémétrie. Voir [TELEMETRY.md](TELEMETRY.md)
-- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : porte **Jouer** (pastille Arcade, Five ou Zen ; Continuer si le slot de cette pastille a une save ; Découvrir sous Arcade si le tuto n’a pas été vu), porte **Défis** (pastille Arcade ou Five ; heure de clôture ou Classement), porte Duel
+- Auto-save en arrière-plan ; au lancement, **toujours l’accueil** : porte **Jouer** (pastille Arcade, Five ou Zen ; Continuer si le slot de cette pastille a une save ; Découvrir sous Arcade si le tuto n’a pas été vu), porte **Défis** (pastille Arcade, Five ou Super ; Super grisé tant qu’il n’est pas débloqué ; heure de clôture ou Classement), porte Duel
 - Avant persistance : flush des états transitoires (`pendingGridWrite`, `pendingScoredChainClearCells`) **puis toujours** `compactGridTowardTop` + resolve synchrone (évite de sauver des trous mid-vague)
 - Encre : au retour au premier plan, les textures UIGraphics (pièces, cases, papier, disques, score, repères, 64 tampons d’adresse) sont jetées et repeintes. SpriteKit ne réuploade pas un masque mis en cache : le rectangle de la pièce redevient opaque (trous peints, Brix couvert par le blox). Même famille que la visée fantôme (texture blanche jusqu’au prochain lancement). Les tampons d’adresse repartent hors du fil ; les poser ensuite ne peint rien.
 - À la reprise : même légalisation gravité / chaînes **avant** `drawGrid()` (répare les anciennes saves illégales)

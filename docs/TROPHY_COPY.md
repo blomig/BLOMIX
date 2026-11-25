@@ -97,6 +97,15 @@ Un nom par mur. Cutout au-dessus de la grille.
 - phrase : Classe un Défi Five.
 - notes :
 
+#### `play_daily_super`
+- courbe : volume
+- seuils : 0 · **1** · **10** · **100**
+- aujourd’hui : Défi Super
+- nom : …
+- maître : Maître Défi Super
+- phrase : Classe un Défi Super.
+- notes : pas de réalisation Game Center. N’incrémente pas `play_zen`.
+
 #### `play_duel`
 - courbe : volume
 - seuils : 0 · **1** · **10** · **100**

@@ -467,3 +467,104 @@ final class SentAttackLedgerTests: XCTestCase {
         XCTAssertEqual(ledger.pendingIds, [1])
     }
 }
+
+/// Contrat Défi Super : graine, bombes, série de déblocage, isolation du record Zen.
+final class SuperDailyTests: XCTestCase {
+
+    func testSuperKindContract() {
+        let kind = BlomixDailyKind.superDaily
+        XCTAssertEqual(kind.rawValue, "super")
+        XCTAssertEqual(kind.startingBombCount, 0)
+        XCTAssertEqual(BlomixDailyKind.arcade.startingBombCount, 5)
+        XCTAssertEqual(BlomixDailyKind.five.startingBombCount, 5)
+        XCTAssertTrue(kind.isUntimed)
+        XCTAssertFalse(BlomixDailyKind.arcade.isUntimed)
+        XCTAssertEqual(kind.linePeriod, 10)
+        XCTAssertEqual(kind.recordType, "SuperDailyScore")
+        XCTAssertEqual(kind.ckDayKey, "day")
+        XCTAssertEqual(kind.leaderboardID, "dailywin_super")
+        XCTAssertEqual(kind.creditedPrefix, "credited_super_")
+        XCTAssertEqual(kind.seedSalt, "blomix-super-v1")
+        XCTAssertEqual(kind.fxSalt, "blomix-super-fx-v1")
+        XCTAssertEqual(kind.saveKey, "blomix_super_daily_save_v1")
+        XCTAssertNotEqual(kind.seedSalt, BlomixDailyKind.arcade.seedSalt)
+        XCTAssertNotEqual(kind.seedSalt, BlomixDailyKind.five.seedSalt)
+    }
+
+    func testSuperSeedDiffersAndStaysStable() {
+        let day = "2026-11-13"
+        let arcade = BlomixDailySeed.seed(forDay: day, salt: BlomixDailyKind.arcade.seedSalt)
+        let five = BlomixDailySeed.seed(forDay: day, salt: BlomixDailyKind.five.seedSalt)
+        let superSeed = BlomixDailySeed.seed(forDay: day, salt: BlomixDailyKind.superDaily.seedSalt)
+        XCTAssertNotEqual(superSeed, arcade)
+        XCTAssertNotEqual(superSeed, five)
+        XCTAssertEqual(superSeed, BlomixDailySeed.seed(forDay: day, salt: BlomixDailySeed.superSalt))
+    }
+
+    func testSuperGameOverDoesNotWriteTheZenRecord() {
+        XCTAssertEqual(
+            BlomixRunRecordSink.forGameOver(isSuperDaily: true, isFive: false, isZen: true),
+            .none
+        )
+        XCTAssertEqual(
+            BlomixRunRecordSink.forGameOver(isSuperDaily: false, isFive: false, isZen: true),
+            .zen
+        )
+    }
+
+    func testSevenCompleteDaysUnlockAndAGapResets() {
+        let days = (1...7).map { String(format: "2026-11-%02d", $0) }
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: Set(days), today: days[6]), 7)
+        let gapped = Set(days.dropLast())
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: gapped, today: "2026-11-09"), 0)
+    }
+
+    func testASingleChallengeDayDoesNotCountAndTodayCanStayOpen() {
+        let onlyYesterday = Set(["2026-11-06"])
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: onlyYesterday, today: "2026-11-07"), 1)
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: onlyYesterday, today: "2026-11-08"), 0)
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: [], today: "2026-11-07"), 0)
+    }
+
+    func testADayCountsOnceInTheStreak() {
+        let days: Set<String> = ["2026-11-01", "2026-11-02", "2026-11-02"]
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: days, today: "2026-11-02"), 2)
+    }
+
+    func testOpenTodayKeepsYesterdaysStreak() {
+        let days = Set((1...6).map { String(format: "2026-11-%02d", $0) })
+        XCTAssertEqual(BlomixSuperUnlockMath.streak(completeDays: days, today: "2026-11-07"), 6)
+    }
+
+    func testOneFinishedChallengeDoesNotCountAndUnlockIsPermanent() throws {
+        let name = "blomix-super-unlock-tests"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        defaults.set(true, forKey: BlomixSuperUnlock.bootstrappedKey)
+        defaults.set("2026-11-01", forKey: BlomixDailyKind.arcade.finishedDayKey)
+        BlomixSuperUnlock.noteChallengeFinished(kind: .arcade, day: "2026-11-01", defaults: defaults)
+        XCTAssertTrue(BlomixSuperUnlock.completeDays(defaults: defaults).isEmpty)
+
+        defaults.set("2026-11-01", forKey: BlomixDailyKind.five.finishedDayKey)
+        BlomixSuperUnlock.noteChallengeFinished(kind: .five, day: "2026-11-01", defaults: defaults)
+        BlomixSuperUnlock.noteChallengeFinished(kind: .arcade, day: "2026-11-01", defaults: defaults)
+        XCTAssertEqual(BlomixSuperUnlock.completeDays(defaults: defaults), ["2026-11-01"])
+
+        let today = "2026-11-07"
+        var cursor = today
+        var days: [String] = []
+        for _ in 0..<7 {
+            days.append(cursor)
+            cursor = try XCTUnwrap(BlomixSuperUnlockMath.previousDay(before: cursor))
+        }
+        defaults.set(days, forKey: BlomixSuperUnlock.daysKey)
+        BlomixSuperUnlock.refreshStreak(today: today, defaults: defaults)
+        XCTAssertTrue(defaults.bool(forKey: BlomixSuperUnlock.unlockedKey))
+        XCTAssertTrue(defaults.bool(forKey: BlomixSuperUnlock.celebrateKey))
+
+        BlomixSuperUnlock.refreshStreak(today: "2026-12-01", defaults: defaults)
+        XCTAssertTrue(defaults.bool(forKey: BlomixSuperUnlock.unlockedKey))
+        XCTAssertEqual(defaults.integer(forKey: BlomixSuperUnlock.streakKey), 0)
+        defaults.removePersistentDomain(forName: name)
+    }
+}

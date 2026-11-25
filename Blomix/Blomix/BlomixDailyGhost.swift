@@ -36,6 +36,7 @@ final class BlomixDailyGhostController {
 
     static let arcade = BlomixDailyGhostController(kind: .arcade)
     static let five = BlomixDailyGhostController(kind: .five)
+    static let superDaily = BlomixDailyGhostController(kind: .superDaily)
     /// Alias historique = fantôme Défi Arcade.
     static var shared: BlomixDailyGhostController { arcade }
 
@@ -43,6 +44,7 @@ final class BlomixDailyGhostController {
         switch kind {
         case .arcade: return arcade
         case .five: return five
+        case .superDaily: return superDaily
         }
     }
 
@@ -144,7 +146,8 @@ final class BlomixDailyGhostController {
                 day: day,
                 seed: seed,
                 linePeriod: kind.linePeriod,
-                untimed: kind.isUntimed
+                untimed: kind.isUntimed,
+                startingBombs: kind.startingBombCount
             )
         }
         pausedEngine = nil
@@ -251,7 +254,8 @@ struct BlomixDailyGhostEngine: Sendable {
         day: String,
         seed: UInt64,
         linePeriod: Int = 10,
-        untimed: Bool = false
+        untimed: Bool = false,
+        startingBombs: Int = 5
     ) -> BlomixDailyGhostEngine {
         var file = BlomixDailyFileRNG(seed: seed)
         let p0 = drawPlayable(using: &file)
@@ -271,7 +275,7 @@ struct BlomixDailyGhostEngine: Sendable {
             score: 0,
             chainSeriesLevel: 0,
             stageIndex: 0,
-            bombCount: 5,
+            bombCount: max(0, startingBombs),
             movesPlayed: 0
         )
     }

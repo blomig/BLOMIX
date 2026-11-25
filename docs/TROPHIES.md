@@ -302,9 +302,9 @@ Hors v1 : toutes les skins, Watch.
 IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).  
 **C** = courbe (V volume, R rare, Q qualité, U unique).
 
-~**49** pastilles visibles + **13** secrets = **62** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
+~**50** pastilles visibles + **13** secrets = **63** sur le mur (moins qu’avant : la profondeur est dans les rangs, pas dans 73 cases).
 
-### Seuil (10)
+### Seuil (11)
 
 | ID | Titre | Événement | C |
 |---|---|---|---|
@@ -313,6 +313,7 @@ IDs = clés de save. Titres = étiquettes design FR (nom d’écran à part).
 | `play_five` | Five | GO Five **libre** | V |
 | `play_daily_arc` | Défi Arcade | GO classé Défi Arcade | V |
 | `play_daily_five` | Défi Five | GO classé Défi Five | V |
+| `play_daily_super` | Défi Super | GO classé Défi Super (pas le record Zen) | V |
 | `play_duel` | Duel | Match terminé (G ou P, tous adversaires) | V |
 | `play_tutorial` | Tu sais tout | Tuto **au bout** (pas Passer) | U |
 | `play_both_dailies` | Double journée | Les deux Défis le même jour UTC | V |

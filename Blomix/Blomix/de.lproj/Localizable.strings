@@ -149,6 +149,7 @@
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
 "leaderboard.five_daily_tab" = "5 Tag";
+"leaderboard.super_daily_tab" = "S Tag";
 "leaderboard.avg_format" = "Ø %lld Pkt.";
 "leaderboard.avg_game_count" = "%lld Partien";
 
@@ -481,10 +482,17 @@
 "start.hero_mode_daily" = "Weiter";
 "rank_disc.daily" = "TAG";
 "rank_disc.five_daily" = "5 TAG";
+"rank_disc.super_daily" = "S TAG";
 "leaderboard.daily_tab" = "Tag";
 "daily.hub_title" = "Tägliche Challenge";
 "daily.hub_title_arcade" = "Arcade-Challenge";
 "daily.hub_title_five" = "Five-Challenge";
+"daily.super.title" = "Super-Challenge";
+"daily.super.chip" = "Super";
+"daily.super.locked" = "Spiele 7 Tage in Folge jeden Tag die Arcade- und die Five-Challenge, um die Super-Challenge freizuschalten.";
+"daily.super.progress" = "Serie: %d/7 Tage";
+"daily.super.unlocked" = "Super-Challenge freigeschaltet!";
+"daily.super.rule" = "Eine Zen-Partie, für alle gleich, ohne Bomben zu Beginn.";
 "daily.cta_play" = "Challenge!";
 "daily.cta_continue" = "Weiter";
 "daily.cta_tomorrow" = "Komm morgen wieder";
@@ -529,6 +537,7 @@
 "trophy.title.play_five" = "Five";
 "trophy.title.play_daily_arc" = "Arcade-Challenge";
 "trophy.title.play_daily_five" = "Five-Challenge";
+"trophy.title.play_daily_super" = "Super-Challenge";
 "trophy.title.play_duel" = "Duell";
 "trophy.title.play_tutorial" = "Du weißt alles";
 "trophy.title.play_both_dailies" = "Doppeltag";
@@ -600,6 +609,7 @@
 "trophy.body.play_five" = "Beende ein freies Five-Spiel.";
 "trophy.body.play_daily_arc" = "Werte eine Arcade-Challenge.";
 "trophy.body.play_daily_five" = "Werte eine Five-Challenge.";
+"trophy.body.play_daily_super" = "Werte eine Super-Challenge.";
 "trophy.body.play_duel" = "Beende ein Duell, Sieg oder Niederlage.";
 "trophy.body.play_tutorial" = "Schließe das Tutorial ab (nicht überspringen).";
 "trophy.body.play_both_dailies" = "Beide Challenges am selben Tag.";
@@ -680,6 +690,7 @@
 "trophy.master.play_five" = "High Five";
 "trophy.master.play_daily_arc" = "Herausforderungsmeister";
 "trophy.master.play_daily_five" = "5-Herausforderungsmeister";
+"trophy.master.play_daily_super" = "Super-Meister";
 "trophy.master.play_duel" = "Revolverheld";
 "trophy.master.play_tutorial" = "—";
 "trophy.master.play_both_dailies" = "Challenge-Fanatiker";

@@ -247,6 +247,7 @@ enum BlomixL10n {
     static var leaderboardDailyTab: String { tr("leaderboard.daily_tab", comment: "Daily challenge career points tab") }
     static var leaderboardFiveTab: String { tr("leaderboard.five_tab", comment: "Five mode leaderboard tab") }
     static var leaderboardFiveDailyTab: String { tr("leaderboard.five_daily_tab", comment: "Five daily career points tab") }
+    static var leaderboardSuperDailyTab: String { tr("leaderboard.super_daily_tab", comment: "Super daily career points tab") }
     static func leaderboardAverage(_ score: Int) -> String {
         String(format: tr("leaderboard.avg_format", comment: "Row secondary for avg leaderboard; %lld = avg score"), score)
     }
@@ -562,6 +563,7 @@ enum BlomixL10n {
     static var rankDiscDaily: String { tr("rank_disc.daily", comment: "Start screen rank disc — daily career points") }
     static var rankDiscFive: String { tr("rank_disc.five", comment: "Start screen rank disc — Five mode") }
     static var rankDiscFiveDaily: String { tr("rank_disc.five_daily", comment: "Start screen rank disc — Five daily career") }
+    static var rankDiscSuperDaily: String { tr("rank_disc.super_daily", comment: "Start screen rank disc — Super daily career") }
 
     // MARK: - Défi du jour
 
@@ -572,8 +574,17 @@ enum BlomixL10n {
         switch kind {
         case .arcade: return dailyHubTitleArcade
         case .five: return dailyHubTitleFive
+        case .superDaily: return dailySuperTitle
         }
     }
+    static var dailySuperTitle: String { tr("daily.super.title", comment: "Super daily hub and in-game title") }
+    static var dailySuperChip: String { tr("daily.super.chip", comment: "Super daily home chip") }
+    static var dailySuperLocked: String { tr("daily.super.locked", comment: "Why the Super chip stays locked") }
+    static func dailySuperProgress(_ days: Int) -> String {
+        String(format: tr("daily.super.progress", comment: "Unlock streak; %d = days out of 7"), Int32(days))
+    }
+    static var dailySuperUnlocked: String { tr("daily.super.unlocked", comment: "Alert when Super unlocks") }
+    static var dailySuperRule: String { tr("daily.super.rule", comment: "Super daily rules, one sentence") }
     static var dailyCTAPlay: String { tr("daily.cta_play", comment: "Hub CTA — start today's run") }
     static var dailyCTAContinue: String { tr("daily.cta_continue", comment: "Hub CTA — resume today's run") }
     static var dailyCTATomorrow: String { tr("daily.cta_tomorrow", comment: "Hub CTA after finishing — greyed") }

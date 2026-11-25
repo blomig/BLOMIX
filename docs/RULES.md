@@ -165,7 +165,7 @@ En Arcade, ce bonus **est multiplié** par le ×stage (×1 à ×6). En Zen et Fi
 
 ## 7. La ligne entrante (tous les 10 coups, tous les 5 en Five)
 
-Tous les **10 coups de pose** (`moveCount % period == 0`, period **10** Arcade / Zen / Défi Arcade, period **5** Five / Défi Five), une rangée de 8 blocs **monte depuis le bas** et occupe la première case vide de chaque colonne.
+Tous les **10 coups de pose** (`moveCount % period == 0`, period **10** Arcade / Zen / Défi Arcade / Défi Super, period **5** Five / Défi Five), une rangée de 8 blocs **monte depuis le bas** et occupe la première case vide de chaque colonne.
 
 Un **coup** = une pose de bloc (Blox, Brix ou Magix) dont la résolution est terminée. **Poser une bombe n’est pas un coup** : le compteur LIGNE n’avance pas.
 
@@ -245,15 +245,15 @@ Nom **Five**, non traduit. Sans timer, sans stages, Magix oui, bombes **3×3** (
 
 ### Défi du jour
 
-Deux défis **indépendants** (graines distinctes) :
+Trois défis **indépendants** (graines distinctes). Le Défi Super se débloque après 7 jours UTC d’affilée où Arcade **et** Five sont finis. La puce reste grisée, avec un cadenas, jusque-là.
 
-| | Défi Arcade | Défi Five |
-|---|---|---|
-| Règles | Même accélération qu’Arcade (timer, stages, bombe, Magix, ligne /10) | Même règles que Five (sans timer, ligne /5) |
-| Graine | `blomix-daily-v1` | `blomix-five-v1` |
-| Score de la run | Arcade + moyenne | `FiveMode` seulement |
-| Carrière podium | `dailywins_arc` | `dailywin_five` |
-| CloudKit | `DailyScore` | `FiveDailyScore` (Production) |
+| | Défi Arcade | Défi Five | Défi Super |
+|---|---|---|---|
+| Règles | Même accélération qu’Arcade (timer, stages, bombe, Magix, ligne /10) | Même règles que Five (sans timer, ligne /5) | Même règles que Zen (sans timer, ligne /10, bombe 3×3), **0 bombe** au départ |
+| Graine | `blomix-daily-v1` | `blomix-five-v1` | `blomix-super-v1` |
+| Score de la run | Arcade + moyenne | `FiveMode` seulement | aucun classement de mode (pas Zen) |
+| Carrière podium | `dailywins_arc` | `dailywin_five` | `dailywin_super` |
+| CloudKit | `DailyScore` | `FiveDailyScore` (Production) | `SuperDailyScore` (à créer) |
 
 Tout le monde joue la **même file** ce jour-là (UTC) pour **ce** défi. Une seule partie par défi et par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC**. Après ça, la partie non terminée n’est plus classée. Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
@@ -306,7 +306,7 @@ Le jeu se termine quand :
 
 L'écran Arcade / Zen / Five affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
 
-En **Défi Arcade** et **Défi Five** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer.
+En **Défi Arcade**, **Défi Five** et **Défi Super** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer. Le Défi Super n’ouvre pas le voile de record Zen.
 
 Un second voile (OK pour le fermer) s'ouvre si le score est un **record personnel**, ou s'il place le joueur **1er, 2e ou 3e** du jeu joué — les deux ensemble ne font qu'un voile. Arcade, Zen et Five : le top 3 est le rang mondial de ce score. Défi : le top 3 est le rang du jour (« pour l'instant »). La place est le titre (couleur du skin) ; **Record personnel** passe en légende. Hors top 3, le voile de record reste « Record personnel ! » plus le rang mondial quand Game Center répond. Des paillettes aux couleurs du skin tournent tant que le voile est là. Le voile et les textes suivent le thème Sombre / Clair.
 

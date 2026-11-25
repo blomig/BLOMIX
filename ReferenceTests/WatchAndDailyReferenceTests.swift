@@ -109,6 +109,10 @@ final class WatchAndDailyReferenceTests: XCTestCase {
         XCTAssertEqual(five, 16_975_958_191_775_742_943)
         XCTAssertNotEqual(arcade, five)
         XCTAssertEqual(BlomixDailySeed.seed(forDay: day), arcade)
+        let superSeed = BlomixDailySeed.seed(forDay: day, salt: BlomixDailySeed.superSalt)
+        XCTAssertNotEqual(superSeed, arcade)
+        XCTAssertNotEqual(superSeed, five)
+        XCTAssertEqual(BlomixDailySeed.seed(forDay: day, salt: BlomixDailySeed.superSalt), superSeed)
     }
 
     func testDailyEffectRNGDoesNotDependOnTheFile() {

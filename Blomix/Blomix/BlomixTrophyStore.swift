@@ -182,6 +182,7 @@ enum BlomixTrophyCatalog {
         add("play_five", .seuil, .volumeDefault)
         add("play_daily_arc", .seuil, .volumeDefault)
         add("play_daily_five", .seuil, .volumeDefault)
+        add("play_daily_super", .seuil, .volumeDefault)
         add("play_duel", .seuil, .volumeDefault)
         add("play_tutorial", .seuil, .unique)
         add("play_both_dailies", .seuil, .volumeDefault)

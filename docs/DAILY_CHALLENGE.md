@@ -1,12 +1,55 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **8.5 / 157** en vente ; **8.6 / 158** local. Five / Défi Five **codés**, jalon **8.8** (pas de bump marketing tant que le mode n’est pas validé).  
-> **CloudKit** : type Public `DailyScore` déployé en **Production**. `FiveDailyScore` **déployé en Production** (schéma ; records = GO Défi Five).  
-> **Game Center** : `dailywins_arc` (nom ASC `DailyWins_arc`). Five : `FiveMode` + **`dailywin_five`** (nom ASC `DailyWin_five`) — présents, non archivés. L’ID Five est **sans s** (`dailywin_five`, pas `dailywins_five`).  
-> **Version de référence** : 8.6  
+> **Statut** : **9.1 / 169** en review ; **9.2 / 170** local (branche `super`).  
+> **CloudKit** : `DailyScore` et `FiveDailyScore` déployés en **Production**. `SuperDailyScore` **à créer** (schéma non poussé par ce dépôt).  
+> **Game Center** : `dailywins_arc`, `dailywin_five`. Super : **`dailywin_super` à créer** dans App Store Connect (pas d’s, comme Five).  
+> **Version de référence** : 9.2  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
-Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes). **Deux défis indépendants** : Arcade (ligne /10) et Five (ligne /5, sans timer). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **points podium** cumulés **par défi**.
+Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes). **Trois défis indépendants** : Arcade (ligne /10), Five (ligne /5, sans timer), Super (Zen, 0 bombe au départ). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **points podium** cumulés **par défi**.
+
+### Défi Super (9.2)
+
+Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `super`) : hub, save du jour, fantôme, podium +5/+3/+1 après minuit UTC + 2 h. La partie est un **Zen** (pas de timer, bombe 3×3, score ×1, ligne /10) avec `bombCount = 0` au départ. Les bombes gagnées en jeu restent. La file suit `blomix-super-v1` ; les effets Magix suivent `blomix-super-fx-v1`. Le score de la run **n’écrit pas** `ZenMode` ni `BlomixLocalZenHighScore`.
+
+| | Défi Super |
+|---|---|
+| Règles | Zen, stock de bombes **0** |
+| Graine | `blomix-super-v1` / fx `blomix-super-fx-v1` |
+| Save | `blomix_super_daily_save_v1` (`kindRaw` = `super`) |
+| Jour fini | `blomix_super_daily_finished_day` / `_score` |
+| Crédit podium | `credited_super_{YYYY-MM-DD}` |
+| Carrière locale | `blomix_super_daily_career_points`, pending `blomix_super_daily_pending_gc_points` |
+| Rang pastille | `blomix_super_daily_career_rank` / `_pid` |
+| Fantôme | `blomix_super_daily_ghost_day` / `_score` / `_ver` (même `engineVersion` 5) |
+| Game Center | `dailywin_super` |
+| CloudKit | `SuperDailyScore`, recordName `super_{YYYY-MM-DD}_{gamePlayerID}` |
+| Télémétrie | `daily_super` |
+| Salon | `play_daily_super` (pas de réalisation Game Center) |
+
+**Déblocage.** Puce grisée + cadenas tant que Arcade **et** Five ne sont pas finis le même jour UTC, **7 jours UTC d’affilée**.
+
+- `blomix_super_complete_days` : set des jours où les deux défis sont finis. Un jour n’y entre qu’une fois, au GO du second.
+- `blomix_super_unlock_streak` : marche arrière depuis aujourd’hui s’il est complet, sinon depuis hier s’il est complet, sinon 0. Un jour révolu absent remet la série à 0. Aujourd’hui encore ouvert ne casse pas la série.
+- `blomix_super_unlocked` : posé à 7, **définitif**.
+- Rattrapage (`blomix_super_unlock_bootstrapped`) : si `blomix_daily_finished_day` et `blomix_five_daily_finished_day` sont le même jour, ce jour seul est repris. Il n’existe pas d’historique multi-jours avant la 9.2. Les clés `credited_*` ne servent pas : un jour non joué peut y être marqué.
+- Pas de `NSUbiquitousKeyValueStore` : les autres progressions ne sont pas synchronisées non plus.
+- Puce grisée : bulle avec `daily.super.locked` et `daily.super.progress`. Le gros bouton DÉFIS ne lance pas le hub.
+- Déblocage : au retour accueil, pulse de la puce (sauf Réduire les animations) et panneau `daily.super.unlocked`.
+- DEBUG seulement : Réglages, « Débloquer le Défi Super » et « Remettre la série Super à 0 ».
+
+**CloudKit Dashboard (à créer une fois)** — Public DB, Production, type `SuperDailyScore` :
+
+| Champ | Type | Index |
+|---|---|---|
+| `day` | String | Queryable |
+| `score` | Int(64) | Sortable |
+| `displayName` | String | — |
+| `gamePlayerID` | String | — |
+
+`day` est en **minuscules**, comme Arcade. Five reste `Day`. `recordName` n’est pas queryable : ne pas l’indexer. `displayName` et `gamePlayerID` ne sont pas indexés. Requête : type `SuperDailyScore`, filtre `day` == `YYYY-MM-DD`, pas de tri sur `recordName`. Déployer Development → Production avant qu’un ⌘R écrive (l’entitlement est déjà Production).
+
+**Game Center** : classement classique entier, meilleur score, plus haut = mieux, identifiant **`dailywin_super`**.
 
 ---
 
@@ -17,7 +60,7 @@ Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lign
 | | Aujourd’hui (scores) | Carrière (points podium) |
 |---|---|---|
 | Contenu | Scores de **ce** jour UTC | Cumul +5/+3/+1 |
-| Entrée | Chip accueil **Défi Arcade** ou **Défi Five** → hub du jour de ce kind | Disques **DÉFI** / **5 DÉFI** → onglets carrière |
+| Entrée | Chip accueil **Défi Arcade**, **Défi Five** ou **Super** → hub du jour de ce kind | Disques **DÉFI** / **5 DÉFI** / **S DÉFI** → onglets carrière |
 
 ### Hub unique (un seul écran « jour »)
 

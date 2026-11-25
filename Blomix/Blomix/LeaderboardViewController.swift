@@ -12,7 +12,7 @@ import UIKit
 @MainActor
 final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     /// Onglet affiché à l'ouverture (disques de rang sur l'accueil, etc.).
-    /// Même grille 4+3 que les pastilles accueil.
+    /// Même grille 4+4 que les pastilles accueil.
     enum InitialTab {
         case mainScore
         case averageScore
@@ -21,6 +21,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case elo
         case dailyWins
         case fiveDailyWins
+        case superDailyWins
     }
 
     var initialTab: InitialTab = .mainScore
@@ -55,7 +56,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
-    /// Grille 4+3 = pastilles accueil (Arc. Moy. Zen Five / Duel Défi 5 Défi).
+    /// Grille 4+4 = pastilles accueil (Arc. Moy. Zen Five / Duel Défi 5 Défi S Défi).
     private enum LeaderboardKind: CaseIterable, Sendable {
         case mainScore
         case averageScore
@@ -64,6 +65,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case elo
         case dailyWins
         case fiveDailyWins
+        case superDailyWins
 
         var title: String {
             switch self {
@@ -74,6 +76,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .fiveScore:      return BlomixL10n.leaderboardFiveTab
             case .dailyWins:      return BlomixL10n.leaderboardDailyTab
             case .fiveDailyWins:  return BlomixL10n.leaderboardFiveDailyTab
+            case .superDailyWins: return BlomixL10n.leaderboardSuperDailyTab
             }
         }
 
@@ -86,6 +89,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .fiveScore:      return ScoreManager.fiveLeaderboardID
             case .dailyWins:      return ScoreManager.dailyLeaderboardID
             case .fiveDailyWins:  return ScoreManager.fiveDailyLeaderboardID
+            case .superDailyWins: return ScoreManager.superDailyLeaderboardID
             }
         }
 
@@ -98,14 +102,16 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .fiveScore:      return ScoreManager.fiveLeaderboardID
             case .dailyWins:      return ScoreManager.dailyLeaderboardID
             case .fiveDailyWins:  return ScoreManager.fiveDailyLeaderboardID
+            case .superDailyWins: return ScoreManager.superDailyLeaderboardID
             }
         }
 
         var dailyKind: BlomixDailyKind? {
             switch self {
-            case .dailyWins:     return .arcade
-            case .fiveDailyWins: return .five
-            default:             return nil
+            case .dailyWins:      return .arcade
+            case .fiveDailyWins:  return .five
+            case .superDailyWins: return .superDaily
+            default:              return nil
             }
         }
 
@@ -117,7 +123,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
                 return BlomixL10n.leaderboardElo(score)
             case .averageScore:
                 return BlomixL10n.leaderboardAverage(score)
-            case .dailyWins, .fiveDailyWins:
+            case .dailyWins, .fiveDailyWins, .superDailyWins:
                 return BlomixL10n.dailyCareerPoints(score)
             }
         }
@@ -143,6 +149,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private let fiveTabButton = BlomixUIButton()
     private let dailyTabButton = BlomixUIButton()
     private let fiveDailyTabButton = BlomixUIButton()
+    private let superDailyTabButton = BlomixUIButton()
     private let statusLabel = UILabel()
     private let tableView = UITableView(frame: .zero, style: .plain)
     private let spinner = BlomixPvPSearchBlocksView()
@@ -202,6 +209,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case .elo:            return .elo
         case .dailyWins:      return .dailyWins
         case .fiveDailyWins:  return .fiveDailyWins
+        case .superDailyWins: return .superDailyWins
         }
     }
 
@@ -235,9 +243,13 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         eloTabButton.setTitle(BlomixL10n.leaderboardEloTab,  for: .normal)
         dailyTabButton.setTitle(BlomixL10n.leaderboardDailyTab, for: .normal)
         fiveDailyTabButton.setTitle(BlomixL10n.leaderboardFiveDailyTab, for: .normal)
-        [mainTabButton, avgTabButton, zenTabButton, fiveTabButton, eloTabButton, dailyTabButton, fiveDailyTabButton].forEach {
+        superDailyTabButton.setTitle(BlomixL10n.leaderboardSuperDailyTab, for: .normal)
+        [mainTabButton, avgTabButton, zenTabButton, fiveTabButton, eloTabButton, dailyTabButton, fiveDailyTabButton, superDailyTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
             BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4), to: $0)
+            $0.titleLabel?.adjustsFontSizeToFitWidth = true
+            $0.titleLabel?.minimumScaleFactor = 0.6
+            $0.titleLabel?.lineBreakMode = .byClipping
         }
         mainTabButton.addTarget(self, action: #selector(mainTabTapped), for: .touchUpInside)
         avgTabButton.addTarget(self,  action: #selector(avgTabTapped),  for: .touchUpInside)
@@ -246,6 +258,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
         dailyTabButton.addTarget(self, action: #selector(dailyTabTapped), for: .touchUpInside)
         fiveDailyTabButton.addTarget(self, action: #selector(fiveDailyTabTapped), for: .touchUpInside)
+        superDailyTabButton.addTarget(self, action: #selector(superDailyTabTapped), for: .touchUpInside)
         tabsRow1.addArrangedSubview(mainTabButton)
         tabsRow1.addArrangedSubview(avgTabButton)
         tabsRow1.addArrangedSubview(zenTabButton)
@@ -253,6 +266,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         tabsRow2.addArrangedSubview(eloTabButton)
         tabsRow2.addArrangedSubview(dailyTabButton)
         tabsRow2.addArrangedSubview(fiveDailyTabButton)
+        tabsRow2.addArrangedSubview(superDailyTabButton)
 
         closeButton.setTitle(BlomixL10n.close, for: .normal)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
@@ -415,6 +429,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         switchToLeaderboard(.fiveDailyWins)
     }
 
+    @objc private func superDailyTabTapped() {
+        switchToLeaderboard(.superDailyWins)
+    }
+
     private func switchToLeaderboard(_ kind: LeaderboardKind) {
         guard selectedLeaderboardKind != kind else { return }
         selectedLeaderboardKind = kind
@@ -433,11 +451,15 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
         applyTabSelectionStyle(button: dailyTabButton, selected: selectedLeaderboardKind == .dailyWins)
         applyTabSelectionStyle(button: fiveDailyTabButton, selected: selectedLeaderboardKind == .fiveDailyWins)
+        applyTabSelectionStyle(button: superDailyTabButton, selected: selectedLeaderboardKind == .superDailyWins)
     }
 
     private func applyTabSelectionStyle(button: UIButton, selected: Bool) {
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: button)
         BlomixUIDestinationButtonStyle.applySelectionChrome(to: button, selected: selected)
+        button.titleLabel?.adjustsFontSizeToFitWidth = true
+        button.titleLabel?.minimumScaleFactor = 0.6
+        button.titleLabel?.lineBreakMode = .byClipping
     }
 
     private func setLoading(_ loading: Bool) {
@@ -470,7 +492,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             return
         }
 
-        // Défi Arcade / Five : carrière podium CloudKit (2e/3e visibles sans ouvrir l’app le lendemain).
+        // Défi Arcade / Five / Super : carrière podium CloudKit (2e/3e visibles sans ouvrir l’app le lendemain).
         if let dailyKind = selectedKind.dailyKind {
             Task { @MainActor [weak self] in
                 await self?.loadDailyCareerLeaderboard(kind: dailyKind)
@@ -481,9 +503,14 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         loadLeaderboardEntries(for: selectedKind)
     }
 
-    /// Podiums clos agrégés (`DailyScore` / `FiveDailyScore`) — lecture seule, jamais additionnée au board GC.
+    /// Podiums clos agrégés (`DailyScore` / `FiveDailyScore` / `SuperDailyScore`) — lecture seule.
     private func loadDailyCareerLeaderboard(kind: BlomixDailyKind) async {
-        let expected: LeaderboardKind = kind == .five ? .fiveDailyWins : .dailyWins
+        let expected: LeaderboardKind
+        switch kind {
+        case .arcade: expected = .dailyWins
+        case .five: expected = .fiveDailyWins
+        case .superDaily: expected = .superDailyWins
+        }
         let localID = GKLocalPlayer.local.gamePlayerID
         switch await BlomixDailyChallenge.service(kind).fetchCareerStandings() {
         case .unavailable:
@@ -1855,6 +1882,9 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         skinsStack.spacing = 10
         contentStack.addArrangedSubview(skinsStack)
         rebuildSkinRows()
+        #if DEBUG
+        installSuperUnlockDebugRows()
+        #endif
         refreshTypography()
 
         NSLayoutConstraint.activate([
@@ -1891,6 +1921,30 @@ final class SettingsViewController: UIViewController, UIColorPickerViewControlle
         configureSectionHeading(colorsSectionLabel, text: BlomixL10n.settingsColorsSection)
         BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: closeButton)
     }
+
+    #if DEBUG
+    /// Absent du binaire Release. Force le déblocage, ou remet la série à zéro sans re-seeder.
+    private func installSuperUnlockDebugRows() {
+        let heading = UILabel()
+        configureSectionHeading(heading, text: "DEBUG")
+        contentStack.addArrangedSubview(heading)
+        contentStack.addArrangedSubview(makeSuperDebugButton(title: "Débloquer le Défi Super") {
+            BlomixSuperUnlock.debugForceUnlock()
+        })
+        contentStack.addArrangedSubview(makeSuperDebugButton(title: "Remettre la série Super à 0") {
+            BlomixSuperUnlock.debugReset()
+        })
+    }
+
+    private func makeSuperDebugButton(title: String, action: @escaping () -> Void) -> UIButton {
+        let btn = BlomixUIButton()
+        btn.setTitle(title, for: .normal)
+        BlomixUIDestinationButtonStyle.apply(to: btn, fontSize: 16, weight: .medium)
+        BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16), to: btn)
+        btn.addAction(UIAction { _ in action() }, for: .touchUpInside)
+        return btn
+    }
+    #endif
 
     /// Une ligne : Sombre (Classique sombre), Clair (Classique clair), Encre (Encre clair).
     private func rebuildAppearanceRow() {

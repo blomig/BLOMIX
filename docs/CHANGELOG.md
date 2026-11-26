@@ -7,9 +7,9 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.2] — archive Release locale (branche `super`, `MARKETING_VERSION` 9.2, build 170)
+## [9.2] — en review (branche `super`, `MARKETING_VERSION` 9.2, build 170, envoyé le 25/11/2026)
 
-Pas d’envoi App Store, pas de popup Nouveautés, pas de schéma CloudKit poussé depuis le dépôt. iPhone et Watch compagnon sont en 9.2, build 170 : App Store Connect refuse une Watch embarquée dont la version ou le build diffère (erreur 90379). La 9.1 (build 169) est en review.
+iPhone et Watch compagnon sont en 9.2, build 170. La review `4a52ba82-e6d8-4839-8f00-dba19b11dbfd` est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-25T21:05:20Z). Le build 170 est sélectionné. Publication automatique à l’approbation (`AFTER_APPROVAL`). Le classement `dailywin_super` (version 1) part dans la même soumission. Pas de popup Nouveautés dans l’IPA, pas de schéma CloudKit poussé depuis le dépôt. La 9.1 (build 169) est en vente.
 
 ### Ajouté
 
@@ -20,11 +20,11 @@ Pas d’envoi App Store, pas de popup Nouveautés, pas de schéma CloudKit pouss
 ### Corrigé
 
 - **Duel vs bot, pastilles vertes** : les lignes envoyées au bot étaient déposées sur la file série de sa boucle de jeu, déjà occupée pour toute la manche. Il ne les posait donc jamais, et les quatre pastilles restaient allumées. Elles s’éteignent maintenant une par coup du bot (environ toutes les 5 s). Au-delà de quatre lignes encore en suspens, les quatre restent allumées jusqu’à ce que le surplus soit posé.
-- **Infra** : même hub, fantôme, podium +5/+3/+1 après minuit UTC + 2 h, cumul Game Center `dailywin_super` (à créer dans App Store Connect). CloudKit `SuperDailyScore`, champ jour queryable `day` (minuscule). Pastille accueil **S DÉFI**, onglet carrière, trophée Salon `play_daily_super` (pas de réalisation Game Center), télémétrie `daily_super`.
+- **Infra** : même hub, fantôme, podium +5/+3/+1 après minuit UTC + 2 h, cumul Game Center `dailywin_super`. CloudKit `SuperDailyScore`, champ jour queryable `day` (minuscule). Pastille accueil **S DÉFI**, onglet carrière, trophée Salon `play_daily_super` (pas de réalisation Game Center), télémétrie `daily_super`.
 
 ---
 
-## [9.1] — en review (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, envoyé le 22/11/2026)
+## [9.1] — en vente (branche `9.1`, iPhone `MARKETING_VERSION` 9.1, build 169, envoyé le 22/11/2026)
 
 La 9.0 (build 168) est en vente. La Watch reste en 8.0, build 147.
 

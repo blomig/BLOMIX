@@ -247,14 +247,17 @@ Release / jalon : mettre aussi à jour `DOCS/CHANGELOG.md` (et la version de ré
 
 Voir `store/whats-new/README.md` et `DOCS/LOCALIZATION.md`.
 
-### 2c. Popup in-app (`BlomixWhatsNew`) — si release
+### 2c. Popup in-app (`BlomixWhatsNew`) — à chaque distribution
 
-**Quand** : le même jalon que les Nouveautés ASC. Pas le champ ASC : c’est le dialogue après le splash, dans l’IPA.
+**Quand** : chaque binaire mis en vente. Pas le champ ASC : c’est le dialogue après le splash, dans l’IPA. Il doit décrire **la version distribuée**.
 
-**Quoi** (sinon les joueurs revoient la note de l’ancienne campagne — la 8.8 est sortie avec `7.1_daily_duel`) :
+Un brief de feature qui dit « ne pas toucher au popup » ne dispense pas la mise en vente. La 9.2 (build 170) est sortie avec la campagne `9.1` (pastilles vertes du Duel, pire coup en Encre) : le Défi Super n’y figurait pas. La 8.8 était sortie avec `7.1_daily_duel`.
+
+**Quoi** :
 - Nouvel `campaignID` (`blomix_whatsnew_dont_show_<id>` ne se réinitialise pas)
-- Réécrire `factTexts` en **FR + EN + DE + ES + IT + PT**
+- Réécrire `factTexts` en **FR + EN + DE + ES + IT + PT**, puces de cette version
 - Si « Ne plus montrer » a déjà été tapé en test et que les puces changent encore : nouvel id
+- **Doute** sur le texte, une puce, ou le fait d’inclure un changement : **demander** avant d’archiver ou de soumettre. Ne pas omettre le popup.
 
 ### 3. Commit et push GitHub
 
@@ -318,7 +321,7 @@ Capabilities : Game Center, CloudKit (`iCloud.blomig.BLOMIX`), push (Debug `deve
 - [ ] **(1) Langues** : clés `BlomixL10n` + `.lproj` à jour (FR+EN min.) si UI touchée
 - [ ] **(2) Doc** : `DOCS/` alignée si le comportement / les règles changent
 - [ ] **(2b) Nouveautés** : `store/whats-new/` FR+EN+DE+ES+IT+PT si jalon / `MARKETING_VERSION`
-- [ ] **(2c) Popup accueil** : `BlomixWhatsNew.campaignID` + puces 6 langues si jalon / `MARKETING_VERSION`
+- [ ] **(2c) Popup accueil** : chaque mise en vente a un `campaignID` nouveau et des puces de cette version (6 langues). Doute : demander avant d’archiver.
 - [ ] Terminologie GLOSSARY respectée
 - [ ] Pas de fichiers locaux / secrets dans le diff
 - [ ] **(3) Git** : proposer (ou faire sur demande) commit + push vers GitHub quand le lot est prêt

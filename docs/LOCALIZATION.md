@@ -121,7 +121,7 @@ Détail release : `store/whats-new/README.md`.
 
 ### Popup in-app (accueil)
 
-Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** le champ ASC Nouveautés (`store/whats-new/`). Les deux se rédigent **dans le même lot** qu’une version marketing. La 8.8 est sortie avec la campagne `7.1_daily_duel` encore en place (Défi du jour + bonhomme vert) : l’id n’avait pas bougé, donc « Ne plus montrer » et le texte non plus.
+Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** le champ ASC Nouveautés (`store/whats-new/`). Chaque binaire mis en vente embarque un popup dont les puces décrivent **cette** version. Un brief qui dit de ne pas y toucher ne dispense pas la distribution. En cas de doute sur le texte, demander avant d’archiver. La 8.8 est sortie avec `7.1_daily_duel`. La 9.2 (build 170) est sortie avec la campagne `9.1` : les joueurs ont vu les pastilles vertes et l’Encre, pas le Défi Super.
 
 À chaque `MARKETING_VERSION` qui a une note joueur :
 
@@ -129,7 +129,7 @@ Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** l
 2. Réécrire `factTexts` et les clés des puces en **FR + EN + DE + ES + IT + PT**.
 3. Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
 
-Campagne courante **`9.1`** (`blomix_whatsnew_dont_show_9.1`).
+Campagne dans le binaire en vente **9.2 / 170** : encore **`9.1`** (`blomix_whatsnew_dont_show_9.1`). La prochaine distribution change l’id et les puces.
 
 | Clé | Usage |
 |---|---|

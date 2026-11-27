@@ -7,9 +7,9 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.2] — en review (branche `super`, `MARKETING_VERSION` 9.2, build 170, envoyé le 25/11/2026)
+## [9.2] — en vente (branche `super`, `MARKETING_VERSION` 9.2, build 170, envoyé le 25/11/2026)
 
-iPhone et Watch compagnon sont en 9.2, build 170. La review `4a52ba82-e6d8-4839-8f00-dba19b11dbfd` est envoyée (`WAITING_FOR_REVIEW`, `submittedDate` 2026-11-25T21:05:20Z). Le build 170 est sélectionné. Publication automatique à l’approbation (`AFTER_APPROVAL`). Le classement `dailywin_super` (version 1) part dans la même soumission. Pas de popup Nouveautés dans l’IPA, pas de schéma CloudKit poussé depuis le dépôt. La 9.1 (build 169) est en vente.
+iPhone et Watch compagnon sont en 9.2, build 170. La review `4a52ba82-e6d8-4839-8f00-dba19b11dbfd` a été envoyée le 25/11/2026 (`submittedDate` 2026-11-25T21:05:20Z), publication automatique à l’approbation. Le classement `dailywin_super` (version 1) est dans cette soumission. Pas de schéma CloudKit poussé depuis le dépôt. Le popup d’accueil de ce binaire est encore la campagne `9.1` (pastilles vertes du Duel, pire coup en Encre) : le Défi Super n’y figure pas. La prochaine distribution embarque une campagne qui décrit sa version.
 
 ### Ajouté
 

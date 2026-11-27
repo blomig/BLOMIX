@@ -38,7 +38,7 @@ open Blomix/Blomix.xcodeproj
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **9.2 / 170** envoyé en review le 25/11/2026 (branche `super`), publication automatique à l’approbation. La 9.1 (build 169) est en vente. Watch : même `MARKETING_VERSION` et même `CURRENT_PROJECT_VERSION` que l’iPhone. Apple refuse l’archive sinon (`altool` 90379). watchOS ne remplace la montre déjà installée que si le build augmente (147 → 170 le fait). Les clés de partie Watch ne changent pas.
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **9.2 / 170** en vente (branche `super`, envoyé le 25/11/2026, publication automatique). Le popup d’accueil de ce binaire est encore la campagne `9.1`. La prochaine distribution doit en embarquer un qui décrit sa version. Watch : même `MARKETING_VERSION` et même `CURRENT_PROJECT_VERSION` que l’iPhone. Apple refuse l’archive sinon (`altool` 90379). watchOS ne remplace la montre déjà installée que si le build augmente (147 → 170 le fait). Les clés de partie Watch ne changent pas.
 
 ---
 
@@ -219,7 +219,7 @@ Lors d'une évolution majeure du gameplay, mettre à jour **en priorité** :
 5. `GLOSSARY.md` si un terme est ajouté ou renommé
 6. `CHANGELOG.md` à chaque release
 7. `store/whats-new/` (6 langues) à chaque **version marketing**
-8. Popup in-app `BlomixWhatsNew` : nouvel `campaignID` + puces 6 langues (sinon la note précédente reste, cf. 8.8 sortie avec `7.1_daily_duel`)
+8. Popup in-app `BlomixWhatsNew` : **chaque** mise en vente embarque un nouvel `campaignID` et des puces qui décrivent cette version (6 langues). Un brief qui dit de sauter le popup ne suffit pas. En cas de doute, demander avant d’archiver. La 9.2 (170) est sortie avec la campagne `9.1` ; la 8.8 avec `7.1_daily_duel`.
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les conventions de commit et de nommage.
 

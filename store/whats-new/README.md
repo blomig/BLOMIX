@@ -27,6 +27,6 @@ Si un lot change encore le bénéfice joueur de **cette** version : rafraîchir 
 
 Procédure agents / l10n : `DOCS/LOCALIZATION.md`, `AGENTS.md` (volet 2b).
 
-Le **popup in-app** (accueil, après le splash) est un autre texte, dans `BlomixWhatsNew` + `lproj`. Même lot qu’une version marketing : nouvel `campaignID`, sinon la note précédente reste affichée (la 8.8 est sortie avec `7.1_daily_duel`).
+Le **popup in-app** (accueil, après le splash) est un autre texte, dans `BlomixWhatsNew` + `lproj`. Chaque mise en vente embarque un nouvel `campaignID` et des puces de cette version. Un brief qui dit de sauter le popup ne suffit pas ; en cas de doute, demander avant d’archiver. La 8.8 est sortie avec `7.1_daily_duel`, la 9.2 (170) avec la campagne `9.1`.
 
 Le **texte promotionnel** (stable, 170 car.) n’est **pas** ici : voir `store/promotional-text/`.

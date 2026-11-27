@@ -148,6 +148,7 @@
 "leaderboard.avg_tab" = "Moy.";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
+"leaderboard.super_tab" = "Super";
 "leaderboard.five_daily_tab" = "5 Day";
 "leaderboard.super_daily_tab" = "S Day";
 "leaderboard.avg_format" = "avg. %lld pts";
@@ -294,6 +295,7 @@
 "rank_disc.avg" = "AVG.";
 "rank_disc.zen" = "ZEN";
 "rank_disc.five" = "FIVE";
+"rank_disc.super" = "SUPER";
 "rank_disc.duel" = "DUEL";
 
 /* HUD captions */
@@ -371,6 +373,8 @@
 "whatsnew.achievements" = "Game Center achievements: what you already did in the Trophy Lounge counts there too";
 "whatsnew.duel_pips" = "Duel: four green dots, between the send bar and the timer, show the lines you sent. They go out when the other player takes them";
 "whatsnew.ink_worst_move" = "Ink: the worst-move screen follows the paper and the washes";
+"whatsnew.super_challenge" = "Super Challenge: a daily Zen, starting with no bomb. It unlocks after 7 days of Arcade and Five challenges";
+"whatsnew.super_best" = "Your best Super score: a disc next to Five, and a tab in Scores. S Day stays the podium";
 "whatsnew.dont_show" = "Don’t show again";
 
 /* Appearance */

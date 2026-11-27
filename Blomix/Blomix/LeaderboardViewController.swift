@@ -18,6 +18,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case averageScore
         case zenScore
         case fiveScore
+        case superScore
         case elo
         case dailyWins
         case fiveDailyWins
@@ -56,12 +57,13 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         }
     }
 
-    /// Grille 4+4 = pastilles accueil (Arc. Moy. Zen Five / Duel Défi 5 Défi S Défi).
+    /// Grille 5+4 = pastilles accueil (Arc. Moy. Zen Five Super / Duel Défi 5 Défi S Défi).
     private enum LeaderboardKind: CaseIterable, Sendable {
         case mainScore
         case averageScore
         case zenScore
         case fiveScore
+        case superScore
         case elo
         case dailyWins
         case fiveDailyWins
@@ -74,6 +76,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .averageScore:   return BlomixL10n.leaderboardAvgTab
             case .zenScore:       return BlomixL10n.leaderboardZenTab
             case .fiveScore:      return BlomixL10n.leaderboardFiveTab
+            case .superScore:     return BlomixL10n.leaderboardSuperTab
             case .dailyWins:      return BlomixL10n.leaderboardDailyTab
             case .fiveDailyWins:  return BlomixL10n.leaderboardFiveDailyTab
             case .superDailyWins: return BlomixL10n.leaderboardSuperDailyTab
@@ -87,6 +90,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .averageScore:   return ScoreManager.averageLeaderboardID
             case .zenScore:       return ScoreManager.zenLeaderboardID
             case .fiveScore:      return ScoreManager.fiveLeaderboardID
+            case .superScore:     return ScoreManager.superLeaderboardID
             case .dailyWins:      return ScoreManager.dailyLeaderboardID
             case .fiveDailyWins:  return ScoreManager.fiveDailyLeaderboardID
             case .superDailyWins: return ScoreManager.superDailyLeaderboardID
@@ -100,6 +104,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
             case .averageScore:   return ScoreManager.averageLeaderboardID
             case .zenScore:       return ScoreManager.zenLeaderboardID
             case .fiveScore:      return ScoreManager.fiveLeaderboardID
+            case .superScore:     return ScoreManager.superLeaderboardID
             case .dailyWins:      return ScoreManager.dailyLeaderboardID
             case .fiveDailyWins:  return ScoreManager.fiveDailyLeaderboardID
             case .superDailyWins: return ScoreManager.superDailyLeaderboardID
@@ -117,7 +122,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
 
         func secondaryText(for score: Int) -> String {
             switch self {
-            case .mainScore, .zenScore, .fiveScore:
+            case .mainScore, .zenScore, .fiveScore, .superScore:
                 return BlomixL10n.leaderboardPoints(score)
             case .elo:
                 return BlomixL10n.leaderboardElo(score)
@@ -147,6 +152,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
     private let avgTabButton  = BlomixUIButton()
     private let zenTabButton  = BlomixUIButton()
     private let fiveTabButton = BlomixUIButton()
+    private let superTabButton = BlomixUIButton()
     private let dailyTabButton = BlomixUIButton()
     private let fiveDailyTabButton = BlomixUIButton()
     private let superDailyTabButton = BlomixUIButton()
@@ -206,6 +212,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         case .averageScore:   return .averageScore
         case .zenScore:       return .zenScore
         case .fiveScore:      return .fiveScore
+        case .superScore:     return .superScore
         case .elo:            return .elo
         case .dailyWins:      return .dailyWins
         case .fiveDailyWins:  return .fiveDailyWins
@@ -240,11 +247,12 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         avgTabButton.setTitle(BlomixL10n.leaderboardAvgTab,  for: .normal)
         zenTabButton.setTitle(BlomixL10n.leaderboardZenTab,  for: .normal)
         fiveTabButton.setTitle(BlomixL10n.leaderboardFiveTab, for: .normal)
+        superTabButton.setTitle(BlomixL10n.leaderboardSuperTab, for: .normal)
         eloTabButton.setTitle(BlomixL10n.leaderboardEloTab,  for: .normal)
         dailyTabButton.setTitle(BlomixL10n.leaderboardDailyTab, for: .normal)
         fiveDailyTabButton.setTitle(BlomixL10n.leaderboardFiveDailyTab, for: .normal)
         superDailyTabButton.setTitle(BlomixL10n.leaderboardSuperDailyTab, for: .normal)
-        [mainTabButton, avgTabButton, zenTabButton, fiveTabButton, eloTabButton, dailyTabButton, fiveDailyTabButton, superDailyTabButton].forEach {
+        [mainTabButton, avgTabButton, zenTabButton, fiveTabButton, superTabButton, eloTabButton, dailyTabButton, fiveDailyTabButton, superDailyTabButton].forEach {
             BlomixUIDestinationButtonStyle.applyNavigationButtonStyle(to: $0)
             BlomixUIDestinationButtonStyle.applyContentInsets(UIEdgeInsets(top: 10, left: 4, bottom: 10, right: 4), to: $0)
             $0.titleLabel?.adjustsFontSizeToFitWidth = true
@@ -255,6 +263,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         avgTabButton.addTarget(self,  action: #selector(avgTabTapped),  for: .touchUpInside)
         zenTabButton.addTarget(self,  action: #selector(zenTabTapped),  for: .touchUpInside)
         fiveTabButton.addTarget(self, action: #selector(fiveTabTapped), for: .touchUpInside)
+        superTabButton.addTarget(self, action: #selector(superTabTapped), for: .touchUpInside)
         eloTabButton.addTarget(self,  action: #selector(eloTabTapped),  for: .touchUpInside)
         dailyTabButton.addTarget(self, action: #selector(dailyTabTapped), for: .touchUpInside)
         fiveDailyTabButton.addTarget(self, action: #selector(fiveDailyTabTapped), for: .touchUpInside)
@@ -263,6 +272,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         tabsRow1.addArrangedSubview(avgTabButton)
         tabsRow1.addArrangedSubview(zenTabButton)
         tabsRow1.addArrangedSubview(fiveTabButton)
+        tabsRow1.addArrangedSubview(superTabButton)
         tabsRow2.addArrangedSubview(eloTabButton)
         tabsRow2.addArrangedSubview(dailyTabButton)
         tabsRow2.addArrangedSubview(fiveDailyTabButton)
@@ -421,6 +431,10 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         switchToLeaderboard(.fiveScore)
     }
 
+    @objc private func superTabTapped() {
+        switchToLeaderboard(.superScore)
+    }
+
     @objc private func dailyTabTapped() {
         switchToLeaderboard(.dailyWins)
     }
@@ -448,6 +462,7 @@ final class LeaderboardViewController: UIViewController, UITableViewDataSource {
         applyTabSelectionStyle(button: avgTabButton,  selected: selectedLeaderboardKind == .averageScore)
         applyTabSelectionStyle(button: zenTabButton,  selected: selectedLeaderboardKind == .zenScore)
         applyTabSelectionStyle(button: fiveTabButton, selected: selectedLeaderboardKind == .fiveScore)
+        applyTabSelectionStyle(button: superTabButton, selected: selectedLeaderboardKind == .superScore)
         applyTabSelectionStyle(button: eloTabButton,  selected: selectedLeaderboardKind == .elo)
         applyTabSelectionStyle(button: dailyTabButton, selected: selectedLeaderboardKind == .dailyWins)
         applyTabSelectionStyle(button: fiveDailyTabButton, selected: selectedLeaderboardKind == .fiveDailyWins)

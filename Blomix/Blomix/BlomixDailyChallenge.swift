@@ -235,10 +235,11 @@ enum BlomixRunRecordSink: Equatable {
     case none
     case zen
     case five
+    case superMode
     case arcade
 
     static func forGameOver(isSuperDaily: Bool, isFive: Bool, isZen: Bool) -> BlomixRunRecordSink {
-        if isSuperDaily { return .none }
+        if isSuperDaily { return .superMode }
         if isFive { return .five }
         if isZen { return .zen }
         return .arcade
@@ -263,6 +264,8 @@ final class BlomixDailyChallenge {
     }
 
     let kind: BlomixDailyKind
+    /// Évite deux rattrapages SuperMode en parallèle (accueil + auth).
+    private var isSeedingSuperBest = false
     var leaderboardID: String { kind.leaderboardID }
     private var recordType: String { kind.recordType }
     private var ckDayKey: String { kind.ckDayKey }
@@ -632,6 +635,75 @@ final class BlomixDailyChallenge {
         } catch {
             BlomixPublicCloudGate.shared.noteError(error)
             print("[Daily] upsertScore : \(error.localizedDescription)")
+        }
+    }
+
+    /// Une fois : le meilleur score Super déjà joué (dernier jour fini + records
+    /// `super_{jour}_{joueur}` des jours crédités) devient le record `SuperMode`.
+    /// Ne marque pas le drapeau si CloudKit n’a pas répondu : on réessaie au prochain passage.
+    func seedSuperModeBestIfNeeded() async {
+        guard kind == .superDaily else { return }
+        let defaults = UserDefaults.standard
+        let flag = "blomix_super_mode_best_seeded"
+        if defaults.bool(forKey: flag) || isSeedingSuperBest { return }
+        isSeedingSuperBest = true
+        defer { isSeedingSuperBest = false }
+
+        let localFinished = max(0, defaults.integer(forKey: kind.finishedScoreKey))
+        if localFinished > 0 {
+            _ = ScoreManager.shared.updateLocalSuperHighScoreIfBetter(localFinished)
+        }
+
+        guard GKLocalPlayer.local.isAuthenticated else { return }
+        let playerID = GKLocalPlayer.local.gamePlayerID
+        guard !playerID.isEmpty, playerID != "GKPlayerIDUnknown" else { return }
+        if BlomixPublicCloudGate.shared.isBlocked { return }
+
+        var days = Set<String>()
+        let prefix = kind.creditedPrefix
+        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(prefix) {
+            let day = String(key.dropFirst(prefix.count))
+            if day.count == 10 { days.insert(day) }
+        }
+        if let finishedDay = defaults.string(forKey: kind.finishedDayKey), finishedDay.count == 10 {
+            days.insert(finishedDay)
+        }
+        if days.isEmpty {
+            defaults.set(true, forKey: flag)
+            if localFinished > 0 {
+                ScoreManager.shared.syncScoresWithGameCenterIfPossible(reason: "super_best_seed")
+            }
+            return
+        }
+
+        var best = localFinished
+        for day in days {
+            let recID = CKRecord.ID(recordName: recordName(day: day, gamePlayerID: playerID))
+            do {
+                try BlomixPublicCloudGate.shared.throwIfBlocked()
+                let record = try await publicDB.record(for: recID)
+                let score = (record["score"] as? Int) ?? Int(record["score"] as? Int64 ?? 0)
+                best = max(best, score)
+                BlomixPublicCloudGate.shared.noteSuccess()
+            } catch let error as CKError where error.code == .unknownItem {
+                continue
+            } catch {
+                if best > 0 {
+                    _ = ScoreManager.shared.updateLocalSuperHighScoreIfBetter(best)
+                }
+                if (error as NSError).domain != "BlomixPublicCloudGate" {
+                    BlomixPublicCloudGate.shared.noteError(error)
+                }
+                print("[Daily] seed SuperMode : \(error.localizedDescription)")
+                return
+            }
+        }
+        if best > 0 {
+            _ = ScoreManager.shared.updateLocalSuperHighScoreIfBetter(best)
+        }
+        defaults.set(true, forKey: flag)
+        if best > 0 {
+            ScoreManager.shared.syncScoresWithGameCenterIfPossible(reason: "super_best_seed")
         }
     }
 

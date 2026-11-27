@@ -146,6 +146,7 @@
 "leaderboard.avg_tab" = "Med.";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
+"leaderboard.super_tab" = "Super";
 "leaderboard.five_daily_tab" = "5 Sfida";
 "leaderboard.super_daily_tab" = "S Sfida";
 "leaderboard.avg_format" = "med. %lld pt";
@@ -286,6 +287,7 @@
 "rank_disc.avg" = "MED.";
 "rank_disc.zen" = "ZEN";
 "rank_disc.five" = "FIVE";
+"rank_disc.super" = "SUPER";
 "rank_disc.duel" = "DUELLO";
 
 "hud.time_caption" = "TEMPO";
@@ -358,6 +360,8 @@
 "whatsnew.achievements" = "Obiettivi Game Center: quello che hai già fatto nel Salone conta anche lì";
 "whatsnew.duel_pips" = "Duello: quattro pallini verdi, tra la barra di invio e il tempo, mostrano le linee che hai mandato. Si spengono quando l’altro le riceve";
 "whatsnew.ink_worst_move" = "Inchiostro: la schermata della mossa peggiore segue la carta e le macchie";
+"whatsnew.super_challenge" = "Sfida Super: uno Zen del giorno, senza bomba all’inizio. Si sblocca dopo 7 giorni di sfide Arcade e Five";
+"whatsnew.super_best" = "Il tuo miglior punteggio Super: un dischetto accanto a Five, e una scheda in Punteggi. S SFIDA resta il podio";
 "whatsnew.dont_show" = "Non mostrare più";
 
 /* Aspetto */

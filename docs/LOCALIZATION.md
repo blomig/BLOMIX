@@ -129,14 +129,16 @@ Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** l
 2. Réécrire `factTexts` et les clés des puces en **FR + EN + DE + ES + IT + PT**.
 3. Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
 
-Campagne dans le binaire en vente **9.2 / 170** : encore **`9.1`** (`blomix_whatsnew_dont_show_9.1`). La prochaine distribution change l’id et les puces.
+Campagne dans le binaire **en vente** **9.2 / 170** : encore **`9.1`**. Le source **9.3 / 171** (pas encore envoyé) est la campagne **`9.3`**.
 
 | Clé | Usage |
 |---|---|
 | `whatsnew.title` | Titre |
-| `whatsnew.duel_pips` | Duel : pastilles vertes des lignes envoyées |
-| `whatsnew.ink_worst_move` | Encre : le pire coup suit le papier |
+| `whatsnew.super_challenge` | 9.3 — Défi Super, Zen du jour sans bombe au départ |
+| `whatsnew.super_best` | 9.3 — pastille et onglet du meilleur score Super |
 | `whatsnew.dont_show` | Bouton définitif ; `generic.ok` = cette session seulement |
+
+Les clés `9.1` (`whatsnew.duel_pips`, `whatsnew.ink_worst_move`) restent dans les `lproj`. Elles ne sont plus affichées.
 
 Les clés `9.0` (`whatsnew.ink`, `whatsnew.home_doors`, `whatsnew.magix_card`, `whatsnew.first_game`, `whatsnew.achievements`), `8.9b` et les plus anciennes restent dans les `lproj` (historique). Elles ne sont plus affichées.
 

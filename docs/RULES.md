@@ -251,9 +251,9 @@ Trois défis **indépendants** (graines distinctes). Le Défi Super se débloque
 |---|---|---|---|
 | Règles | Même accélération qu’Arcade (timer, stages, bombe, Magix, ligne /10) | Même règles que Five (sans timer, ligne /5) | Même règles que Zen (sans timer, ligne /10, bombe 3×3), **0 bombe** au départ |
 | Graine | `blomix-daily-v1` | `blomix-five-v1` | `blomix-super-v1` |
-| Score de la run | Arcade + moyenne | `FiveMode` seulement | aucun classement de mode (pas Zen) |
+| Score de la run | Arcade + moyenne | `FiveMode` seulement | `SuperMode` seulement (pas Zen) |
 | Carrière podium | `dailywins_arc` | `dailywin_five` | `dailywin_super` |
-| CloudKit | `DailyScore` | `FiveDailyScore` (Production) | `SuperDailyScore` (à créer) |
+| CloudKit | `DailyScore` | `FiveDailyScore` (Production) | `SuperDailyScore` (Production) |
 
 Tout le monde joue la **même file** ce jour-là (UTC) pour **ce** défi. Une seule partie par défi et par jour. Tu peux **finir** une partie commencée jusqu’à **2 h après minuit UTC**. Après ça, la partie non terminée n’est plus classée. Après la partie : score + rang du jour ; les points podium (+5 / +3 / +1) sont crédités **à la clôture**. Détail : [DAILY_CHALLENGE.md](DAILY_CHALLENGE.md).
 
@@ -306,7 +306,7 @@ Le jeu se termine quand :
 
 L'écran Arcade / Zen / Five affiche le **score final**, une citation aléatoire, le récapitulatif d'optimalité, et les boutons Rejouer / Accueil / Classement (plus Partager et, le cas échéant, le pire coup).
 
-En **Défi Arcade**, **Défi Five** et **Défi Super** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer. Le Défi Super n’ouvre pas le voile de record Zen.
+En **Défi Arcade**, **Défi Five** et **Défi Super** : score + rang live du jour + Accueil + Classement (hub du jour). Pas de récap justesse ni de Rejouer. Le Défi Super ouvre le voile « Record personnel » sur son propre record (`SuperMode`), pas sur Zen, et sans ligne de rang mondial.
 
 Un second voile (OK pour le fermer) s'ouvre si le score est un **record personnel**, ou s'il place le joueur **1er, 2e ou 3e** du jeu joué — les deux ensemble ne font qu'un voile. Arcade, Zen et Five : le top 3 est le rang mondial de ce score. Défi : le top 3 est le rang du jour (« pour l'instant »). La place est le titre (couleur du skin) ; **Record personnel** passe en légende. Hors top 3, le voile de record reste « Record personnel ! » plus le rang mondial quand Game Center répond. Des paillettes aux couleurs du skin tournent tant que le voile est là. Le voile et les textes suivent le thème Sombre / Clair.
 

@@ -1,2 +1,2 @@
-• Duel : quatre pastilles vertes, entre la barre d’envoi et le temps, montrent les lignes que tu as envoyées. Elles s’éteignent quand l’autre les reçoit.
-• Encre : l’écran du pire coup suit le papier et les taches.
+• Défi Super : un Zen du jour, sans bombe au départ. Il se débloque après 7 jours de défis Arcade et Five.
+• Ton meilleur score Super : une pastille à côté de Five, et un onglet dans Scores. S Défi reste le podium.

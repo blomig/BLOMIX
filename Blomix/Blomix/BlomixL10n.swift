@@ -246,6 +246,7 @@ enum BlomixL10n {
     static var leaderboardZenTab:  String { tr("leaderboard.zen_tab",  comment: "Zen mode leaderboard tab") }
     static var leaderboardDailyTab: String { tr("leaderboard.daily_tab", comment: "Daily challenge career points tab") }
     static var leaderboardFiveTab: String { tr("leaderboard.five_tab", comment: "Five mode leaderboard tab") }
+    static var leaderboardSuperTab: String { tr("leaderboard.super_tab", comment: "Super best-score leaderboard tab") }
     static var leaderboardFiveDailyTab: String { tr("leaderboard.five_daily_tab", comment: "Five daily career points tab") }
     static var leaderboardSuperDailyTab: String { tr("leaderboard.super_daily_tab", comment: "Super daily career points tab") }
     static func leaderboardAverage(_ score: Int) -> String {
@@ -562,6 +563,7 @@ enum BlomixL10n {
     static var rankDiscDuel: String { tr("rank_disc.duel", comment: "Start screen rank disc — Duel / Elo") }
     static var rankDiscDaily: String { tr("rank_disc.daily", comment: "Start screen rank disc — daily career points") }
     static var rankDiscFive: String { tr("rank_disc.five", comment: "Start screen rank disc — Five mode") }
+    static var rankDiscSuper: String { tr("rank_disc.super", comment: "Start screen rank disc — Super best score") }
     static var rankDiscFiveDaily: String { tr("rank_disc.five_daily", comment: "Start screen rank disc — Five daily career") }
     static var rankDiscSuperDaily: String { tr("rank_disc.super_daily", comment: "Start screen rank disc — Super daily career") }
 
@@ -843,6 +845,8 @@ enum BlomixL10n {
     /// Campagne 9.1.
     static var whatsNewDuelPips: String { tr("whatsnew.duel_pips", comment: "9.1 — green Duel dots for lines you sent") }
     static var whatsNewInkWorstMove: String { tr("whatsnew.ink_worst_move", comment: "9.1 — Ink worst-move screen matches the paper") }
+    static var whatsNewSuperChallenge: String { tr("whatsnew.super_challenge", comment: "9.3 — Super daily challenge, a Zen with no starting bomb") }
+    static var whatsNewSuperBest: String { tr("whatsnew.super_best", comment: "9.3 — home disc and Scores tab for the best Super score") }
     /// Campagne 9.0, plus affichées.
     static var whatsNewInk: String { tr("whatsnew.ink", comment: "9.0 — Ink look, watercolor on paper, beside Dark and Light") }
     static var whatsNewHomeDoors: String { tr("whatsnew.home_doors", comment: "9.0 — home has Play, Challenges, and Duel, mode chosen underneath") }

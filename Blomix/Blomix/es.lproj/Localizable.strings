@@ -146,6 +146,7 @@
 "leaderboard.avg_tab" = "Med.";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
+"leaderboard.super_tab" = "Super";
 "leaderboard.five_daily_tab" = "5 Reto";
 "leaderboard.super_daily_tab" = "S Reto";
 "leaderboard.avg_format" = "med. %lld pts";
@@ -286,6 +287,7 @@
 "rank_disc.avg" = "MED.";
 "rank_disc.zen" = "ZEN";
 "rank_disc.five" = "FIVE";
+"rank_disc.super" = "SUPER";
 "rank_disc.duel" = "DUELO";
 
 "hud.time_caption" = "TIEMPO";
@@ -358,6 +360,8 @@
 "whatsnew.achievements" = "Logros de Game Center: lo que ya hiciste en el Salón también cuenta allí";
 "whatsnew.duel_pips" = "Duelo: cuatro puntos verdes, entre la barra de envío y el tiempo, muestran las líneas que enviaste. Se apagan cuando el otro las recibe";
 "whatsnew.ink_worst_move" = "Tinta: la pantalla de la peor jugada sigue el papel y las manchas";
+"whatsnew.super_challenge" = "Reto Super: un Zen del día, sin bomba al empezar. Se desbloquea tras 7 días de retos Arcade y Five";
+"whatsnew.super_best" = "Tu mejor puntuación Super: una pastilla junto a Five, y una pestaña en Puntuaciones. S RETO sigue siendo el podio";
 "whatsnew.dont_show" = "No volver a mostrar";
 
 /* Apariencia */

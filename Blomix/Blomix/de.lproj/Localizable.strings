@@ -148,6 +148,7 @@
 "leaderboard.avg_tab" = "Ø";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
+"leaderboard.super_tab" = "Super";
 "leaderboard.five_daily_tab" = "5 Tag";
 "leaderboard.super_daily_tab" = "S Tag";
 "leaderboard.avg_format" = "Ø %lld Pkt.";
@@ -294,6 +295,7 @@
 "rank_disc.avg" = "Ø";
 "rank_disc.zen" = "ZEN";
 "rank_disc.five" = "FIVE";
+"rank_disc.super" = "SUPER";
 "rank_disc.duel" = "DUELL";
 
 /* HUD captions */
@@ -371,6 +373,8 @@
 "whatsnew.achievements" = "Game-Center-Erfolge: was du im Trophäen-Salon schon geschafft hast, zählt auch dort";
 "whatsnew.duel_pips" = "Duell: vier grüne Punkte, zwischen der Sendeleiste und der Zeit, zeigen die Linien, die du geschickt hast. Sie erlöschen, wenn der andere sie bekommt";
 "whatsnew.ink_worst_move" = "Tinte: der Bildschirm des schlechtesten Zugs folgt dem Papier und den Farbflecken";
+"whatsnew.super_challenge" = "Super-Herausforderung: ein Zen des Tages, ohne Bombe zu Beginn. Sie öffnet sich nach 7 Tagen Arcade- und Five-Herausforderung";
+"whatsnew.super_best" = "Dein bestes Super-Ergebnis: eine Scheibe neben Five, und ein Reiter in Scores. S TAG bleibt das Podest";
 "whatsnew.dont_show" = "Nicht mehr anzeigen";
 
 /* Erscheinungsbild */

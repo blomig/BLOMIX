@@ -7,6 +7,17 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
+## [9.3] — en préparation (branche `super`, `MARKETING_VERSION` 9.3, build 171)
+
+iPhone et Watch compagnon passent ensemble en 9.3, build 171. Pas encore archivé ni envoyé. La 9.2 (build 170) reste la version en vente. Le popup d’accueil de ce binaire est la campagne `9.3` (Défi Super, puis le record Super). Il faut créer dans App Store Connect le classement `SuperMode` (meilleur score, entier, plus haut = mieux), comme `FiveMode`, et l’attacher à la review de la 9.3. Tant qu’il n’existe pas, la pastille et l’onglet restent vides.
+
+### Ajouté
+
+- **Record Super** : la ligne des scores de l’accueil a une cinquième pastille, SUPER, après Five. Elle ouvre le meilleur score du Défi Super. L’écran Score a le même onglet, sur la même ligne. S DÉFI ne change pas : c’est toujours le podium `dailywin_super`. Le score de la partie va sur `SuperMode` et sur `BlomixLocalSuperHighScore`. Il n’écrit ni `ZenMode` ni le record Zen. Au premier passage, l’appareil reprend le dernier score fini et, s’il est connecté, le plus haut des records CloudKit `super_{jour}_{joueur}` des jours déjà crédités.
+- **Nouveautés 9.3** : la popup (campagne `9.3`) et les notes App Store (6 langues) disent le Défi Super, absent de la campagne `9.1` livrée avec la 9.2, et l’accès au meilleur score.
+
+---
+
 ## [9.2] — en vente (branche `super`, `MARKETING_VERSION` 9.2, build 170, envoyé le 25/11/2026)
 
 iPhone et Watch compagnon sont en 9.2, build 170. La review `4a52ba82-e6d8-4839-8f00-dba19b11dbfd` a été envoyée le 25/11/2026 (`submittedDate` 2026-11-25T21:05:20Z), publication automatique à l’approbation. Le classement `dailywin_super` (version 1) est dans cette soumission. Pas de schéma CloudKit poussé depuis le dépôt. Le popup d’accueil de ce binaire est encore la campagne `9.1` (pastilles vertes du Duel, pire coup en Encre) : le Défi Super n’y figure pas. La prochaine distribution embarque une campagne qui décrit sa version.

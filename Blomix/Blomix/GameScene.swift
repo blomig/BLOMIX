@@ -1059,6 +1059,7 @@ final class GameScene: SKScene {
     private static let startScreenRankDiscDuelName       = "startScreenRankDiscDuel"
     private static let startScreenRankDiscDailyName      = "startScreenRankDiscDaily"
     private static let startScreenRankDiscFiveName       = "startScreenRankDiscFive"
+    private static let startScreenRankDiscSuperName      = "startScreenRankDiscSuper"
     private static let startScreenRankDiscFiveDailyName  = "startScreenRankDiscFiveDaily"
     private static let startScreenRankDiscSuperDailyName = "startScreenRankDiscSuperDaily"
     /// Suffixe ajouté au nom du disc pour nommer le SKLabelNode du rang (enfant direct de `discsContainer`).
@@ -2742,6 +2743,7 @@ final class GameScene: SKScene {
         let catCanvases = [
             BlomixL10n.rankDiscSolo, BlomixL10n.rankDiscAvg,
             BlomixL10n.rankDiscZen, BlomixL10n.rankDiscFive,
+            BlomixL10n.rankDiscSuper,
             BlomixL10n.rankDiscDuel, BlomixL10n.rankDiscDaily,
             BlomixL10n.rankDiscFiveDaily, BlomixL10n.rankDiscSuperDaily,
         ].map { BlomixButtonRelief.cutoutLayout(text: $0, fontSize: catFontSize, pad: catPad).canvas }
@@ -3351,6 +3353,9 @@ final class GameScene: SKScene {
         }
         BlomixSuperUnlock.bootstrapIfNeeded()
         BlomixSuperUnlock.refreshStreak()
+        Task { @MainActor in
+            await BlomixDailyChallenge.superDaily.seedSuperModeBestIfNeeded()
+        }
         clearAutoDropAim()
         childNode(withName: Self.startScreenOverlayName)?.removeFromParent()
 
@@ -3384,7 +3389,9 @@ final class GameScene: SKScene {
         let fullRanks = Self.homeRankZoneMetrics(scale: 1)
         let ranks = Self.homeRankZoneMetrics(scale: 0.8)
         let maxDiscRowW = size.width - 16
-        let discStep = min(ranks.rawDiscStep, (maxDiscRowW - ranks.discDiameter) / 3)
+        // Ligne 1 : 5 pastilles (dont Super). Ligne 2 : 4. Chaque ligne est centrée seule.
+        let discStepRow1 = min(ranks.rawDiscStep, (maxDiscRowW - ranks.discDiameter) / 4)
+        let discStepRow2 = min(ranks.rawDiscStep, (maxDiscRowW - ranks.discDiameter) / 3)
 
         let iconSide: CGFloat = 44
         let iconCaptionOffset: CGFloat = 32
@@ -3483,14 +3490,15 @@ final class GameScene: SKScene {
         let discRow1OffsetY = discRow1Y - discCenterY
         let discRow2OffsetY = discRow2Y - discCenterY
         let discSpecs: [(name: String, category: String, x: CGFloat, y: CGFloat)] = [
-            (Self.startScreenRankDiscSoloName,      BlomixL10n.rankDiscSolo,      -1.5 * discStep, discRow1OffsetY),
-            (Self.startScreenRankDiscAvgName,       BlomixL10n.rankDiscAvg,       -0.5 * discStep, discRow1OffsetY),
-            (Self.startScreenRankDiscZenName,       BlomixL10n.rankDiscZen,        0.5 * discStep, discRow1OffsetY),
-            (Self.startScreenRankDiscFiveName,      BlomixL10n.rankDiscFive,       1.5 * discStep, discRow1OffsetY),
-            (Self.startScreenRankDiscDuelName,       BlomixL10n.rankDiscDuel,       -1.5 * discStep, discRow2OffsetY),
-            (Self.startScreenRankDiscDailyName,      BlomixL10n.rankDiscDaily,      -0.5 * discStep, discRow2OffsetY),
-            (Self.startScreenRankDiscFiveDailyName,  BlomixL10n.rankDiscFiveDaily,   0.5 * discStep, discRow2OffsetY),
-            (Self.startScreenRankDiscSuperDailyName, BlomixL10n.rankDiscSuperDaily,  1.5 * discStep, discRow2OffsetY),
+            (Self.startScreenRankDiscSoloName,      BlomixL10n.rankDiscSolo,      -2 * discStepRow1, discRow1OffsetY),
+            (Self.startScreenRankDiscAvgName,       BlomixL10n.rankDiscAvg,       -1 * discStepRow1, discRow1OffsetY),
+            (Self.startScreenRankDiscZenName,       BlomixL10n.rankDiscZen,        0, discRow1OffsetY),
+            (Self.startScreenRankDiscFiveName,      BlomixL10n.rankDiscFive,       1 * discStepRow1, discRow1OffsetY),
+            (Self.startScreenRankDiscSuperName,     BlomixL10n.rankDiscSuper,      2 * discStepRow1, discRow1OffsetY),
+            (Self.startScreenRankDiscDuelName,       BlomixL10n.rankDiscDuel,       -1.5 * discStepRow2, discRow2OffsetY),
+            (Self.startScreenRankDiscDailyName,      BlomixL10n.rankDiscDaily,      -0.5 * discStepRow2, discRow2OffsetY),
+            (Self.startScreenRankDiscFiveDailyName,  BlomixL10n.rankDiscFiveDaily,   0.5 * discStepRow2, discRow2OffsetY),
+            (Self.startScreenRankDiscSuperDailyName, BlomixL10n.rankDiscSuperDaily,  1.5 * discStepRow2, discRow2OffsetY),
         ]
         for spec in discSpecs {
             let wrapper = SKNode()
@@ -5772,7 +5780,7 @@ final class GameScene: SKScene {
         refreshStartScreenRankDiscsIfVisible()
     }
 
-    /// Fetche le rang du joueur sur les 8 pastilles (4+4).
+    /// Fetche le rang du joueur sur les 9 pastilles (5+4).
     /// Les chiffres restent vides jusqu’à ce que **tous** les fetches aient répondu, puis stagger L→R.
     private func refreshStartScreenRankDiscsIfVisible() {
         guard isStartScreen else { return }
@@ -5784,6 +5792,7 @@ final class GameScene: SKScene {
             (ScoreManager.averageLeaderboardID,      Self.startScreenRankDiscAvgName),
             (ScoreManager.zenLeaderboardID,          Self.startScreenRankDiscZenName),
             (ScoreManager.fiveLeaderboardID,         Self.startScreenRankDiscFiveName),
+            (ScoreManager.superLeaderboardID,        Self.startScreenRankDiscSuperName),
             ("elotype",                              Self.startScreenRankDiscDuelName),
             (ScoreManager.dailyLeaderboardID,        Self.startScreenRankDiscDailyName),
             (ScoreManager.fiveDailyLeaderboardID,    Self.startScreenRankDiscFiveDailyName),
@@ -5819,7 +5828,8 @@ final class GameScene: SKScene {
             async let r5 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[5])
             async let r6 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[6])
             async let r7 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[7])
-            let ranks = await [r0, r1, r2, r3, r4, r5, r6, r7]
+            async let r8 = GameScene.loadStartScreenDiscRank(leaderboardID: ids[8])
+            let ranks = await [r0, r1, r2, r3, r4, r5, r6, r7, r8]
             guard let self else { return }
             guard generation == self.startScreenRankRevealGeneration, self.isStartScreen else { return }
             guard let overlay = self.childNode(withName: Self.startScreenOverlayName),
@@ -7269,6 +7279,11 @@ final class GameScene: SKScene {
         case .five:
             isNewPB = ScoreManager.shared.isNewFivePersonalBest(score)
             ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.fiveLeaderboardID, completion: nil)
+        case .superMode:
+            isNewPB = ScoreManager.shared.isNewSuperPersonalBest(score)
+            ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.superLeaderboardID, completion: nil)
+            // Pas de rang mondial ici : le libellé de rang suit `isZenMode` et dirait Zen.
+            celebrationAwaitingWorldRank = false
         case .zen:
             isNewPB = ScoreManager.shared.isNewZenPersonalBest(score)
             ScoreManager.shared.submitScore(score, leaderboardID: ScoreManager.zenLeaderboardID, completion: nil)
@@ -21695,6 +21710,10 @@ final class GameScene: SKScene {
             }
             if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscFiveName) {
                 pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .fiveScore) }
+                return
+            }
+            if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscSuperName) {
+                pendingButtonAction = { [weak self] in self?.showLeaderboard(initialTab: .superScore) }
                 return
             }
             if touchHitsStartScreenRankDisc(location, discName: Self.startScreenRankDiscFiveDailyName) {

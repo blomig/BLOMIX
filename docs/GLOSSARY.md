@@ -89,7 +89,7 @@
 | **Five** | `isFiveMode` | Pas de timer, pas de stages, ligne tous les **5**, classement `FiveMode`. Nom non traduit. |
 | **Défi Arcade** | `isDailyChallengeMode` + Arcade | Même Arcade, file seedée UTC (`blomix-daily-v1`), 1 run / jour, clôture minuit UTC + 2 h, hub CloudKit + points podium GC `dailywins_arc` |
 | **Défi Five** | `isDailyChallengeMode` + `isFiveMode` | Même Five, file seedée UTC (`blomix-five-v1`), 1 run / jour, CK `FiveDailyScore`, podium `dailywin_five` |
-| **Défi Super** | `isDailyChallengeMode` + `isZenMode` + `dailyChallengeKind == .superDaily` | Zen seedé (`blomix-super-v1`), 0 bombe au départ, 1 run / jour, CK `SuperDailyScore`, podium `dailywin_super`. Pas de score sur `ZenMode`. Débloqué après 7 jours UTC Arcade+Five. |
+| **Défi Super** | `isDailyChallengeMode` + `isZenMode` + `dailyChallengeKind == .superDaily` | Zen seedé (`blomix-super-v1`), 0 bombe au départ, 1 run / jour, CK `SuperDailyScore`, podium `dailywin_super`, record de run `SuperMode`. Pas de score sur `ZenMode`. Débloqué après 7 jours UTC Arcade+Five. |
 | **Référence BLOMIX** | `BlomixDailyGhost` | Score Arcade d’une run fantôme (lookahead 3 `computeOptimal`, Magix visés, bombes souples / Brix, sans timer). Ligne grise sous la date du hub : **Référence BLOMIX** + score — **pas** un joueur CloudKit, **pas** un optimum. |
 | **Duel** (PvP) | `BlomixPvPMatchCoordinator` | 1 vs 1 Game Center, RNG partagé, attaques |
 | **BABYBOT / MINIBOT / BOBBOT / BOT10 / BOTSUPREME / BOT1** | spec `BOT_DUEL.md` | Adversaires Duel locaux. Classement Elo **in-app**, pas des `GKPlayer`. **Non joué**. |

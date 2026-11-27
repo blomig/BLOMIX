@@ -148,6 +148,7 @@
 "leaderboard.avg_tab" = "Méd.";
 "leaderboard.zen_tab" = "Zen";
 "leaderboard.five_tab" = "Five";
+"leaderboard.super_tab" = "Super";
 "leaderboard.five_daily_tab" = "5 Dia";
 "leaderboard.super_daily_tab" = "S Dia";
 "leaderboard.avg_format" = "méd. %lld pts";
@@ -294,6 +295,7 @@
 "rank_disc.avg" = "MÉD.";
 "rank_disc.zen" = "ZEN";
 "rank_disc.five" = "FIVE";
+"rank_disc.super" = "SUPER";
 "rank_disc.duel" = "DUELO";
 
 /* HUD captions */
@@ -371,6 +373,8 @@
 "whatsnew.achievements" = "Conquistas do Game Center: o que você já fez no Salão também conta lá";
 "whatsnew.duel_pips" = "Duelo: quatro pontos verdes, entre a barra de envio e o tempo, mostram as linhas que você enviou. Eles apagam quando o outro as recebe";
 "whatsnew.ink_worst_move" = "Tinta: a tela da pior jogada segue o papel e as manchas";
+"whatsnew.super_challenge" = "Desafio Super: um Zen do dia, sem bomba no início. Ele abre depois de 7 dias de desafios Arcade e Five";
+"whatsnew.super_best" = "Sua melhor pontuação Super: uma pastilha ao lado de Five, e uma aba em Pontos. S DIA continua o pódio";
 "whatsnew.dont_show" = "Não mostrar de novo";
 
 /* Appearance */

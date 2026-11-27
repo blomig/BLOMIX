@@ -501,15 +501,21 @@ final class SuperDailyTests: XCTestCase {
         XCTAssertEqual(superSeed, BlomixDailySeed.seed(forDay: day, salt: BlomixDailySeed.superSalt))
     }
 
-    func testSuperGameOverDoesNotWriteTheZenRecord() {
+    func testSuperGameOverWritesSuperModeNotZen() {
         XCTAssertEqual(
             BlomixRunRecordSink.forGameOver(isSuperDaily: true, isFive: false, isZen: true),
-            .none
+            .superMode
+        )
+        XCTAssertNotEqual(
+            BlomixRunRecordSink.forGameOver(isSuperDaily: true, isFive: false, isZen: true),
+            .zen
         )
         XCTAssertEqual(
             BlomixRunRecordSink.forGameOver(isSuperDaily: false, isFive: false, isZen: true),
             .zen
         )
+        XCTAssertEqual(ScoreManager.superLeaderboardID, "SuperMode")
+        XCTAssertNotEqual(ScoreManager.superLeaderboardID, ScoreManager.zenLeaderboardID)
     }
 
     func testSevenCompleteDaysUnlockAndAGapResets() {

@@ -19,14 +19,15 @@ enum BlomixWhatsNew {
     /// tant qu’il ne change pas, la clé UserDefaults et le texte restent ceux de l’ancienne note.
     /// `8.9b` : des testeurs TestFlight ont pu taper « Ne plus montrer » sur `8.9`
     /// avant cette réécriture. Cette clé UserDefaults ne se réinitialise pas.
-    static let campaignID = "9.1"
+    /// La 9.2 en vente est encore partie avec `9.1`. `9.3` décrit le Défi Super et son record.
+    static let campaignID = "9.3"
     private static let defaultsKey = "blomix_whatsnew_dont_show_\(campaignID)"
 
     /// Puces du dialogue. À réécrire avec la campagne, pas en dur dans la vue.
     static var factTexts: [String] {
         [
-            BlomixL10n.whatsNewDuelPips,
-            BlomixL10n.whatsNewInkWorstMove,
+            BlomixL10n.whatsNewSuperChallenge,
+            BlomixL10n.whatsNewSuperBest,
         ]
     }
 

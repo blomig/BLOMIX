@@ -1,16 +1,16 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **9.1 / 169** en review ; **9.2 / 170** local (branche `super`).  
-> **CloudKit** : `DailyScore` et `FiveDailyScore` déployés en **Production**. `SuperDailyScore` **à créer** (schéma non poussé par ce dépôt).  
-> **Game Center** : `dailywins_arc`, `dailywin_five`. Super : **`dailywin_super` à créer** dans App Store Connect (pas d’s, comme Five).  
-> **Version de référence** : 9.2  
+> **Statut** : **9.2 / 170** en vente. **9.3 / 171** en préparation (record Super, pas encore envoyé).  
+> **CloudKit** : `DailyScore`, `FiveDailyScore` et `SuperDailyScore` en **Production**.  
+> **Game Center** : `dailywins_arc`, `dailywin_five`, `dailywin_super`. Record de run Super : **`SuperMode` à créer** dans App Store Connect (comme `FiveMode`).  
+> **Version de référence** : 9.3  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
 Objectif : **tout le monde joue la même partie** ce jour-là (file, Magix, lignes). **Trois défis indépendants** : Arcade (ligne /10), Five (ligne /5, sans timer), Super (Zen, 0 bombe au départ). UX simple. Classement du **jour** à l’écran Game Over + un classement Game Center des **points podium** cumulés **par défi**.
 
 ### Défi Super (9.2)
 
-Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `super`) : hub, save du jour, fantôme, podium +5/+3/+1 après minuit UTC + 2 h. La partie est un **Zen** (pas de timer, bombe 3×3, score ×1, ligne /10) avec `bombCount = 0` au départ. Les bombes gagnées en jeu restent. La file suit `blomix-super-v1` ; les effets Magix suivent `blomix-super-fx-v1`. Le score de la run **n’écrit pas** `ZenMode` ni `BlomixLocalZenHighScore`.
+Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `super`) : hub, save du jour, fantôme, podium +5/+3/+1 après minuit UTC + 2 h. La partie est un **Zen** (pas de timer, bombe 3×3, score ×1, ligne /10) avec `bombCount = 0` au départ. Les bombes gagnées en jeu restent. La file suit `blomix-super-v1` ; les effets Magix suivent `blomix-super-fx-v1`. Le score de la run **n’écrit pas** `ZenMode` ni `BlomixLocalZenHighScore`. Il va sur le classement `SuperMode` (`BlomixLocalSuperHighScore`, file `BlomixPendingSuperGCScore`). La pastille accueil **SUPER** et l’onglet Score **Super** lisent ce classement. **S DÉFI** reste le podium.
 
 | | Défi Super |
 |---|---|
@@ -18,11 +18,12 @@ Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `sup
 | Graine | `blomix-super-v1` / fx `blomix-super-fx-v1` |
 | Save | `blomix_super_daily_save_v1` (`kindRaw` = `super`) |
 | Jour fini | `blomix_super_daily_finished_day` / `_score` |
+| Record de run | `BlomixLocalSuperHighScore`, pending `BlomixPendingSuperGCScore`, drapeau de rattrapage `blomix_super_mode_best_seeded` |
 | Crédit podium | `credited_super_{YYYY-MM-DD}` |
 | Carrière locale | `blomix_super_daily_career_points`, pending `blomix_super_daily_pending_gc_points` |
 | Rang pastille | `blomix_super_daily_career_rank` / `_pid` |
 | Fantôme | `blomix_super_daily_ghost_day` / `_score` / `_ver` (même `engineVersion` 5) |
-| Game Center | `dailywin_super` |
+| Game Center | `dailywin_super` (podium) et `SuperMode` (meilleur score de run) |
 | CloudKit | `SuperDailyScore`, recordName `super_{YYYY-MM-DD}_{gamePlayerID}` |
 | Télémétrie | `daily_super` |
 | Salon | `play_daily_super` (pas de réalisation Game Center) |
@@ -38,7 +39,7 @@ Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `sup
 - Déblocage : au retour accueil, pulse de la puce (sauf Réduire les animations) et panneau `daily.super.unlocked`.
 - DEBUG seulement : Réglages, « Débloquer le Défi Super » et « Remettre la série Super à 0 ».
 
-**CloudKit Dashboard (à créer une fois)** — Public DB, Production, type `SuperDailyScore` :
+**CloudKit Dashboard** — Public DB, Production, type `SuperDailyScore` (déjà en Production) :
 
 | Champ | Type | Index |
 |---|---|---|
@@ -49,7 +50,7 @@ Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `sup
 
 `day` est en **minuscules**, comme Arcade. Five reste `Day`. `recordName` n’est pas queryable : ne pas l’indexer. `displayName` et `gamePlayerID` ne sont pas indexés. Requête : type `SuperDailyScore`, filtre `day` == `YYYY-MM-DD`, pas de tri sur `recordName`. Déployer Development → Production avant qu’un ⌘R écrive (l’entitlement est déjà Production).
 
-**Game Center** : classement classique entier, meilleur score, plus haut = mieux, identifiant **`dailywin_super`**.
+**Game Center** : podium classique entier, identifiant **`dailywin_super`** (déjà en Production). Record de run : classement **`SuperMode`**, meilleur score, plus haut = mieux, à créer comme `FiveMode` et à attacher à la review 9.3.
 
 ---
 

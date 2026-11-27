@@ -1,2 +1,2 @@
-• Duel: four green dots, between the send bar and the timer, show the lines you sent. They go out when the other player takes them.
-• Ink: the worst-move screen follows the paper and the washes.
+• Super Challenge: a daily Zen, starting with no bomb. It unlocks after 7 days of Arcade and Five challenges.
+• Your best Super score: a disc next to Five, and a tab in Scores. S Day stays the podium.

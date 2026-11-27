@@ -1,2 +1,2 @@
-• Duelo: cuatro puntos verdes, entre la barra de envío y el tiempo, muestran las líneas que enviaste. Se apagan cuando el otro las recibe.
-• Tinta: la pantalla de la peor jugada sigue el papel y las manchas.
+• Reto Super: un Zen del día, sin bomba al empezar. Se desbloquea tras 7 días de retos Arcade y Five.
+• Tu mejor puntuación Super: una pastilla junto a Five, y una pestaña en Puntuaciones. S RETO sigue siendo el podio.

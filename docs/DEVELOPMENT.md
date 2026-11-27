@@ -1,6 +1,6 @@
 # Blomix — Guide de développement
 
-> **Version de référence** : 9.2  
+> **Version de référence** : 9.3  
 > **Dernière mise à jour** : novembre 2026
 
 ---
@@ -31,14 +31,14 @@ open Blomix/Blomix.xcodeproj
 
 | Paramètre Xcode | Valeur actuelle |
 |---|---|
-| `MARKETING_VERSION` | 9.2 (iPhone et Watch) |
-| `CURRENT_PROJECT_VERSION` | 170 (iPhone et Watch) |
+| `MARKETING_VERSION` | 9.3 (iPhone et Watch) |
+| `CURRENT_PROJECT_VERSION` | 171 (iPhone et Watch) |
 | `PRODUCT_BUNDLE_IDENTIFIER` | `blomig.BLOMIX` |
 | `SWIFT_VERSION` | 6.0 |
 | Orientations | Portrait uniquement |
 | Watch | cible `BLOMIX Watch`, bundle `blomig.BLOMIX.watchkitapp`, watchOS 10+ (plancher device ; layout 40 mm) |
 
-Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **9.2 / 170** en vente (branche `super`, envoyé le 25/11/2026, publication automatique). Le popup d’accueil de ce binaire est encore la campagne `9.1`. La prochaine distribution doit en embarquer un qui décrit sa version. Watch : même `MARKETING_VERSION` et même `CURRENT_PROJECT_VERSION` que l’iPhone. Apple refuse l’archive sinon (`altool` 90379). watchOS ne remplace la montre déjà installée que si le build augmente (147 → 170 le fait). Les clés de partie Watch ne changent pas.
+Schéma **BLOMIX Watch** pour le simulateur / la montre. Compagnon embarqué dans l’IPA iPhone (`Embed Watch Content`). **9.2 / 170** en vente (branche `super`, envoyé le 25/11/2026, publication automatique). Ce binaire a encore la campagne `9.1`. Le source est en **9.3 / 171**, popup campagne `9.3`, pas encore archivé. Watch : même `MARKETING_VERSION` et même `CURRENT_PROJECT_VERSION` que l’iPhone. Apple refuse l’archive sinon (`altool` 90379). watchOS ne remplace la montre déjà installée que si le build augmente (147 → 170 le fait). Les clés de partie Watch ne changent pas.
 
 ---
 

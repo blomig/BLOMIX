@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **8.6** (build 158, local) — **8.5** (build 157) en vente |
+| Version courante | **9.3** (build 171, local, pas encore envoyé) — **9.2** (build 170) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |
@@ -120,7 +120,7 @@ La logique gameplay est concentrée dans :
 | `BlomixProceduralSFX.swift` | SFX Magix procéduraux |
 | `BlomixMusicPlayer.swift` | Musique par stage |
 | `GameViewController.swift` | Root UIKit, invitations, tutoriel |
-| `LeaderboardViewController.swift` | Classements UIKit (7 onglets 4+3) |
+| `LeaderboardViewController.swift` | Classements UIKit (9 onglets 5+4) |
 | `BlomixDailyChallenge.swift` | Défi Arcade / Five (CK, save, podium) |
 | `BlomixDailyHubViewController.swift` | Hub paramétré (`kind:`) |
 | `BlomixDailyGhost.swift` | Fantôme seedé (ligne /10 ou /5) |

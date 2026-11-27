@@ -129,7 +129,7 @@ Après le splash, une fois par campagne (`BlomixWhatsNew`). **Ce n’est pas** l
 2. Réécrire `factTexts` et les clés des puces en **FR + EN + DE + ES + IT + PT**.
 3. Si des testeurs ont déjà tapé « Ne plus montrer » et que les puces changent encore avant la release : nouvel id (ex. `8.9b`).
 
-Campagne dans le binaire **en vente** **9.2 / 170** : encore **`9.1`**. Le source **9.3 / 171** (pas encore envoyé) est la campagne **`9.3`**.
+Campagne du binaire **9.3 / 171** (en review) : **`9.3`**. Le binaire encore en vente, **9.2 / 170**, affiche encore **`9.1`** jusqu’à l’approbation.
 
 | Clé | Usage |
 |---|---|

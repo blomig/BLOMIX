@@ -10,7 +10,7 @@ Instructions pour les agents (et humains) qui travaillent sur ce dépôt.
 
 | | |
 |---|---|
-| Version courante | **9.3** (build 171, local, pas encore envoyé) — **9.2** (build 170) en vente |
+| Version courante | **9.3** (build 171, en review) — **9.2** (build 170) en vente |
 | Plateforme | iOS 18+, portrait |
 | Stack | Swift 6, UIKit + SpriteKit, Game Center, CloudKit |
 | Bundle ID | `blomig.BLOMIX` |

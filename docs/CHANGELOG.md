@@ -7,9 +7,9 @@ Versions alignées sur `MARKETING_VERSION` dans Xcode.
 
 ---
 
-## [9.3] — en préparation (branche `super`, `MARKETING_VERSION` 9.3, build 171)
+## [9.3] — en review (branche `super`, `MARKETING_VERSION` 9.3, build 171, envoyé le 27/11/2026)
 
-iPhone et Watch compagnon passent ensemble en 9.3, build 171. Pas encore archivé ni envoyé. La 9.2 (build 170) reste la version en vente. Le popup d’accueil de ce binaire est la campagne `9.3` (Défi Super, puis le record Super). Il faut créer dans App Store Connect le classement `SuperMode` (meilleur score, entier, plus haut = mieux), comme `FiveMode`, et l’attacher à la review de la 9.3. Tant qu’il n’existe pas, la pastille et l’onglet restent vides.
+iPhone et Watch compagnon sont en 9.3, build 171. La review `9398c489-977c-4090-945a-acd165946d84` a été envoyée le 27/11/2026 (`submittedDate` 2026-11-27T06:27:34Z), publication automatique à l’approbation. Le classement `SuperMode` (version 1, meilleur score, plus haut = mieux) est dans cette soumission. La 9.2 (build 170) reste en vente jusqu’à l’approbation. Le popup d’accueil de ce binaire est la campagne `9.3` (Défi Super, puis le record Super).
 
 ### Ajouté
 

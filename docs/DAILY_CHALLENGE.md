@@ -1,8 +1,8 @@
 # BLOMIX — Défi du jour (graine)
 
-> **Statut** : **9.2 / 170** en vente. **9.3 / 171** en préparation (record Super, pas encore envoyé).  
+> **Statut** : **9.3 / 171** en review (envoyé le 27/11/2026, publication automatique). **9.2 / 170** reste en vente jusqu’à l’approbation.  
 > **CloudKit** : `DailyScore`, `FiveDailyScore` et `SuperDailyScore` en **Production**.  
-> **Game Center** : `dailywins_arc`, `dailywin_five`, `dailywin_super`. Record de run Super : **`SuperMode` à créer** dans App Store Connect (comme `FiveMode`).  
+> **Game Center** : `dailywins_arc`, `dailywin_five`, `dailywin_super`, et `SuperMode` (record de run, dans la review 9.3).  
 > **Version de référence** : 9.3  
 > Voir aussi [MODE_PISTES.md](MODE_PISTES.md) § Graine du jour, [MAGIX.md](MAGIX.md), [RULES.md](RULES.md).
 
@@ -50,7 +50,7 @@ Même pipeline que les deux autres (`BlomixDailyKind.superDaily`, raw value `sup
 
 `day` est en **minuscules**, comme Arcade. Five reste `Day`. `recordName` n’est pas queryable : ne pas l’indexer. `displayName` et `gamePlayerID` ne sont pas indexés. Requête : type `SuperDailyScore`, filtre `day` == `YYYY-MM-DD`, pas de tri sur `recordName`. Déployer Development → Production avant qu’un ⌘R écrive (l’entitlement est déjà Production).
 
-**Game Center** : podium classique entier, identifiant **`dailywin_super`** (déjà en Production). Record de run : classement **`SuperMode`**, meilleur score, plus haut = mieux, à créer comme `FiveMode` et à attacher à la review 9.3.
+**Game Center** : podium classique entier, identifiant **`dailywin_super`** (déjà en Production). Record de run : classement **`SuperMode`**, meilleur score, plus haut = mieux, créé comme `FiveMode` et joint à la review 9.3. Il passe en ligne avec l’approbation.
 
 ---
 
